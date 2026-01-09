@@ -1,10 +1,16 @@
 name: Quick Secret Check
 
 on:
-  push:
-    branches:
-      - 'claude/**'
-  workflow_dispatch:
+  workflow_dispatch:  # הרצה ידנית בלבד - אין trigger על push
+
+# Minimal permissions - principle of least privilege
+permissions:
+  contents: read
+
+# Prevent concurrent runs
+concurrency:
+  group: quick-check-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check-secrets:
