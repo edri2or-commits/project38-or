@@ -59,3 +59,7 @@ logs/
 tmp/
 temp/
 *.tmp
+
+# PR creation helpers
+PR_DETAILS.md
+create_pr.sh
