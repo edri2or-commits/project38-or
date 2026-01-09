@@ -6,15 +6,15 @@ All secrets are loaded into memory and never logged or printed.
 """
 
 import os
-from typing import Optional, Dict
-from google.cloud import secretmanager
+
 from google.api_core import exceptions
+from google.cloud import secretmanager
 
 
 class SecretManager:
     """Secure interface for GCP Secret Manager"""
 
-    def __init__(self, project_id: Optional[str] = None):
+    def __init__(self, project_id: str | None = None):
         """
         Initialize Secret Manager client
 
@@ -23,9 +23,9 @@ class SecretManager:
         """
         self.project_id = project_id or "project38-483612"
         self.client = secretmanager.SecretManagerServiceClient()
-        self._secrets_cache: Dict[str, str] = {}
+        self._secrets_cache: dict[str, str] = {}
 
-    def get_secret(self, secret_id: str, version: str = "latest") -> Optional[str]:
+    def get_secret(self, secret_id: str, version: str = "latest") -> str | None:
         """
         Retrieve a secret from Secret Manager
 
@@ -97,7 +97,7 @@ class SecretManager:
         result = self.get_secret(secret_id)
         return result is not None
 
-    def load_secrets_to_env(self, secret_mapping: Dict[str, str]) -> int:
+    def load_secrets_to_env(self, secret_mapping: dict[str, str]) -> int:
         """
         Load secrets into environment variables
 
@@ -126,7 +126,7 @@ class SecretManager:
         self._secrets_cache.clear()
 
 
-def get_secret(secret_id: str, project_id: Optional[str] = None) -> Optional[str]:
+def get_secret(secret_id: str, project_id: str | None = None) -> str | None:
     """
     Convenience function to get a single secret
 
