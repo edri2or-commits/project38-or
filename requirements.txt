@@ -1,0 +1,6 @@
+# GCP Secret Manager
+google-cloud-secret-manager>=2.16.0
+
+# Core dependencies
+google-auth>=2.23.0
+google-api-core>=2.14.0
