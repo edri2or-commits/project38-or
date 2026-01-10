@@ -260,10 +260,32 @@ python src/secrets_manager.py
 ### Adding a New Feature
 1. Create feature branch: `git checkout -b feature/name`
 2. Implement with tests
-3. Run linter and tests
+3. Run linter and tests locally
 4. Commit with conventional message
 5. Push and create PR
-6. Wait for human review
+6. **Verify CI passes** (see below)
+7. Wait for human review
+
+### Verifying CI Status (Mandatory)
+
+**After every push, I MUST verify CI passes before declaring "done":**
+
+```bash
+# Check PR status
+gh pr checks <pr-number> --watch
+
+# Or check workflow runs
+gh run list --branch <branch-name>
+gh run view <run-id>
+```
+
+**If CI fails:**
+1. Read the error from `gh run view <run-id> --log-failed`
+2. Fix the issue locally
+3. Push again
+4. Repeat until all checks pass
+
+**Never say "done" until CI is green.**
 
 ### Accessing Secrets
 ```python
