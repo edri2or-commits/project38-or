@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Manual trigger (workflow_dispatch) for docs-check.yml workflow
 - GitHub PAT security guidelines in docs/SECURITY.md
 - Claude Code Web environment configuration documentation in CLAUDE.md
 - GitHub MCP Server documentation in CLAUDE.md (autonomy configuration)
