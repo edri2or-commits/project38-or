@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- GitHub MCP Server documentation in CLAUDE.md (autonomy configuration)
 - Tests for github_auth module
 - pytest pythonpath configuration in pyproject.toml
 - GitHub App authentication module (github_auth.py, github_auth.sh)

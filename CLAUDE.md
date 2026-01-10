@@ -210,9 +210,55 @@ project38-or/
 - Search codebase (Glob, Grep)
 - Run tests and linters
 - Create/update feature branches
-- Open/update Pull Requests
+- Open/update Pull Requests (via GitHub MCP Server)
 - Generate documentation
 - Add comments to issues
+
+---
+
+## GitHub MCP Server (Autonomy)
+
+Claude Code uses the official [GitHub MCP Server](https://github.com/github/github-mcp-server) for autonomous GitHub operations.
+
+### Configuration (User Scope)
+
+```bash
+claude mcp add github https://api.githubcopilot.com/mcp --transport http --header "Authorization: Bearer <PAT>" --scope user
+```
+
+### Required PAT Permissions (Fine-grained)
+
+| Permission | Level | Purpose |
+|------------|-------|---------|
+| Contents | Read and write | Push commits, read files |
+| Pull requests | Read and write | Create/merge PRs |
+| Issues | Read and write | Create/update issues |
+| Metadata | Read | Required (automatic) |
+| Actions | Read | View CI status (optional) |
+
+### Verify Configuration
+
+```bash
+claude mcp list
+# Should show: github: https://api.githubcopilot.com/mcp (HTTP) - ✓ Connected
+```
+
+### Security Notes
+
+- PAT is stored in `~/.claude.json` (user scope)
+- Use Fine-grained PAT with minimal permissions
+- Scope PAT to specific repositories only
+- Set expiration (90 days recommended)
+- Rotate PAT periodically
+
+### Why MCP over gh CLI?
+
+| Aspect | gh CLI | GitHub MCP Server |
+|--------|--------|-------------------|
+| Auth persistence | Per-session | Permanent (user scope) |
+| Integration | External tool | Native Claude tool |
+| Rate limits | 5,000/hr (PAT) | 5,000/hr (PAT) |
+| Setup | Each environment | Once per user |
 
 ---
 
