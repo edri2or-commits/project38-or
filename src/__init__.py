@@ -1,4 +1,4 @@
-"""Project38-OR - GCP Secret Manager Integration"""
+"""Project38-OR - GCP Secret Manager Integration."""
 
 from .secrets_manager import SecretManager, get_secret
 
