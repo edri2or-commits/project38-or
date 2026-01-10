@@ -1,4 +1,3 @@
-#
 # Workload Identity Federation (WIF) Setup Script (PowerShell)
 #
 # Purpose: Configure GitHub Actions to authenticate with GCP using OIDC tokens
@@ -25,7 +24,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Colors (Windows Terminal / PowerShell 7+)
+# Colors
 function Write-ColorOutput($ForegroundColor, $Message) {
     Write-Host $Message -ForegroundColor $ForegroundColor
 }
@@ -38,9 +37,9 @@ Write-Host ""
 # Check if gcloud is installed
 try {
     $gcloudVersion = gcloud --version 2>&1 | Select-Object -First 1
-    Write-ColorOutput Green "✓ gcloud CLI found: $gcloudVersion"
+    Write-ColorOutput Green "OK gcloud CLI found: $gcloudVersion"
 } catch {
-    Write-ColorOutput Red "✗ gcloud CLI not found!"
+    Write-ColorOutput Red "ERROR gcloud CLI not found"
     Write-Host "Please install from: https://cloud.google.com/sdk/docs/install"
     exit 1
 }
@@ -49,87 +48,52 @@ Write-Host ""
 # Step 1: Get project number
 Write-ColorOutput Yellow "[1/6] Getting project number..."
 $ProjectNumber = gcloud projects describe $ProjectId --format="value(projectNumber)"
-Write-ColorOutput Green "✓ Project Number: $ProjectNumber"
+Write-ColorOutput Green "OK Project Number: $ProjectNumber"
 Write-Host ""
 
 # Step 2: Enable required APIs
 Write-ColorOutput Yellow "[2/6] Enabling required APIs..."
 gcloud services enable iamcredentials.googleapis.com sts.googleapis.com --project=$ProjectId
-Write-ColorOutput Green "✓ APIs enabled"
+Write-ColorOutput Green "OK APIs enabled"
 Write-Host ""
 
 # Step 3: Create Workload Identity Pool
 Write-ColorOutput Yellow "[3/6] Creating Workload Identity Pool..."
-$poolExists = $false
-try {
-    gcloud iam workload-identity-pools describe $PoolName `
-        --project=$ProjectId `
-        --location="global" 2>&1 | Out-Null
-    $poolExists = $LASTEXITCODE -eq 0
-} catch {
-    $poolExists = $false
-}
-
-if ($poolExists) {
-    Write-ColorOutput Yellow "⚠ Pool '$PoolName' already exists, skipping..."
+$poolOutput = gcloud iam workload-identity-pools describe $PoolName --project=$ProjectId --location="global" 2>&1
+if ($LASTEXITCODE -eq 0) {
+    Write-ColorOutput Yellow "WARNING Pool '$PoolName' already exists, skipping..."
 } else {
-    gcloud iam workload-identity-pools create $PoolName `
-        --project=$ProjectId `
-        --location="global" `
-        --display-name="GitHub Actions Pool"
-    Write-ColorOutput Green "✓ Workload Identity Pool created"
+    gcloud iam workload-identity-pools create $PoolName --project=$ProjectId --location="global" --display-name="GitHub Actions Pool"
+    Write-ColorOutput Green "OK Workload Identity Pool created"
 }
 Write-Host ""
 
 # Step 4: Create OIDC Provider
 Write-ColorOutput Yellow "[4/6] Creating OIDC Provider..."
-$providerExists = $false
-try {
-    gcloud iam workload-identity-pools providers describe $ProviderName `
-        --project=$ProjectId `
-        --location="global" `
-        --workload-identity-pool=$PoolName 2>&1 | Out-Null
-    $providerExists = $LASTEXITCODE -eq 0
-} catch {
-    $providerExists = $false
-}
-
-if ($providerExists) {
-    Write-ColorOutput Yellow "⚠ Provider '$ProviderName' already exists, skipping..."
+$providerOutput = gcloud iam workload-identity-pools providers describe $ProviderName --project=$ProjectId --location="global" --workload-identity-pool=$PoolName 2>&1
+if ($LASTEXITCODE -eq 0) {
+    Write-ColorOutput Yellow "WARNING Provider '$ProviderName' already exists, skipping..."
 } else {
-    gcloud iam workload-identity-pools providers create-oidc $ProviderName `
-        --project=$ProjectId `
-        --location="global" `
-        --workload-identity-pool=$PoolName `
-        --display-name="GitHub Provider" `
-        --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" `
-        --attribute-condition="assertion.repository_owner == '$GitHubOwner'" `
-        --issuer-uri="https://token.actions.githubusercontent.com"
-    Write-ColorOutput Green "✓ OIDC Provider created"
+    gcloud iam workload-identity-pools providers create-oidc $ProviderName --project=$ProjectId --location="global" --workload-identity-pool=$PoolName --display-name="GitHub Provider" --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" --attribute-condition="assertion.repository_owner == '$GitHubOwner'" --issuer-uri="https://token.actions.githubusercontent.com"
+    Write-ColorOutput Green "OK OIDC Provider created"
 }
 Write-Host ""
 
 # Step 5: Grant Service Account Impersonation
 Write-ColorOutput Yellow "[5/6] Granting Service Account impersonation rights..."
-gcloud iam service-accounts add-iam-policy-binding $ServiceAccount `
-    --project=$ProjectId `
-    --role="roles/iam.workloadIdentityUser" `
-    --member="principalSet://iam.googleapis.com/projects/$ProjectNumber/locations/global/workloadIdentityPools/$PoolName/attribute.repository/$GitHubRepo"
-Write-ColorOutput Green "✓ Impersonation rights granted"
+$memberValue = "principalSet://iam.googleapis.com/projects/$ProjectNumber/locations/global/workloadIdentityPools/$PoolName/attribute.repository/$GitHubRepo"
+gcloud iam service-accounts add-iam-policy-binding $ServiceAccount --project=$ProjectId --role="roles/iam.workloadIdentityUser" --member=$memberValue
+Write-ColorOutput Green "OK Impersonation rights granted"
 Write-Host ""
 
 # Step 6: Get Provider Resource Name
 Write-ColorOutput Yellow "[6/6] Retrieving Provider Resource Name..."
-$ProviderResourceName = gcloud iam workload-identity-pools providers describe $ProviderName `
-    --project=$ProjectId `
-    --location="global" `
-    --workload-identity-pool=$PoolName `
-    --format="value(name)"
+$ProviderResourceName = gcloud iam workload-identity-pools providers describe $ProviderName --project=$ProjectId --location="global" --workload-identity-pool=$PoolName --format="value(name)"
 Write-Host ""
 
 # Success summary
 Write-ColorOutput Green "========================================"
-Write-ColorOutput Green "  ✓ WIF Setup Complete!"
+Write-ColorOutput Green "  OK WIF Setup Complete!"
 Write-ColorOutput Green "========================================"
 Write-Host ""
 Write-Host "Provider Resource Name:"
@@ -147,5 +111,5 @@ Write-ColorOutput Yellow "     with:"
 Write-ColorOutput Yellow "       workload_identity_provider: '$ProviderResourceName'"
 Write-ColorOutput Yellow "       service_account: '$ServiceAccount'"
 Write-Host ""
-Write-Host "3. No Service Account key needed - GitHub will use OIDC tokens!"
+Write-Host "3. No Service Account key needed!"
 Write-Host ""
