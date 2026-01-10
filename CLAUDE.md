@@ -213,6 +213,74 @@ project38-or/
 - Open/update Pull Requests (via GitHub MCP Server)
 - Generate documentation
 - Add comments to issues
+- **Use specialized Skills** for complex workflows
+
+---
+
+## Available Skills
+
+Claude Code supports **Skills** - version-controlled, reusable agent behaviors that enable standardized workflow automation. Skills are stored in `.claude/skills/` and define scoped tool access, safety constraints, and step-by-step instructions.
+
+### doc-updater (v1.0.0)
+
+**Purpose:** Autonomous documentation maintainer that ensures code changes are reflected in documentation.
+
+**Triggers:**
+- Changes to `src/` directory
+- Keywords: `documentation`, `docs`, `docstring`, `changelog`, `api reference`
+- CI workflow `docs-check.yml` failures
+
+**What it does:**
+1. Detects code changes in `src/`
+2. Validates/adds docstrings (Google style)
+3. Updates API documentation in `docs/api/`
+4. Adds changelog entries to `docs/changelog.md`
+5. Updates getting-started guide if needed
+6. Validates with pydocstyle and mkdocs build
+
+**When to use:**
+```bash
+# After modifying functions/classes
+# Simply mention documentation needs:
+"Update documentation for the changes I just made to src/secrets_manager.py"
+
+# Or when CI fails:
+"The docs-check workflow failed, please update the documentation"
+```
+
+**Integration with CI:**
+- Skill runs **proactively** during development
+- `docs-check.yml` workflow **validates** before merge
+- Together they enforce **Zero Tolerance Documentation**
+
+**Files:**
+- Skill definition: `.claude/skills/doc-updater/SKILL.md`
+- Skills documentation: `.claude/skills/README.md`
+
+**Safety:**
+- `plan_mode_required: false` (low-risk operations)
+- Allowed tools: Read, Edit, Write, Bash (mkdocs, pydocstyle, pytest), Grep, Glob
+- Never modifies code logic, only documentation
+
+**Success metrics:**
+- ✅ Every code change has corresponding documentation update
+- ✅ `docs-check.yml` CI workflow passes on first try
+- ✅ pydocstyle reports zero violations
+- ✅ mkdocs build completes without warnings
+- ✅ Changelog is updated for every PR
+
+### Creating New Skills
+
+See `.claude/skills/README.md` for:
+- Skill structure and templates
+- Best practices
+- Safety patterns
+- Integration with workflows
+
+**Planned skills:**
+- 🔄 `test-runner` - Run tests before commit
+- 🔄 `security-checker` - Validate no secrets in commits
+- 🔄 `pr-helper` - Standardized PR creation
 
 ---
 

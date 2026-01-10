@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Claude Skills infrastructure in `.claude/skills/` directory
+- doc-updater skill (v1.0.0) for autonomous documentation maintenance in `.claude/skills/doc-updater/SKILL.md`
+- Skills README with usage guide and best practices in `.claude/skills/README.md`
+- Available Skills section in `CLAUDE.md:220-283` documenting skill system
 - Manual trigger (workflow_dispatch) for docs-check.yml workflow
 - Complete test coverage for exception handling scenarios (100% coverage achieved)
 - Test for RequestException in github_auth.get_installation_token()
