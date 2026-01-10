@@ -1,133 +1,85 @@
 # API Reference
 
-## SecretManager
+## סקירה מהירה
 
 המודול הראשי לגישה מאובטחת ל-GCP Secret Manager.
-
-### Class: SecretManager
 
 ```python
 from src.secrets_manager import SecretManager
 
-manager = SecretManager(project_id: str | None = None)
+manager = SecretManager()
+secret = manager.get_secret("ANTHROPIC-API")
 ```
-
-**Parameters:**
-
-| פרמטר | טיפוס | ברירת מחדל | תיאור |
-|-------|-------|-------------|-------|
-| `project_id` | `str \| None` | `"project38-483612"` | GCP Project ID |
-
-### Methods
-
-#### get_secret
-
-```python
-def get_secret(self, secret_id: str, version: str = "latest") -> str | None
-```
-
-שליפת סוד מ-Secret Manager.
-
-**Parameters:**
-
-| פרמטר | טיפוס | ברירת מחדל | תיאור |
-|-------|-------|-------------|-------|
-| `secret_id` | `str` | - | שם הסוד |
-| `version` | `str` | `"latest"` | גרסה לשליפה |
-
-**Returns:** `str | None` - ערך הסוד או None אם לא נמצא
 
 !!! warning "אזהרה"
-    לעולם אל תדפיס או תרשום את הערך המוחזר!
+    לעולם אל תדפיס או תרשום ערכי סודות!
 
 ---
 
-#### list_secrets
+## SecretManager Class
 
-```python
-def list_secrets(self) -> list[str]
-```
-
-רשימת כל הסודות הזמינים (שמות בלבד).
-
-**Returns:** `list[str]` - רשימת שמות הסודות
-
----
-
-#### verify_access
-
-```python
-def verify_access(self, secret_id: str) -> bool
-```
-
-אימות גישה לסוד בלי לטעון את הערך.
-
-**Parameters:**
-
-| פרמטר | טיפוס | תיאור |
-|-------|-------|-------|
-| `secret_id` | `str` | שם הסוד לאימות |
-
-**Returns:** `bool` - True אם הסוד נגיש
+::: src.secrets_manager.SecretManager
+    options:
+      show_root_heading: true
+      heading_level: 3
+      members:
+        - __init__
+        - get_secret
+        - list_secrets
+        - verify_access
+        - load_secrets_to_env
+        - clear_cache
 
 ---
 
-#### load_secrets_to_env
+## Convenience Functions
+
+::: src.secrets_manager.get_secret
+    options:
+      show_root_heading: true
+      heading_level: 3
+
+---
+
+## דוגמאות שימוש
+
+### שליפת סוד בודד
 
 ```python
-def load_secrets_to_env(self, secret_mapping: dict[str, str]) -> int
+from src.secrets_manager import SecretManager
+
+manager = SecretManager()
+api_key = manager.get_secret("ANTHROPIC-API")
+
+# השתמש בסוד (אל תדפיס!)
+client = SomeAPIClient(api_key=api_key)
 ```
 
-טעינת סודות למשתני סביבה.
-
-**Parameters:**
-
-| פרמטר | טיפוס | תיאור |
-|-------|-------|-------|
-| `secret_mapping` | `dict[str, str]` | מיפוי שם משתנה → שם סוד |
-
-**Returns:** `int` - מספר הסודות שנטענו בהצלחה
-
-**Example:**
+### טעינה למשתני סביבה
 
 ```python
+import os
+from src.secrets_manager import SecretManager
+
+manager = SecretManager()
 manager.load_secrets_to_env({
-    "DATABASE_URL": "db-connection-string",
-    "API_KEY": "external-api-key"
+    "OPENAI_API_KEY": "OPENAI-API",
+    "TELEGRAM_TOKEN": "TELEGRAM-BOT-TOKEN"
 })
+
+# עכשיו זמינים כמשתני סביבה
+openai_key = os.environ["OPENAI_API_KEY"]
 ```
 
----
-
-#### clear_cache
+### ניקוי אחרי שימוש
 
 ```python
-def clear_cache(self) -> None
-```
+manager = SecretManager()
+secret = manager.get_secret("some-secret")
 
-ניקוי ה-cache של הסודות.
+# ... use secret ...
 
-!!! tip "טיפ"
-    קרא לפונקציה זו אחרי שימוש בסודות לשחרור זיכרון.
-
----
-
-## Convenience Function
-
-### get_secret
-
-```python
-from src.secrets_manager import get_secret
-
-secret = get_secret(secret_id: str, project_id: str | None = None) -> str | None
-```
-
-פונקציית נוחות לשליפת סוד יחיד.
-
-**Example:**
-
-```python
-from src.secrets_manager import get_secret
-
-api_key = get_secret("ANTHROPIC-API")
+# נקה מהזיכרון
+del secret
+manager.clear_cache()
 ```
