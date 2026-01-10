@@ -316,20 +316,143 @@ def detect_secrets_in_content(content: str) -> list[str]:
     return found_secrets
 
 
+def main() -> int:
+    """Main CLI entry point for doc_updater.
+
+    Returns:
+        Exit code: 0 for success, 1 for failure
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Documentation updater - maintains changelog and docstring sync"
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check if documentation needs update (exit 1 if yes)",
+    )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Verify docstrings and check for secrets",
+    )
+    parser.add_argument(
+        "--suggest",
+        action="store_true",
+        help="Suggest changelog entries for changed files",
+    )
+
+    args = parser.parse_args()
+
+    # If no args provided, show example usage
+    if not any(vars(args).values()):
+        print("=== Documentation Updater Utilities ===\n")
+
+        # Check for changed files
+        changed = get_changed_python_files()
+        print(f"Changed Python files: {changed or 'None'}\n")
+
+        # Demonstrate changelog management
+        manager = ChangelogManager()
+        print(f"Changelog location: {manager.changelog_path}")
+        print(f"Changelog exists: {manager.changelog_path.exists()}\n")
+
+        # Demonstrate docstring checking
+        checker = DocstringChecker()
+        success, output = checker.check()
+        print(f"Docstring check: {output}")
+        return 0
+
+    # --check: Verify documentation is up to date
+    if args.check:
+        changed_files = get_changed_python_files()
+        if not changed_files:
+            print("✅ No changes detected in src/")
+            return 0
+
+        print(f"⚠️  Detected {len(changed_files)} changed Python files:")
+        for file in changed_files:
+            print(f"  - {file}")
+
+        # Check if changelog was updated
+        try:
+            manager = ChangelogManager()
+            changelog_content = manager.read_current()
+
+            # Simple heuristic: check if any changed file is mentioned
+            files_documented = sum(
+                1 for f in changed_files if f in changelog_content
+            )
+
+            if files_documented == 0:
+                print("\n❌ Changelog may need updating!")
+                print("Run with --suggest to see suggested entries")
+                return 1
+            else:
+                print(f"\n✅ {files_documented}/{len(changed_files)} files appear in changelog")
+                return 0
+
+        except FileNotFoundError:
+            print("❌ Changelog not found!")
+            return 1
+
+    # --verify: Check docstrings and secrets
+    if args.verify:
+        print("=== Verification Report ===\n")
+        all_passed = True
+
+        # 1. Check docstrings
+        print("1. Docstring Check:")
+        checker = DocstringChecker()
+        success, output = checker.check()
+        print(f"   {output}")
+        if not success:
+            all_passed = False
+
+        # 2. Check for secrets in staged changes
+        print("\n2. Secret Detection:")
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--cached"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            secrets = detect_secrets_in_content(result.stdout)
+            if secrets:
+                print(f"   ❌ Potential secrets detected: {len(secrets)} patterns")
+                for secret in secrets[:3]:  # Show first 3
+                    print(f"      - {secret[:30]}...")
+                all_passed = False
+            else:
+                print("   ✅ No secrets detected in staged changes")
+
+        except subprocess.CalledProcessError:
+            print("   ⚠️  Could not check staged changes (not a git repo?)")
+
+        return 0 if all_passed else 1
+
+    # --suggest: Generate changelog suggestions
+    if args.suggest:
+        changed_files = get_changed_python_files()
+        if not changed_files:
+            print("✅ No changes detected - no suggestions needed")
+            return 0
+
+        print("=== Suggested Changelog Entries ===\n")
+        print("## [Unreleased]\n")
+        print("### Changed")
+        for file in changed_files:
+            print(f"- Updated `{file}`")
+
+        print("\n💡 Review and customize these entries in docs/changelog.md")
+        return 0
+
+    return 0
+
+
 if __name__ == "__main__":
-    # Example usage
-    print("=== Documentation Updater Utilities ===\n")
+    import sys
 
-    # Check for changed files
-    changed = get_changed_python_files()
-    print(f"Changed Python files: {changed or 'None'}\n")
-
-    # Demonstrate changelog management
-    manager = ChangelogManager()
-    print(f"Changelog location: {manager.changelog_path}")
-    print(f"Changelog exists: {manager.changelog_path.exists()}\n")
-
-    # Demonstrate docstring checking
-    checker = DocstringChecker()
-    success, output = checker.check()
-    print(f"Docstring check: {output}")
+    sys.exit(main())

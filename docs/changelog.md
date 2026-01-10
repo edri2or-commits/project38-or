@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Doc-updater automation workflow (.github/workflows/doc-updater.yml)
+- CLI interface for doc_updater with --check, --verify, --suggest flags
+- Automated documentation sync checks on PRs
 - Doc-updater autonomous skill (.claude/skills/doc-updater/SKILL.md)
 - Helper module `src/doc_updater.py` for changelog and docstring management
 - `ChangelogManager` class for automatic changelog updates

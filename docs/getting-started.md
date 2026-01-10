@@ -147,6 +147,33 @@ if not success:
 /doc-updater
 ```
 
+### שימוש דרך CLI
+
+```bash
+# בדוק אם התיעוד מעודכן
+python3 src/doc_updater.py --check
+
+# אמת docstrings וסרוק סודות
+python3 src/doc_updater.py --verify
+
+# קבל הצעות לעדכון changelog
+python3 src/doc_updater.py --suggest
+
+# הצג מידע כללי (ברירת מחדל)
+python3 src/doc_updater.py
+```
+
+**Exit Codes:**
+- `0` - הכל תקין
+- `1` - נדרשת תשומת לב (changelog חסר, docstrings שגויים, וכו')
+
+### Automation אוטומטית
+
+ה-skill רץ באופן אוטומטי:
+- ✅ **GitHub Actions** - בכל PR שמשנה קבצי `src/`
+- ✅ **Manual Trigger** - דרך workflow_dispatch
+- 📋 **Pre-commit** - ניתן להתקנה מקומית (ראה SKILL.md)
+
 ה-skill יבצע באופן אוטומטי:
 1. **זיהוי שינויים** - מזהה קבצי Python שהשתנו ב-src/
 2. **עדכון changelog** - מוסיף ערכים ל-docs/changelog.md

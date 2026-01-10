@@ -1,0 +1,88 @@
+name: Documentation Updater
+
+# Automated documentation check and suggestions
+# Runs on PRs that modify src/ files
+
+on:
+  workflow_dispatch:  # Manual trigger
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**/*.py'
+
+permissions:
+  contents: read
+  pull-requests: write  # To post comments
+
+concurrency:
+  group: doc-updater-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-documentation:
+    name: Check documentation sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run documentation check
+        id: doc_check
+        run: |
+          echo "Running doc-updater --check..."
+          python3 src/doc_updater.py --check || echo "check_failed=true" >> $GITHUB_OUTPUT
+
+      - name: Run verification
+        id: verify
+        run: |
+          echo "Running doc-updater --verify..."
+          python3 src/doc_updater.py --verify
+
+      - name: Generate suggestions
+        if: failure()
+        run: |
+          echo "=== Documentation Update Suggestions ==="
+          python3 src/doc_updater.py --suggest
+
+  verify-docstrings:
+    name: Verify docstrings
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install pydocstyle
+        run: pip install pydocstyle
+
+      - name: Check docstrings
+        run: |
+          echo "Checking all docstrings in src/..."
+          pydocstyle src/ --convention=google || {
+            echo ""
+            echo "❌ Docstring errors detected!"
+            echo "Run: python3 src/doc_updater.py --verify"
+            exit 1
+          }
+          echo "✅ All docstrings valid"
