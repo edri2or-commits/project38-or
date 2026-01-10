@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - MkDocs documentation with Material theme
-- Automatic documentation system
+- Automatic documentation system with mkdocstrings
 - GitHub Pages deployment
 - pytest framework with coverage
 - Python linting with ruff
-- Agent workflow for issue handling
+- Agent workflow for issue handling (`/claude` command)
 - SecretManager for GCP Secret Manager access
+- CLAUDE.md project context file
+- Research summaries (7 documents in docs/research/)
+- Requirements lockfile for reproducible builds
 
 ### Security
 - Workflow hardening (removed push triggers)
