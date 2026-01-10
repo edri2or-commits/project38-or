@@ -210,9 +210,75 @@ project38-or/
 - Search codebase (Glob, Grep)
 - Run tests and linters
 - Create/update feature branches
-- Open/update Pull Requests
+- Open/update Pull Requests (via GitHub MCP Server)
 - Generate documentation
 - Add comments to issues
+
+---
+
+## GitHub MCP Server (Autonomy)
+
+Claude Code uses the official [GitHub MCP Server](https://github.com/github/github-mcp-server) for autonomous GitHub operations.
+
+### Configuration (User Scope)
+
+```bash
+claude mcp add github https://api.githubcopilot.com/mcp --transport http --header "Authorization: Bearer <PAT>" --scope user
+```
+
+### Required PAT Permissions (Fine-grained)
+
+| Permission | Level | Purpose |
+|------------|-------|---------|
+| Contents | Read and write | Push commits, read files |
+| Pull requests | Read and write | Create/merge PRs |
+| Issues | Read and write | Create/update issues |
+| Metadata | Read | Required (automatic) |
+| Actions | Read | View CI status (optional) |
+
+### Verify Configuration
+
+```bash
+claude mcp list
+# Should show: github: https://api.githubcopilot.com/mcp (HTTP) - ✓ Connected
+```
+
+### Security Notes
+
+- PAT is stored in `~/.claude.json` (user scope)
+- Use Fine-grained PAT with minimal permissions
+- Scope PAT to specific repositories only
+- Set expiration (90 days recommended)
+- Rotate PAT periodically
+
+### Why MCP over gh CLI?
+
+| Aspect | gh CLI | GitHub MCP Server |
+|--------|--------|-------------------|
+| Auth persistence | Per-session | Permanent (user scope) |
+| Integration | External tool | Native Claude tool |
+| Rate limits | 5,000/hr (PAT) | 5,000/hr (PAT) |
+| Setup | Each environment | Once per user |
+
+### Claude Code Web Configuration
+
+For web sessions, configure environment variables through the Claude UI:
+
+1. Click on current Environment name (top left)
+2. Select "Add environment" or edit existing
+3. Add environment variable:
+   ```
+   GH_TOKEN=github_pat_XXXXX
+   ```
+4. Start new session with that environment
+
+**Verify in web session:**
+```bash
+echo "GH_TOKEN is: ${GH_TOKEN:+SET}"
+gh auth status
+```
+
+**Note:** Web sessions don't share local `~/.claude.json` config. Each environment needs its own GH_TOKEN.
 
 ---
 
@@ -246,12 +312,45 @@ When Railway is set up:
 
 Run tests before any commit:
 ```bash
-# When pytest is set up:
-pytest tests/
-
-# For now, verify secrets module:
-python src/secrets_manager.py
+pytest tests/ -v
 ```
+
+### Pytest Configuration (Critical)
+
+This project uses a **src layout** where source code is in `src/` and tests are in `tests/`. For imports to work correctly, `pyproject.toml` must include:
+
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]  # REQUIRED for src layout
+```
+
+**Why this matters:**
+- Without `pythonpath = ["src"]`, tests cannot import from `src/` modules
+- CI will fail with `ModuleNotFoundError` errors
+- This is the standard pytest configuration for src layouts
+
+### Writing Tests
+
+Tests should use mocking for external dependencies:
+
+```python
+from unittest.mock import MagicMock, patch
+
+def test_example():
+    """Test description."""
+    with patch("src.module.external_call") as mock_call:
+        mock_call.return_value = "test_value"
+        # Test your code
+        result = your_function()
+        assert result == expected
+```
+
+**Key patterns:**
+- Mock external APIs (GCP, GitHub) to avoid real calls
+- Use `patch()` for replacing dependencies
+- Each test class groups related tests
+- Test file naming: `test_<module>.py`
 
 ---
 

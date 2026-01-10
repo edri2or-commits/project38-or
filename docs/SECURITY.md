@@ -128,6 +128,51 @@ manager.clear_cache()
 
 ---
 
+## 🔑 GitHub Personal Access Token (PAT)
+
+לאוטונומיה של Claude Code, משתמשים ב-Fine-grained PAT:
+
+### הנחיות אבטחה
+
+| כלל | הסבר |
+|-----|------|
+| **הרשאות מינימליות** | רק Contents, Pull requests, Issues |
+| **scope לריפו ספציפי** | לא לתת גישה לכל הריפוזיטוריז |
+| **תוקף מוגבל** | 90 יום מקסימום |
+| **רוטציה תקופתית** | להחליף לפני פקיעת תוקף |
+| **לא לשתף** | כל משתמש צריך PAT משלו |
+
+### איפה לשמור PAT
+
+| סביבה | מיקום | אבטחה |
+|-------|-------|-------|
+| Claude Code CLI | `~/.claude.json` | מוצפן מקומית |
+| Claude Code Web | Environment variables בממשק | מוצפן על ידי Anthropic |
+| CI/CD | GitHub Secrets | מוצפן על ידי GitHub |
+
+### ❌ אל תעשה
+
+```bash
+# רע - PAT בקוד
+GH_TOKEN="ghp_xxxx" git push
+
+# רע - PAT בקובץ שנשמר בגיט
+echo "GH_TOKEN=ghp_xxxx" > .env
+git add .env
+```
+
+### ✅ עשה
+
+```bash
+# טוב - משתנה סביבה
+export GH_TOKEN="ghp_xxxx"
+
+# טוב - Claude Code Web environment
+# (הגדר בממשק, לא בקוד)
+```
+
+---
+
 ## 📝 דיווח על בעיות אבטחה
 
 אם מצאת בעיית אבטחה:
