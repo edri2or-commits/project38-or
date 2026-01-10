@@ -81,6 +81,23 @@ class TestGetInstallationToken:
 
                     assert result == "ghs_test"
 
+    def test_returns_none_on_request_exception(self):
+        """Test that None is returned when requests raises exception."""
+        import requests
+
+        with patch("src.github_auth.SecretManager") as mock_sm:
+            with patch("src.github_auth.generate_jwt") as mock_jwt:
+                with patch("src.github_auth.requests.post") as mock_post:
+                    mock_sm.return_value.get_secret.return_value = "fake_key"
+                    mock_jwt.return_value = "fake.jwt"
+                    mock_post.side_effect = requests.RequestException("Network error")
+
+                    from src.github_auth import get_installation_token
+
+                    result = get_installation_token()
+
+                    assert result is None
+
 
 class TestConfigureGhCli:
     """Tests for gh CLI configuration."""
@@ -108,3 +125,37 @@ class TestConfigureGhCli:
                 result = configure_gh_cli()
 
                 assert result is False
+
+    def test_returns_false_on_subprocess_error(self):
+        """Test that False is returned when subprocess raises exception."""
+        import subprocess
+
+        with patch("src.github_auth.get_installation_token") as mock_token:
+            with patch("src.github_auth.shutil.which") as mock_which:
+                with patch("subprocess.run") as mock_run:
+                    mock_token.return_value = "test_token"
+                    mock_which.return_value = "/usr/bin/gh"
+                    mock_run.side_effect = subprocess.SubprocessError("Command failed")
+
+                    from src.github_auth import configure_gh_cli
+
+                    result = configure_gh_cli()
+
+                    assert result is False
+
+    def test_returns_true_on_success(self):
+        """Test that True is returned when gh auth succeeds."""
+        with patch("src.github_auth.get_installation_token") as mock_token:
+            with patch("src.github_auth.shutil.which") as mock_which:
+                with patch("subprocess.run") as mock_run:
+                    mock_token.return_value = "test_token"
+                    mock_which.return_value = "/usr/bin/gh"
+                    mock_result = MagicMock()
+                    mock_result.returncode = 0
+                    mock_run.return_value = mock_result
+
+                    from src.github_auth import configure_gh_cli
+
+                    result = configure_gh_cli()
+
+                    assert result is True
