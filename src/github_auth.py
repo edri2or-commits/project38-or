@@ -1,12 +1,7 @@
-"""
-GitHub App Authentication - Generate installation access tokens.
+"""GitHub App Authentication - Generate installation access tokens."""
 
-This module generates short-lived installation tokens from a GitHub App
-private key stored in GCP Secret Manager. Tokens are valid for 1 hour.
-"""
-
+import shutil
 import time
-from typing import Optional
 
 import jwt
 import requests
@@ -19,15 +14,14 @@ GITHUB_INSTALLATION_ID = 100231961
 
 
 def generate_jwt(app_id: int, private_key: str) -> str:
-    """
-    Generate a JWT for GitHub App authentication.
+    """Generate a JWT for GitHub App authentication.
 
     Args:
-        app_id: The GitHub App ID
-        private_key: The PEM-encoded private key
+        app_id: The GitHub App ID.
+        private_key: The PEM-encoded private key.
 
     Returns:
-        A signed JWT string valid for 10 minutes
+        A signed JWT string valid for 10 minutes.
     """
     now = int(time.time())
     payload = {
@@ -41,16 +35,15 @@ def generate_jwt(app_id: int, private_key: str) -> str:
 def get_installation_token(
     app_id: int = GITHUB_APP_ID,
     installation_id: int = GITHUB_INSTALLATION_ID,
-) -> Optional[str]:
-    """
-    Get an installation access token for the GitHub App.
+) -> str | None:
+    """Get an installation access token for the GitHub App.
 
     Args:
-        app_id: The GitHub App ID
-        installation_id: The installation ID for the repo/org
+        app_id: The GitHub App ID.
+        installation_id: The installation ID for the repo/org.
 
     Returns:
-        An installation access token valid for 1 hour, or None on failure
+        An installation access token valid for 1 hour, or None on failure.
 
     Note:
         The token is never logged or printed to prevent exposure.
@@ -82,11 +75,10 @@ def get_installation_token(
 
 
 def configure_gh_cli() -> bool:
-    """
-    Configure the gh CLI with an installation token.
+    """Configure the gh CLI with an installation token.
 
     Returns:
-        True if configuration succeeded, False otherwise
+        True if configuration succeeded, False otherwise.
 
     Example:
         >>> if configure_gh_cli():
@@ -103,16 +95,22 @@ def configure_gh_cli() -> bool:
     # Set token for gh CLI
     os.environ["GH_TOKEN"] = token
 
+    # Find gh executable path
+    gh_path = shutil.which("gh")
+    if not gh_path:
+        return False
+
     # Verify authentication
     try:
         result = subprocess.run(
-            ["gh", "auth", "status"],
+            [gh_path, "auth", "status"],
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
         return result.returncode == 0
-    except (subprocess.SubprocessError, FileNotFoundError):
+    except subprocess.SubprocessError:
         return False
 
 

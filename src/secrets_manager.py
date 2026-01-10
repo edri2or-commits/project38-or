@@ -1,9 +1,4 @@
-"""
-GCP Secret Manager - Secure secret access module
-
-This module provides secure access to GCP Secret Manager without exposing secrets.
-All secrets are loaded into memory and never logged or printed.
-"""
+"""GCP Secret Manager - Secure secret access module."""
 
 import os
 
@@ -12,32 +7,30 @@ from google.cloud import secretmanager
 
 
 class SecretManager:
-    """Secure interface for GCP Secret Manager"""
+    """Secure interface for GCP Secret Manager."""
 
     def __init__(self, project_id: str | None = None):
-        """
-        Initialize Secret Manager client
+        """Initialize Secret Manager client.
 
         Args:
-            project_id: GCP project ID (defaults to project38-483612)
+            project_id: GCP project ID (defaults to project38-483612).
         """
         self.project_id = project_id or "project38-483612"
         self.client = secretmanager.SecretManagerServiceClient()
         self._secrets_cache: dict[str, str] = {}
 
     def get_secret(self, secret_id: str, version: str = "latest") -> str | None:
-        """
-        Retrieve a secret from Secret Manager
+        """Retrieve a secret from Secret Manager.
 
         Args:
-            secret_id: The name of the secret
-            version: The version to retrieve (default: "latest")
+            secret_id: The name of the secret.
+            version: The version to retrieve (default: "latest").
 
         Returns:
-            The secret value as string, or None if not found
+            The secret value as string, or None if not found.
 
         Note:
-            Secrets are never logged or printed to prevent exposure
+            Secrets are never logged or printed to prevent exposure.
         """
         # Check cache first
         cache_key = f"{secret_id}:{version}"
@@ -64,11 +57,10 @@ class SecretManager:
             return None
 
     def list_secrets(self) -> list:
-        """
-        List all available secrets (names only, not values)
+        """List all available secrets (names only, not values).
 
         Returns:
-            List of secret names
+            List of secret names.
         """
         try:
             parent = f"projects/{self.project_id}"
@@ -85,28 +77,26 @@ class SecretManager:
             return []
 
     def verify_access(self, secret_id: str) -> bool:
-        """
-        Verify access to a secret without retrieving its value
+        """Verify access to a secret without retrieving its value.
 
         Args:
-            secret_id: The name of the secret to verify
+            secret_id: The name of the secret to verify.
 
         Returns:
-            True if secret exists and is accessible, False otherwise
+            True if secret exists and is accessible, False otherwise.
         """
         result = self.get_secret(secret_id)
         return result is not None
 
     def load_secrets_to_env(self, secret_mapping: dict[str, str]) -> int:
-        """
-        Load secrets into environment variables
+        """Load secrets into environment variables.
 
         Args:
-            secret_mapping: Dict mapping env var name to secret name
-                           e.g., {"DATABASE_URL": "db-connection-string"}
+            secret_mapping: Dict mapping env var name to secret name.
+                           e.g., {"DATABASE_URL": "db-connection-string"}.
 
         Returns:
-            Number of successfully loaded secrets
+            Number of successfully loaded secrets.
         """
         loaded = 0
 
@@ -122,20 +112,19 @@ class SecretManager:
         return loaded
 
     def clear_cache(self):
-        """Clear the secrets cache"""
+        """Clear the secrets cache."""
         self._secrets_cache.clear()
 
 
 def get_secret(secret_id: str, project_id: str | None = None) -> str | None:
-    """
-    Convenience function to get a single secret
+    """Convenience function to get a single secret.
 
     Args:
-        secret_id: The name of the secret
-        project_id: GCP project ID (optional)
+        secret_id: The name of the secret.
+        project_id: GCP project ID (optional).
 
     Returns:
-        The secret value or None
+        The secret value or None.
     """
     manager = SecretManager(project_id)
     return manager.get_secret(secret_id)
