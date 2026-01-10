@@ -8,11 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Comprehensive WIF migration plan in `docs/wif-migration-plan.md` with step-by-step GCP setup instructions
+- Manual setup guide for GitHub Admin tasks in `docs/manual-setup-guide.md` (branch protection + environments)
 - test-runner skill (v1.0.0) for automated test execution before commits in `.claude/skills/test-runner/SKILL.md`
 - security-checker skill (v1.0.0) for validating no secrets in commits in `.claude/skills/security-checker/SKILL.md`
 - pr-helper skill (v1.0.0) for standardized PR creation in `.claude/skills/pr-helper/SKILL.md`
 - Complete skills documentation in `CLAUDE.md:272-453` for all four skills
 - Updated Skills README with test-runner, security-checker, and pr-helper documentation in `.claude/skills/README.md:51-176`
+
 - Claude Skills infrastructure in `.claude/skills/` directory
 - doc-updater skill (v1.0.0) for autonomous documentation maintenance in `.claude/skills/doc-updater/SKILL.md`
 - Skills README with usage guide and best practices in `.claude/skills/README.md`
@@ -45,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLAUDE.md project context file
 - Research summaries (7 documents in docs/research/)
 - Requirements lockfile for reproducible builds
+
+### Changed
+- Updated BOOTSTRAP_PLAN.md with completed tasks and pending manual execution items
+- Enhanced Success Metrics table with current status indicators (100% test coverage achieved)
 
 ### Security
 - Workflow hardening (removed push triggers)

@@ -171,31 +171,74 @@ Based on research analysis:
 
 ## Next Actions (Ordered)
 
-### Immediate (This Session)
-- [x] Harden workflows (PR #2)
+### ✅ Completed (2026-01-10)
+- [x] Harden workflows
 - [x] Create research summaries
 - [x] Write BOOTSTRAP_PLAN.md
+- [x] Create CLAUDE.md with project context
+- [x] Implement agent-dev workflow
+- [x] Add testing framework (pytest with 100% coverage)
+- [x] Build autonomous skills (doc-updater, test-runner, security-checker, pr-helper)
+- [x] Create CI/CD workflows (test, lint, docs-check)
+- [x] Document GitHub MCP Server setup
+- [x] **Plan WIF migration** (documented in `docs/wif-migration-plan.md`)
+- [x] **Plan Branch Protection** (documented in `docs/manual-setup-guide.md`)
+- [x] **Plan GitHub Environment** (documented in `docs/manual-setup-guide.md`)
 
-### Next Session
-1. Create CLAUDE.md with project context
-2. Set up GitHub Environment "Production"
-3. Add branch protection rules
-4. Consider WIF migration (requires your GCP project access)
+### 🔄 Pending Manual Execution (Requires Admin Access)
 
-### Future Sessions
-1. Implement agent-dev workflow
-2. Add testing framework
-3. Build first autonomous skill (doc-updater)
-4. Implement Railway deployment pipeline
+These tasks are **planned and documented**, but require **human execution** with GitHub Admin and GCP Owner permissions:
+
+1. **GitHub Branch Protection** (5 min)
+   - Follow: `docs/manual-setup-guide.md` Section 1
+   - Requires: GitHub Admin access
+   - Impact: Prevents direct pushes to main
+
+2. **GitHub Environment "Production"** (5 min)
+   - Follow: `docs/manual-setup-guide.md` Section 2
+   - Requires: GitHub Admin access
+   - Impact: Enables deployment approval gates
+
+3. **WIF Migration** (75 min)
+   - Follow: `docs/wif-migration-plan.md`
+   - Requires: GCP Owner/Admin access
+   - Impact: Eliminates static Service Account keys
+   - Risk: Low (rollback plan documented)
+
+### 📋 Future Sessions
+
+1. **Execute WIF Migration** (after gaining GCP access)
+   - Run Phase 1 commands from `docs/wif-migration-plan.md`
+   - Claude Code can handle Phase 2-4 (workflow updates, testing, cleanup)
+
+2. **Implement Railway Deployment Pipeline**
+   - Create `deploy-railway.yml` workflow
+   - Use "Production" environment for approval gate
+   - Document Railway-specific secrets strategy
+
+3. **Enhance Skills System**
+   - Add `changelog-updater` skill (auto-update changelog on commits)
+   - Add `dependency-checker` skill (audit npm/pip dependencies)
+   - Add `performance-monitor` skill (track workflow execution times)
+
+4. **Advanced CI/CD**
+   - Implement preview deployments for PRs
+   - Add integration tests with test database
+   - Set up monitoring/alerting for production
 
 ---
 
 ## Success Metrics
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| Secrets in GitHub Secrets | 1 (bootstrap only) | 1 |
-| Workflows with explicit permissions | 100% | 100% |
-| Push triggers in workflows | 0 | 0 |
-| PRs auto-deployed without review | 0 | 0 |
-| Test coverage | >80% | 0% |
+| Metric | Target | Current | Status |
+|--------|--------|---------|--------|
+| Secrets in GitHub Secrets | 1 (bootstrap only) | 1 | ✅ Target met |
+| Workflows with explicit permissions | 100% | 100% | ✅ Target met |
+| Push triggers in workflows | 0 | 0 | ✅ Target met |
+| PRs auto-deployed without review | 0 | 0 | ✅ Target met |
+| Test coverage | >80% | **100%** | ✅ Exceeded target |
+| Autonomous Skills | 3+ | **4** | ✅ Exceeded target |
+| Documentation coverage | 100% | **100%** | ✅ Target met |
+| Branch protection enabled | Yes | **Pending** | ⏳ Requires manual setup |
+| GitHub Environment configured | Yes | **Pending** | ⏳ Requires manual setup |
+| WIF migration completed | Yes | **Pending** | ⏳ Requires GCP access |
