@@ -155,9 +155,9 @@ project38-or/
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment
-│   ├── docs-check.yml        # Changelog & docstring enforcement
-│   ├── lint.yml              # PR linting
-│   ├── test.yml              # PR testing
+│   ├── docs-check.yml        # Changelog & docstring enforcement (workflow_dispatch + PR)
+│   ├── lint.yml              # PR linting (workflow_dispatch + PR)
+│   ├── test.yml              # PR testing (workflow_dispatch + PR)
 │   ├── verify-secrets.yml    # workflow_dispatch only
 │   ├── quick-check.yml       # workflow_dispatch only
 │   ├── report-secrets.yml    # workflow_dispatch only
