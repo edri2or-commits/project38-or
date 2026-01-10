@@ -69,7 +69,10 @@ Personal AI System with autonomous GCP Secret Manager integration. This is a **p
 
 ## Automatic Documentation Rules
 
-**This is mandatory - no exceptions:**
+**This is mandatory - enforced by CI:**
+
+> ⚠️ PRs that modify `src/` without updating `docs/changelog.md` will FAIL.
+> Docstrings are checked by pydocstyle (Google style required).
 
 ### When I Change Code:
 | Change Type | Documentation Action |
@@ -152,6 +155,7 @@ project38-or/
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment
+│   ├── docs-check.yml        # Changelog & docstring enforcement
 │   ├── lint.yml              # PR linting
 │   ├── test.yml              # PR testing
 │   ├── verify-secrets.yml    # workflow_dispatch only
