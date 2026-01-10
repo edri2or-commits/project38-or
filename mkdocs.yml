@@ -1,0 +1,63 @@
+site_name: Project38-OR
+site_description: Personal AI System with GCP Secret Manager integration
+site_url: https://edri2or-commits.github.io/project38-or/
+
+repo_name: edri2or-commits/project38-or
+repo_url: https://github.com/edri2or-commits/project38-or
+
+theme:
+  name: material
+  language: he
+  direction: rtl
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - בית: index.md
+  - התחלה מהירה: getting-started.md
+  - אבטחה: SECURITY.md
+  - ארכיטקטורה:
+      - תוכנית Bootstrap: BOOTSTRAP_PLAN.md
+      - מחקר:
+          - סקירה: research/index.md
+          - תשתית תיעוד: research/01_documentation_infrastructure_zero_tolerance.summary.md
+          - SQLModel vs SQLAlchemy: research/02_sqlmodel_vs_sqlalchemy_async_persistence.summary.md
+          - Claude Code Architecture: research/03_claude_code_architecture_technical_guide.summary.md
+          - Agent Layer: research/04_autonomous_agent_layer_architecture.summary.md
+          - Agentic Fortress: research/05_agentic_fortress_security_architecture.summary.md
+          - Documentation Agents: research/06_autonomous_documentation_agents.summary.md
+          - Claude Skills: research/07_claude_skills_enterprise_implementation.summary.md
+  - API Reference: api/index.md

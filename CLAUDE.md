@@ -92,6 +92,7 @@ project38-or/
 │   └── secrets_manager.py    # USE THIS for all secret access
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
+│   ├── docs.yml              # Documentation deployment
 │   ├── lint.yml              # PR linting
 │   ├── test.yml              # PR testing
 │   ├── verify-secrets.yml    # workflow_dispatch only
@@ -100,10 +101,14 @@ project38-or/
 │   └── gcp-secret-manager.yml
 ├── tests/                     # pytest tests
 ├── research/                  # Research documents (read-only)
-├── docs/
+├── docs/                      # MkDocs source
+│   ├── index.md              # Home page
+│   ├── getting-started.md    # Quick start guide
 │   ├── SECURITY.md           # Security documentation
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
+│   ├── api/                  # API reference
 │   └── research/             # Research summaries
+├── mkdocs.yml                 # MkDocs configuration
 ├── CLAUDE.md                  # This file
 └── README.md
 ```
