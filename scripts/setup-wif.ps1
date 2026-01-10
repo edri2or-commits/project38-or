@@ -22,7 +22,7 @@ param(
     [string]$GitHubOwner = "edri2or-commits"
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 # Colors
 function Write-ColorOutput($ForegroundColor, $Message) {
@@ -59,23 +59,35 @@ Write-Host ""
 
 # Step 3: Create Workload Identity Pool
 Write-ColorOutput Yellow "[3/6] Creating Workload Identity Pool..."
-$poolOutput = gcloud iam workload-identity-pools describe $PoolName --project=$ProjectId --location="global" 2>&1
-if ($LASTEXITCODE -eq 0) {
+$poolCheck = gcloud iam workload-identity-pools describe $PoolName --project=$ProjectId --location="global" 2>$null
+if ($poolCheck) {
     Write-ColorOutput Yellow "WARNING Pool '$PoolName' already exists, skipping..."
 } else {
+    Write-Host "Creating new pool..."
     gcloud iam workload-identity-pools create $PoolName --project=$ProjectId --location="global" --display-name="GitHub Actions Pool"
-    Write-ColorOutput Green "OK Workload Identity Pool created"
+    if ($LASTEXITCODE -eq 0) {
+        Write-ColorOutput Green "OK Workload Identity Pool created"
+    } else {
+        Write-ColorOutput Red "ERROR Failed to create pool"
+        exit 1
+    }
 }
 Write-Host ""
 
 # Step 4: Create OIDC Provider
 Write-ColorOutput Yellow "[4/6] Creating OIDC Provider..."
-$providerOutput = gcloud iam workload-identity-pools providers describe $ProviderName --project=$ProjectId --location="global" --workload-identity-pool=$PoolName 2>&1
-if ($LASTEXITCODE -eq 0) {
+$providerCheck = gcloud iam workload-identity-pools providers describe $ProviderName --project=$ProjectId --location="global" --workload-identity-pool=$PoolName 2>$null
+if ($providerCheck) {
     Write-ColorOutput Yellow "WARNING Provider '$ProviderName' already exists, skipping..."
 } else {
+    Write-Host "Creating new provider..."
     gcloud iam workload-identity-pools providers create-oidc $ProviderName --project=$ProjectId --location="global" --workload-identity-pool=$PoolName --display-name="GitHub Provider" --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" --attribute-condition="assertion.repository_owner == '$GitHubOwner'" --issuer-uri="https://token.actions.githubusercontent.com"
-    Write-ColorOutput Green "OK OIDC Provider created"
+    if ($LASTEXITCODE -eq 0) {
+        Write-ColorOutput Green "OK OIDC Provider created"
+    } else {
+        Write-ColorOutput Red "ERROR Failed to create provider"
+        exit 1
+    }
 }
 Write-Host ""
 
