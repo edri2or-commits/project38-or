@@ -59,6 +59,65 @@ Personal AI System with autonomous GCP Secret Manager integration. This is a **p
 
 3. **Run tests before committing**
 
+4. **Update documentation automatically:**
+   - When changing code in `src/` → update `docs/api/`
+   - When adding features → update relevant docs
+   - When changing behavior → update `docs/getting-started.md`
+   - Always keep docs in sync with code
+
+---
+
+## Automatic Documentation Rules
+
+**This is mandatory - no exceptions:**
+
+### When I Change Code:
+| Change Type | Documentation Action |
+|-------------|---------------------|
+| New function/class | Add docstring + update API docs |
+| Modified function | Update docstring + API docs |
+| New feature | Update getting-started.md |
+| Bug fix | Update changelog |
+| Breaking change | Update SECURITY.md + changelog |
+| New workflow | Update CLAUDE.md file structure |
+
+### Docstring Format (Required):
+```python
+def my_function(param1: str, param2: int = 0) -> bool:
+    """
+    Short description of what the function does.
+
+    Args:
+        param1: Description of param1
+        param2: Description of param2
+
+    Returns:
+        Description of return value
+
+    Raises:
+        ValueError: When something is wrong
+
+    Example:
+        >>> my_function("test", 42)
+        True
+    """
+```
+
+### Changelog Format:
+Every PR adds entry to `docs/changelog.md`:
+```markdown
+## [Unreleased]
+
+### Added
+- New feature X
+
+### Changed
+- Modified behavior Y
+
+### Fixed
+- Bug fix Z
+```
+
 ---
 
 ## GCP Configuration
@@ -104,9 +163,10 @@ project38-or/
 ├── docs/                      # MkDocs source
 │   ├── index.md              # Home page
 │   ├── getting-started.md    # Quick start guide
+│   ├── changelog.md          # Version history (auto-updated)
 │   ├── SECURITY.md           # Security documentation
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
-│   ├── api/                  # API reference
+│   ├── api/                  # API reference (auto-generated)
 │   └── research/             # Research summaries
 ├── mkdocs.yml                 # MkDocs configuration
 ├── CLAUDE.md                  # This file

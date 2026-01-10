@@ -6,8 +6,10 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'src/**'          # API docs auto-generate from source
       - 'mkdocs.yml'
       - 'requirements-docs.txt'
+      - 'requirements.txt'
 
 permissions:
   contents: read
@@ -34,7 +36,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements-docs.txt
+          pip install -r requirements.txt      # Project deps for mkdocstrings
+          pip install -r requirements-docs.txt # Docs deps
 
       - name: Build documentation
         run: |
