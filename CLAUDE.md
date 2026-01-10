@@ -269,6 +269,180 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 - ✅ mkdocs build completes without warnings
 - ✅ Changelog is updated for every PR
 
+### test-runner (v1.0.0)
+
+**Purpose:** Automated test execution before commits to prevent broken code from entering the repository.
+
+**Triggers:**
+- User about to commit code
+- Changes to `src/` or `tests/` directories
+- Keywords: `test`, `tests`, `pytest`, `run tests`, `before commit`
+
+**What it does:**
+1. Verifies test environment (pytest configuration)
+2. Runs full test suite with `python -m pytest tests/ -v`
+3. Optionally runs with coverage report
+4. Analyzes test results (passed/failed/skipped)
+5. Provides detailed failure reports with file paths and line numbers
+6. Blocks commit recommendation if tests fail
+
+**When to use:**
+```bash
+# Before committing code
+"Run tests before I commit"
+
+# With coverage report
+"Run tests with coverage"
+
+# Before creating PR
+"I'm ready to create a PR" (runs tests automatically)
+```
+
+**Integration with CI:**
+- Skill runs **proactively** before commit (local)
+- `test.yml` workflow **validates** after push (CI)
+- Together they enforce **Zero Broken Commits**
+
+**Files:**
+- Skill definition: `.claude/skills/test-runner/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (read-only operations)
+- Allowed tools: Read, Bash (pytest only)
+- Never modifies test code or source code
+- Always runs full suite (never skips tests)
+
+**Success metrics:**
+- ✅ Zero commits with failing tests
+- ✅ Clear, actionable failure reports
+- ✅ Fast feedback (< 5 seconds for most suites)
+- ✅ CI test.yml workflow rarely fails
+
+### security-checker (v1.0.0)
+
+**Purpose:** Validates that no secrets or sensitive data are being committed to the repository.
+
+**Triggers:**
+- User about to commit code
+- Changes to configuration files
+- Keywords: `security`, `secrets`, `commit`, `check secrets`, `before commit`
+
+**What it does:**
+1. Checks staged changes with `git diff --cached`
+2. Scans for sensitive file patterns (.env, *-key.json, *.pem, etc.)
+3. Scans file contents for secret patterns:
+   - AWS access keys (AKIA...)
+   - GitHub PATs (ghp_...)
+   - Anthropic API keys (sk-ant-api03-...)
+   - OpenAI API keys (sk-proj-...)
+   - JWT tokens (eyJ...)
+   - Private keys (-----BEGIN PRIVATE KEY-----)
+   - Database URLs with credentials
+   - Hardcoded passwords
+4. Handles false positives (test data, documentation examples)
+5. Verifies .gitignore protection
+6. Blocks commit if secrets detected
+
+**When to use:**
+```bash
+# Before committing
+"Check for secrets before commit"
+
+# Before creating PR
+"I'm ready to create a PR" (checks automatically)
+
+# After adding API integration
+"I added API configuration, check for secrets"
+```
+
+**Integration with CI:**
+- Skill runs **first line of defense** (local)
+- Future: GitLeaks in CI (second line)
+- Together they create **defense in depth**
+
+**Files:**
+- Skill definition: `.claude/skills/security-checker/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (but aggressive blocking)
+- Allowed tools: Read, Bash (git diff, git status), Grep, Glob
+- Never prints or logs secret values
+- False positive > false negative (defensive posture)
+- Blocks all commits with detected secrets
+
+**Success metrics:**
+- ✅ Zero secrets committed to repository
+- ✅ Clear error messages with remediation steps
+- ✅ Fast scanning (< 3 seconds)
+- ✅ Low false positive rate (< 5%)
+- ✅ Developers understand SecretManager usage
+
+**Critical:** This is a **PUBLIC repository** - any secret committed is permanently exposed.
+
+### pr-helper (v1.0.0)
+
+**Purpose:** Standardized Pull Request creation with consistent formatting and comprehensive context.
+
+**Triggers:**
+- Keywords: `pull request`, `pr`, `create pr`, `open pr`, `ready to merge`
+- After passing all checks (tests, security, docs)
+
+**What it does:**
+1. Verifies prerequisites (branch pushed, not on main)
+2. Analyzes branch changes with `git log` and `git diff`
+3. Determines change type (feat, fix, docs, refactor, etc.)
+4. Drafts PR title following conventional commits format
+5. Generates comprehensive PR description:
+   - Summary of changes
+   - Key changes list
+   - Files added/modified
+   - Test plan
+   - Related issues/PRs
+6. Creates PR using `gh pr create`
+7. Reports PR URL and checks status
+
+**When to use:**
+```bash
+# After completing feature
+"Create PR for my changes"
+
+# Ready to merge
+"Ready to merge"
+
+# Specific request
+"Open pull request for the skills I added"
+```
+
+**Integration with other skills:**
+```
+Code changes complete
+    ↓
+test-runner: All tests pass ✅
+    ↓
+doc-updater: Documentation updated ✅
+    ↓
+security-checker: No secrets found ✅
+    ↓
+pr-helper: Create PR ✅
+```
+
+**Files:**
+- Skill definition: `.claude/skills/pr-helper/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (creates PR, doesn't modify code)
+- Allowed tools: Read, Bash (git, gh), Grep, Glob
+- Verifies branch before creating PR
+- Never creates PR from main branch
+- Never pushes --force without permission
+
+**Success metrics:**
+- ✅ All PRs follow consistent format
+- ✅ Reviewers have complete context
+- ✅ PRs link to issues and related work
+- ✅ Comprehensive test plans
+- ✅ PR creation takes < 1 minute
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:
@@ -276,11 +450,6 @@ See `.claude/skills/README.md` for:
 - Best practices
 - Safety patterns
 - Integration with workflows
-
-**Planned skills:**
-- 🔄 `test-runner` - Run tests before commit
-- 🔄 `security-checker` - Validate no secrets in commits
-- 🔄 `pr-helper` - Standardized PR creation
 
 ---
 
