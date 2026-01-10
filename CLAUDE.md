@@ -151,11 +151,19 @@ Every PR adds entry to `docs/changelog.md`:
 project38-or/
 ├── src/
 │   ├── __init__.py
-│   └── secrets_manager.py    # USE THIS for all secret access
+│   ├── secrets_manager.py    # USE THIS for all secret access
+│   ├── doc_updater.py        # Documentation automation utilities
+│   ├── github_auth.py        # GitHub App authentication
+│   └── github_auth.sh        # GitHub auth helper script
+├── .claude/
+│   └── skills/
+│       └── doc-updater/
+│           └── SKILL.md      # Autonomous documentation skill
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment
 │   ├── docs-check.yml        # Changelog & docstring enforcement
+│   ├── doc-updater.yml       # Documentation automation (PR + manual)
 │   ├── lint.yml              # PR linting
 │   ├── test.yml              # PR testing
 │   ├── verify-secrets.yml    # workflow_dispatch only
@@ -163,6 +171,10 @@ project38-or/
 │   ├── report-secrets.yml    # workflow_dispatch only
 │   └── gcp-secret-manager.yml
 ├── tests/                     # pytest tests
+│   ├── __init__.py
+│   ├── test_secrets_manager.py
+│   ├── test_github_auth.py
+│   └── test_doc_updater.py
 ├── research/                  # Research documents (read-only)
 ├── docs/                      # MkDocs source
 │   ├── index.md              # Home page
