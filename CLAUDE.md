@@ -260,6 +260,26 @@ claude mcp list
 | Rate limits | 5,000/hr (PAT) | 5,000/hr (PAT) |
 | Setup | Each environment | Once per user |
 
+### Claude Code Web Configuration
+
+For web sessions, configure environment variables through the Claude UI:
+
+1. Click on current Environment name (top left)
+2. Select "Add environment" or edit existing
+3. Add environment variable:
+   ```
+   GH_TOKEN=github_pat_XXXXX
+   ```
+4. Start new session with that environment
+
+**Verify in web session:**
+```bash
+echo "GH_TOKEN is: ${GH_TOKEN:+SET}"
+gh auth status
+```
+
+**Note:** Web sessions don't share local `~/.claude.json` config. Each environment needs its own GH_TOKEN.
+
 ---
 
 ## What Requires Your Approval
