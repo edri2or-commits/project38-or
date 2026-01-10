@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Tests for github_auth module
+- pytest pythonpath configuration in pyproject.toml
 - GitHub App authentication module (github_auth.py, github_auth.sh)
 - Mandatory CI verification process in CLAUDE.md
 - CI enforcement for documentation (docs-check.yml)
