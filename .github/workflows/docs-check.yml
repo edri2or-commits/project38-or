@@ -3,6 +3,7 @@ name: Documentation Check
 # Enforces documentation updates when code changes
 
 on:
+  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
