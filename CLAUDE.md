@@ -246,12 +246,45 @@ When Railway is set up:
 
 Run tests before any commit:
 ```bash
-# When pytest is set up:
-pytest tests/
-
-# For now, verify secrets module:
-python src/secrets_manager.py
+pytest tests/ -v
 ```
+
+### Pytest Configuration (Critical)
+
+This project uses a **src layout** where source code is in `src/` and tests are in `tests/`. For imports to work correctly, `pyproject.toml` must include:
+
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]  # REQUIRED for src layout
+```
+
+**Why this matters:**
+- Without `pythonpath = ["src"]`, tests cannot import from `src/` modules
+- CI will fail with `ModuleNotFoundError` errors
+- This is the standard pytest configuration for src layouts
+
+### Writing Tests
+
+Tests should use mocking for external dependencies:
+
+```python
+from unittest.mock import MagicMock, patch
+
+def test_example():
+    """Test description."""
+    with patch("src.module.external_call") as mock_call:
+        mock_call.return_value = "test_value"
+        # Test your code
+        result = your_function()
+        assert result == expected
+```
+
+**Key patterns:**
+- Mock external APIs (GCP, GitHub) to avoid real calls
+- Use `patch()` for replacing dependencies
+- Each test class groups related tests
+- Test file naming: `test_<module>.py`
 
 ---
 
