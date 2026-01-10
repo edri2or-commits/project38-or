@@ -91,10 +91,14 @@ project38-or/
 │   ├── __init__.py
 │   └── secrets_manager.py    # USE THIS for all secret access
 ├── .github/workflows/
+│   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
+│   ├── lint.yml              # PR linting
+│   ├── test.yml              # PR testing
 │   ├── verify-secrets.yml    # workflow_dispatch only
 │   ├── quick-check.yml       # workflow_dispatch only
 │   ├── report-secrets.yml    # workflow_dispatch only
 │   └── gcp-secret-manager.yml
+├── tests/                     # pytest tests
 ├── research/                  # Research documents (read-only)
 ├── docs/
 │   ├── SECURITY.md           # Security documentation
@@ -232,6 +236,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # ...
+```
+
+---
+
+## Agent Workflow
+
+To trigger the agent via GitHub Issues:
+
+1. Create or open an issue
+2. Comment with `/claude <task description>`
+3. Only OWNER can trigger (security protection)
+4. Agent will:
+   - Acknowledge the task
+   - Create a feature branch `agent/issue-<number>`
+   - Process the task
+   - Report status in comments
+
+**Example:**
+```
+/claude Add input validation to the login endpoint
 ```
 
 ---

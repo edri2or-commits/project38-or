@@ -1,0 +1,124 @@
+name: Agent Task Handler
+
+# Triggered by issue comments containing /claude command
+# Only OWNER can trigger - protects against public repo abuse
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: agent-${{ github.event.issue.number }}
+  cancel-in-progress: false  # Don't cancel ongoing agent work
+
+jobs:
+  validate:
+    name: Validate trigger
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      task: ${{ steps.check.outputs.task }}
+
+    steps:
+      - name: Check authorization and command
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = context.payload.comment.body;
+            const author = context.payload.comment.author_association;
+
+            // Security: Only OWNER can trigger
+            const allowedRoles = ['OWNER'];
+            if (!allowedRoles.includes(author)) {
+              console.log(`Ignoring: author_association is ${author}, not in ${allowedRoles}`);
+              core.setOutput('should_run', 'false');
+              return;
+            }
+
+            // Check for /claude command
+            const match = comment.match(/^\/claude\s+(.+)$/m);
+            if (!match) {
+              console.log('Ignoring: no /claude command found');
+              core.setOutput('should_run', 'false');
+              return;
+            }
+
+            const task = match[1].trim();
+            console.log(`Task detected: ${task}`);
+            core.setOutput('should_run', 'true');
+            core.setOutput('task', task);
+
+  process:
+    name: Process agent task
+    needs: validate
+    if: needs.validate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Acknowledge task
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const task = `${{ needs.validate.outputs.task }}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🤖 **Agent Task Received**\n\n**Task:** ${task}\n\n**Status:** Processing...\n\n_This is an automated acknowledgment. A PR will be created when the task is complete._`
+            });
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create feature branch
+        id: branch
+        run: |
+          ISSUE_NUM=${{ github.event.issue.number }}
+          BRANCH_NAME="agent/issue-${ISSUE_NUM}"
+          git checkout -b "$BRANCH_NAME"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      # Placeholder for actual agent work
+      # In the future, this would invoke Claude Code or similar
+      - name: Agent placeholder
+        run: |
+          echo "Task: ${{ needs.validate.outputs.task }}"
+          echo "Branch: ${{ steps.branch.outputs.branch_name }}"
+          echo ""
+          echo "TODO: Implement actual agent logic"
+          echo "For now, this workflow validates the trigger mechanism"
+
+      - name: Report status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const task = `${{ needs.validate.outputs.task }}`;
+            const branch = `${{ steps.branch.outputs.branch_name }}`;
+            const success = `${{ job.status }}` === 'success';
+
+            const body = success
+              ? `✅ **Agent Task Acknowledged**\n\n**Task:** ${task}\n**Branch:** \`${branch}\`\n\n_Note: Full agent implementation pending. This workflow validates the trigger mechanism._`
+              : `❌ **Agent Task Failed**\n\n**Task:** ${task}\n\nPlease check the workflow logs for details.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
