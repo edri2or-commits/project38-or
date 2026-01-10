@@ -48,6 +48,133 @@ Works alongside `docs-check.yml` CI workflow:
 - CI validates before merge
 - Together they enforce Zero Tolerance Documentation
 
+### 2. test-runner (v1.0.0)
+
+**Purpose:** Automated test execution before commits
+
+**Triggers:**
+- User about to commit code
+- Changes to `src/` or `tests/` directories
+- Keywords: `test`, `tests`, `pytest`, `run tests`, `before commit`
+
+**What it does:**
+1. Verifies test environment (pytest configuration)
+2. Runs full test suite with verbose output
+3. Optionally runs with coverage report
+4. Analyzes test results (passed/failed/skipped)
+5. Provides detailed failure reports with file/line context
+6. Blocks commit recommendation if tests fail
+
+**When to use:**
+- Before committing code changes
+- Before creating a PR
+- After fixing bugs or adding features
+
+**Example:**
+```bash
+# Before commit
+"Run tests before I commit"
+
+# With coverage
+"Run tests with coverage"
+
+# Before PR
+"I'm ready to create a PR"
+```
+
+**Integration:**
+Works alongside `test.yml` CI workflow:
+- Skill runs proactively before commit (local)
+- CI validates after push (server-side)
+- Together they enforce Zero Broken Commits
+
+### 3. security-checker (v1.0.0)
+
+**Purpose:** Validates no secrets or sensitive data are being committed
+
+**Triggers:**
+- User about to commit code
+- Changes to configuration files
+- Keywords: `security`, `secrets`, `commit`, `check secrets`
+
+**What it does:**
+1. Checks staged changes with `git diff --cached`
+2. Scans for sensitive file patterns (.env, *-key.json, *.pem)
+3. Scans file contents for secret patterns:
+   - AWS access keys, GitHub PATs, API keys
+   - JWT tokens, private keys
+   - Database URLs with credentials
+   - Hardcoded passwords
+4. Handles false positives (test data, documentation)
+5. Verifies .gitignore protection
+6. Blocks commit if secrets detected
+
+**When to use:**
+- Before committing any code
+- Before creating a PR
+- After adding API integrations or configuration
+
+**Example:**
+```bash
+# Before commit
+"Check for secrets before commit"
+
+# Before PR
+"I'm ready to create a PR"
+
+# After config changes
+"I added API configuration, check for secrets"
+```
+
+**Integration:**
+First line of defense (local):
+- Skill scans before commit
+- Future: GitLeaks in CI (second line)
+- Together they create defense in depth
+
+**Critical:** This is a PUBLIC repository - any secret committed is permanently exposed.
+
+### 4. pr-helper (v1.0.0)
+
+**Purpose:** Standardized Pull Request creation
+
+**Triggers:**
+- Keywords: `pull request`, `pr`, `create pr`, `open pr`, `ready to merge`
+- After passing all checks (tests, security, docs)
+
+**What it does:**
+1. Verifies prerequisites (branch pushed, not on main)
+2. Analyzes branch changes with git log and diff
+3. Determines change type (feat, fix, docs, refactor)
+4. Drafts PR title (conventional commits format)
+5. Generates comprehensive PR description
+6. Creates PR using `gh pr create`
+7. Reports PR URL and checks status
+
+**When to use:**
+- After completing a feature or fix
+- When ready for code review
+- After passing all skill checks
+
+**Example:**
+```bash
+# After feature complete
+"Create PR for my changes"
+
+# Ready to merge
+"Ready to merge"
+
+# Specific request
+"Open pull request for the skills I added"
+```
+
+**Integration:**
+Works with other skills in sequence:
+```
+Code complete → test-runner ✅ → doc-updater ✅
+→ security-checker ✅ → pr-helper ✅
+```
+
 ## Skill Structure
 
 Each skill follows this structure:
@@ -248,18 +375,18 @@ PR approved and merged
 
 ## Roadmap
 
-### Current (MVP)
-- ✅ doc-updater skill (completed)
+### Completed (v1.0.0)
+- ✅ doc-updater skill - Autonomous documentation maintenance
+- ✅ test-runner skill - Automated test execution before commits
+- ✅ security-checker skill - Validates no secrets in commits
+- ✅ pr-helper skill - Standardized PR creation
 
-### Planned
-- 🔄 test-runner skill (run tests before commit)
-- 🔄 security-checker skill (validate no secrets in commits)
-- 🔄 pr-helper skill (standardized PR creation)
-
-### Future
-- Feature scaffolding (generate boilerplate)
-- Safe refactoring (with test loop)
+### Future (v2.0.0+)
+- Feature scaffolding (generate boilerplate from templates)
+- Safe refactoring (with automated test loop)
 - Dependency updater (with security checks)
+- Code review assistant (automated PR review)
+- Performance profiler (identify bottlenecks)
 
 ---
 
