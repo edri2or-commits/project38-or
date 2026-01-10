@@ -86,6 +86,18 @@ class TestSecretManager:
 
             assert result is None
 
+    def test_get_secret_generic_exception(self):
+        """Test handling of generic exceptions."""
+        with patch("src.secrets_manager.secretmanager.SecretManagerServiceClient") as mock_client:
+            mock_client.return_value.access_secret_version.side_effect = RuntimeError(
+                "Unexpected error"
+            )
+
+            manager = SecretManager()
+            result = manager.get_secret("error-secret")
+
+            assert result is None
+
     def test_list_secrets(self):
         """Test listing available secrets."""
         with patch("src.secrets_manager.secretmanager.SecretManagerServiceClient") as mock_client:
@@ -103,6 +115,16 @@ class TestSecretManager:
             assert len(secrets) == 2
             assert "secret-1" in secrets
             assert "secret-2" in secrets
+
+    def test_list_secrets_exception(self):
+        """Test handling of exceptions in list_secrets."""
+        with patch("src.secrets_manager.secretmanager.SecretManagerServiceClient") as mock_client:
+            mock_client.return_value.list_secrets.side_effect = RuntimeError("API error")
+
+            manager = SecretManager()
+            secrets = manager.list_secrets()
+
+            assert secrets == []
 
     def test_verify_access_success(self):
         """Test verify_access returns True for accessible secrets."""
@@ -144,6 +166,21 @@ class TestSecretManager:
             assert "TEST_VAR" in os.environ
             # Clean up
             del os.environ["TEST_VAR"]
+
+    def test_load_secrets_to_env_failure(self):
+        """Test load_secrets_to_env with failed secret retrieval."""
+        with patch("src.secrets_manager.secretmanager.SecretManagerServiceClient") as mock_client:
+            from google.api_core import exceptions
+
+            mock_client.return_value.access_secret_version.side_effect = exceptions.NotFound(
+                "Secret not found"
+            )
+
+            manager = SecretManager()
+            loaded = manager.load_secrets_to_env({"FAILED_VAR": "nonexistent-secret"})
+
+            assert loaded == 0
+            assert "FAILED_VAR" not in os.environ
 
     def test_clear_cache(self):
         """Test cache clearing."""
