@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Mandatory CI verification process in CLAUDE.md
 - CI enforcement for documentation (docs-check.yml)
 - Automatic changelog verification on PRs modifying src/
 - Docstring validation with pydocstyle (Google style)
