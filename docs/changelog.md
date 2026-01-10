@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- CI enforcement for documentation (docs-check.yml)
+- Automatic changelog verification on PRs modifying src/
+- Docstring validation with pydocstyle (Google style)
 - MkDocs documentation with Material theme
 - Automatic documentation system
 - GitHub Pages deployment

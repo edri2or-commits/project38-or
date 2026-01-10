@@ -1,0 +1,111 @@
+name: Documentation Check
+
+# Enforces documentation updates when code changes
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-changelog:
+    name: Verify changelog updated
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if changelog was updated
+        run: |
+          echo "Checking if docs/changelog.md was updated..."
+
+          # Get list of changed files in this PR
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Check if src/ was modified
+          if echo "$CHANGED_FILES" | grep -q "^src/"; then
+            echo ""
+            echo "⚠️  Source code was modified (src/)"
+            echo ""
+
+            # Check if changelog was also modified
+            if echo "$CHANGED_FILES" | grep -q "^docs/changelog.md"; then
+              echo "✅ docs/changelog.md was updated - PASS"
+              exit 0
+            else
+              echo ""
+              echo "❌ ERROR: docs/changelog.md was NOT updated!"
+              echo ""
+              echo "When modifying src/, you MUST update the changelog."
+              echo ""
+              echo "Add an entry to docs/changelog.md under [Unreleased]:"
+              echo ""
+              echo "  ### Added"
+              echo "  - Your new feature"
+              echo ""
+              echo "  ### Changed"
+              echo "  - Your modification"
+              echo ""
+              echo "  ### Fixed"
+              echo "  - Your bug fix"
+              echo ""
+              exit 1
+            fi
+          else
+            echo "✅ No src/ changes - changelog update not required"
+            exit 0
+          fi
+
+  check-docstrings:
+    name: Verify docstrings exist
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pydocstyle
+        run: pip install pydocstyle
+
+      - name: Check docstrings in src/
+        run: |
+          echo "Checking docstrings in src/..."
+          pydocstyle src/ --convention=google || {
+            echo ""
+            echo "❌ ERROR: Missing or malformed docstrings!"
+            echo ""
+            echo "All public functions/classes must have Google-style docstrings:"
+            echo ""
+            echo '  def my_function(param: str) -> bool:'
+            echo '      """'
+            echo '      Short description.'
+            echo ''
+            echo '      Args:'
+            echo '          param: Description of param'
+            echo ''
+            echo '      Returns:'
+            echo '          Description of return value'
+            echo '      """'
+            echo ""
+            exit 1
+          }
+          echo "✅ All docstrings valid - PASS"
