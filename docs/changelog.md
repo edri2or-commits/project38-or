@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Doc-updater autonomous skill (.claude/skills/doc-updater/SKILL.md)
+- Helper module `src/doc_updater.py` for changelog and docstring management
+- `ChangelogManager` class for automatic changelog updates
+- `DocstringChecker` class for pydocstyle validation
+- Utility functions: `get_changed_python_files()`, `detect_secrets_in_content()`
+- Tests for doc_updater module (tests/test_doc_updater.py)
 - GitHub PAT security guidelines in docs/SECURITY.md
 - Claude Code Web environment configuration documentation in CLAUDE.md
 - GitHub MCP Server documentation in CLAUDE.md (autonomy configuration)

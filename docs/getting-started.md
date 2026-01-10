@@ -118,8 +118,91 @@ ruff format .
 | TELEGRAM-BOT-TOKEN | Telegram bot |
 | github-app-private-key | GitHub App auth |
 
+## Documentation Updater (Autonomous Skill)
+
+המערכת כוללת skill אוטונומי לעדכון תיעוד אוטומטי.
+
+### שימוש ב-Doc Updater
+
+```python
+from src.doc_updater import ChangelogManager, DocstringChecker
+
+# עדכון changelog
+manager = ChangelogManager("docs/changelog.md")
+manager.add_entry("Added", "New feature description")
+manager.add_entry("Fixed", "Bug fix description")
+manager.write()
+
+# בדיקת docstrings
+checker = DocstringChecker("src")
+success, output = checker.check()
+if not success:
+    print(f"Docstring errors: {output}")
+```
+
+### הפעלת Skill (Claude Code)
+
+```bash
+# בסביבת Claude Code CLI
+/doc-updater
+```
+
+ה-skill יבצע באופן אוטומטי:
+1. **זיהוי שינויים** - מזהה קבצי Python שהשתנו ב-src/
+2. **עדכון changelog** - מוסיף ערכים ל-docs/changelog.md
+3. **בדיקת docstrings** - מריץ pydocstyle לוידוא Google-style docstrings
+4. **יצירת API docs** - מעדכן docs/api/ באופן אוטומטי
+
+### מה הכלים בודקים
+
+**DocstringChecker**:
+- כל פונקציה ציבורית חייבת docstring
+- פורמט Google style נדרש
+- טיפול בשגיאות מתועד
+
+**Secret Detection**:
+- סריקת תוכן למניעת חשיפת סודות
+- תבניות: API keys, tokens, passwords
+- חסימה אוטומטית של תיעוד עם סודות
+
+### דוגמה מלאה
+
+```python
+from src.doc_updater import (
+    ChangelogManager,
+    DocstringChecker,
+    get_changed_python_files,
+    detect_secrets_in_content
+)
+
+# 1. מצא קבצים שהשתנו
+changed_files = get_changed_python_files()
+print(f"Changed: {changed_files}")
+
+# 2. בדוק docstrings
+for file_path in changed_files:
+    checker = DocstringChecker()
+    success, output = checker.check(file_path)
+    if not success:
+        print(f"⚠️  {file_path}: {output}")
+
+# 3. עדכן changelog
+manager = ChangelogManager()
+manager.add_entry("Changed", f"Updated {len(changed_files)} modules")
+updated_content = manager.write(dry_run=True)
+
+# 4. בדוק שאין סודות
+secrets = detect_secrets_in_content(updated_content)
+if secrets:
+    print(f"❌ Secrets detected: {secrets}")
+else:
+    # בטוח לכתוב
+    manager.write()
+```
+
 ## הצעד הבא
 
 - קרא את [מדיניות האבטחה](SECURITY.md)
 - הבן את [תוכנית הארכיטקטורה](BOOTSTRAP_PLAN.md)
 - עיין ב[מסמכי המחקר](research/index.md)
+- למד על [Doc-Updater Skill](.claude/skills/doc-updater/SKILL.md)
