@@ -17,6 +17,7 @@ try:
         generate_jwt,
         get_installation_token,
     )
+
     SKIP_TESTS = False
 except ImportError:
     SKIP_TESTS = True
