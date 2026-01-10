@@ -172,7 +172,29 @@ python3 src/doc_updater.py
 ה-skill רץ באופן אוטומטי:
 - ✅ **GitHub Actions** - בכל PR שמשנה קבצי `src/`
 - ✅ **Manual Trigger** - דרך workflow_dispatch
-- 📋 **Pre-commit** - ניתן להתקנה מקומית (ראה SKILL.md)
+- ✅ **Pre-commit Hook** - בדיקה מקומית לפני כל commit
+
+**התקנת Pre-commit Hook:**
+```bash
+# התקנה מהירה
+bash .hooks/install.sh
+
+# בדיקה ידנית
+bash .hooks/pre-commit
+
+# הסרה
+rm .git/hooks/pre-commit
+```
+
+**מה ה-hook בודק:**
+- Docstrings תקינים (Google style)
+- אין סודות חשופים בקבצים staged
+- תזכורת לעדכן changelog כשיש שינויים ב-src/
+
+**לעקוף את ה-hook (לא מומלץ):**
+```bash
+git commit --no-verify
+```
 
 ה-skill יבצע באופן אוטומטי:
 1. **זיהוי שינויים** - מזהה קבצי Python שהשתנו ב-src/

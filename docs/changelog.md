@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Pre-commit hook for local documentation checks (.hooks/pre-commit)
+- Hook installation script (.hooks/install.sh)
+- Git hooks documentation (.hooks/README.md)
 - Doc-updater automation workflow (.github/workflows/doc-updater.yml)
 - CLI interface for doc_updater with --check, --verify, --suggest flags
 - Automated documentation sync checks on PRs

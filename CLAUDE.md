@@ -155,6 +155,10 @@ project38-or/
 │   ├── doc_updater.py        # Documentation automation utilities
 │   ├── github_auth.py        # GitHub App authentication
 │   └── github_auth.sh        # GitHub auth helper script
+├── .hooks/                    # Git hook templates
+│   ├── pre-commit            # Pre-commit hook (docstrings, secrets, changelog)
+│   ├── install.sh            # Hook installation script
+│   └── README.md             # Hook documentation
 ├── .claude/
 │   └── skills/
 │       └── doc-updater/
@@ -363,6 +367,66 @@ def test_example():
 - Use `patch()` for replacing dependencies
 - Each test class groups related tests
 - Test file naming: `test_<module>.py`
+
+---
+
+## Git Hooks (Pre-commit)
+
+### Installation
+
+Install the pre-commit hook for automatic checks:
+
+```bash
+# Quick install
+bash .hooks/install.sh
+
+# Verify installation
+ls -la .git/hooks/pre-commit
+```
+
+### What It Checks
+
+The pre-commit hook runs before each commit:
+- ✅ **Docstrings**: All functions have valid Google-style docstrings
+- ✅ **Secrets**: No exposed API keys, tokens, or credentials
+- ⚠️ **Changelog**: Reminder if `src/` changed but changelog wasn't staged
+
+### Usage
+
+Once installed, it runs automatically:
+
+```bash
+git add src/my_module.py
+git commit -m "feat: add new module"
+
+# Hook runs automatically:
+# 🔍 Running pre-commit checks...
+# === Verification Report ===
+# 1. Docstring Check:
+#    ✅ All docstrings valid
+# 2. Secret Detection:
+#    ✅ No secrets detected
+# ✅ Pre-commit checks complete
+```
+
+### Bypass (Not Recommended)
+
+```bash
+git commit --no-verify
+```
+
+**⚠️ Only use `--no-verify` in emergencies.** The hook prevents:
+- Broken builds (missing docstrings)
+- Security incidents (exposed secrets)
+- Documentation drift (undocumented changes)
+
+### Troubleshooting
+
+See `.hooks/README.md` for:
+- Manual installation
+- Testing hooks
+- Uninstallation
+- Development workflow
 
 ---
 
