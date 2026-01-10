@@ -18,9 +18,8 @@ try:
         get_installation_token,
     )
     SKIP_TESTS = False
-except ImportError as e:
+except ImportError:
     SKIP_TESTS = True
-    SKIP_REASON = f"Dependencies not available: {e}"
     # Define dummy values to prevent NameError
     GITHUB_APP_ID = 0
     GITHUB_INSTALLATION_ID = 0
