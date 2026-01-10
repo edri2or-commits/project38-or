@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Manual trigger (workflow_dispatch) for docs-check.yml workflow
 - Complete test coverage for exception handling scenarios (100% coverage achieved)
 - Test for RequestException in github_auth.get_installation_token()
 - Test for SubprocessError in github_auth.configure_gh_cli()
