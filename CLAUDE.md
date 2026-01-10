@@ -128,8 +128,12 @@ Every PR adds entry to `docs/changelog.md`:
 | Setting | Value |
 |---------|-------|
 | Project ID | `project38-483612` |
+| Project Number | `979429709900` |
 | Service Account | `claude-code-agent@project38-483612.iam.gserviceaccount.com` |
-| Auth Method | Service Account Key in `GCP_SERVICE_ACCOUNT_KEY` |
+| Auth Method | **Workload Identity Federation (WIF)** via OIDC |
+| WIF Pool | `github-pool` |
+| WIF Provider | `github-provider` |
+| Provider Resource Name | `projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
 
 ### Available Secrets
 
