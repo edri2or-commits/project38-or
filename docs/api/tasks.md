@@ -399,6 +399,6 @@ async with httpx.AsyncClient() as client:
 
 ## See Also
 
-- [Agent API Reference](agents.md)
+- [Agent API Reference](factory.md)
 - [Harness API Reference](harness.md)
 - [Database Documentation](database.md)

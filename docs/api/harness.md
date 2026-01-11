@@ -513,6 +513,6 @@ CREATE TABLE handoff_artifacts (
 
 ## See Also
 
-- [Agent API Reference](agents.md)
+- [Agent API Reference](factory.md)
 - [Task API Reference](tasks.md)
 - [Database Documentation](database.md)
