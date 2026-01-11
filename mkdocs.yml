@@ -73,6 +73,9 @@ nav:
           - Claude Skills: research/07_claude_skills_enterprise_implementation.summary.md
   - API Reference:
       - סקירה: api/index.md
+      - FastAPI Application: api/fastapi.md
+      - Database: api/database.md
+      - Models: api/models.md
       - GitHub Authentication: api/github_auth.md
       - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md

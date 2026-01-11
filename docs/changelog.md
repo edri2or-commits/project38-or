@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3.1 API Documentation** - Comprehensive API reference for FastAPI application and database layer
+  - `docs/api/fastapi.md` - FastAPI application documentation (configuration, endpoints, lifecycle, testing)
+  - `docs/api/database.md` - Database connection management (async patterns, pooling, health checks)
+  - `docs/api/models.md` - SQLModel schemas documentation (Agent/Task entities, relationships, usage patterns)
+  - Updated `docs/api/index.md` with overview of all API layers (FastAPI, Database, Models, Secrets, GitHub)
+  - Updated `mkdocs.yml` navigation to include new API documentation pages
+  - Completes documentation requirement for Phase 3.1 Core Infrastructure
 - **Phase 3.1: Core Infrastructure** - FastAPI application and database models for Agent Platform
   - `src/api/main.py` - FastAPI app entry point with CORS middleware and lifecycle hooks
   - `src/api/routes/health.py` - Health check (`/health`) and root (`/`) endpoints

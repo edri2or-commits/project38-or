@@ -1,8 +1,76 @@
 # API Reference
 
-## סקירה מהירה
+## סקירה כללית
 
-המודול הראשי לגישה מאובטחת ל-GCP Secret Manager.
+Agent Platform מורכב ממספר רבדים:
+
+### 🌐 FastAPI Application
+
+REST API server לניהול סוכנים ומשימות.
+
+```python
+from src.api.main import app
+import uvicorn
+
+uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+[📖 תיעוד מלא →](fastapi.md)
+
+### 💾 Database Layer
+
+PostgreSQL async connection management עם SQLModel.
+
+```python
+from src.api.database import get_session, create_db_and_tables
+
+await create_db_and_tables()
+```
+
+[📖 תיעוד מלא →](database.md)
+
+### 📦 Data Models
+
+SQLModel schemas עבור Agent ו-Task entities.
+
+```python
+from src.models import Agent, Task
+
+agent = Agent(
+    name="Stock Monitor",
+    description="עוקב אחרי מניות",
+    code="# Generated code",
+    status="active"
+)
+```
+
+[📖 תיעוד מלא →](models.md)
+
+### 🔐 Secret Management
+
+גישה מאובטחת ל-GCP Secret Manager.
+
+```python
+from src.secrets_manager import SecretManager
+
+manager = SecretManager()
+secret = manager.get_secret("ANTHROPIC-API")
+```
+
+### 🔧 GitHub Operations
+
+אוטומציה של GitHub PRs וסימולציות.
+
+- [GitHub Authentication](github_auth.md) - WIF-based authentication
+- [GitHub PR Operations](github_pr.md) - Universal PR creation
+
+---
+
+## SecretManager API
+
+### סקירה מהירה
+
+גישה מאובטחת ל-GCP Secret Manager ללא שמירת סודות בקוד.
 
 ```python
 from src.secrets_manager import SecretManager
