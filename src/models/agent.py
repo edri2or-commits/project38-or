@@ -32,12 +32,12 @@ class Agent(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(max_length=255, index=True)
     description: str = Field(max_length=2000)
-    code: str = Field(sa_column_kwargs={"type_": "TEXT"})
+    code: str  # SQLModel will use TEXT type automatically
     status: str = Field(default="active", max_length=50, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     created_by: str | None = Field(default=None, max_length=255)
-    config: str | None = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
+    config: str | None = None  # SQLModel will use TEXT type automatically
 
     class Config:
         """SQLModel configuration."""

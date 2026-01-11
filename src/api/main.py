@@ -6,7 +6,12 @@ This module initializes the FastAPI application and registers all route handlers
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import agents, health
+from src.api.database import create_db_and_tables
+from src.api.routes import agents, health, tasks
+from src.harness.handoff import HandoffArtifact  # noqa: F401 - Ensure model is registered
+from src.harness.scheduler import get_scheduler
+from src.models.agent import Agent  # noqa: F401 - Ensure model is registered
+from src.models.task import Task  # noqa: F401 - Ensure model is registered
 
 # Create FastAPI app instance
 app = FastAPI(
@@ -29,26 +34,32 @@ app.add_middleware(
 # Register route handlers
 app.include_router(health.router, tags=["health"])
 app.include_router(agents.router, prefix="/api", tags=["agents"])
+app.include_router(tasks.router, prefix="/api", tags=["tasks"])
 
 
 @app.on_event("startup")
 async def startup_event():
     """Run on application startup.
 
-    Initialize database connection pool and perform health checks.
+    Initialize database connection pool, agent scheduler, and perform health checks.
     """
-    # TODO: Initialize database connection
-    pass
+    # Create database tables
+    await create_db_and_tables()
+
+    # Start agent scheduler
+    scheduler = await get_scheduler()
+    await scheduler.start()
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Run on application shutdown.
 
-    Close database connections and cleanup resources.
+    Stop agent scheduler, close database connections and cleanup resources.
     """
-    # TODO: Close database connection
-    pass
+    # Stop agent scheduler
+    scheduler = await get_scheduler()
+    await scheduler.stop()
 
 
 if __name__ == "__main__":

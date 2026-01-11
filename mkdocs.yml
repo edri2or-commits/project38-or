@@ -77,6 +77,9 @@ nav:
       - Database: api/database.md
       - Models: api/models.md
       - Agent Factory: api/factory.md
+      - Agent Harness: api/harness.md
+      - Agents API: api/agents.md
+      - Tasks API: api/tasks.md
       - GitHub Authentication: api/github_auth.md
       - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md

@@ -33,10 +33,10 @@ class Task(SQLModel, table=True):
     agent_id: int = Field(foreign_key="agents.id", index=True)
     status: str = Field(default="pending", max_length=50, index=True)
     scheduled_at: datetime = Field(default_factory=datetime.utcnow, index=True)
-    started_at: datetime | None = Field(default=None)
-    completed_at: datetime | None = Field(default=None)
-    result: str | None = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
-    error: str | None = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    result: str | None = None  # SQLModel will use TEXT type automatically
+    error: str | None = None  # SQLModel will use TEXT type automatically
     retry_count: int = Field(default=0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
