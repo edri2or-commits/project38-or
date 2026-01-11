@@ -1,0 +1,80 @@
+name: Test WIF Authentication
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC token
+
+concurrency:
+  group: test-wif-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-wif:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Test GCP Authentication
+        run: |
+          echo "Testing GCP authentication..."
+          gcloud auth list
+          echo ""
+          echo "Current project:"
+          gcloud config get-value project
+          echo ""
+          echo "Testing project access:"
+          gcloud projects describe project38-483612
+
+      - name: Test Secret Manager Access
+        run: |
+          echo "Testing Secret Manager access..."
+          gcloud secrets list --project=project38-483612 --limit=5
+          echo ""
+          echo "✅ WIF authentication successful!"
+
+      - name: Verify Service Account
+        run: |
+          echo "Verifying service account identity..."
+          CURRENT_SA=$(gcloud config get-value account)
+          EXPECTED_SA="claude-code-agent@project38-483612.iam.gserviceaccount.com"
+
+          if [ "$CURRENT_SA" = "$EXPECTED_SA" ]; then
+            echo "✅ Correct service account: $CURRENT_SA"
+          else
+            echo "❌ Wrong service account!"
+            echo "   Expected: $EXPECTED_SA"
+            echo "   Got: $CURRENT_SA"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "================================================"
+          echo "🎉 WIF Authentication Test PASSED!"
+          echo "================================================"
+          echo ""
+          echo "✅ OIDC token issued by GitHub"
+          echo "✅ Token exchanged via WIF"
+          echo "✅ Service account identity verified"
+          echo "✅ GCP project access confirmed"
+          echo "✅ Secret Manager access working"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Update production workflows to use WIF"
+          echo "  2. Remove GCP_SERVICE_ACCOUNT_KEY secret"
+          echo "  3. Monitor workflows for any issues"

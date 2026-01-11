@@ -175,6 +175,196 @@ Code complete → test-runner ✅ → doc-updater ✅
 → security-checker ✅ → pr-helper ✅
 ```
 
+### 5. dependency-checker (v1.0.0)
+
+**Purpose:** Audits Python dependencies for security vulnerabilities, outdated versions, and best practices
+
+**Triggers:**
+- Changes to `requirements*.txt` files
+- Keywords: `dependencies`, `vulnerabilities`, `outdated packages`, `audit dependencies`, `security audit`
+
+**What it does:**
+1. Scans for known security vulnerabilities using pip-audit
+2. Identifies outdated packages with available updates
+3. Validates requirements.txt format (pinning, version constraints)
+4. Checks for dependency conflicts
+5. Verifies lock files are synchronized
+6. Generates prioritized remediation plan
+7. Blocks deployment on CRITICAL/HIGH vulnerabilities
+
+**When to use:**
+- Before committing changes to requirements.txt
+- Before creating a PR
+- Monthly security audits
+- After adding new dependencies
+
+**Example:**
+```bash
+# After updating dependencies
+"Check dependencies for vulnerabilities"
+
+# Periodic audit
+"Run dependency audit"
+
+# Before PR
+"Audit dependencies before creating PR"
+```
+
+**Integration:**
+Works alongside CI/CD security scanning:
+- Skill runs proactively during development (local)
+- CI validates before merge (GitHub Actions)
+- Together they enforce Zero Known Vulnerabilities
+
+**Critical:** Blocks deployment on CRITICAL/HIGH vulnerabilities. All production dependencies must be pinned to exact versions.
+
+### 6. changelog-updater (v1.0.0)
+
+**Purpose:** Automatically generates changelog entries from git commit history using conventional commits
+
+**Triggers:**
+- Preparing to create a Pull Request
+- Multiple commits exist that aren't reflected in changelog
+- Keywords: `changelog`, `update changelog`, `generate changelog`, `commits to changelog`, `before pr`
+
+**What it does:**
+1. Analyzes git commit history from branch divergence point
+2. Parses conventional commit messages (feat, fix, docs, security, etc.)
+3. Categorizes changes into appropriate changelog sections (Added/Changed/Fixed/Security)
+4. Generates well-formatted, human-readable changelog entries
+5. Groups related commits to reduce clutter
+6. Updates `docs/changelog.md` under [Unreleased] section
+7. Validates markdown syntax and completeness
+
+**When to use:**
+- Before creating a PR (to ensure all commits are documented)
+- After completing a feature with multiple commits
+- When conventional commits were used
+- To automate changelog maintenance
+
+**Example:**
+```bash
+# Before creating PR
+"Update changelog before PR"
+
+# Generate from commits
+"Generate changelog from commits"
+
+# After feature completion
+"Update changelog for the OAuth2 feature"
+```
+
+**Integration:**
+Works with doc-updater and CI/CD:
+- changelog-updater generates entries from commits (automated)
+- doc-updater validates changelog format (quality check)
+- docs-check.yml ensures changelog completeness (CI gate)
+- Together they enforce complete changelog coverage
+
+**Benefits:**
+- ✅ Saves time - no manual changelog writing
+- ✅ Consistent format - follows Keep a Changelog standard
+- ✅ Complete coverage - analyzes all commits
+- ✅ Proper categorization - uses conventional commit types
+- ✅ File references - includes paths and line numbers
+
+**Typical workflow:**
+```
+Multiple commits with conventional format
+    ↓
+changelog-updater analyzes history
+    ↓
+Generates changelog entries automatically
+    ↓
+Developer reviews and commits
+    ↓
+CI validates with docs-check.yml
+```
+
+### 7. session-start-hook (v1.0.0)
+
+**Purpose:** Creates and manages SessionStart hooks for Claude Code to ensure development environment is ready
+
+**Triggers:**
+- Keywords: `session start`, `session hook`, `startup hook`, `session configuration`, `claude code setup`, `environment setup`
+- First-time repository setup for Claude Code
+- Configuring Claude Code on the web
+
+**What it does:**
+1. Creates `.claude/.claude-settings.json` with SessionStart hook configuration
+2. Generates `.claude/hooks/session-start.sh` script for environment checks
+3. Verifies Python and development tools (pytest, ruff, pydocstyle)
+4. Displays git status and current branch
+5. Shows available skills and project configuration
+6. Auto-installs dependencies if needed
+7. Provides quick reminders about project guidelines
+
+**When to use:**
+- Setting up Claude Code for the first time
+- Configuring automated environment setup
+- Preparing repository for Claude Code web sessions
+- Ensuring consistent development environment
+
+**Example:**
+```bash
+# First-time setup
+"Set up SessionStart hook for this repository"
+
+# Web environment
+"Configure SessionStart hook for Claude Code on the web"
+
+# Update existing hook
+"Add git diff stats to the SessionStart hook"
+
+# Troubleshoot
+"SessionStart hook is failing"
+```
+
+**Integration:**
+Provides foundation for all other skills:
+```
+Session Starts
+    ↓
+session-start-hook: Environment ready ✅
+    ↓
+User makes code changes
+    ↓
+test-runner / doc-updater / security-checker run
+    ↓
+pr-helper creates PR
+```
+
+**Benefits:**
+- ✅ Zero manual setup - session ready immediately
+- ✅ Fast startup - completes in < 10 seconds
+- ✅ Idempotent - safe to run multiple times
+- ✅ Informative - provides useful context
+- ✅ Auto-installs dependencies when needed
+- ✅ Works in both local and web environments
+
+**Typical workflow:**
+```
+Claude Code session starts
+    ↓
+SessionStart hook runs automatically
+    ↓
+Verifies tools and dependencies
+    ↓
+Displays project status
+    ↓
+Injects context into session
+    ↓
+Developer ready to work
+```
+
+**What the hook checks:**
+- 📦 Python environment (version, pip)
+- 🔧 Development tools (pytest, ruff, pydocstyle)
+- 📊 Repository status (git status, current branch)
+- ☁️ GCP configuration (project ID, available secrets)
+- 🎯 Available skills (list of all skills)
+- 💡 Quick reminders (security rules, testing, docs)
+
 ## Skill Structure
 
 Each skill follows this structure:
@@ -380,11 +570,13 @@ PR approved and merged
 - ✅ test-runner skill - Automated test execution before commits
 - ✅ security-checker skill - Validates no secrets in commits
 - ✅ pr-helper skill - Standardized PR creation
+- ✅ dependency-checker skill - Audits dependencies for security vulnerabilities
+- ✅ changelog-updater skill - Generates changelog entries from git commits
+- ✅ session-start-hook skill - SessionStart hooks for environment setup
 
 ### Future (v2.0.0+)
 - Feature scaffolding (generate boilerplate from templates)
 - Safe refactoring (with automated test loop)
-- Dependency updater (with security checks)
 - Code review assistant (automated PR review)
 - Performance profiler (identify bottlenecks)
 

@@ -128,8 +128,12 @@ Every PR adds entry to `docs/changelog.md`:
 | Setting | Value |
 |---------|-------|
 | Project ID | `project38-483612` |
+| Project Number | `979429709900` |
 | Service Account | `claude-code-agent@project38-483612.iam.gserviceaccount.com` |
-| Auth Method | Service Account Key in `GCP_SERVICE_ACCOUNT_KEY` |
+| Auth Method | **Workload Identity Federation (WIF)** via OIDC |
+| WIF Pool | `github-pool` |
+| WIF Provider | `github-provider` |
+| Provider Resource Name | `projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
 
 ### Available Secrets
 
@@ -198,7 +202,11 @@ project38-or/
 
 ### Workflows
 
-- All workflows use `workflow_dispatch` only (no push triggers)
+- All workflows use `workflow_dispatch` (manual trigger)
+- **Exception:** `docs.yml` uses push trigger for automatic documentation deployment
+  - Rationale: Low risk (GitHub Pages only, no secrets/GCP access)
+  - Benefit: Documentation stays synchronized with code (15/16 runs were automatic)
+  - Permissions: `contents: read`, `pages: write` (minimal)
 - Explicit `permissions` block required
 - Include `concurrency` control
 
@@ -443,6 +451,176 @@ pr-helper: Create PR ✅
 - ✅ Comprehensive test plans
 - ✅ PR creation takes < 1 minute
 
+### dependency-checker (v1.0.0)
+
+**Purpose:** Audits Python dependencies for security vulnerabilities, outdated versions, and best practices.
+
+**Triggers:**
+- Changes to `requirements*.txt` files
+- Keywords: `dependencies`, `vulnerabilities`, `outdated packages`, `audit dependencies`, `security audit`, `check dependencies`
+
+**What it does:**
+1. Scans for known security vulnerabilities using pip-audit
+2. Identifies outdated packages with available updates
+3. Validates requirements.txt format (pinning, version constraints)
+4. Checks for dependency conflicts (pip check)
+5. Verifies lock files are synchronized
+6. Generates prioritized remediation plan (Priority 1-4)
+7. Blocks deployment on CRITICAL/HIGH vulnerabilities
+
+**When to use:**
+```bash
+# After updating dependencies
+"Check dependencies for vulnerabilities"
+
+# Periodic audit
+"Run dependency audit"
+
+# Before PR
+"Audit dependencies before creating PR"
+```
+
+**Integration with CI:**
+- Skill runs **proactively** during development (local)
+- CI validates before merge (GitHub Actions - future)
+- Together they enforce **Zero Known Vulnerabilities**
+
+**Files:**
+- Skill definition: `.claude/skills/dependency-checker/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (read-only scanning)
+- Allowed tools: Read, Bash (pip, pip-audit, safety), Grep, Glob
+- Never auto-updates dependencies without approval
+- Always blocks on CRITICAL/HIGH vulnerabilities
+- Requires testing after any dependency update
+
+**Success metrics:**
+- ✅ Zero CRITICAL/HIGH vulnerabilities in production
+- ✅ All dependencies pinned with exact versions
+- ✅ Lock files stay synchronized
+- ✅ Clear remediation guidance provided
+- ✅ Monthly security audits completed
+
+**Critical:** This skill enforces **Zero Tolerance for Critical Vulnerabilities** - any CRITICAL or HIGH severity vulnerability will block deployment until fixed. All production dependencies must use exact version pinning (e.g., `package==1.2.3`).
+
+### changelog-updater (v1.0.0)
+
+**Purpose:** Automatically generates changelog entries from git commit history using conventional commits.
+
+**Triggers:**
+- Preparing to create a Pull Request
+- Multiple commits exist that aren't reflected in changelog
+- Keywords: `changelog`, `update changelog`, `generate changelog`, `commits to changelog`, `before pr`
+
+**What it does:**
+1. Analyzes git commit history from branch divergence point
+2. Parses conventional commit messages (feat, fix, docs, security, etc.)
+3. Categorizes changes into appropriate changelog sections (Added/Changed/Fixed/Security)
+4. Generates well-formatted, human-readable changelog entries
+5. Groups related commits to reduce clutter
+6. Updates `docs/changelog.md` under [Unreleased] section
+7. Validates markdown syntax and completeness
+
+**When to use:**
+```bash
+# Before creating PR
+"Update changelog before PR"
+
+# Generate from commits
+"Generate changelog from commits"
+
+# After feature completion
+"Update changelog for the OAuth2 feature"
+```
+
+**Integration with CI:**
+- changelog-updater generates entries from commits (automated)
+- doc-updater validates changelog format (quality check)
+- docs-check.yml ensures changelog completeness (CI gate)
+- Together they enforce **complete changelog coverage**
+
+**Files:**
+- Skill definition: `.claude/skills/changelog-updater/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (only updates docs/changelog.md)
+- Allowed tools: Read, Edit, Bash (git log, git diff, git show), Grep, Glob
+- Never modifies code files
+- Never deletes existing changelog entries
+- Validates markdown syntax after updates
+
+**Success metrics:**
+- ✅ All commits reflected in changelog before PR
+- ✅ Changelog entries are accurate and descriptive
+- ✅ Proper categorization (Added/Fixed/Changed/Security)
+- ✅ No manual changelog editing needed
+- ✅ docs-check.yml CI passes on first try
+
+**Benefits:**
+- Saves time - no manual changelog writing
+- Consistent format - follows Keep a Changelog standard
+- Complete coverage - analyzes all commits systematically
+- Proper categorization - uses conventional commit types
+
+### session-start-hook (v1.0.0)
+
+**Purpose:** Creates and manages SessionStart hooks for Claude Code to ensure development environment is ready.
+
+**Triggers:**
+- Keywords: `session start`, `session hook`, `startup hook`, `session configuration`, `claude code setup`, `environment setup`
+- First-time repository setup for Claude Code
+- Configuring Claude Code on the web
+
+**What it does:**
+1. Creates `.claude/.claude-settings.json` with SessionStart hook configuration
+2. Generates `.claude/hooks/session-start.sh` script for environment checks
+3. Verifies Python and development tools (pytest, ruff, pydocstyle)
+4. Displays git status and current branch
+5. Shows available skills and project configuration
+6. Auto-installs dependencies if needed
+7. Provides quick reminders about project guidelines
+
+**When to use:**
+```bash
+# First-time setup
+"Set up SessionStart hook for this repository"
+
+# Web environment
+"Configure SessionStart hook for Claude Code on the web"
+
+# Update existing hook
+"Add git diff stats to the SessionStart hook"
+```
+
+**Integration with workflows:**
+Provides foundation for all other skills - runs on every session start to prepare environment.
+
+**Files:**
+- Skill definition: `.claude/skills/session-start-hook/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (creates config files and scripts)
+- Allowed tools: Read, Write, Edit, Bash (pip, pytest, ruff, git), Grep, Glob
+- Never modifies git configuration or system packages
+- Scripts are idempotent and safe to run multiple times
+- Startup completes in < 10 seconds
+
+**Success metrics:**
+- ✅ Zero manual setup required
+- ✅ Fast startup (< 10 seconds)
+- ✅ All tools verified correctly
+- ✅ Session context loaded automatically
+- ✅ Works in both local and web environments
+
+**What the hook checks:**
+- 📦 Python environment (version, pip)
+- 🔧 Development tools (pytest, ruff, pydocstyle)
+- 📊 Repository status (git status, current branch)
+- ☁️ GCP configuration (project ID, available secrets)
+- 🎯 Available skills (list of all skills)
+- 💡 Quick reminders (security rules, testing, docs)
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:
@@ -516,6 +694,237 @@ gh auth status
 ```
 
 **Note:** Web sessions don't share local `~/.claude.json` config. Each environment needs its own GH_TOKEN.
+
+### Proxy Constraints (Anthropic Environment)
+
+⚠️ **Critical Discovery:** The Anthropic egress proxy interferes with direct GitHub API calls using curl.
+
+**Root Cause:**
+- Anthropic uses an egress proxy at `21.0.0.25:15004` for HTTPS traffic
+- Environment variable: `HTTPS_PROXY=http://container_...@21.0.0.25:15004`
+- The proxy adds `Proxy-Authorization` header and removes/interferes with the `Authorization` header
+- Result: `curl -H "Authorization: token ${GH_TOKEN}"` fails with 401 "Bad credentials"
+
+**Solution:**
+Always use `gh CLI` commands instead of curl for GitHub API operations:
+
+```bash
+# ❌ WRONG - fails with 401 in Anthropic environment
+curl -H "Authorization: token ${GH_TOKEN}" https://api.github.com/repos/...
+
+# ✅ RIGHT - gh CLI handles the proxy correctly
+gh api repos/edri2or-commits/project38-or
+gh pr merge 23 --squash --delete-branch --repo edri2or-commits/project38-or
+gh pr list --repo edri2or-commits/project38-or
+```
+
+**Why gh CLI Works:**
+- `gh` has built-in proxy integration
+- Correctly handles both `HTTPS_PROXY` and `Authorization` headers
+- Automatically uses GH_TOKEN from environment or `gh auth login`
+
+**Diagnostic Command:**
+To verify proxy interference:
+```bash
+curl -v -H "Authorization: token ${GH_TOKEN}" "https://api.github.com/repos/..." 2>&1 | grep -A 2 "Authorization"
+# If you see Proxy-Authorization header without Authorization, proxy is interfering
+```
+
+**Environment Variables:**
+```bash
+HTTPS_PROXY=http://container_...@21.0.0.25:15004
+no_proxy=localhost,127.0.0.1,169.254.169.254,metadata.google.internal,*.googleapis.com,*.google.com
+# Note: api.github.com is NOT in no_proxy, so all GitHub API calls go through proxy
+```
+
+**Verified Patterns:**
+- ✅ `gh pr merge` - works
+- ✅ `gh pr create` - works
+- ✅ `gh api` - works
+- ✅ `gh run list` - works
+- ❌ `curl` with Authorization - fails
+- ❌ Direct GitHub API requests with curl - fail
+- ✅ `requests` library with GitHub API - **works** (handles proxy correctly)
+
+---
+
+## GitHub PR Operations (Universal Solution)
+
+**Problem:** `gh CLI` is not guaranteed to be installed in every Claude Code session.
+
+**Solution:** Use `src/github_pr.py` module which works in **any environment**:
+
+```python
+from src.github_pr import create_pr
+
+# Works whether gh CLI is installed or not
+pr = create_pr(
+    title="Add feature X",
+    body="## Summary\nAdds feature X",
+    repo="owner/repo",
+    head="feature/x"
+)
+
+if pr:
+    print(f"Created PR #{pr['number']}: {pr['url']}")
+```
+
+**How it works:**
+1. **Prefers `gh CLI`** if available (fastest, best proxy handling)
+2. **Falls back to `requests`** library if `gh` not installed (proven to work with Anthropic proxy)
+3. **Auto-detects** current branch if not specified
+4. **Handles tokens** from GH_TOKEN, GITHUB_TOKEN, or `gh auth token`
+
+**Testing:**
+```bash
+# Check what's available
+python3 src/github_pr.py
+# Output: gh CLI available: True/False, GH_TOKEN available: True/False
+```
+
+**For Skills and Automation:**
+Always use `src.github_pr.create_pr()` instead of calling `gh pr create` directly. This ensures PRs can be created even in environments without gh CLI.
+
+---
+
+## Troubleshooting: Git Push & Merge Conflicts
+
+### Problem 1: HTTP 403 "The requested URL returned error: 403" on git push
+
+**Symptoms:**
+```bash
+$ git push origin branch-name
+error: RPC failed; HTTP 403 curl 22 The requested URL returned error: 403
+fatal: the remote end hung up unexpectedly
+```
+
+**Root Cause:**
+- Branch protection rules block direct push to protected branches (main)
+- Attempting to push to a branch with merge conflicts
+- Token lacks required permissions
+
+**Solution:**
+```bash
+# Don't push to main directly - create PR instead
+# If you have merge conflicts:
+
+# 1. Create a NEW clean branch from origin/main
+git fetch origin main
+git checkout -b my-feature-fixed-$(date +%s) origin/main
+
+# 2. Copy your changes from the conflicted branch
+git checkout conflicted-branch -- path/to/changed/files
+
+# 3. Review and commit
+git status
+git add -A
+git commit -m "your commit message"
+
+# 4. Push the new clean branch
+git push -u origin my-feature-fixed-$(date +%s)
+
+# 5. Create PR with src/github_pr.py
+python3 -c "from src.github_pr import create_pr; create_pr(...)"
+```
+
+**Why this works:**
+- New branch has NO divergent history
+- No merge conflicts
+- Clean base from origin/main
+- Push succeeds because branch is unprotected
+
+### Problem 2: Merge Conflicts in PR
+
+**Symptoms:**
+```bash
+gh pr merge <number> --squash
+# X Pull request is not mergeable: the merge commit cannot be cleanly created
+```
+
+**Root Cause:**
+- Base branch (main) has advanced since your branch was created
+- Files changed in both branches (changelog, CLAUDE.md, etc.)
+
+**Solution - Clean Branch Approach:**
+```bash
+# 1. Fetch latest main
+git fetch origin main
+
+# 2. Create NEW branch from origin/main
+git checkout -b feature-resolved-$(date +%s) origin/main
+
+# 3. Cherry-pick OR manually copy your changes
+# Option A: Cherry-pick (if commits are clean)
+git cherry-pick <commit-hash>
+
+# Option B: Manual copy (recommended for conflicts)
+git checkout old-branch -- path/to/file1 path/to/file2
+
+# 4. Resolve conflicts if any
+git status
+# Edit conflicted files
+git add -A
+git commit -m "resolved: description"
+
+# 5. Push new branch
+git push -u origin feature-resolved-$(date +%s)
+
+# 6. Close old PR, create new PR
+gh pr close <old-number> --comment "Recreated as clean branch due to conflicts"
+python3 -c "from src.github_pr import create_pr; create_pr(...)"
+```
+
+**Real Example (from 2026-01-11):**
+- PR #28 had conflicts in `docs/changelog.md`
+- Solution: Created `claude/dependency-checker-final-Kn6wV` from `origin/main`
+- Copied files with `git checkout main -- .claude/skills/...`
+- Result: PR #29 merged successfully
+
+### Problem 3: "Everything up-to-date" but push fails with 403
+
+**Explanation:**
+- Git thinks remote is up-to-date because it can't push
+- The 403 error prevents git from understanding the real state
+
+**Solution:**
+- Don't retry pushing same branch
+- Use "Clean Branch Approach" above
+- Always start from `origin/main`, not local `main`
+
+### Best Practices
+
+1. **Never push to main directly**
+   ```bash
+   # ❌ WRONG
+   git checkout main
+   git push origin main
+
+   # ✅ RIGHT
+   git checkout -b feature/xyz origin/main
+   git push -u origin feature/xyz
+   # Then create PR
+   ```
+
+2. **Always create PRs for changes**
+   ```bash
+   # Use src/github_pr.py module
+   from src.github_pr import create_pr
+   pr = create_pr(title="...", body="...", repo="...", head="feature/xyz")
+   ```
+
+3. **If you get 403, create new branch**
+   ```bash
+   # Don't fight the 403 - work around it
+   git checkout -b feature-clean-$(date +%s) origin/main
+   git checkout old-branch -- changed-files
+   git commit -m "recreation from clean base"
+   git push -u origin feature-clean-$(date +%s)
+   ```
+
+4. **Document what you learned**
+   - If you encounter a new error pattern
+   - Add it to this troubleshooting section
+   - Include: symptom, cause, solution, example
 
 ---
 

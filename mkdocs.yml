@@ -59,6 +59,9 @@ nav:
   - אבטחה: SECURITY.md
   - ארכיטקטורה:
       - תוכנית Bootstrap: BOOTSTRAP_PLAN.md
+      - הגדרות ידניות:
+          - מדריך הגדרה: manual-setup-guide.md
+          - מעבר ל-WIF: wif-migration-plan.md
       - מחקר:
           - סקירה: research/index.md
           - תשתית תיעוד: research/01_documentation_infrastructure_zero_tolerance.summary.md
@@ -68,5 +71,8 @@ nav:
           - Agentic Fortress: research/05_agentic_fortress_security_architecture.summary.md
           - Documentation Agents: research/06_autonomous_documentation_agents.summary.md
           - Claude Skills: research/07_claude_skills_enterprise_implementation.summary.md
-  - API Reference: api/index.md
+  - API Reference:
+      - סקירה: api/index.md
+      - GitHub Authentication: api/github_auth.md
+      - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md
