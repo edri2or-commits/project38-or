@@ -4,12 +4,12 @@ WIF Setup Script - Pure Python Implementation
 Creates Workload Identity Federation for GitHub Actions without gcloud CLI
 """
 
-import sys
-from google.cloud import iam_v1
-from google.cloud import resourcemanager_v3
-from google.iam.v1 import iam_policy_pb2
-from google.api_core import exceptions
 import json
+import sys
+
+from google.api_core import exceptions
+from google.cloud import iam_v1, resourcemanager_v3
+from google.iam.v1 import iam_policy_pb2
 
 PROJECT_ID = "project38-483612"
 SERVICE_ACCOUNT = "claude-code-agent@project38-483612.iam.gserviceaccount.com"
@@ -18,18 +18,20 @@ PROVIDER_ID = "github-provider"
 REPO_OWNER = "edri2or-commits"
 REPO_NAME = "project38-or"
 
+
 def get_project_number():
     """Get GCP project number from project ID."""
     print("📋 Step 1: Getting Project Number...")
     try:
         client = resourcemanager_v3.ProjectsClient()
         project = client.get_project(name=f"projects/{PROJECT_ID}")
-        project_number = project.name.split('/')[-1]
+        project_number = project.name.split("/")[-1]
         print(f"✅ Project Number: {project_number}")
         return project_number
     except Exception as e:
         print(f"❌ Error getting project number: {e}")
         sys.exit(1)
+
 
 def enable_apis():
     """Note: API enabling requires serviceusage API which needs gcloud."""
@@ -39,6 +41,7 @@ def enable_apis():
     print("   - sts.googleapis.com")
     print("   If setup fails, enable these in GCP Console")
 
+
 def create_workload_identity_pool(project_number):
     """Create Workload Identity Pool."""
     print("\n🏊 Step 3: Creating Workload Identity Pool...")
@@ -47,7 +50,9 @@ def create_workload_identity_pool(project_number):
         # Note: The google-cloud-iam library doesn't have direct WIF pool creation
         # We need to use the IAM Admin API via REST or gcloud
         print("⚠️  Workload Identity Pool creation requires:")
-        print("   1. GCP Console: https://console.cloud.google.com/iam-admin/workload-identity-pools")
+        print(
+            "   1. GCP Console: https://console.cloud.google.com/iam-admin/workload-identity-pools"
+        )
         print("   2. Or gcloud CLI")
         print("   3. Or REST API call")
         print("\n   Attempting via IAM API...")
@@ -62,21 +67,25 @@ def create_workload_identity_pool(project_number):
         print(f"❌ Error: {e}")
         return False
 
+
 def setup_via_rest_api():
     """Setup WIF using REST API calls."""
     print("\n🔄 Alternative: Using REST API...")
     print("   This requires authenticated requests to:")
-    print("   https://iam.googleapis.com/v1/projects/{project}/locations/global/workloadIdentityPools")
+    print(
+        "   https://iam.googleapis.com/v1/projects/{project}/locations/global/workloadIdentityPools"
+    )
     print("\n   For now, WIF setup requires one of:")
     print("   1. gcloud CLI (recommended)")
     print("   2. Manual setup in GCP Console")
     print("   3. Custom REST API implementation")
 
+
 def print_manual_instructions(project_number):
     """Print manual setup instructions."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📋 MANUAL WIF SETUP INSTRUCTIONS")
-    print("="*60)
+    print("=" * 60)
     print("\nDue to API limitations, please run these commands manually:")
     print("\n1️⃣  Enable Required APIs:")
     print(f"""
@@ -124,16 +133,17 @@ gcloud iam workload-identity-pools providers describe "{PROVIDER_ID}" \\
   --format="value(name)"
 """)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("💡 TIP: Run these commands from:")
     print("   - Your local machine with gcloud installed")
     print("   - GCP Cloud Shell (https://shell.cloud.google.com)")
-    print("="*60)
+    print("=" * 60)
+
 
 def main():
     """Main execution."""
     print("🚀 WIF Setup - Python Implementation")
-    print("="*60)
+    print("=" * 60)
 
     # Step 1: Get project number
     project_number = get_project_number()
@@ -152,6 +162,7 @@ def main():
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
