@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- GitHub App authentication API documentation in `docs/api/github_auth.md` (complete documentation coverage achieved)
 - **Workload Identity Federation (WIF)** - Full migration from static Service Account keys to OIDC-based authentication
 - WIF setup complete with Pool: `github-pool` and Provider: `github-provider` (Project: 979429709900)
 - Comprehensive WIF migration plan in `docs/wif-migration-plan.md` with step-by-step GCP setup instructions

@@ -68,5 +68,7 @@ nav:
           - Agentic Fortress: research/05_agentic_fortress_security_architecture.summary.md
           - Documentation Agents: research/06_autonomous_documentation_agents.summary.md
           - Claude Skills: research/07_claude_skills_enterprise_implementation.summary.md
-  - API Reference: api/index.md
+  - API Reference:
+      - סקירה: api/index.md
+      - GitHub Authentication: api/github_auth.md
   - Changelog: changelog.md
