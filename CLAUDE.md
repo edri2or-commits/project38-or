@@ -525,6 +525,56 @@ gh auth status
 
 **Note:** Web sessions don't share local `~/.claude.json` config. Each environment needs its own GH_TOKEN.
 
+### Proxy Constraints (Anthropic Environment)
+
+⚠️ **Critical Discovery:** The Anthropic egress proxy interferes with direct GitHub API calls using curl.
+
+**Root Cause:**
+- Anthropic uses an egress proxy at `21.0.0.25:15004` for HTTPS traffic
+- Environment variable: `HTTPS_PROXY=http://container_...@21.0.0.25:15004`
+- The proxy adds `Proxy-Authorization` header and removes/interferes with the `Authorization` header
+- Result: `curl -H "Authorization: token ${GH_TOKEN}"` fails with 401 "Bad credentials"
+
+**Solution:**
+Always use `gh CLI` commands instead of curl for GitHub API operations:
+
+```bash
+# ❌ WRONG - fails with 401 in Anthropic environment
+curl -H "Authorization: token ${GH_TOKEN}" https://api.github.com/repos/...
+
+# ✅ RIGHT - gh CLI handles the proxy correctly
+gh api repos/edri2or-commits/project38-or
+gh pr merge 23 --squash --delete-branch --repo edri2or-commits/project38-or
+gh pr list --repo edri2or-commits/project38-or
+```
+
+**Why gh CLI Works:**
+- `gh` has built-in proxy integration
+- Correctly handles both `HTTPS_PROXY` and `Authorization` headers
+- Automatically uses GH_TOKEN from environment or `gh auth login`
+
+**Diagnostic Command:**
+To verify proxy interference:
+```bash
+curl -v -H "Authorization: token ${GH_TOKEN}" "https://api.github.com/repos/..." 2>&1 | grep -A 2 "Authorization"
+# If you see Proxy-Authorization header without Authorization, proxy is interfering
+```
+
+**Environment Variables:**
+```bash
+HTTPS_PROXY=http://container_...@21.0.0.25:15004
+no_proxy=localhost,127.0.0.1,169.254.169.254,metadata.google.internal,*.googleapis.com,*.google.com
+# Note: api.github.com is NOT in no_proxy, so all GitHub API calls go through proxy
+```
+
+**Verified Patterns:**
+- ✅ `gh pr merge` - works
+- ✅ `gh pr create` - works
+- ✅ `gh api` - works
+- ✅ `gh run list` - works
+- ❌ `curl` with Authorization - fails
+- ❌ Direct GitHub API requests - fail
+
 ---
 
 ## What Requires Your Approval
