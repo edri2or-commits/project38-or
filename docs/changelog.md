@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 3.1: Core Infrastructure** - FastAPI application and database models for Agent Platform
+  - `src/api/main.py` - FastAPI app entry point with CORS middleware and lifecycle hooks
+  - `src/api/routes/health.py` - Health check (`/health`) and root (`/`) endpoints
+  - `src/api/database.py` - PostgreSQL connection management with asyncpg and SQLModel
+  - `src/models/agent.py` - Agent entity schema (name, description, code, status, timestamps)
+  - `src/models/task.py` - Task entity schema (agent execution history, scheduling, results)
+  - New dependencies: fastapi>=0.109.0, sqlmodel>=0.0.14, asyncpg>=0.29.0, uvicorn[standard]>=0.27.0
+  - `tests/test_api_health.py` - 10 tests for health check endpoints
+  - Foundation for Agent Factory (Phase 3.2) and Agent Harness (Phase 3.3)
+
 ### Fixed
 - **BOOTSTRAP_PLAN.md accuracy** - Updated Success Metrics and completed skills documentation
   - Corrected Autonomous Skills count from 5 to 7 in `docs/BOOTSTRAP_PLAN.md:238`
