@@ -573,7 +573,47 @@ no_proxy=localhost,127.0.0.1,169.254.169.254,metadata.google.internal,*.googleap
 - ✅ `gh api` - works
 - ✅ `gh run list` - works
 - ❌ `curl` with Authorization - fails
-- ❌ Direct GitHub API requests - fail
+- ❌ Direct GitHub API requests with curl - fail
+- ✅ `requests` library with GitHub API - **works** (handles proxy correctly)
+
+---
+
+## GitHub PR Operations (Universal Solution)
+
+**Problem:** `gh CLI` is not guaranteed to be installed in every Claude Code session.
+
+**Solution:** Use `src/github_pr.py` module which works in **any environment**:
+
+```python
+from src.github_pr import create_pr
+
+# Works whether gh CLI is installed or not
+pr = create_pr(
+    title="Add feature X",
+    body="## Summary\nAdds feature X",
+    repo="owner/repo",
+    head="feature/x"
+)
+
+if pr:
+    print(f"Created PR #{pr['number']}: {pr['url']}")
+```
+
+**How it works:**
+1. **Prefers `gh CLI`** if available (fastest, best proxy handling)
+2. **Falls back to `requests`** library if `gh` not installed (proven to work with Anthropic proxy)
+3. **Auto-detects** current branch if not specified
+4. **Handles tokens** from GH_TOKEN, GITHUB_TOKEN, or `gh auth token`
+
+**Testing:**
+```bash
+# Check what's available
+python3 src/github_pr.py
+# Output: gh CLI available: True/False, GH_TOKEN available: True/False
+```
+
+**For Skills and Automation:**
+Always use `src.github_pr.create_pr()` instead of calling `gh pr create` directly. This ensures PRs can be created even in environments without gh CLI.
 
 ---
 

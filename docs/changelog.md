@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Universal GitHub PR operations** (`src/github_pr.py`) - Works in any environment, with or without gh CLI
+  - Automatic fallback from gh CLI to requests library
+  - Handles GitHub tokens from multiple sources (GH_TOKEN, GITHUB_TOKEN, gh auth)
+  - Proven to work with Anthropic egress proxy
+  - 16 comprehensive tests with 97% overall code coverage
+  - Documentation in `CLAUDE.md:581-617`
 - GitHub App authentication API documentation in `docs/api/github_auth.md` (complete documentation coverage achieved)
 - **Workload Identity Federation (WIF)** - Full migration from static Service Account keys to OIDC-based authentication
 - WIF setup complete with Pool: `github-pool` and Provider: `github-provider` (Project: 979429709900)
