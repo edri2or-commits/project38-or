@@ -504,6 +504,65 @@ pr-helper: Create PR ✅
 
 **Critical:** This skill enforces **Zero Tolerance for Critical Vulnerabilities** - any CRITICAL or HIGH severity vulnerability will block deployment until fixed. All production dependencies must use exact version pinning (e.g., `package==1.2.3`).
 
+### changelog-updater (v1.0.0)
+
+**Purpose:** Automatically generates changelog entries from git commit history using conventional commits.
+
+**Triggers:**
+- Preparing to create a Pull Request
+- Multiple commits exist that aren't reflected in changelog
+- Keywords: `changelog`, `update changelog`, `generate changelog`, `commits to changelog`, `before pr`
+
+**What it does:**
+1. Analyzes git commit history from branch divergence point
+2. Parses conventional commit messages (feat, fix, docs, security, etc.)
+3. Categorizes changes into appropriate changelog sections (Added/Changed/Fixed/Security)
+4. Generates well-formatted, human-readable changelog entries
+5. Groups related commits to reduce clutter
+6. Updates `docs/changelog.md` under [Unreleased] section
+7. Validates markdown syntax and completeness
+
+**When to use:**
+```bash
+# Before creating PR
+"Update changelog before PR"
+
+# Generate from commits
+"Generate changelog from commits"
+
+# After feature completion
+"Update changelog for the OAuth2 feature"
+```
+
+**Integration with CI:**
+- changelog-updater generates entries from commits (automated)
+- doc-updater validates changelog format (quality check)
+- docs-check.yml ensures changelog completeness (CI gate)
+- Together they enforce **complete changelog coverage**
+
+**Files:**
+- Skill definition: `.claude/skills/changelog-updater/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (only updates docs/changelog.md)
+- Allowed tools: Read, Edit, Bash (git log, git diff, git show), Grep, Glob
+- Never modifies code files
+- Never deletes existing changelog entries
+- Validates markdown syntax after updates
+
+**Success metrics:**
+- ✅ All commits reflected in changelog before PR
+- ✅ Changelog entries are accurate and descriptive
+- ✅ Proper categorization (Added/Fixed/Changed/Security)
+- ✅ No manual changelog editing needed
+- ✅ docs-check.yml CI passes on first try
+
+**Benefits:**
+- Saves time - no manual changelog writing
+- Consistent format - follows Keep a Changelog standard
+- Complete coverage - analyzes all commits systematically
+- Proper categorization - uses conventional commit types
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:

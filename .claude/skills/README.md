@@ -218,6 +218,69 @@ Works alongside CI/CD security scanning:
 
 **Critical:** Blocks deployment on CRITICAL/HIGH vulnerabilities. All production dependencies must be pinned to exact versions.
 
+### 6. changelog-updater (v1.0.0)
+
+**Purpose:** Automatically generates changelog entries from git commit history using conventional commits
+
+**Triggers:**
+- Preparing to create a Pull Request
+- Multiple commits exist that aren't reflected in changelog
+- Keywords: `changelog`, `update changelog`, `generate changelog`, `commits to changelog`, `before pr`
+
+**What it does:**
+1. Analyzes git commit history from branch divergence point
+2. Parses conventional commit messages (feat, fix, docs, security, etc.)
+3. Categorizes changes into appropriate changelog sections (Added/Changed/Fixed/Security)
+4. Generates well-formatted, human-readable changelog entries
+5. Groups related commits to reduce clutter
+6. Updates `docs/changelog.md` under [Unreleased] section
+7. Validates markdown syntax and completeness
+
+**When to use:**
+- Before creating a PR (to ensure all commits are documented)
+- After completing a feature with multiple commits
+- When conventional commits were used
+- To automate changelog maintenance
+
+**Example:**
+```bash
+# Before creating PR
+"Update changelog before PR"
+
+# Generate from commits
+"Generate changelog from commits"
+
+# After feature completion
+"Update changelog for the OAuth2 feature"
+```
+
+**Integration:**
+Works with doc-updater and CI/CD:
+- changelog-updater generates entries from commits (automated)
+- doc-updater validates changelog format (quality check)
+- docs-check.yml ensures changelog completeness (CI gate)
+- Together they enforce complete changelog coverage
+
+**Benefits:**
+- ✅ Saves time - no manual changelog writing
+- ✅ Consistent format - follows Keep a Changelog standard
+- ✅ Complete coverage - analyzes all commits
+- ✅ Proper categorization - uses conventional commit types
+- ✅ File references - includes paths and line numbers
+
+**Typical workflow:**
+```
+Multiple commits with conventional format
+    ↓
+changelog-updater analyzes history
+    ↓
+Generates changelog entries automatically
+    ↓
+Developer reviews and commits
+    ↓
+CI validates with docs-check.yml
+```
+
 ## Skill Structure
 
 Each skill follows this structure:
@@ -424,9 +487,9 @@ PR approved and merged
 - ✅ security-checker skill - Validates no secrets in commits
 - ✅ pr-helper skill - Standardized PR creation
 - ✅ dependency-checker skill - Audits dependencies for security vulnerabilities
+- ✅ changelog-updater skill - Generates changelog entries from git commits
 
 ### Future (v2.0.0+)
-- changelog-updater (auto-update changelog on commits)
 - Feature scaffolding (generate boilerplate from templates)
 - Safe refactoring (with automated test loop)
 - Code review assistant (automated PR review)

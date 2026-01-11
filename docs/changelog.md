@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **changelog-updater skill (v1.0.0)** for automatically generating changelog entries from git commit history in `.claude/skills/changelog-updater/SKILL.md`
+  - Analyzes git commit history from branch divergence point
+  - Parses conventional commit messages (feat, fix, docs, security, etc.)
+  - Categorizes changes into appropriate changelog sections (Added/Changed/Fixed/Security)
+  - Generates well-formatted, human-readable changelog entries with file references
+  - Groups related commits to reduce clutter
+  - Updates `docs/changelog.md` under [Unreleased] section automatically
+  - Validates markdown syntax and completeness
+  - Updated Skills README in `.claude/skills/README.md:221-282` with complete documentation
+  - Updated CLAUDE.md in `CLAUDE.md:507-564` with skill description and usage examples
 - **100% test coverage achieved** - Added 4 new tests to reach complete code coverage (174/174 statements)
   - PermissionError handling in `ensure_gh_cli()`
   - SubprocessError handling in `ensure_gh_cli()` and `create_pr_with_gh()`
