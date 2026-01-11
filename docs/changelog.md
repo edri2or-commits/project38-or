@@ -101,6 +101,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated BOOTSTRAP_PLAN.md with completed tasks and pending manual execution items
 - Enhanced Success Metrics table with current status indicators (100% test coverage achieved)
 
+### Fixed
+- **Deploy Documentation workflow failure** in `docs/api/github_pr.md` - Removed broken markdown links to `CLAUDE.md`
+  - Changed `[CLAUDE.md:634-669](../../CLAUDE.md)` to plain text: `` `CLAUDE.md` (lines 634-669) ``
+  - Changed `[CLAUDE.md:673-810](../../CLAUDE.md)` to plain text: `` `CLAUDE.md` (lines 673-810) ``
+  - Root cause: MkDocs cannot resolve links to files outside `docs/` directory
+  - Fix verified: `mkdocs build --strict` passes successfully
+  - Commit: `b78cd9b` (PR #33)
+
 ### Security
 - ✅ **Eliminated long-lived Service Account keys** - GitHub Actions now use ephemeral OIDC tokens (1-hour lifetime)
 - ✅ **Least privilege access** - WIF restricted to `edri2or-commits/project38-or` repository only
