@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- dependency-checker skill (v1.0.0) for auditing Python dependencies for security vulnerabilities in `.claude/skills/dependency-checker/SKILL.md`
+  - Scans for known vulnerabilities using pip-audit
+  - Identifies outdated packages
+  - Validates requirements.txt format and version pinning
+  - Checks for dependency conflicts
+  - Generates prioritized remediation plans
+  - Blocks deployment on CRITICAL/HIGH vulnerabilities
+  - Updated Skills README and CLAUDE.md with dependency-checker documentation
 - **Universal GitHub PR operations** (`src/github_pr.py`) - Works in any environment, with or without gh CLI
   - Automatic fallback from gh CLI to requests library
   - Handles GitHub tokens from multiple sources (GH_TOKEN, GITHUB_TOKEN, gh auth)
