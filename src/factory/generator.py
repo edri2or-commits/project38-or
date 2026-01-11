@@ -105,9 +105,7 @@ async def generate_agent_code(
     # Get API key from parameter or environment
     api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise ValueError(
-            "Anthropic API key not found. Set ANTHROPIC_API_KEY environment variable"
-        )
+        raise ValueError("Anthropic API key not found. Set ANTHROPIC_API_KEY environment variable")
 
     # Generate the prompt
     prompt = AGENT_GENERATION_PROMPT.render(description=description.strip())
@@ -147,15 +145,12 @@ async def generate_agent_code(
         if code.endswith("```"):
             code = code[: -len("```")].strip()
 
-        logger.info(
-            "Successfully generated agent code (%d characters)", len(code)
-        )
+        logger.info("Successfully generated agent code (%d characters)", len(code))
 
         return {
             "code": code,
             "model": message.model,
-            "tokens_used": message.usage.input_tokens
-            + message.usage.output_tokens,
+            "tokens_used": message.usage.input_tokens + message.usage.output_tokens,
         }
 
     except APIError as e:

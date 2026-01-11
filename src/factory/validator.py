@@ -37,9 +37,7 @@ SECURITY_PATTERNS = [
 ]
 
 
-async def validate_code(
-    code: str, strict: bool = True
-) -> dict[str, list[str]]:
+async def validate_code(code: str, strict: bool = True) -> dict[str, list[str]]:
     """Validate generated Python code.
 
     Runs multiple validation checks:
@@ -84,9 +82,7 @@ async def validate_code(
         return {"errors": errors, "warnings": warnings, "passed": False}
 
     # Create temporary file for validation tools
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".py", delete=False
-    ) as tmp_file:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp_file:
         tmp_file.write(code)
         tmp_path = Path(tmp_file.name)
 
@@ -174,9 +170,7 @@ def _run_ruff_format(code_path: Path) -> dict[str, any]:
         messages = []
 
         if not passed:
-            messages.append(
-                "Code formatting does not match ruff style (run 'ruff format' to fix)"
-            )
+            messages.append("Code formatting does not match ruff style (run 'ruff format' to fix)")
 
         return {"passed": passed, "messages": messages}
 

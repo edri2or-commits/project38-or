@@ -6,16 +6,17 @@ Tests cover:
 - Ralph Wiggum Loop (recursive fix cycle)
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from src.factory.generator import generate_agent_code, estimate_cost, GeneratorError
+
+from src.factory.generator import GeneratorError, estimate_cost, generate_agent_code
+from src.factory.ralph_loop import RalphLoopError, get_loop_summary, ralph_wiggum_loop
 from src.factory.validator import (
-    validate_code,
     _check_security_patterns,
     format_validation_report,
+    validate_code,
 )
-from src.factory.ralph_loop import ralph_wiggum_loop, get_loop_summary, RalphLoopError
-
 
 # Sample valid Python code
 VALID_CODE = '''
@@ -54,7 +55,7 @@ class Agent:
 '''
 
 # Code with security issues
-INSECURE_CODE = '''
+INSECURE_CODE = """
 import subprocess
 
 password = "hardcoded_secret"
@@ -64,7 +65,7 @@ def run_command(cmd):
     subprocess.call(cmd, shell=True)
     result = eval(cmd)
     return result
-'''
+"""
 
 
 class TestGenerator:

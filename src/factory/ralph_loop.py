@@ -106,9 +106,7 @@ async def ralph_wiggum_loop(
     if not code or not code.strip():
         raise ValueError("Code cannot be empty")
 
-    logger.info(
-        "Starting Ralph Wiggum Loop (max_iterations=%d)", max_iterations
-    )
+    logger.info("Starting Ralph Wiggum Loop (max_iterations=%d)", max_iterations)
 
     history: list[dict] = []
     current_code = code
@@ -172,9 +170,7 @@ async def ralph_wiggum_loop(
             continue
 
     # Max iterations reached without success
-    logger.error(
-        "Ralph Wiggum Loop failed after %d iterations", max_iterations
-    )
+    logger.error("Ralph Wiggum Loop failed after %d iterations", max_iterations)
 
     # Get final validation state
     final_validation = await validate_code(current_code, strict=strict)

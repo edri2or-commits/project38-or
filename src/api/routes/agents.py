@@ -166,9 +166,7 @@ async def create_agent(request: AgentCreateRequest) -> AgentCreateResponse:
             max_tokens=4096,
         )
 
-        logger.info(
-            "Generated code (%d tokens)", generation_result["tokens_used"]
-        )
+        logger.info("Generated code (%d tokens)", generation_result["tokens_used"])
 
         # Step 2: Run Ralph Wiggum Loop to fix any issues
         loop_result = await ralph_wiggum_loop(
@@ -202,14 +200,10 @@ async def create_agent(request: AgentCreateRequest) -> AgentCreateResponse:
         agent_id = 1  # Mock ID
 
         # Calculate cost
-        total_tokens = generation_result["tokens_used"] + loop_result.get(
-            "tokens_used", 0
-        )
+        total_tokens = generation_result["tokens_used"] + loop_result.get("tokens_used", 0)
         cost = estimate_cost(total_tokens)
 
-        logger.info(
-            "Agent created successfully (ID: %d, Cost: $%.4f)", agent_id, cost
-        )
+        logger.info("Agent created successfully (ID: %d, Cost: $%.4f)", agent_id, cost)
 
         return AgentCreateResponse(
             id=agent_id,
@@ -298,9 +292,7 @@ async def get_agent(agent_id: int) -> AgentResponse:
 
 
 @router.put("/agents/{agent_id}", response_model=AgentResponse)
-async def update_agent(
-    agent_id: int, request: AgentUpdateRequest
-) -> AgentResponse:
+async def update_agent(agent_id: int, request: AgentUpdateRequest) -> AgentResponse:
     """Update an existing agent.
 
     Args:
@@ -356,9 +348,7 @@ async def delete_agent(agent_id: int) -> None:
     "/agents/{agent_id}/execute",
     response_model=AgentExecuteResponse,
 )
-async def execute_agent(
-    agent_id: int, request: AgentExecuteRequest
-) -> AgentExecuteResponse:
+async def execute_agent(agent_id: int, request: AgentExecuteRequest) -> AgentExecuteResponse:
     """Trigger manual execution of an agent.
 
     Args:
