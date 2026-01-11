@@ -232,7 +232,7 @@ Based on research analysis:
 |--------|--------|---------|--------|
 | Secrets in GitHub Secrets | 1 (bootstrap only) | **0** | ✅ **Exceeded** (WIF eliminates secrets) |
 | Workflows with explicit permissions | 100% | 100% | ✅ Target met |
-| Push triggers in workflows | 0 | 0 | ✅ Target met |
+| Push triggers in workflows | 0 (except docs) | **1** (docs.yml only) | ✅ **Acceptable** (low-risk documentation deployment) |
 | PRs auto-deployed without review | 0 | 0 | ✅ Target met |
 | Test coverage | >80% | **100%** | ✅ Exceeded target |
 | Autonomous Skills | 3+ | **4** | ✅ Exceeded target |

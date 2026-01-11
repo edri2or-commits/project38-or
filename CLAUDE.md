@@ -202,7 +202,11 @@ project38-or/
 
 ### Workflows
 
-- All workflows use `workflow_dispatch` only (no push triggers)
+- All workflows use `workflow_dispatch` (manual trigger)
+- **Exception:** `docs.yml` uses push trigger for automatic documentation deployment
+  - Rationale: Low risk (GitHub Pages only, no secrets/GCP access)
+  - Benefit: Documentation stays synchronized with code (15/16 runs were automatic)
+  - Permissions: `contents: read`, `pages: write` (minimal)
 - Explicit `permissions` block required
 - Include `concurrency` control
 
