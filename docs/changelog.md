@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3.3: Agent Harness** - 24/7 orchestration for autonomous agent execution (2026-01-11)
+  - `src/harness/executor.py` - Agent code loader and subprocess executor with timeout protection
+  - `src/harness/scheduler.py` - APScheduler integration with PostgreSQL Advisory Locks for distributed execution
+  - `src/harness/resources.py` - Resource monitoring and limits (memory, CPU, max concurrent agents)
+  - `src/harness/handoff.py` - Dual-Agent Pattern for context preservation between agent runs
+  - `src/api/routes/tasks.py` - Task management API endpoints (list, get, execute, history)
+  - `HandoffArtifact` model - Database schema for agent context preservation
+  - `tests/test_harness.py` - 22 comprehensive tests (20 passing, 2 PostgreSQL-specific)
+  - `tests/conftest.py` - Async test fixtures with SQLite in-memory database
+  - `docs/api/harness.md` - Complete API reference for Agent Harness with examples
+  - `docs/api/tasks.md` - Task Management API documentation
+  - New dependencies: apscheduler>=3.10.0, psutil>=5.9.0
+  - API endpoints: GET /api/tasks, GET /api/tasks/{id}, POST /api/tasks/execute, GET /api/tasks/agents/{id}/tasks
+  - Sandboxed subprocess execution with resource limits (256MB RAM, 50% CPU, 5 concurrent agents)
+  - Cron-based scheduling with distributed locking to prevent duplicate execution during rolling deployments
+  - Context preservation for long-running agents (observations, actions, state, metadata)
+  - FastAPI lifecycle integration (scheduler starts on startup, stops on shutdown)
+  - Foundation complete for Phase 3.4 (MCP Tools) - browser automation, filesystem, notifications
 - **Phase 3.2: Agent Factory** - Natural Language to Working Python Agent (2026-01-11)
   - `src/factory/generator.py` - Claude Sonnet 4.5 code generation from natural language
   - `src/factory/validator.py` - Multi-stage validation (syntax, ruff, pydocstyle, security patterns)
@@ -45,6 +63,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New dependencies: fastapi>=0.109.0, sqlmodel>=0.0.14, asyncpg>=0.29.0, uvicorn[standard]>=0.27.0
   - `tests/test_api_health.py` - 10 tests for health check endpoints
   - Foundation for Agent Factory (Phase 3.2) and Agent Harness (Phase 3.3)
+
+### Changed
+- **SQLModel compatibility** - Updated Agent and Task models for SQLAlchemy 2.0.45 compatibility (2026-01-11)
+  - Removed `sa_column_kwargs={"type_": "TEXT"}` syntax (deprecated in SQLAlchemy 2.0)
+  - SQLModel now automatically uses TEXT type for string fields without max_length
+  - Simplified field definitions: `code: str` instead of `Field(sa_column_kwargs=...)`
+  - Affects: `src/models/agent.py`, `src/models/task.py`, `src/harness/handoff.py`
 
 ### Fixed
 - **BOOTSTRAP_PLAN.md accuracy** - Updated Success Metrics and completed skills documentation
