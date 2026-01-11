@@ -164,16 +164,23 @@ project38-or/
 │   │   ├── database.py       # PostgreSQL connection management
 │   │   └── routes/
 │   │       ├── __init__.py
-│   │       └── health.py     # Health check endpoints
+│   │       ├── health.py     # Health check endpoints
+│   │       └── tasks.py      # Task management endpoints
 │   ├── models/               # SQLModel database schemas (Phase 3.1)
 │   │   ├── __init__.py
 │   │   ├── agent.py          # Agent entity
 │   │   └── task.py           # Task entity
-│   └── factory/              # Agent Factory (Phase 3.2)
+│   ├── factory/              # Agent Factory (Phase 3.2)
+│   │   ├── __init__.py
+│   │   ├── generator.py      # Claude code generation from NL
+│   │   ├── validator.py      # Multi-stage code validation
+│   │   └── ralph_loop.py     # Recursive Test→Fix→Test cycle
+│   └── harness/              # Agent Harness (Phase 3.3)
 │       ├── __init__.py
-│       ├── generator.py      # Claude code generation from NL
-│       ├── validator.py      # Multi-stage code validation
-│       └── ralph_loop.py     # Recursive Test→Fix→Test cycle
+│       ├── executor.py       # Agent code loader and subprocess executor
+│       ├── scheduler.py      # APScheduler with distributed locking
+│       ├── resources.py      # Resource monitoring and limits
+│       └── handoff.py        # Context preservation (Dual-Agent Pattern)
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment
@@ -185,6 +192,9 @@ project38-or/
 │   ├── report-secrets.yml    # workflow_dispatch only
 │   └── gcp-secret-manager.yml
 ├── tests/                     # pytest tests
+│   ├── conftest.py           # Shared fixtures (async_session)
+│   ├── test_factory.py       # Agent Factory tests
+│   └── test_harness.py       # Agent Harness tests (22 tests)
 ├── research/                  # Research documents (read-only)
 ├── docs/                      # MkDocs source
 │   ├── index.md              # Home page
@@ -193,6 +203,15 @@ project38-or/
 │   ├── SECURITY.md           # Security documentation
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
 │   ├── api/                  # API reference (auto-generated)
+│   │   ├── index.md          # API overview
+│   │   ├── fastapi.md        # FastAPI application reference
+│   │   ├── database.md       # Database reference
+│   │   ├── models.md         # SQLModel schemas reference
+│   │   ├── factory.md        # Agent Factory reference
+│   │   ├── harness.md        # Agent Harness reference
+│   │   ├── tasks.md          # Task Management API reference
+│   │   ├── github_auth.md    # GitHub authentication reference
+│   │   └── github_pr.md      # GitHub PR operations reference
 │   └── research/             # Research summaries
 ├── mkdocs.yml                 # MkDocs configuration
 ├── CLAUDE.md                  # This file
