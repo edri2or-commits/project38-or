@@ -670,6 +670,147 @@ Always use `src.github_pr.create_pr()` instead of calling `gh pr create` directl
 
 ---
 
+## Troubleshooting: Git Push & Merge Conflicts
+
+### Problem 1: HTTP 403 "The requested URL returned error: 403" on git push
+
+**Symptoms:**
+```bash
+$ git push origin branch-name
+error: RPC failed; HTTP 403 curl 22 The requested URL returned error: 403
+fatal: the remote end hung up unexpectedly
+```
+
+**Root Cause:**
+- Branch protection rules block direct push to protected branches (main)
+- Attempting to push to a branch with merge conflicts
+- Token lacks required permissions
+
+**Solution:**
+```bash
+# Don't push to main directly - create PR instead
+# If you have merge conflicts:
+
+# 1. Create a NEW clean branch from origin/main
+git fetch origin main
+git checkout -b my-feature-fixed-$(date +%s) origin/main
+
+# 2. Copy your changes from the conflicted branch
+git checkout conflicted-branch -- path/to/changed/files
+
+# 3. Review and commit
+git status
+git add -A
+git commit -m "your commit message"
+
+# 4. Push the new clean branch
+git push -u origin my-feature-fixed-$(date +%s)
+
+# 5. Create PR with src/github_pr.py
+python3 -c "from src.github_pr import create_pr; create_pr(...)"
+```
+
+**Why this works:**
+- New branch has NO divergent history
+- No merge conflicts
+- Clean base from origin/main
+- Push succeeds because branch is unprotected
+
+### Problem 2: Merge Conflicts in PR
+
+**Symptoms:**
+```bash
+gh pr merge <number> --squash
+# X Pull request is not mergeable: the merge commit cannot be cleanly created
+```
+
+**Root Cause:**
+- Base branch (main) has advanced since your branch was created
+- Files changed in both branches (changelog, CLAUDE.md, etc.)
+
+**Solution - Clean Branch Approach:**
+```bash
+# 1. Fetch latest main
+git fetch origin main
+
+# 2. Create NEW branch from origin/main
+git checkout -b feature-resolved-$(date +%s) origin/main
+
+# 3. Cherry-pick OR manually copy your changes
+# Option A: Cherry-pick (if commits are clean)
+git cherry-pick <commit-hash>
+
+# Option B: Manual copy (recommended for conflicts)
+git checkout old-branch -- path/to/file1 path/to/file2
+
+# 4. Resolve conflicts if any
+git status
+# Edit conflicted files
+git add -A
+git commit -m "resolved: description"
+
+# 5. Push new branch
+git push -u origin feature-resolved-$(date +%s)
+
+# 6. Close old PR, create new PR
+gh pr close <old-number> --comment "Recreated as clean branch due to conflicts"
+python3 -c "from src.github_pr import create_pr; create_pr(...)"
+```
+
+**Real Example (from 2026-01-11):**
+- PR #28 had conflicts in `docs/changelog.md`
+- Solution: Created `claude/dependency-checker-final-Kn6wV` from `origin/main`
+- Copied files with `git checkout main -- .claude/skills/...`
+- Result: PR #29 merged successfully
+
+### Problem 3: "Everything up-to-date" but push fails with 403
+
+**Explanation:**
+- Git thinks remote is up-to-date because it can't push
+- The 403 error prevents git from understanding the real state
+
+**Solution:**
+- Don't retry pushing same branch
+- Use "Clean Branch Approach" above
+- Always start from `origin/main`, not local `main`
+
+### Best Practices
+
+1. **Never push to main directly**
+   ```bash
+   # ❌ WRONG
+   git checkout main
+   git push origin main
+
+   # ✅ RIGHT
+   git checkout -b feature/xyz origin/main
+   git push -u origin feature/xyz
+   # Then create PR
+   ```
+
+2. **Always create PRs for changes**
+   ```bash
+   # Use src/github_pr.py module
+   from src.github_pr import create_pr
+   pr = create_pr(title="...", body="...", repo="...", head="feature/xyz")
+   ```
+
+3. **If you get 403, create new branch**
+   ```bash
+   # Don't fight the 403 - work around it
+   git checkout -b feature-clean-$(date +%s) origin/main
+   git checkout old-branch -- changed-files
+   git commit -m "recreation from clean base"
+   git push -u origin feature-clean-$(date +%s)
+   ```
+
+4. **Document what you learned**
+   - If you encounter a new error pattern
+   - Add it to this troubleshooting section
+   - Include: symptom, cause, solution, example
+
+---
+
 ## What Requires Your Approval
 
 **Always ask first and wait for explicit approval:**
