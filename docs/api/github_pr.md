@@ -216,7 +216,7 @@ gh auth login
 
 ### Merge conflicts ב-PR
 
-**ראה:** `CLAUDE.md:673-810` - Troubleshooting: Git Push & Merge Conflicts
+**ראה:** `CLAUDE.md` (lines 673-810) - Troubleshooting: Git Push & Merge Conflicts
 
 ---
 
@@ -236,5 +236,5 @@ gh auth login
 
 - [GitHub API: Pull Requests](https://docs.github.com/en/rest/pulls/pulls)
 - [gh CLI Documentation](https://cli.github.com/manual/gh_pr_create)
-- [CLAUDE.md:634-669](../../CLAUDE.md) - GitHub PR Operations section
-- [CLAUDE.md:673-810](../../CLAUDE.md) - Troubleshooting guide
+- `CLAUDE.md` (lines 634-669) - GitHub PR Operations section
+- `CLAUDE.md` (lines 673-810) - Troubleshooting guide
