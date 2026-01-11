@@ -563,6 +563,64 @@ pr-helper: Create PR ✅
 - Complete coverage - analyzes all commits systematically
 - Proper categorization - uses conventional commit types
 
+### session-start-hook (v1.0.0)
+
+**Purpose:** Creates and manages SessionStart hooks for Claude Code to ensure development environment is ready.
+
+**Triggers:**
+- Keywords: `session start`, `session hook`, `startup hook`, `session configuration`, `claude code setup`, `environment setup`
+- First-time repository setup for Claude Code
+- Configuring Claude Code on the web
+
+**What it does:**
+1. Creates `.claude/.claude-settings.json` with SessionStart hook configuration
+2. Generates `.claude/hooks/session-start.sh` script for environment checks
+3. Verifies Python and development tools (pytest, ruff, pydocstyle)
+4. Displays git status and current branch
+5. Shows available skills and project configuration
+6. Auto-installs dependencies if needed
+7. Provides quick reminders about project guidelines
+
+**When to use:**
+```bash
+# First-time setup
+"Set up SessionStart hook for this repository"
+
+# Web environment
+"Configure SessionStart hook for Claude Code on the web"
+
+# Update existing hook
+"Add git diff stats to the SessionStart hook"
+```
+
+**Integration with workflows:**
+Provides foundation for all other skills - runs on every session start to prepare environment.
+
+**Files:**
+- Skill definition: `.claude/skills/session-start-hook/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (creates config files and scripts)
+- Allowed tools: Read, Write, Edit, Bash (pip, pytest, ruff, git), Grep, Glob
+- Never modifies git configuration or system packages
+- Scripts are idempotent and safe to run multiple times
+- Startup completes in < 10 seconds
+
+**Success metrics:**
+- ✅ Zero manual setup required
+- ✅ Fast startup (< 10 seconds)
+- ✅ All tools verified correctly
+- ✅ Session context loaded automatically
+- ✅ Works in both local and web environments
+
+**What the hook checks:**
+- 📦 Python environment (version, pip)
+- 🔧 Development tools (pytest, ruff, pydocstyle)
+- 📊 Repository status (git status, current branch)
+- ☁️ GCP configuration (project ID, available secrets)
+- 🎯 Available skills (list of all skills)
+- 💡 Quick reminders (security rules, testing, docs)
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:

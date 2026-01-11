@@ -281,6 +281,90 @@ Developer reviews and commits
 CI validates with docs-check.yml
 ```
 
+### 7. session-start-hook (v1.0.0)
+
+**Purpose:** Creates and manages SessionStart hooks for Claude Code to ensure development environment is ready
+
+**Triggers:**
+- Keywords: `session start`, `session hook`, `startup hook`, `session configuration`, `claude code setup`, `environment setup`
+- First-time repository setup for Claude Code
+- Configuring Claude Code on the web
+
+**What it does:**
+1. Creates `.claude/.claude-settings.json` with SessionStart hook configuration
+2. Generates `.claude/hooks/session-start.sh` script for environment checks
+3. Verifies Python and development tools (pytest, ruff, pydocstyle)
+4. Displays git status and current branch
+5. Shows available skills and project configuration
+6. Auto-installs dependencies if needed
+7. Provides quick reminders about project guidelines
+
+**When to use:**
+- Setting up Claude Code for the first time
+- Configuring automated environment setup
+- Preparing repository for Claude Code web sessions
+- Ensuring consistent development environment
+
+**Example:**
+```bash
+# First-time setup
+"Set up SessionStart hook for this repository"
+
+# Web environment
+"Configure SessionStart hook for Claude Code on the web"
+
+# Update existing hook
+"Add git diff stats to the SessionStart hook"
+
+# Troubleshoot
+"SessionStart hook is failing"
+```
+
+**Integration:**
+Provides foundation for all other skills:
+```
+Session Starts
+    ↓
+session-start-hook: Environment ready ✅
+    ↓
+User makes code changes
+    ↓
+test-runner / doc-updater / security-checker run
+    ↓
+pr-helper creates PR
+```
+
+**Benefits:**
+- ✅ Zero manual setup - session ready immediately
+- ✅ Fast startup - completes in < 10 seconds
+- ✅ Idempotent - safe to run multiple times
+- ✅ Informative - provides useful context
+- ✅ Auto-installs dependencies when needed
+- ✅ Works in both local and web environments
+
+**Typical workflow:**
+```
+Claude Code session starts
+    ↓
+SessionStart hook runs automatically
+    ↓
+Verifies tools and dependencies
+    ↓
+Displays project status
+    ↓
+Injects context into session
+    ↓
+Developer ready to work
+```
+
+**What the hook checks:**
+- 📦 Python environment (version, pip)
+- 🔧 Development tools (pytest, ruff, pydocstyle)
+- 📊 Repository status (git status, current branch)
+- ☁️ GCP configuration (project ID, available secrets)
+- 🎯 Available skills (list of all skills)
+- 💡 Quick reminders (security rules, testing, docs)
+
 ## Skill Structure
 
 Each skill follows this structure:
@@ -488,6 +572,7 @@ PR approved and merged
 - ✅ pr-helper skill - Standardized PR creation
 - ✅ dependency-checker skill - Audits dependencies for security vulnerabilities
 - ✅ changelog-updater skill - Generates changelog entries from git commits
+- ✅ session-start-hook skill - SessionStart hooks for environment setup
 
 ### Future (v2.0.0+)
 - Feature scaffolding (generate boilerplate from templates)
