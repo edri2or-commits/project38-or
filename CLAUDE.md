@@ -155,7 +155,20 @@ Every PR adds entry to `docs/changelog.md`:
 project38-or/
 ├── src/
 │   ├── __init__.py
-│   └── secrets_manager.py    # USE THIS for all secret access
+│   ├── secrets_manager.py    # USE THIS for all secret access
+│   ├── github_auth.py        # GitHub WIF authentication
+│   ├── github_pr.py          # Universal PR creation (gh CLI + requests fallback)
+│   ├── api/                  # FastAPI application (Phase 3.1)
+│   │   ├── __init__.py
+│   │   ├── main.py           # FastAPI app entry point
+│   │   ├── database.py       # PostgreSQL connection management
+│   │   └── routes/
+│   │       ├── __init__.py
+│   │       └── health.py     # Health check endpoints
+│   └── models/               # SQLModel database schemas (Phase 3.1)
+│       ├── __init__.py
+│       ├── agent.py          # Agent entity
+│       └── task.py           # Task entity
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment

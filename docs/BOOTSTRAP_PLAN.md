@@ -228,6 +228,252 @@ Based on research analysis:
   - Fast startup (< 10 seconds), works in local and web environments
   - Location: `.claude/skills/session-start-hook/SKILL.md`
 
+**Phase 3.1: Core Infrastructure (2026-01-11)**
+- [x] **FastAPI + PostgreSQL foundation** - REST API and database layer for agent platform
+  - `src/api/main.py` - FastAPI app with CORS, lifecycle hooks
+  - `src/api/database.py` - Async PostgreSQL connection management (pool_size=20)
+  - `src/api/routes/health.py` - Health check (`/health`) and root (`/`) endpoints
+  - `src/models/agent.py` - Agent entity schema (name, description, code, status)
+  - `src/models/task.py` - Task entity schema (execution history, scheduling, results)
+  - New dependencies: fastapi>=0.109.0, sqlmodel>=0.0.14, asyncpg>=0.29.0
+  - Integration tests: 8 tests with 100% coverage
+  - API documentation: `docs/api/fastapi.md`, `database.md`, `models.md`
+  - All CI workflows passing (lint, docs-check, tests)
+
+---
+
+## Phase 3: Agent Platform Foundation
+
+**Goal**: Transform from secret management to full AI agent platform where users create autonomous agents from natural language.
+
+**Vision**: User says "צור לי סוכן שעוקב אחרי מניות של טסלה" → System generates, tests, and deploys agent automatically.
+
+### 3.1 Core Infrastructure ✅ **COMPLETED** (2026-01-11)
+
+**Objective**: FastAPI + PostgreSQL foundation for agent storage and execution tracking.
+
+**Completed Files:**
+- `src/api/main.py` - FastAPI app entry point with CORS middleware
+- `src/api/database.py` - PostgreSQL async connection management
+- `src/api/routes/health.py` - Health check endpoints
+- `src/models/agent.py` - Agent entity (stores generated code)
+- `src/models/task.py` - Task entity (execution history)
+- `tests/test_api_health.py` - 8 integration tests
+- `docs/api/*.md` - Complete API documentation
+
+**Database Schema:**
+```sql
+CREATE TABLE agents (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description VARCHAR(2000),
+  code TEXT,  -- Generated Python code
+  status VARCHAR(50) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  created_by VARCHAR(255),
+  config TEXT  -- JSON configuration
+);
+
+CREATE TABLE tasks (
+  id SERIAL PRIMARY KEY,
+  agent_id INT REFERENCES agents(id),
+  status VARCHAR(50) DEFAULT 'pending',
+  scheduled_at TIMESTAMP,
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP,
+  result TEXT,
+  error TEXT,
+  retry_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Endpoints Implemented:**
+- `GET /health` - System health status
+- `GET /` - API metadata
+
+**Dependencies Added:**
+- `fastapi>=0.109.0` - REST API framework
+- `sqlmodel>=0.0.14` - ORM (Pydantic + SQLAlchemy)
+- `asyncpg>=0.29.0` - Async PostgreSQL driver
+- `uvicorn[standard]>=0.27.0` - ASGI server
+- `httpx>=0.27.0` - HTTP client for tests
+
+### 3.2 Agent Factory 🚧 **PLANNED**
+
+**Objective**: Natural Language → Working Python Agent
+
+**Target Flow:**
+```
+User Input: "צור לי סוכן שעוקב אחרי מניות של טסלה ומתריע כאשר המחיר עולה ב-5%"
+  ↓
+1. POST /agents {"description": "..."}
+  ↓
+2. Claude Sonnet 4.5 generates Python code
+  ↓
+3. Ralph Wiggum Loop: Test → Fix → Test
+  ↓
+4. Save to agents table with status='active'
+  ↓
+Response: {"id": 1, "name": "Stock Monitor", "status": "active"}
+```
+
+**Tasks:**
+1. **Claude Code Generator** (`src/factory/generator.py`)
+   - Use Anthropic API with Claude Sonnet 4.5
+   - Generate Python code from natural language
+   - Include error handling, logging
+   - Cost: ~$0.015-0.06 per generation
+
+2. **Ralph Wiggum Loop** (`src/factory/ralph_loop.py`)
+   - Recursive Test → Fix → Test cycle
+   - Based on research/claude-code-ralph-wiggum-framework.md
+   - Target cost: ~$2.25/agent (including iterations)
+   - Automatic pytest validation
+
+3. **Code Validator** (`src/factory/validator.py`)
+   - Run ruff format check
+   - Run ruff lint
+   - Run pydocstyle (Google style)
+   - Security check: no hardcoded secrets
+
+4. **Agent CRUD Endpoints** (`src/api/routes/agents.py`)
+   - `POST /agents` - Create from natural language
+   - `GET /agents` - List all agents
+   - `GET /agents/{id}` - Get specific agent
+   - `PUT /agents/{id}` - Update agent
+   - `DELETE /agents/{id}` - Delete agent
+   - `POST /agents/{id}/execute` - Trigger manual execution
+
+5. **Tests** (`tests/test_factory.py`)
+   - Test code generation
+   - Test validation pipeline
+   - Test Ralph loop convergence
+   - Mock Anthropic API
+
+**Dependencies to Add:**
+- `anthropic>=0.18.0` - Claude API client
+- `jinja2>=3.1.0` - Prompt templating
+
+**Success Criteria:**
+- 90% of generated agents pass validation on first try
+- Average cost per agent < $3
+- Generation time < 30 seconds
+
+### 3.3 Agent Harness 🚧 **PLANNED**
+
+**Objective**: 24/7 orchestration of agent execution with long-running context management.
+
+**Target Flow:**
+```
+Scheduler triggers agent execution
+  ↓
+1. Harness loads agent code from DB
+  ↓
+2. Execute-Summarize-Reset loop (from long-running-agent-harness.md)
+  ↓
+3. Handoff Artifact: compress context after each run
+  ↓
+4. Create Task record: status='completed', result=output
+  ↓
+5. Schedule next execution
+```
+
+**Tasks:**
+1. **Agent Executor** (`src/harness/executor.py`)
+   - Load agent Python code from database
+   - Execute in sandboxed subprocess
+   - Capture stdout/stderr, exceptions
+   - Timeout protection (default: 5 minutes)
+
+2. **Handoff Artifacts** (`src/harness/handoff.py`)
+   - Dual-Agent Pattern: Initializer + Worker
+   - State preservation between runs
+   - Context compression using Claude
+   - Based on research/long-running-agent-harness.md
+
+3. **Task Scheduler** (`src/harness/scheduler.py`)
+   - APScheduler integration (BackgroundScheduler)
+   - Cron-like scheduling syntax
+   - Per-agent schedules (stored in agent.config JSON)
+   - Retry failed tasks with exponential backoff
+
+4. **Task Endpoints** (`src/api/routes/tasks.py`)
+   - `GET /agents/{id}/tasks` - Get execution history
+   - `GET /tasks/{id}` - Get specific task
+   - `POST /tasks/{id}/retry` - Retry failed task
+
+5. **Resource Management** (`src/harness/resources.py`)
+   - Memory limits per agent (default: 256MB)
+   - CPU throttling
+   - Max concurrent executions (default: 5)
+
+6. **Tests** (`tests/test_harness.py`)
+   - Test executor with sample agent
+   - Test handoff artifact pattern
+   - Test scheduler triggers
+   - Test retry logic
+
+**Dependencies to Add:**
+- `apscheduler>=3.10.0` - Task scheduling
+- `psutil>=5.9.0` - Resource monitoring
+
+**Success Criteria:**
+- Agents run 24/7 without manual intervention
+- 99% uptime for scheduled tasks
+- Context preserved across 100+ consecutive runs
+
+### 3.4 MCP Tools 🚧 **PLANNED**
+
+**Objective**: Provide agents with browser automation, filesystem, and notification capabilities via MCP.
+
+**Target Capability:**
+- Agents browse web pages (research, data extraction)
+- Agents read/write files in sandboxed workspace
+- Agents send notifications (Telegram, n8n)
+
+**Tasks:**
+1. **Browser MCP Server** (`src/mcp/browser.py`)
+   - Playwright-based automation
+   - Navigate, click, extract text, screenshot
+   - Based on research/hybrid-browser-agent-architecture.md
+   - Headless Chrome in production
+
+2. **Filesystem MCP Server** (`src/mcp/filesystem.py`)
+   - Safe read/write operations
+   - Sandboxed to `/workspace/{agent_id}/`
+   - No access to secrets or system files
+   - File size limits (max: 10MB per file)
+
+3. **Notification MCP Server** (`src/mcp/notifications.py`)
+   - Telegram bot integration (TELEGRAM-BOT-TOKEN)
+   - n8n webhook integration (N8N-API)
+   - Email via SendGrid (future)
+
+4. **Agent Tool Registry** (`src/mcp/registry.py`)
+   - Agents declare required tools in config
+   - Runtime tool injection
+   - Usage tracking and rate limiting
+   - Cost attribution per agent
+
+5. **Tests** (`tests/test_mcp.py`)
+   - Mock browser operations
+   - Test filesystem sandboxing
+   - Test notification delivery
+
+**Dependencies to Add:**
+- `playwright>=1.40.0` - Browser automation
+- `mcp>=1.0.0` - Model Context Protocol SDK
+- `python-telegram-bot>=20.0` - Telegram API
+
+**Success Criteria:**
+- Agents can autonomously browse web pages
+- 100% sandboxing (no filesystem escapes)
+- Notifications delivered in < 3 seconds
+
+---
+
 ### 📋 Future Enhancements
 
 1. **Implement Railway Deployment Pipeline**
