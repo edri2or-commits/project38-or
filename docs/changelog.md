@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Git troubleshooting documentation** in `CLAUDE.md:673-810` - Comprehensive guide for handling 403 errors and merge conflicts
+  - Problem 1: HTTP 403 on git push (branch protection, merge conflicts)
+  - Problem 2: Merge conflicts in PRs (clean branch approach)
+  - Problem 3: "Everything up-to-date" with 403 errors
+  - Best practices for branch management
+  - Real example from PR #28 → PR #29 resolution
 - dependency-checker skill (v1.0.0) for auditing Python dependencies for security vulnerabilities in `.claude/skills/dependency-checker/SKILL.md`
   - Scans for known vulnerabilities using pip-audit
   - Identifies outdated packages
