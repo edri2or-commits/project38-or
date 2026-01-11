@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3.3: Agent Harness** - 24/7 orchestration infrastructure for autonomous agent execution (2026-01-11)
+  - `src/harness/__init__.py` - Module exports for harness components
+  - `src/harness/executor.py` - Safe code execution in isolated subprocesses with timeout protection
+  - `src/harness/handoff.py` - State preservation between runs using Dual-Agent Pattern (Handoff Artifacts)
+  - `src/harness/scheduler.py` - APScheduler integration with cron/interval triggers and retry logic
+  - `src/harness/resources.py` - Resource monitoring and limits (memory, CPU, processes)
+  - `src/api/routes/tasks.py` - REST API endpoints for task execution history
+  - `tests/test_harness.py` - 30+ comprehensive tests for all harness components
+  - `docs/api/harness.md` - Complete API documentation for Agent Harness
+  - New dependencies: apscheduler>=3.10.0, psutil>=5.9.0
+  - Execute-Summarize-Reset loop for long-running agents (100+ consecutive runs)
+  - Automatic retry with exponential backoff (2s, 4s, 8s)
+  - Concurrent execution limits (default: 5 agents)
+  - Resource limits: memory (256MB), CPU (80%), processes (5)
+  - API endpoints: GET /api/tasks/agents/{id}/tasks, GET /api/tasks/{id}, POST /api/tasks/{id}/retry
+  - Foundation for Phase 3.4 (MCP Tools) and production deployment
 - **Phase 3.2: Agent Factory** - Natural Language to Working Python Agent (2026-01-11)
   - `src/factory/generator.py` - Claude Sonnet 4.5 code generation from natural language
   - `src/factory/validator.py` - Multi-stage validation (syntax, ruff, pydocstyle, security patterns)
