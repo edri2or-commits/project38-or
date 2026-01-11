@@ -175,6 +175,49 @@ Code complete → test-runner ✅ → doc-updater ✅
 → security-checker ✅ → pr-helper ✅
 ```
 
+### 5. dependency-checker (v1.0.0)
+
+**Purpose:** Audits Python dependencies for security vulnerabilities, outdated versions, and best practices
+
+**Triggers:**
+- Changes to `requirements*.txt` files
+- Keywords: `dependencies`, `vulnerabilities`, `outdated packages`, `audit dependencies`, `security audit`
+
+**What it does:**
+1. Scans for known security vulnerabilities using pip-audit
+2. Identifies outdated packages with available updates
+3. Validates requirements.txt format (pinning, version constraints)
+4. Checks for dependency conflicts
+5. Verifies lock files are synchronized
+6. Generates prioritized remediation plan
+7. Blocks deployment on CRITICAL/HIGH vulnerabilities
+
+**When to use:**
+- Before committing changes to requirements.txt
+- Before creating a PR
+- Monthly security audits
+- After adding new dependencies
+
+**Example:**
+```bash
+# After updating dependencies
+"Check dependencies for vulnerabilities"
+
+# Periodic audit
+"Run dependency audit"
+
+# Before PR
+"Audit dependencies before creating PR"
+```
+
+**Integration:**
+Works alongside CI/CD security scanning:
+- Skill runs proactively during development (local)
+- CI validates before merge (GitHub Actions)
+- Together they enforce Zero Known Vulnerabilities
+
+**Critical:** Blocks deployment on CRITICAL/HIGH vulnerabilities. All production dependencies must be pinned to exact versions.
+
 ## Skill Structure
 
 Each skill follows this structure:
@@ -380,11 +423,12 @@ PR approved and merged
 - ✅ test-runner skill - Automated test execution before commits
 - ✅ security-checker skill - Validates no secrets in commits
 - ✅ pr-helper skill - Standardized PR creation
+- ✅ dependency-checker skill - Audits dependencies for security vulnerabilities
 
 ### Future (v2.0.0+)
+- changelog-updater (auto-update changelog on commits)
 - Feature scaffolding (generate boilerplate from templates)
 - Safe refactoring (with automated test loop)
-- Dependency updater (with security checks)
 - Code review assistant (automated PR review)
 - Performance profiler (identify bottlenecks)
 

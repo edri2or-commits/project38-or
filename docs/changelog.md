@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- dependency-checker skill (v1.0.0) for auditing Python dependencies for security vulnerabilities in `.claude/skills/dependency-checker/SKILL.md`
+  - Scans for known vulnerabilities using pip-audit
+  - Identifies outdated packages
+  - Validates requirements.txt format and version pinning
+  - Checks for dependency conflicts
+  - Generates prioritized remediation plans
+  - Blocks deployment on CRITICAL/HIGH vulnerabilities
+  - Updated Skills README and CLAUDE.md with dependency-checker documentation
 - GitHub App authentication API documentation in `docs/api/github_auth.md` (complete documentation coverage achieved)
 - **Workload Identity Federation (WIF)** - Full migration from static Service Account keys to OIDC-based authentication
 - WIF setup complete with Pool: `github-pool` and Provider: `github-provider` (Project: 979429709900)
