@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 class HealthResponse(BaseModel):
-"""Health check response model.
+    """Health check response model.
 
     Attributes:
         status: Current health status (healthy/degraded/unhealthy)
@@ -29,7 +29,7 @@ class HealthResponse(BaseModel):
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-"""Health check endpoint.
+    """Health check endpoint.
 
     Returns current system health status including database connectivity.
 
@@ -40,7 +40,8 @@ async def health_check() -> HealthResponse:
         >>> response = await health_check()
         >>> print(response.status)
         healthy
-"""# TODO: Add database connection check
+    """
+    # TODO: Add database connection check
     return HealthResponse(
         status="healthy",
         timestamp=datetime.utcnow(),
@@ -51,13 +52,14 @@ async def health_check() -> HealthResponse:
 
 @router.get("/", response_model=dict[str, str])
 async def root() -> dict[str, str]:
-"""Root endpoint.
+    """Root endpoint.
 
     Returns basic API information and documentation links.
 
     Returns:
         dict: API metadata
-"""return {
+    """
+    return {
         "name": "Agent Platform API",
         "version": "0.1.0",
         "docs": "/docs",

@@ -9,7 +9,7 @@ from sqlmodel import Field, SQLModel
 
 
 class Task(SQLModel, table=True):
-"""Task entity representing agent execution history and scheduled tasks.
+    """Task entity representing agent execution history and scheduled tasks.
 
     Each task represents a single execution or scheduled run of an agent.
     Tasks track execution status, results, and errors.

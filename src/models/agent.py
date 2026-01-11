@@ -9,7 +9,7 @@ from sqlmodel import Field, SQLModel
 
 
 class Agent(SQLModel, table=True):
-"""Agent entity representing an autonomous AI agent.
+    """Agent entity representing an autonomous AI agent.
 
     Agents are created from natural language descriptions and can execute
     tasks autonomously. Each agent has generated code, configuration, and

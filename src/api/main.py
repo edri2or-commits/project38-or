@@ -32,19 +32,21 @@ app.include_router(health.router, tags=["health"])
 
 @app.on_event("startup")
 async def startup_event():
-"""Run on application startup.
+    """Run on application startup.
 
     Initialize database connection pool and perform health checks.
-"""# TODO: Initialize database connection
+    """
+    # TODO: Initialize database connection
     pass
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-"""Run on application shutdown.
+    """Run on application shutdown.
 
     Close database connections and cleanup resources.
-"""# TODO: Close database connection
+    """
+    # TODO: Close database connection
     pass
 
 
