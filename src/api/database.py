@@ -6,7 +6,7 @@ using SQLModel and asyncpg.
 """
 
 import os
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -87,5 +87,5 @@ async def check_database_connection() -> bool:
         async with async_session_maker() as session:
             await session.execute("SELECT 1")
             return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
