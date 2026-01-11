@@ -5,7 +5,6 @@ This module defines the Agent entity schema using SQLModel.
 """
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -32,15 +31,15 @@ class Agent(SQLModel, table=True):
 
     __tablename__ = "agents"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = Field(max_length=255, index=True)
     description: str = Field(max_length=2000)
     code: str = Field(sa_column_kwargs={"type_": "TEXT"})
     status: str = Field(default="active", max_length=50, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    created_by: Optional[str] = Field(default=None, max_length=255)
-    config: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
+    created_by: str | None = Field(default=None, max_length=255)
+    config: str | None = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
 
     class Config:
         """SQLModel configuration."""

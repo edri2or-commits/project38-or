@@ -5,7 +5,6 @@ This module provides endpoints for health checks and system status.
 """
 
 from datetime import datetime
-from typing import Dict
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -54,8 +53,8 @@ async def health_check() -> HealthResponse:
     )
 
 
-@router.get("/", response_model=Dict[str, str])
-async def root() -> Dict[str, str]:
+@router.get("/", response_model=dict[str, str])
+async def root() -> dict[str, str]:
     """
     Root endpoint.
 
