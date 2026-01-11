@@ -155,7 +155,44 @@ Every PR adds entry to `docs/changelog.md`:
 project38-or/
 ├── src/
 │   ├── __init__.py
-│   └── secrets_manager.py    # USE THIS for all secret access
+│   ├── secrets_manager.py    # USE THIS for all secret access
+│   ├── github_pr.py          # GitHub PR operations (gh CLI + requests fallback)
+│   ├── github_auth.py        # GitHub App authentication (JWT + installation tokens)
+│   ├── api/                  # FastAPI application (Phase 3)
+│   │   ├── __init__.py
+│   │   ├── main.py           # FastAPI app entry point
+│   │   ├── database.py       # PostgreSQL connection (asyncpg)
+│   │   └── routes/
+│   │       ├── __init__.py
+│   │       ├── health.py     # Health check endpoint
+│   │       ├── agents.py     # Agent CRUD endpoints
+│   │       ├── tasks.py      # Task management
+│   │       └── chat.py       # Natural language interface
+│   ├── models/               # Database schemas (Phase 3)
+│   │   ├── __init__.py
+│   │   ├── agent.py          # Agent entity (SQLModel)
+│   │   └── task.py           # Task entity (SQLModel)
+│   ├── factory/              # Agent Factory - NL → Code (Phase 3)
+│   │   ├── __init__.py
+│   │   ├── nl_parser.py      # Natural Language → Spec parser
+│   │   ├── code_generator.py # Spec → Python code (Ralph Loop)
+│   │   ├── validator.py      # Code validation (pytest + ruff)
+│   │   └── templates/        # Pre-built agent templates
+│   │       ├── monitoring_agent.py
+│   │       ├── notification_agent.py
+│   │       └── data_agent.py
+│   ├── harness/              # Agent Orchestrator - 24/7 execution (Phase 3)
+│   │   ├── __init__.py
+│   │   ├── orchestrator.py   # Main 24/7 loop
+│   │   ├── scheduler.py      # Cron-like task scheduling
+│   │   ├── handoff.py        # Context management (Handoff Artifacts)
+│   │   └── docker_sandbox.py # Docker container isolation
+│   └── mcp/                  # MCP Servers - Tool layer (Phase 3)
+│       ├── __init__.py
+│       ├── browser_server.py # Web automation (Puppeteer)
+│       ├── filesystem_server.py # File operations
+│       ├── secrets_server.py # GCP Secret Manager wrapper
+│       └── notifications_server.py # Telegram, Email alerts
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment
@@ -166,18 +203,24 @@ project38-or/
 │   ├── quick-check.yml       # workflow_dispatch only
 │   ├── report-secrets.yml    # workflow_dispatch only
 │   └── gcp-secret-manager.yml
-├── tests/                     # pytest tests
-├── research/                  # Research documents (read-only)
-├── docs/                      # MkDocs source
-│   ├── index.md              # Home page
-│   ├── getting-started.md    # Quick start guide
-│   ├── changelog.md          # Version history (auto-updated)
-│   ├── SECURITY.md           # Security documentation
-│   ├── BOOTSTRAP_PLAN.md     # Architecture plan
-│   ├── api/                  # API reference (auto-generated)
-│   └── research/             # Research summaries
-├── mkdocs.yml                 # MkDocs configuration
-├── CLAUDE.md                  # This file
+├── tests/                    # pytest tests
+│   ├── test_secrets_manager.py
+│   ├── test_github_pr.py
+│   └── test_github_auth.py
+├── research/                 # Research documents (Phase 3 planning)
+│   ├── claude-code-ralph-wiggum-framework.md # Ralph Loop for Agent Factory
+│   ├── hybrid-browser-agent-architecture.md  # MCP browser automation
+│   └── long-running-agent-harness.md         # 24/7 orchestration patterns
+├── docs/                     # MkDocs source
+│   ├── index.md             # Home page
+│   ├── getting-started.md   # Quick start guide
+│   ├── changelog.md         # Version history (auto-updated)
+│   ├── SECURITY.md          # Security documentation
+│   ├── BOOTSTRAP_PLAN.md    # Architecture plan (Phases 1-3)
+│   ├── api/                 # API reference (auto-generated)
+│   └── research/            # Research summaries (7 documents)
+├── mkdocs.yml               # MkDocs configuration
+├── CLAUDE.md                # This file
 └── README.md
 ```
 

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 3: Agent Platform Foundation** - Core infrastructure for autonomous AI agent system
+  - **Architecture Decision**: Transform project38-or from secret management system to full AI agent platform
+  - **Goal**: Enable users to create autonomous agents through natural language chat interface (e.g., "צור לי סוכן שעוקב אחרי מניות")
+  - **Research Integration**: Based on 3 new research documents added in PR #38:
+    - `research/claude-code-ralph-wiggum-framework.md` - Ralph Loop for automatic code generation (~$2.25/feature)
+    - `research/long-running-agent-harness.md` - 24/7 orchestration with Handoff Artifacts and context management
+    - `research/hybrid-browser-agent-architecture.md` - MCP-based browser automation for SaaS integration
+  - **Components Planned**:
+    - Agent Registry: PostgreSQL database for storing agents, tasks, and execution history
+    - Agent Factory: Natural Language → Code generation using Ralph Loop pattern with validation
+    - Agent Harness: 24/7 orchestration with context management, Docker sandbox, and scheduler
+    - MCP Tools: Browser automation, filesystem operations, secrets integration, notifications
+  - **Technology Stack**: FastAPI + SQLModel + PostgreSQL (asyncpg) + Docker + MCP protocol
+  - **Timeline**: 4-phase implementation over 8 weeks
+  - **Cost Estimate**: $25-60/month for infrastructure + API usage
+
 ### Fixed
 - **BOOTSTRAP_PLAN.md accuracy** - Updated Success Metrics and completed skills documentation
   - Corrected Autonomous Skills count from 5 to 7 in `docs/BOOTSTRAP_PLAN.md:238`
