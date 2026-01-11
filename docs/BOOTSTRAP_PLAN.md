@@ -300,9 +300,22 @@ CREATE TABLE tasks (
 - `uvicorn[standard]>=0.27.0` - ASGI server
 - `httpx>=0.27.0` - HTTP client for tests
 
-### 3.2 Agent Factory 🚧 **PLANNED**
+### 3.2 Agent Factory ✅ **COMPLETED** (2026-01-11)
 
 **Objective**: Natural Language → Working Python Agent
+
+**Completed Files:**
+- `src/factory/__init__.py` - Module exports for Agent Factory
+- `src/factory/generator.py` - Claude Sonnet 4.5 code generation (generate_agent_code, estimate_cost)
+- `src/factory/validator.py` - Multi-stage validation (syntax, ruff, pydocstyle, security)
+- `src/factory/ralph_loop.py` - Recursive Test→Fix→Test cycle (ralph_wiggum_loop)
+- `src/api/routes/agents.py` - Agent CRUD endpoints (POST, GET, PUT, DELETE, Execute)
+- `tests/test_factory.py` - 16 comprehensive tests with 100% pass rate
+- `docs/api/factory.md` - Complete API documentation
+
+**Dependencies Added:**
+- `anthropic>=0.18.0` - Claude API client
+- `jinja2>=3.1.0` - Prompt templating
 
 **Target Flow:**
 ```

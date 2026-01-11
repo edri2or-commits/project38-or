@@ -6,7 +6,7 @@ This module initializes the FastAPI application and registers all route handlers
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import health
+from src.api.routes import health, agents
 
 # Create FastAPI app instance
 app = FastAPI(
@@ -28,6 +28,7 @@ app.add_middleware(
 
 # Register route handlers
 app.include_router(health.router, tags=["health"])
+app.include_router(agents.router, prefix="/api", tags=["agents"])
 
 
 @app.on_event("startup")
