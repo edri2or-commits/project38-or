@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **session-start-hook skill (v1.0.0)** for creating and managing SessionStart hooks in `.claude/skills/session-start-hook/SKILL.md`
+  - Creates `.claude/.claude-settings.json` with SessionStart hook configuration
+  - Generates `.claude/hooks/session-start.sh` script for automated environment checks
+  - Verifies Python and development tools (pytest, ruff, pydocstyle) availability
+  - Displays git status, current branch, and project configuration on session start
+  - Shows available skills and quick reminders about project guidelines
+  - Auto-installs dependencies if requirements.txt is newer than last install
+  - Fast startup (< 10 seconds) and idempotent (safe to run multiple times)
+  - Works in both local Claude Code CLI and web environments
+  - Updated Skills README in `.claude/skills/README.md:284-366` with complete documentation
+  - Updated CLAUDE.md in `CLAUDE.md:566-622` with skill description and usage examples
+  - Provides foundation for all other skills by ensuring environment is ready
 - **Manual setup documentation in MkDocs navigation** - Added `manual-setup-guide.md` and `wif-migration-plan.md` to site structure
   - New section "הגדרות ידניות" under ארכיטקטורה in `mkdocs.yml:62-64`
   - Resolves mkdocs build warning about pages not in nav configuration
