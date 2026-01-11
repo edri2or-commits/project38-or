@@ -65,6 +65,25 @@ validated = await ralph_wiggum_loop(result['code'])
 
 [📖 תיעוד מלא →](factory.md)
 
+### ⚙️ Agent Harness (Phase 3.3)
+
+תשתית תזמון והרצה 24/7 לסוכנים אוטונומיים.
+
+```python
+from src.harness import AgentExecutor, HandoffManager, TaskScheduler
+
+# הרצת סוכן
+executor = AgentExecutor()
+result = await executor.execute_agent(agent_id=1)
+
+# תזמון אוטומטי
+scheduler = TaskScheduler()
+await scheduler.start()
+await scheduler.add_agent_schedule(agent_id=1)
+```
+
+[📖 תיעוד מלא →](harness.md)
+
 ### 🔐 Secret Management
 
 גישה מאובטחת ל-GCP Secret Manager.
