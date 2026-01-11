@@ -1,5 +1,6 @@
 """Tests for github_pr module."""
 
+import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -81,6 +82,26 @@ class TestEnsureGhCli:
             result = github_pr.ensure_gh_cli()
             assert result is False
 
+    def test_returns_false_on_permission_error(self):
+        """Should return False if PermissionError occurs during installation."""
+        with (
+            patch("shutil.which", return_value=None),
+            patch("subprocess.run", side_effect=PermissionError),
+            patch("builtins.print"),
+        ):
+            result = github_pr.ensure_gh_cli()
+            assert result is False
+
+    def test_returns_false_on_subprocess_error(self):
+        """Should return False if SubprocessError occurs during installation."""
+        with (
+            patch("shutil.which", return_value=None),
+            patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 30)),
+            patch("builtins.print"),
+        ):
+            result = github_pr.ensure_gh_cli()
+            assert result is False
+
 
 class TestCreatePrWithGh:
     """Tests for create_pr_with_gh function."""
@@ -114,6 +135,18 @@ class TestCreatePrWithGh:
                 title="Test PR",
                 body="Test body",
                 repo="owner/repo",
+            )
+
+            assert result is None
+
+    def test_returns_none_on_subprocess_error(self):
+        """Should return None if subprocess raises error."""
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("gh", 30)):
+            result = github_pr.create_pr_with_gh(
+                title="Test PR",
+                body="Test body",
+                repo="owner/repo",
+                head="feature/test",
             )
 
             assert result is None
@@ -231,6 +264,21 @@ class TestCreatePr:
             # Should have called git to get current branch
             assert mock_run.called
             assert "rev-parse" in str(mock_run.call_args)
+
+    def test_returns_none_when_git_fails_to_get_branch(self):
+        """Should return None when git rev-parse fails to get branch name."""
+        with (
+            patch("shutil.which", return_value=None),
+            patch("subprocess.run") as mock_run,
+        ):
+            # git rev-parse returns non-zero (fails to get branch)
+            mock_run.return_value = MagicMock(returncode=1, stdout="")
+
+            result = github_pr.create_pr(
+                title="Test", body="Body", repo="owner/repo"
+            )
+
+            assert result is None
 
     def test_returns_none_when_all_methods_fail(self):
         """Should return None when both gh and requests fail."""

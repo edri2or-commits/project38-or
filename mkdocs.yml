@@ -71,4 +71,5 @@ nav:
   - API Reference:
       - סקירה: api/index.md
       - GitHub Authentication: api/github_auth.md
+      - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md
