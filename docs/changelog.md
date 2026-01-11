@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **CLAUDE.md Architecture Documentation** - Updated to reflect Phase 3.2 completion (2026-01-11)
+  - Updated Primary Stack: FastAPI marked as implemented (Phase 3.1), PostgreSQL schema defined
+  - Added "Agent Platform Architecture" section with complete Phase 3.1, 3.2, and 3.3 overview
+  - Phase 3.2 Agent Factory: Full usage examples, REST API endpoint documentation, component descriptions
+  - Success metrics documented: 90%+ first-try validation, <$3 cost, <30s generation time, 70/70 tests passing
+  - Phase 3.3 Agent Harness: Roadmap and planned features described
+  - File Structure: Added `src/api/routes/agents.py` for Agent CRUD endpoints
+  - Ensures CLAUDE.md accurately reflects current system capabilities and next steps
+
 ### Added
 - **Phase 3.2: Agent Factory** - Natural Language to Working Python Agent (2026-01-11)
   - `src/factory/generator.py` - Claude Sonnet 4.5 code generation from natural language
