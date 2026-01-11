@@ -255,7 +255,7 @@ class TestCreatePr:
             )
             mock_requests.return_value = {"number": 789}
 
-            result = github_pr.create_pr(
+            _ = github_pr.create_pr(
                 title="Test", body="Body", repo="owner/repo"
             )
 

@@ -27,7 +27,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
+"tests/*" = ["S101", "S105", "S106"]  # assert, hardcoded secrets OK in tests
 "scripts/*" = ["E501", "F401", "I001"]  # Long lines, unused imports, import order OK in scripts
 
 [tool.ruff.format]
