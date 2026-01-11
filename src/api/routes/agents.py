@@ -7,13 +7,12 @@ agents from natural language descriptions.
 
 import logging
 from datetime import datetime
-from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from src.factory.generator import generate_agent_code, estimate_cost
-from src.factory.ralph_loop import ralph_wiggum_loop, get_loop_summary
+from src.factory.generator import estimate_cost, generate_agent_code
+from src.factory.ralph_loop import get_loop_summary, ralph_wiggum_loop
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +33,8 @@ class AgentCreateRequest(BaseModel):
     description: str = Field(
         ..., min_length=10, max_length=2000, description="Agent functionality description"
     )
-    name: Optional[str] = Field(None, max_length=255, description="Agent name")
-    created_by: Optional[str] = Field(None, max_length=255, description="Creator ID")
+    name: str | None = Field(None, max_length=255, description="Agent name")
+    created_by: str | None = Field(None, max_length=255, description="Creator ID")
     strict_validation: bool = Field(True, description="Enable strict validation")
 
 
@@ -61,8 +60,8 @@ class AgentResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
-    created_by: Optional[str] = None
-    config: Optional[str] = None
+    created_by: str | None = None
+    config: str | None = None
 
 
 class AgentCreateResponse(AgentResponse):
@@ -92,11 +91,11 @@ class AgentUpdateRequest(BaseModel):
         config: Updated configuration
     """
 
-    name: Optional[str] = Field(None, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
-    code: Optional[str] = None
-    status: Optional[str] = Field(None, max_length=50)
-    config: Optional[str] = None
+    name: str | None = Field(None, max_length=255)
+    description: str | None = Field(None, max_length=2000)
+    code: str | None = None
+    status: str | None = Field(None, max_length=50)
+    config: str | None = None
 
 
 class AgentExecuteRequest(BaseModel):
@@ -106,7 +105,7 @@ class AgentExecuteRequest(BaseModel):
         config: Execution-specific configuration (JSON)
     """
 
-    config: Optional[dict] = Field(None, description="Execution configuration")
+    config: dict | None = Field(None, description="Execution configuration")
 
 
 class AgentExecuteResponse(BaseModel):
@@ -122,10 +121,10 @@ class AgentExecuteResponse(BaseModel):
 
     agent_id: int
     status: str
-    result: Optional[dict] = None
-    error: Optional[str] = None
+    result: dict | None = None
+    error: str | None = None
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
 
 
 @router.post(
@@ -237,13 +236,13 @@ async def create_agent(request: AgentCreateRequest) -> AgentCreateResponse:
         ) from e
 
 
-@router.get("/agents", response_model=List[AgentResponse])
+@router.get("/agents", response_model=list[AgentResponse])
 async def list_agents(
-    status: Optional[str] = None,
-    created_by: Optional[str] = None,
+    status: str | None = None,
+    created_by: str | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> List[AgentResponse]:
+) -> list[AgentResponse]:
     """List all agents with optional filtering.
 
     Args:

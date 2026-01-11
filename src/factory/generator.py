@@ -1,23 +1,25 @@
-"""
-Agent Code Generator - Natural Language to Python Agent.
+"""Agent Code Generator - Natural Language to Python Agent.
 
 Uses Claude Sonnet 4.5 via Anthropic API to generate Python code from
 natural language descriptions.
 """
 
-import os
 import logging
-from typing import Dict, Optional
-from jinja2 import Template
+import os
+
 from anthropic import Anthropic, APIError
+from jinja2 import Template
 
 logger = logging.getLogger(__name__)
 
 
 # Prompt template for agent code generation
-AGENT_GENERATION_PROMPT = Template("""You are an expert Python developer specializing in creating autonomous agents.
+AGENT_GENERATION_PROMPT = Template(
+    """You are an expert Python developer specializing in \
+creating autonomous agents.
 
-Your task is to generate a complete, production-ready Python agent based on the following description:
+Your task is to generate a complete, production-ready Python agent \
+based on the following description:
 
 Description: {{ description }}
 
@@ -51,7 +53,9 @@ Requirements:
    - status: 'success' or 'error'
    - result: the output data or error message
 
-Generate ONLY the Python code, no explanations. The code should be ready to save to a .py file.""")
+Generate ONLY the Python code, no explanations. The code should be \
+ready to save to a .py file."""
+)
 
 
 class GeneratorError(Exception):
@@ -62,11 +66,10 @@ class GeneratorError(Exception):
 
 async def generate_agent_code(
     description: str,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     max_tokens: int = 4096,
-) -> Dict[str, str]:
-    """
-    Generate Python agent code from natural language description.
+) -> dict[str, str]:
+    """Generate Python agent code from natural language description.
 
     Uses Claude Sonnet 4.5 to generate production-ready Python code based on
     the provided description. The generated code includes error handling,
@@ -164,8 +167,7 @@ async def generate_agent_code(
 
 
 def estimate_cost(tokens_used: int) -> float:
-    """
-    Estimate the cost of code generation based on tokens used.
+    """Estimate the cost of code generation based on tokens used.
 
     Pricing (as of 2025):
     - Claude Sonnet 4.5: $3 per million input tokens, $15 per million output

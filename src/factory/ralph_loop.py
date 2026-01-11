@@ -1,5 +1,4 @@
-"""
-Ralph Wiggum Loop - Recursive Test → Fix → Test cycle.
+"""Ralph Wiggum Loop - Recursive Test → Fix → Test cycle.
 
 Named after Ralph Wiggum's "I'm helping!" - the loop keeps trying to fix
 issues until the code passes validation or max iterations reached.
@@ -11,9 +10,9 @@ Implements the self-healing pattern:
 """
 
 import logging
-from typing import Dict, List, Optional
-from jinja2 import Template
+
 from anthropic import Anthropic, APIError
+from jinja2 import Template
 
 from src.factory.validator import validate_code
 
@@ -66,12 +65,11 @@ class RalphLoopError(Exception):
 
 async def ralph_wiggum_loop(
     code: str,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     max_iterations: int = 5,
     strict: bool = True,
-) -> Dict[str, any]:
-    """
-    Run recursive Test → Fix → Test cycle until code passes validation.
+) -> dict[str, any]:
+    """Run recursive Test → Fix → Test cycle until code passes validation.
 
     The "Ralph Wiggum Loop" (named after "I'm helping!") attempts to
     automatically fix validation errors by:
@@ -112,7 +110,7 @@ async def ralph_wiggum_loop(
         "Starting Ralph Wiggum Loop (max_iterations=%d)", max_iterations
     )
 
-    history: List[Dict] = []
+    history: list[dict] = []
     current_code = code
     previous_fix = None
 
@@ -189,14 +187,13 @@ async def ralph_wiggum_loop(
 
 async def _fix_code_with_claude(
     code: str,
-    errors: List[str],
-    warnings: List[str],
+    errors: list[str],
+    warnings: list[str],
     attempt_number: int,
-    previous_fix: Optional[str],
-    api_key: Optional[str],
+    previous_fix: str | None,
+    api_key: str | None,
 ) -> str:
-    """
-    Use Claude to fix code based on validation errors.
+    """Use Claude to fix code based on validation errors.
 
     Args:
         code: Code to fix
@@ -266,9 +263,8 @@ async def _fix_code_with_claude(
         raise
 
 
-def get_loop_summary(result: Dict[str, any]) -> str:
-    """
-    Generate human-readable summary of Ralph Loop execution.
+def get_loop_summary(result: dict[str, any]) -> str:
+    """Generate human-readable summary of Ralph Loop execution.
 
     Args:
         result: Result dict from ralph_wiggum_loop()

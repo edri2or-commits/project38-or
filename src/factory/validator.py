@@ -1,5 +1,4 @@
-"""
-Code Validator - Validates generated agent code.
+"""Code Validator - Validates generated agent code.
 
 Runs multiple validation checks:
 - Ruff format and lint
@@ -7,11 +6,10 @@ Runs multiple validation checks:
 - Security checks (no hardcoded secrets, eval/exec)
 """
 
-import re
-import tempfile
-import subprocess
 import logging
-from typing import Dict, List
+import re
+import subprocess
+import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -41,9 +39,8 @@ SECURITY_PATTERNS = [
 
 async def validate_code(
     code: str, strict: bool = True
-) -> Dict[str, List[str]]:
-    """
-    Validate generated Python code.
+) -> dict[str, list[str]]:
+    """Validate generated Python code.
 
     Runs multiple validation checks:
     1. Syntax check (compile the code)
@@ -136,9 +133,8 @@ async def validate_code(
         tmp_path.unlink(missing_ok=True)
 
 
-def _check_security_patterns(code: str) -> List[str]:
-    """
-    Check code for security anti-patterns.
+def _check_security_patterns(code: str) -> list[str]:
+    """Check code for security anti-patterns.
 
     Args:
         code: Python code to check
@@ -157,9 +153,8 @@ def _check_security_patterns(code: str) -> List[str]:
     return issues
 
 
-def _run_ruff_format(code_path: Path) -> Dict[str, any]:
-    """
-    Run ruff format check.
+def _run_ruff_format(code_path: Path) -> dict[str, any]:
+    """Run ruff format check.
 
     Args:
         code_path: Path to Python file
@@ -195,9 +190,8 @@ def _run_ruff_format(code_path: Path) -> Dict[str, any]:
         return {"passed": False, "messages": [f"Format check error: {e}"]}
 
 
-def _run_ruff_lint(code_path: Path) -> Dict[str, any]:
-    """
-    Run ruff lint.
+def _run_ruff_lint(code_path: Path) -> dict[str, any]:
+    """Run ruff lint.
 
     Args:
         code_path: Path to Python file
@@ -234,9 +228,8 @@ def _run_ruff_lint(code_path: Path) -> Dict[str, any]:
         return {"passed": False, "messages": [f"Lint check error: {e}"]}
 
 
-def _run_pydocstyle(code_path: Path) -> Dict[str, any]:
-    """
-    Run pydocstyle check (Google style).
+def _run_pydocstyle(code_path: Path) -> dict[str, any]:
+    """Run pydocstyle check (Google style).
 
     Args:
         code_path: Path to Python file
@@ -279,9 +272,8 @@ def _run_pydocstyle(code_path: Path) -> Dict[str, any]:
         }
 
 
-def format_validation_report(result: Dict[str, any]) -> str:
-    """
-    Format validation results into human-readable report.
+def format_validation_report(result: dict[str, any]) -> str:
+    """Format validation results into human-readable report.
 
     Args:
         result: Validation result from validate_code()
