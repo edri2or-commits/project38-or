@@ -451,6 +451,59 @@ pr-helper: Create PR ✅
 - ✅ Comprehensive test plans
 - ✅ PR creation takes < 1 minute
 
+### dependency-checker (v1.0.0)
+
+**Purpose:** Audits Python dependencies for security vulnerabilities, outdated versions, and best practices.
+
+**Triggers:**
+- Changes to `requirements*.txt` files
+- Keywords: `dependencies`, `vulnerabilities`, `outdated packages`, `audit dependencies`, `security audit`, `check dependencies`
+
+**What it does:**
+1. Scans for known security vulnerabilities using pip-audit
+2. Identifies outdated packages with available updates
+3. Validates requirements.txt format (pinning, version constraints)
+4. Checks for dependency conflicts (pip check)
+5. Verifies lock files are synchronized
+6. Generates prioritized remediation plan (Priority 1-4)
+7. Blocks deployment on CRITICAL/HIGH vulnerabilities
+
+**When to use:**
+```bash
+# After updating dependencies
+"Check dependencies for vulnerabilities"
+
+# Periodic audit
+"Run dependency audit"
+
+# Before PR
+"Audit dependencies before creating PR"
+```
+
+**Integration with CI:**
+- Skill runs **proactively** during development (local)
+- CI validates before merge (GitHub Actions - future)
+- Together they enforce **Zero Known Vulnerabilities**
+
+**Files:**
+- Skill definition: `.claude/skills/dependency-checker/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (read-only scanning)
+- Allowed tools: Read, Bash (pip, pip-audit, safety), Grep, Glob
+- Never auto-updates dependencies without approval
+- Always blocks on CRITICAL/HIGH vulnerabilities
+- Requires testing after any dependency update
+
+**Success metrics:**
+- ✅ Zero CRITICAL/HIGH vulnerabilities in production
+- ✅ All dependencies pinned with exact versions
+- ✅ Lock files stay synchronized
+- ✅ Clear remediation guidance provided
+- ✅ Monthly security audits completed
+
+**Critical:** This skill enforces **Zero Tolerance for Critical Vulnerabilities** - any CRITICAL or HIGH severity vulnerability will block deployment until fixed. All production dependencies must use exact version pinning (e.g., `package==1.2.3`).
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:
