@@ -214,12 +214,12 @@ Based on research analysis:
    - Use "Production" environment for approval gate
    - Document Railway-specific secrets strategy
 
-3. **Enhance Skills System**
+2. **Enhance Skills System**
    - Add `changelog-updater` skill (auto-update changelog on commits)
    - Add `dependency-checker` skill (audit npm/pip dependencies)
    - Add `performance-monitor` skill (track workflow execution times)
 
-4. **Advanced CI/CD**
+3. **Advanced CI/CD**
    - Implement preview deployments for PRs
    - Add integration tests with test database
    - Set up monitoring/alerting for production
