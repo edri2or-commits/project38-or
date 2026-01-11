@@ -51,4 +51,3 @@ class Agent(SQLModel, table=True):
                 "config": '{"stocks": ["TSLA"], "threshold": 0.05}',
             }
         }
-

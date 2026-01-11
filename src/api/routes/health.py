@@ -65,4 +65,3 @@ async def root() -> dict[str, str]:
         "docs": "/docs",
         "health": "/health",
     }
-

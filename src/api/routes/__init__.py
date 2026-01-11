@@ -2,4 +2,3 @@
 
 This package contains all REST API endpoint implementations.
 """
-

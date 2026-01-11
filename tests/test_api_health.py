@@ -79,4 +79,3 @@ class TestRootEndpoint:
         assert data["version"] == "0.1.0"
         assert data["docs"] == "/docs"
         assert data["health"] == "/health"
-
