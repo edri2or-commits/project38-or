@@ -8,11 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Workload Identity Federation (WIF)** - Full migration from static Service Account keys to OIDC-based authentication
+- WIF setup complete with Pool: `github-pool` and Provider: `github-provider` (Project: 979429709900)
+- Comprehensive WIF migration plan in `docs/wif-migration-plan.md` with step-by-step GCP setup instructions
+- Manual setup guide for GitHub Admin tasks in `docs/manual-setup-guide.md` (branch protection + environments)
 - test-runner skill (v1.0.0) for automated test execution before commits in `.claude/skills/test-runner/SKILL.md`
 - security-checker skill (v1.0.0) for validating no secrets in commits in `.claude/skills/security-checker/SKILL.md`
 - pr-helper skill (v1.0.0) for standardized PR creation in `.claude/skills/pr-helper/SKILL.md`
 - Complete skills documentation in `CLAUDE.md:272-453` for all four skills
 - Updated Skills README with test-runner, security-checker, and pr-helper documentation in `.claude/skills/README.md:51-176`
+
 - Claude Skills infrastructure in `.claude/skills/` directory
 - doc-updater skill (v1.0.0) for autonomous documentation maintenance in `.claude/skills/doc-updater/SKILL.md`
 - Skills README with usage guide and best practices in `.claude/skills/README.md`
@@ -46,7 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Research summaries (7 documents in docs/research/)
 - Requirements lockfile for reproducible builds
 
+### Changed
+- **All GCP workflows migrated to WIF** - No more static credentials in GitHub Secrets
+- Updated `verify-secrets.yml`, `gcp-secret-manager.yml`, `quick-check.yml`, `report-secrets.yml`, and `test-wif.yml` to use WIF
+- CLAUDE.md GCP Configuration section updated with WIF details and Provider Resource Name
+- Updated BOOTSTRAP_PLAN.md with completed tasks and pending manual execution items
+- Enhanced Success Metrics table with current status indicators (100% test coverage achieved)
+
 ### Security
+- ✅ **Eliminated long-lived Service Account keys** - GitHub Actions now use ephemeral OIDC tokens (1-hour lifetime)
+- ✅ **Least privilege access** - WIF restricted to `edri2or-commits/project38-or` repository only
+- ✅ **Automatic token rotation** - No manual credential rotation needed
+- ✅ **Audit trail** - All WIF authentications logged in GCP Cloud Logging
 - Workflow hardening (removed push triggers)
 - Branch protection on main
 - GitHub Environment "Production" for deploy gates
