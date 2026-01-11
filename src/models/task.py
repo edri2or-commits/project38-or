@@ -57,3 +57,4 @@ class Task(SQLModel, table=True):
                 "retry_count": 0,
             }
         }
+

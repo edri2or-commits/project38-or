@@ -89,3 +89,4 @@ async def check_database_connection() -> bool:
             return True
     except Exception:  # noqa: BLE001
         return False
+
