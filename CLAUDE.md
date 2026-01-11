@@ -165,10 +165,15 @@ project38-or/
 │   │   └── routes/
 │   │       ├── __init__.py
 │   │       └── health.py     # Health check endpoints
-│   └── models/               # SQLModel database schemas (Phase 3.1)
+│   ├── models/               # SQLModel database schemas (Phase 3.1)
+│   │   ├── __init__.py
+│   │   ├── agent.py          # Agent entity
+│   │   └── task.py           # Task entity
+│   └── factory/              # Agent Factory (Phase 3.2)
 │       ├── __init__.py
-│       ├── agent.py          # Agent entity
-│       └── task.py           # Task entity
+│       ├── generator.py      # Claude code generation from NL
+│       ├── validator.py      # Multi-stage code validation
+│       └── ralph_loop.py     # Recursive Test→Fix→Test cycle
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment

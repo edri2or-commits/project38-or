@@ -46,6 +46,25 @@ agent = Agent(
 
 [📖 תיעוד מלא →](models.md)
 
+### 🏭 Agent Factory (Phase 3.2)
+
+ייצור אוטומטי של סוכנים מתיאור בשפה טבעית.
+
+```python
+from src.factory.generator import generate_agent_code
+from src.factory.ralph_loop import ralph_wiggum_loop
+
+# יצירת קוד מתיאור
+result = await generate_agent_code(
+    description="צור סוכן שעוקב אחרי מניות של טסלה"
+)
+
+# תיקון ואימות אוטומטי
+validated = await ralph_wiggum_loop(result['code'])
+```
+
+[📖 תיעוד מלא →](factory.md)
+
 ### 🔐 Secret Management
 
 גישה מאובטחת ל-GCP Secret Manager.

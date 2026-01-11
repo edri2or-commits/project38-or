@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3.2: Agent Factory** - Natural Language to Working Python Agent (2026-01-11)
+  - `src/factory/generator.py` - Claude Sonnet 4.5 code generation from natural language
+  - `src/factory/validator.py` - Multi-stage validation (syntax, ruff, pydocstyle, security patterns)
+  - `src/factory/ralph_loop.py` - Recursive Test→Fix→Test cycle for automatic code fixing
+  - `src/api/routes/agents.py` - REST API endpoints for agent CRUD operations
+  - `tests/test_factory.py` - 16 comprehensive tests with Anthropic API mocking
+  - `docs/api/factory.md` - Complete API documentation for Agent Factory
+  - New dependencies: anthropic>=0.18.0, jinja2>=3.1.0
+  - POST /api/agents endpoint for creating agents from descriptions
+  - Security pattern detection (eval/exec, hardcoded secrets, shell injection)
+  - Cost estimation: ~$0.025-$0.10 per agent generated
+  - Target cost < $3 per agent achieved (including Ralph loop iterations)
+  - Foundation for Phase 3.3 (Agent Harness) and autonomous agent deployment
 - **Documentation Alignment** - Synchronized CLAUDE.md and BOOTSTRAP_PLAN.md with Phase 3.1 completion
   - Updated `CLAUDE.md` File Structure to include `src/api/`, `src/models/`, `src/github_auth.py`, `src/github_pr.py`
   - Added complete Phase 3 documentation to `docs/BOOTSTRAP_PLAN.md` (245 lines):
