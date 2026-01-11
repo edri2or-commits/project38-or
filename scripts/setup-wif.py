@@ -4,12 +4,12 @@ WIF Setup Script - Pure Python Implementation
 Creates Workload Identity Federation for GitHub Actions without gcloud CLI
 """
 
-import sys
-from google.cloud import iam_v1
-from google.cloud import resourcemanager_v3
-from google.iam.v1 import iam_policy_pb2
-from google.api_core import exceptions
 import json
+import sys
+
+from google.api_core import exceptions
+from google.cloud import iam_v1, resourcemanager_v3
+from google.iam.v1 import iam_policy_pb2
 
 PROJECT_ID = "project38-483612"
 SERVICE_ACCOUNT = "claude-code-agent@project38-483612.iam.gserviceaccount.com"

@@ -3,8 +3,6 @@
 import subprocess
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src import github_pr
 
 

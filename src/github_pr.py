@@ -8,7 +8,6 @@ This module provides PR operations that work regardless of gh CLI availability:
 Security: Never logs or prints tokens.
 """
 
-import json
 import os
 import shutil
 import subprocess
@@ -226,7 +225,7 @@ def create_pr(
     head: str | None = None,
     base: str = "main",
 ) -> dict[str, Any] | None:
-    """Create a GitHub Pull Request (works in any environment).
+    r"""Create a GitHub Pull Request (works in any environment).
 
     Tries methods in order:
     1. gh CLI (preferred - handles proxy correctly)
@@ -245,7 +244,7 @@ def create_pr(
     Example:
         >>> pr = create_pr(
         ...     title="Add feature X",
-        ...     body="## Summary\\nAdds feature X",
+        ...     body="## Summary\nAdds feature X",
         ...     repo="owner/repo",
         ...     head="feature/x"
         ... )

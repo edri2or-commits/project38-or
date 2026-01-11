@@ -23,10 +23,12 @@ ignore = [
     "S101",   # assert statements (ok in tests)
     "S104",   # binding to all interfaces (ok for dev)
     "S603",   # subprocess call (we use shutil.which for full paths)
+    "S607",   # subprocess with partial path (gh CLI path varies)
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
+"scripts/*" = ["E501", "F401", "I001"]  # Long lines, unused imports, import order OK in scripts
 
 [tool.ruff.format]
 quote-style = "double"
