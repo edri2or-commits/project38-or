@@ -4,7 +4,6 @@ Tests for health check API endpoint.
 This module tests the health check and root endpoints.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import app

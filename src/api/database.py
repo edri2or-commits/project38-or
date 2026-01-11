@@ -1,5 +1,4 @@
-"""
-Database connection management for Agent Platform.
+"""Database connection management for Agent Platform.
 
 This module handles PostgreSQL connection pooling and session management
 using SQLModel and asyncpg.
@@ -35,8 +34,7 @@ async_session_maker = sessionmaker(
 
 
 async def create_db_and_tables() -> None:
-    """
-    Create database tables if they don't exist.
+    """Create database tables if they don't exist.
 
     Should be called on application startup.
     """
@@ -45,8 +43,7 @@ async def create_db_and_tables() -> None:
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Dependency for FastAPI to get database session.
+    """Dependency for FastAPI to get database session.
 
     Yields:
         AsyncSession: Database session
@@ -63,8 +60,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def close_db_connection() -> None:
-    """
-    Close database connection pool.
+    """Close database connection pool.
 
     Should be called on application shutdown.
     """
@@ -73,8 +69,7 @@ async def close_db_connection() -> None:
 
 # Health check function
 async def check_database_connection() -> bool:
-    """
-    Check if database connection is alive.
+    """Check if database connection is alive.
 
     Returns:
         bool: True if database is reachable, False otherwise
@@ -89,4 +84,3 @@ async def check_database_connection() -> bool:
             return True
     except Exception:  # noqa: BLE001
         return False
-

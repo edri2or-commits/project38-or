@@ -1,5 +1,4 @@
-"""
-FastAPI application for Agent Platform.
+"""FastAPI application for Agent Platform.
 
 This module provides the REST API for managing AI agents, tasks, and execution.
 """

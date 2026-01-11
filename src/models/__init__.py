@@ -1,5 +1,4 @@
-"""
-Database models for Agent Platform.
+"""Database models for Agent Platform.
 
 This module contains SQLModel schemas for all database entities.
 """
