@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Testing dependencies** - Added missing test dependencies to requirements.txt (2026-01-11)
+  - pytest>=8.0.0 - Test framework
+  - pytest-asyncio>=0.23.0 - Async test support
+  - httpx>=0.27.0 - HTTP client for API tests
+  - aiosqlite>=0.20.0 - SQLite async driver for test database
+  - Ensures 100% alignment between code and documented dependencies
 - **Documentation completion for Phase 3.3** - Updated all documentation to include Agent Harness (2026-01-11)
   - Updated `docs/api/index.md` with Agent Harness section and code examples
   - Added `api/harness.md` to `mkdocs.yml` navigation under API Reference
