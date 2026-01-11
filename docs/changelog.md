@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Manual setup documentation in MkDocs navigation** - Added `manual-setup-guide.md` and `wif-migration-plan.md` to site structure
+  - New section "הגדרות ידניות" under ארכיטקטורה in `mkdocs.yml:62-64`
+  - Resolves mkdocs build warning about pages not in nav configuration
+  - Improves discoverability of setup guides
 - **changelog-updater skill (v1.0.0)** for automatically generating changelog entries from git commit history in `.claude/skills/changelog-updater/SKILL.md`
   - Analyzes git commit history from branch divergence point
   - Parses conventional commit messages (feat, fix, docs, security, etc.)
