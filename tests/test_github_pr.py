@@ -17,9 +17,7 @@ class TestGetGhToken:
 
     def test_get_token_from_env_github_token(self):
         """Should get token from GITHUB_TOKEN if GH_TOKEN not set."""
-        with patch.dict(
-            "os.environ", {"GITHUB_TOKEN": "test_token_456"}, clear=True
-        ):
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "test_token_456"}, clear=True):
             token = github_pr._get_gh_token()
             assert token == "test_token_456"
 
@@ -29,9 +27,7 @@ class TestGetGhToken:
             patch.dict("os.environ", {}, clear=True),
             patch("subprocess.run") as mock_run,
         ):
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="gh_cli_token_789\n"
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="gh_cli_token_789\n")
 
             token = github_pr._get_gh_token()
             assert token == "gh_cli_token_789"
@@ -250,14 +246,10 @@ class TestCreatePr:
             patch("subprocess.run") as mock_run,
             patch("src.github_pr.create_pr_with_requests") as mock_requests,
         ):
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="current-branch\n"
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="current-branch\n")
             mock_requests.return_value = {"number": 789}
 
-            _ = github_pr.create_pr(
-                title="Test", body="Body", repo="owner/repo"
-            )
+            _ = github_pr.create_pr(title="Test", body="Body", repo="owner/repo")
 
             # Should have called git to get current branch
             assert mock_run.called
@@ -272,9 +264,7 @@ class TestCreatePr:
             # git rev-parse returns non-zero (fails to get branch)
             mock_run.return_value = MagicMock(returncode=1, stdout="")
 
-            result = github_pr.create_pr(
-                title="Test", body="Body", repo="owner/repo"
-            )
+            result = github_pr.create_pr(title="Test", body="Body", repo="owner/repo")
 
             assert result is None
 
@@ -284,8 +274,6 @@ class TestCreatePr:
             patch("shutil.which", return_value=None),
             patch("subprocess.run", side_effect=Exception),
         ):
-            result = github_pr.create_pr(
-                title="Test", body="Body", repo="owner/repo"
-            )
+            result = github_pr.create_pr(title="Test", body="Body", repo="owner/repo")
 
             assert result is None
