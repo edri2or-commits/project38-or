@@ -214,6 +214,15 @@ project38-or/
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
 │   ├── RAILWAY_SETUP.md      # Railway deployment guide
 │   ├── api/                  # API reference (auto-generated)
+│   ├── autonomous/           # Autonomous system documentation (8 documents, 211KB)
+│   │   ├── 00-autonomous-philosophy.md      # Automation vs Autonomy, OODA Loop
+│   │   ├── 01-system-architecture-hybrid.md # 4-layer architecture + implementations
+│   │   ├── 02-railway-integration-hybrid.md # Infrastructure domain
+│   │   ├── 03-github-app-integration-hybrid.md # Code domain
+│   │   ├── 04-n8n-orchestration-hybrid.md   # Nervous system
+│   │   ├── 05-resilience-patterns-hybrid.md # Circuit breaker, retry logic
+│   │   ├── 06-security-architecture-hybrid.md # Zero trust security
+│   │   └── 07-operational-scenarios-hybrid.md # End-to-end scenarios
 │   └── research/             # Research summaries
 ├── mkdocs.yml                 # MkDocs configuration
 ├── CLAUDE.md                  # This file
