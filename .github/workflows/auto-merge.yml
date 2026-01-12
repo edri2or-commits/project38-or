@@ -43,6 +43,9 @@ jobs:
           pip install -q -r requirements.txt
           pip install -q -r requirements-dev.txt
 
+          # Fix cffi/cryptography compatibility issue
+          pip install --upgrade --force-reinstall cffi cryptography
+
       - name: 🔒 Security Check
         id: security
         run: |
