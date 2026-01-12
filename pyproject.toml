@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "project38-or"
 version = "0.1.0"
@@ -30,6 +34,13 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S105", "S106"]  # assert, hardcoded secrets OK in tests
 "scripts/*" = ["E501", "F401", "I001"]  # Long lines, unused imports, import order OK in scripts
+"examples/*" = ["S311", "B007"]  # Random generator and unused loop vars OK in examples
+"src/api/routes/metrics.py" = ["S608"]  # SQL INTERVAL requires string interpolation (not user input)
+"src/mcp/filesystem.py" = ["S108"]  # /tmp usage required for CI compatibility
+
+[tool.pydocstyle]
+convention = "google"
+add_ignore = "D212,D415,D107,D105"  # Multi-line start, periods, __init__, magic methods
 
 [tool.ruff.format]
 quote-style = "double"
@@ -39,7 +50,7 @@ indent-style = "space"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --import-mode=importlib"
 pythonpath = ["src"]
 
 [tool.coverage.run]

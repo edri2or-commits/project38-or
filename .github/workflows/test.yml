@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write  # Required to post test results as comments
 
 concurrency:
   group: test-${{ github.ref }}
@@ -34,14 +35,57 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install -e .  # Install project in editable mode (src layout)
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: Run tests with coverage
-        env:
-          PYTHONPATH: ${{ github.workspace }}
+      - name: Debug environment
         run: |
-          python -m pytest --cov=src --cov-report=term-missing -v
+          echo "=== Python Version ==="
+          python --version
+          echo "=== Installed Packages ==="
+          pip list | grep -E "(pytest|coverage|opentelemetry)"
+          echo "=== Project Structure ==="
+          ls -la
+          echo "=== Src Directory ==="
+          ls -la src/
+          echo "=== Test Import Check ==="
+          python -c "from src.observability import tracer, metrics; print('✅ Imports OK')" || echo "❌ Import failed"
+
+      - name: Run tests with coverage
+        id: pytest
+        run: |
+          python -m pytest --cov=src --cov-report=term-missing -v --cov-fail-under=0 2>&1 | tee pytest-output.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Post test results to PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('pytest-output.txt', 'utf8');
+
+            // Truncate if too long (GitHub comment limit is 65536 chars)
+            const maxLength = 60000;
+            const truncated = output.length > maxLength
+              ? output.substring(0, maxLength) + '\n\n... (truncated)'
+              : output;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## Test Results\n\n\`\`\`\n${truncated}\n\`\`\``
+            });
+
+      - name: Upload test output
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-output
+          path: pytest-output.txt
+          retention-days: 5
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4

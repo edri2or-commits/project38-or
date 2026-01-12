@@ -269,6 +269,7 @@ class NotificationServer:
 
 # Convenience functions
 
+
 async def send_telegram_notification(
     message: str,
     chat_id: int | str,

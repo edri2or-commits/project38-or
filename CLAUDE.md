@@ -190,14 +190,18 @@ project38-or/
 │       └── registry.py       # Tool access control & usage tracking
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
-│   ├── docs.yml              # Documentation deployment
+│   ├── auto-merge.yml        # Auto-merge PRs after CI passes (pull_request)
+│   ├── deploy-railway.yml    # Railway deployment (workflow_dispatch only)
+│   ├── docs.yml              # Documentation deployment (push to main)
 │   ├── docs-check.yml        # Changelog & docstring enforcement (workflow_dispatch + PR)
+│   ├── docs-validation.yml   # Strict mkdocs validation & docstring coverage (PR)
+│   ├── gcp-secret-manager.yml
 │   ├── lint.yml              # PR linting (workflow_dispatch + PR)
-│   ├── test.yml              # PR testing (workflow_dispatch + PR)
-│   ├── verify-secrets.yml    # workflow_dispatch only
 │   ├── quick-check.yml       # workflow_dispatch only
 │   ├── report-secrets.yml    # workflow_dispatch only
-│   └── gcp-secret-manager.yml
+│   ├── test.yml              # PR testing (workflow_dispatch + PR)
+│   ├── test-wif.yml          # Test GCP WIF authentication (workflow_dispatch only)
+│   └── verify-secrets.yml    # workflow_dispatch only
 ├── tests/                     # pytest tests
 ├── research/                  # Research documents (read-only)
 ├── docs/                      # MkDocs source
@@ -235,7 +239,15 @@ project38-or/
 ### Workflows
 
 - All workflows use `workflow_dispatch` (manual trigger)
-- **Exception:** `docs.yml` uses push trigger for automatic documentation deployment
+- **CI workflows** (`test.yml`, `lint.yml`, `docs-check.yml`, `docs-validation.yml`) also trigger on `pull_request` to `main`:
+  - Automatic validation when PR is created or updated
+  - Ensures code quality before merge
+  - Blocks merge if checks fail
+- **Auto-merge workflow** (`auto-merge.yml`) triggers on `pull_request` events:
+  - Automatically merges PR after all CI checks pass
+  - Requires: tests pass, lint passes, docs validation passes
+  - Deletes branch after merge
+- **Exception:** `docs.yml` uses `push` trigger for automatic documentation deployment
   - Rationale: Low risk (GitHub Pages only, no secrets/GCP access)
   - Benefit: Documentation stays synchronized with code (15/16 runs were automatic)
   - Permissions: `contents: read`, `pages: write` (minimal)
@@ -1056,12 +1068,14 @@ This project uses a **src layout** where source code is in `src/` and tests are 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]  # REQUIRED for src layout
+addopts = "-v --tb=short --import-mode=importlib"  # REQUIRED for Python 3.11+ CI
 ```
 
 **Why this matters:**
 - Without `pythonpath = ["src"]`, tests cannot import from `src/` modules
+- Without `--import-mode=importlib`, Python 3.11 CI may fail with import errors
 - CI will fail with `ModuleNotFoundError` errors
-- This is the standard pytest configuration for src layouts
+- This is the standard pytest configuration for src layouts with Python 3.11+
 
 ### Writing Tests
 

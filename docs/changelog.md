@@ -7,7 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **CLAUDE.md Documentation Alignment** (2026-01-12) - Fixed documentation inconsistencies
+  - Added `--import-mode=importlib` to pytest configuration documentation (critical for Python 3.11+ CI)
+  - Documented `pull_request` triggers for CI workflows (`test.yml`, `lint.yml`, `docs-check.yml`, `docs-validation.yml`)
+  - Added missing workflows to File Structure: `auto-merge.yml`, `docs-validation.yml`, `test-wif.yml`, `deploy-railway.yml`
+  - Documented `auto-merge.yml` workflow that automatically merges PRs after CI passes
+  - Clarified that workflows run automatically on PRs to `main`, not just manual dispatch
+
 ### Added
+- **Phase 3.5: Observability Dashboard (Phase 1)** - Real-time AI agent monitoring (2026-01-12)
+  - `src/observability/tracer.py` - OpenTelemetry instrumentation with GenAI conventions v1.37+ (175 lines)
+  - `src/observability/metrics.py` - MetricsCollector with 3-layer taxonomy (329 lines)
+  - `src/api/routes/metrics.py` - FastAPI endpoints for dashboard API (368 lines)
+  - `sql/observability_schema.sql` - TimescaleDB schema with hypertables (253 lines)
+  - `examples/observability_demo.py` - Usage demonstration (210 lines)
+  - **@instrument_tool decorator** - Automatic tracing with PII redaction
+  - **3-Layer Metrics**: Infrastructure (latency, errors), Economic (tokens, cost), Cognitive (success rate)
+  - **In-memory fallback** - No database required for development
+  - **TimescaleDB support** - Hypertables, continuous aggregates, helper functions
+  - **FastAPI endpoints**: `/metrics/summary`, `/metrics/agents`, `/metrics/timeseries`, `/metrics/health`
+  - Based on Research Paper #08 with line-number references
+- **Research Papers** - Foundation documents for system architecture (2026-01-12)
+  - `research/08_realtime_observability_dashboard_ai_agents.md` (510 lines) - Dashboard architecture and metrics taxonomy
+  - `research/09_trust_score_implementation_autonomous_agents.md` (449 lines) - Beta Reputation System for progressive autonomy
+  - `research/10_docs_as_code_optimization_mkdocs.md` (393 lines) - Documentation best practices and CI validation
+- **Documentation Refactoring** - Comprehensive docs-as-code improvements (2026-01-12)
+  - `.github/workflows/docs-validation.yml` - CI workflow with mkdocs strict mode and docstring coverage (117 lines)
+  - `docs/stylesheets/rtl-code-fix.css` - RTL (Hebrew) code block fix for correct LTR rendering (36 lines)
+  - Fixed orphaned pages: Added `api/harness.md` and `api/mcp.md` to navigation
+  - Minimized README from 253→106 lines (58% reduction)
+  - Updated BOOTSTRAP_PLAN with hybrid approach (ADR + GitHub Projects)
+  - Based on Research Paper #10
 - **Auto-Merge Pipeline** - Automated PR validation and merge workflow (2026-01-12)
   - `.github/workflows/auto-merge.yml` - Automatic PR validation and merge (225 lines)
   - `.claude/skills/preflight-check/SKILL.md` - Pre-PR validation skill (379 lines)

@@ -53,6 +53,10 @@ markdown_extensions:
   - toc:
       permalink: true
 
+# Custom CSS for RTL code block fix (Research Paper #10)
+extra_css:
+  - stylesheets/rtl-code-fix.css
+
 nav:
   - בית: index.md
   - התחלה מהירה: getting-started.md
@@ -78,6 +82,8 @@ nav:
       - Database: api/database.md
       - Models: api/models.md
       - Agent Factory: api/factory.md
+      - Agent Harness: api/harness.md
+      - MCP Tools: api/mcp.md
       - GitHub Authentication: api/github_auth.md
       - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md

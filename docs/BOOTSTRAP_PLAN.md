@@ -1,5 +1,13 @@
 # Bootstrap Plan: Project38-OR
 
+> **📊 Live Task Tracking**: See [GitHub Projects](https://github.com/edri2or-commits/project38-or/projects) for current sprint status and task assignments.
+>
+> **About this document**: This file serves as an **Architectural Decision Record (ADR)** documenting the strategic direction and completed phases. For day-to-day task tracking (Kanban, burn-down), use GitHub Projects. This hybrid approach (Research Paper #10) ensures:
+> - Strategy is version-controlled and auditable (this file)
+> - Execution is tracked dynamically (GitHub Projects)
+
+---
+
 ## Current State (2026-01-12)
 
 **Completed:**
