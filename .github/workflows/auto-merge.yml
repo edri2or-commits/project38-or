@@ -40,13 +40,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -q -r requirements.txt
-          pip install -q -r requirements-dev.txt
-
-          # Fix cffi/cryptography compatibility issue
-          pip install --upgrade --force-reinstall cffi cryptography
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: 🔒 Security Check
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         id: security
         run: |
           echo "## 🔒 Security Check" >> $GITHUB_STEP_SUMMARY
@@ -63,6 +63,8 @@ jobs:
 
       - name: 🧪 Run Tests
         id: tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           echo "## 🧪 Test Results" >> $GITHUB_STEP_SUMMARY
 
@@ -88,6 +90,8 @@ jobs:
 
       - name: 🎨 Lint Check
         id: lint
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           echo "## 🎨 Lint Check" >> $GITHUB_STEP_SUMMARY
 
@@ -109,6 +113,8 @@ jobs:
 
       - name: 📚 Documentation Check
         id: docs
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           echo "## 📚 Documentation Check" >> $GITHUB_STEP_SUMMARY
 
