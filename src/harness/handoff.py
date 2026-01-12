@@ -7,7 +7,7 @@ agents that maintain memory across multiple executions.
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class HandoffArtifact:
     run_number: int = 1
     state: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     compressed: bool = False
     summary: str = ""
 
@@ -96,7 +96,7 @@ class HandoffArtifact:
             run_number=data.get("run_number", 1),
             state=data.get("state", {}),
             metadata=data.get("metadata", {}),
-            created_at=created_at or datetime.now(timezone.utc),
+            created_at=created_at or datetime.now(UTC),
             compressed=data.get("compressed", False),
             summary=data.get("summary", ""),
         )

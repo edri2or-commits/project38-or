@@ -24,6 +24,7 @@ ignore = [
     "S104",   # binding to all interfaces (ok for dev)
     "S603",   # subprocess call (we use shutil.which for full paths)
     "S607",   # subprocess with partial path (gh CLI path varies)
+    "B008",   # function call in defaults (ok for FastAPI Depends)
 ]
 
 [tool.ruff.lint.per-file-ignores]

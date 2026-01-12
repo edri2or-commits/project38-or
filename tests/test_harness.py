@@ -3,24 +3,19 @@
 Tests executor, scheduler, resources, and handoff modules.
 """
 
-import asyncio
-import json
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.harness.executor import (
-    ExecutionError,
     ExecutionResult,
     execute_agent_code,
 )
 from src.harness.handoff import HandoffArtifact, HandoffManager
 from src.harness.resources import ResourceLimits, ResourceMonitor
-from src.harness.scheduler import AgentScheduler, advisory_lock, execute_scheduled_task
+from src.harness.scheduler import AgentScheduler, advisory_lock
 from src.models.agent import Agent
-from src.models.task import Task
 
 
 class TestExecutor:

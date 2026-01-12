@@ -4,13 +4,12 @@ Uses APScheduler with PostgreSQL Advisory Locks to ensure idempotent
 task execution across multiple replicas.
 """
 
-import asyncio
 import json
 import logging
 import zlib
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import AsyncGenerator
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -138,8 +137,8 @@ async def execute_scheduled_task(
         task = Task(
             agent_id=agent.id,
             status="running",
-            scheduled_at=datetime.now(timezone.utc),
-            started_at=datetime.now(timezone.utc),
+            scheduled_at=datetime.now(UTC),
+            started_at=datetime.now(UTC),
         )
         session.add(task)
         await session.commit()
@@ -161,7 +160,7 @@ async def execute_scheduled_task(
             )
 
             # Update task with results
-            task.completed_at = datetime.now(timezone.utc)
+            task.completed_at = datetime.now(UTC)
 
             if result.status == "success":
                 task.status = "completed"
@@ -199,7 +198,7 @@ async def execute_scheduled_task(
             logger.exception("Unexpected error during task execution")
             task.status = "failed"
             task.error = f"Unexpected error: {execution_error}"
-            task.completed_at = datetime.now(timezone.utc)
+            task.completed_at = datetime.now(UTC)
             await session.commit()
 
 
@@ -346,7 +345,7 @@ class AgentScheduler:
 
         except json.JSONDecodeError as e:
             logger.error("Failed to parse config for agent %d: %s", agent.id, e)
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to schedule agent %d", agent.id)
 
     async def _execute_agent_wrapper(self, agent_id: int) -> None:
@@ -361,7 +360,7 @@ class AgentScheduler:
         async with self.session_factory() as session:
             try:
                 await execute_scheduled_task(agent_id, session)
-            except Exception as e:
+            except Exception:
                 logger.exception("Failed to execute agent %d", agent_id)
 
     async def add_agent(self, agent: Agent) -> None:

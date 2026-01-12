@@ -187,7 +187,7 @@ if __name__ == "__main__":
             stderr = stderr_bytes.decode("utf-8")
             exit_code = process.returncode
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Kill process on timeout
             try:
                 process.kill()

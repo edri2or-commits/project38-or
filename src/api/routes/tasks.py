@@ -4,7 +4,7 @@ Provides endpoints for viewing and managing agent execution tasks.
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -143,7 +143,7 @@ async def retry_task(
     new_task = Task(
         agent_id=original_task.agent_id,
         status="pending",
-        scheduled_at=datetime.now(timezone.utc),
+        scheduled_at=datetime.now(UTC),
         retry_count=original_task.retry_count + 1,
     )
     session.add(new_task)
