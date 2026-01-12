@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Auto-Merge Pipeline** - Automated PR validation and merge workflow (2026-01-12)
-  - `.github/workflows/auto-merge.yml` - Automatic PR validation and merge (216 lines)
+  - `.github/workflows/auto-merge.yml` - Automatic PR validation and merge (225 lines)
   - `.claude/skills/preflight-check/SKILL.md` - Pre-PR validation skill (379 lines)
   - **Auto-merge workflow features:**
     - Runs 4 parallel checks: Security, Tests, Lint, Documentation

@@ -603,7 +603,7 @@ Railway uses **Bootstrap Key Pattern** (documented in railway-deployment-guide.m
 2. **auto-merge.yml workflow** - Runs same checks on GitHub + auto-merges if pass
 
 **Completed Files:**
-- `.github/workflows/auto-merge.yml` - Automated PR validation and merge (216 lines)
+- `.github/workflows/auto-merge.yml` - Automated PR validation and merge (225 lines)
 - `.claude/skills/preflight-check/SKILL.md` - Pre-PR validation skill (379 lines)
 
 **Features:**
