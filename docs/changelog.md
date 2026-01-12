@@ -22,10 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Security: Dedicated `railway-bootstrap` service account with minimal permissions
   - Documentation: Complete guide for deployment, rollback, secret rotation, troubleshooting
 - **Phase 3.4: MCP Tools** - Browser automation, sandboxed filesystem, and notifications (2026-01-12)
-  - `src/mcp/browser.py` - Playwright-based web automation with headless Chromium (488 lines)
-  - `src/mcp/filesystem.py` - Sandboxed file operations per agent at /workspace/agent_{id}/ (528 lines)
-  - `src/mcp/notifications.py` - Telegram bot and n8n webhook integration (327 lines)
-  - `src/mcp/registry.py` - Centralized tool access control and usage tracking (497 lines)
+  - `src/mcp/browser.py` - Playwright-based web automation with headless Chromium (490 lines)
+  - `src/mcp/filesystem.py` - Sandboxed file operations per agent at /workspace/agent_{id}/ (526 lines)
+  - `src/mcp/notifications.py` - Telegram bot and n8n webhook integration (326 lines)
+  - `src/mcp/registry.py` - Centralized tool access control and usage tracking (498 lines)
   - `tests/test_mcp.py` - 30 comprehensive tests with 100% pass rate (438 lines)
   - `docs/api/mcp.md` - Complete API documentation with examples and troubleshooting (886 lines)
   - New dependencies: playwright>=1.40.0, httpx>=0.27.0
