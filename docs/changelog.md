@@ -8,6 +8,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Hybrid Autonomous System Documentation** (2026-01-12) - Complete synthesis of theoretical and practical autonomous control
+  - `docs/autonomous/` - 8-document series merging OODA Loop theory with production implementations (211KB total)
+  - `00-autonomous-philosophy.md` (14KB) - Foundation: Automation vs Autonomy, OODA Loop, ethical constraints
+    - Paradigm shift from automation to true autonomy
+    - Four-phase OODA Loop (Observe-Orient-Decide-Act) with examples
+    - Principle of Least Astonishment for predictable agent behavior
+    - Ethical constraints (Primum Non Nocere, transparency, killswitch, scope limitation)
+  - `01-system-architecture-hybrid.md` (39KB) - Supervisor-Worker pattern with complete implementations
+    - Multi-agent architecture (Orchestrator + specialized Workers)
+    - Four-layer architecture (Authentication → API Clients → Orchestration → Observability)
+    - Complete SecretManager, RailwayClient, GitHubAppClient, N8nClient implementations
+    - Layer 4: Observability (structured logging, Prometheus metrics, audit trail, alerting)
+  - `02-railway-integration-hybrid.md` (25KB) - Infrastructure as Autonomous Domain
+    - Deployment State Machine (INITIALIZING → BUILDING → DEPLOYING → ACTIVE/FAILED)
+    - Complete RailwayClient with Cloudflare workaround, rollback, monitoring
+    - Operational scenarios (deployment success, failure recovery, crash handling)
+    - Production configuration for project38-or deployment
+  - `03-github-app-integration-hybrid.md` (29KB) - Code as Autonomous Domain
+    - JWT authentication flow (RS256 signing, auto-refresh)
+    - Complete GitHubAppClient (workflows, issues, PRs, commits)
+    - Why GitHub App > PAT (1-hour tokens, granular permissions, 17,500/hr rate limit)
+    - Operational scenarios (autonomous deployment trigger, bug report creation, issue lifecycle)
+  - `04-n8n-orchestration-hybrid.md` (26KB) - Nervous System of Autonomous Operations
+    - Railway template deployment (5-minute setup)
+    - Complete N8nClient (create/execute workflows, monitoring)
+    - Workflow node examples (Telegram alerts, multi-step routing, webhook triggers)
+    - Three integration patterns (n8n→Claude, Claude→n8n, bidirectional)
+  - `05-resilience-patterns-hybrid.md` (23KB) - Antifragile System Design
+    - Pattern 1: Exponential backoff with jitter (Tenacity library)
+    - Pattern 2: Circuit breaker (prevent cascading failures)
+    - Pattern 3: Bulkhead isolation (resource partitioning)
+    - Pattern 4: Graceful degradation (cached fallbacks)
+    - Pattern 5: Health checks + Dead Letter Queue
+    - Retry budget to prevent infinite loops
+  - `06-security-architecture-hybrid.md` (21KB) - Zero Trust Security
+    - Threat model (8 attack surfaces, 3 detailed scenarios)
+    - Layer 1: WIF authentication (no service account keys)
+    - Layer 2: GCP Secret Manager (automatic rotation)
+    - Layer 3: Network security (TLS, request signing, rate limiting)
+    - Layer 4: Application security (input validation, SQL injection prevention)
+    - Layer 5: Audit & monitoring (immutable logs, anomaly detection)
+    - Layer 6: Human oversight (JIT permissions, killswitch)
+  - `07-operational-scenarios-hybrid.md` (35KB) - System in Action
+    - Scenario 1: Complete autonomous deployment failure recovery (110-second timeline)
+    - Scenario 2: Performance degradation detection (CPU monitoring)
+    - Scenario 3: Self-healing CI/CD pipeline (transient failure retry)
+    - Complete MainOrchestrator implementation with OODA loop
+  - **Synthesis:** Combines user's theoretical research (8,000 words) with AI practical research (86,000 words)
+  - **Result:** Production-ready autonomous system with philosophical rigor and working code
 - **Autonomous Control System Research** (2026-01-12) - Comprehensive research for Claude autonomous management of Railway, GitHub, and n8n
   - `docs/integrations/railway-api-guide.md` (33KB) - Complete Railway GraphQL API reference
     - Deployment lifecycle management (trigger, monitor, rollback)
