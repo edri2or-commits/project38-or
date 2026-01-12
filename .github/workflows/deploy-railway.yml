@@ -84,26 +84,50 @@ jobs:
       - name: Trigger Railway Deployment
         env:
           RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          # IMPORTANT: Set these in GitHub Repository Secrets or Variables
+          # Get from Railway dashboard: Settings → General
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || 'NOT_SET' }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID || 'production' }}
         run: |
-          # Deploy to Railway using API
-          # Railway automatically detects Python projects and runs them
+          # Deploy to Railway using GraphQL API
+          # See docs/RAILWAY_SETUP.md for complete setup instructions
 
           echo "🚀 Deploying to Railway..."
+          echo "Project ID: $RAILWAY_PROJECT_ID"
+          echo "Environment: $RAILWAY_ENVIRONMENT_ID"
 
-          # Trigger deployment via Railway API
-          # Note: This assumes Railway project is already set up
+          # Validate configuration
+          if [ "$RAILWAY_PROJECT_ID" = "NOT_SET" ]; then
+            echo "❌ ERROR: RAILWAY_PROJECT_ID not configured"
+            echo "Please set in GitHub Repository Variables:"
+            echo "  Settings → Secrets and variables → Actions → Variables"
+            echo "  Name: RAILWAY_PROJECT_ID"
+            echo "  Value: <your-project-id-from-railway>"
+            echo ""
+            echo "Get your Project ID from Railway dashboard:"
+            echo "  https://railway.app/dashboard → Your Project → Settings → General"
+            exit 1
+          fi
+
+          # Trigger deployment via Railway GraphQL API
           RESPONSE=$(curl -s -X POST \
             "https://backboard.railway.app/graphql" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{
-              "query": "mutation { deploymentTrigger(projectId: \"YOUR_PROJECT_ID\", environmentId: \"YOUR_ENV_ID\") { id status } }"
-            }')
+            -d "{
+              \"query\": \"mutation { deploymentTrigger(projectId: \\\"$RAILWAY_PROJECT_ID\\\", environmentId: \\\"$RAILWAY_ENVIRONMENT_ID\\\") { id status } }\"
+            }")
 
-          echo "Response: $RESPONSE"
+          echo "API Response: $RESPONSE"
 
-          # TODO: Replace YOUR_PROJECT_ID and YOUR_ENV_ID with actual values
-          # Get these from Railway dashboard: Settings -> General
+          # Check for errors in response
+          if echo "$RESPONSE" | grep -q "error"; then
+            echo "❌ Deployment failed"
+            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+            exit 1
+          fi
+
+          echo "✅ Deployment triggered successfully"
 
       - name: Wait for deployment
         run: |
@@ -114,21 +138,50 @@ jobs:
           # For now, we wait a fixed time
 
       - name: Health Check
+        env:
+          # IMPORTANT: Set this in GitHub Repository Variables
+          # Get from Railway: Settings → Networking → Public Networking
+          RAILWAY_URL: ${{ vars.RAILWAY_URL || 'NOT_SET' }}
         run: |
           echo "🏥 Running health check..."
 
-          # TODO: Replace with your actual Railway URL
-          # RAILWAY_URL="https://your-app.up.railway.app"
+          if [ "$RAILWAY_URL" = "NOT_SET" ]; then
+            echo "⚠️  WARNING: RAILWAY_URL not configured"
+            echo "Set in GitHub Repository Variables:"
+            echo "  Settings → Secrets and variables → Actions → Variables"
+            echo "  Name: RAILWAY_URL"
+            echo "  Value: https://your-app.up.railway.app"
+            echo ""
+            echo "⏭️  Skipping health check for now"
+            exit 0
+          fi
 
-          # Health check endpoint
-          # RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$RAILWAY_URL/health")
+          echo "Checking: $RAILWAY_URL/health"
 
-          # if [ "$RESPONSE" != "200" ]; then
-          #   echo "❌ Health check failed: HTTP $RESPONSE"
-          #   exit 1
-          # fi
+          # Health check with retries
+          MAX_RETRIES=5
+          RETRY_DELAY=10
 
-          echo "✅ Health check passed (placeholder)"
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES..."
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$RAILWAY_URL/health" || echo "000")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Health check passed (HTTP $HTTP_CODE)"
+
+              # Get health check details
+              curl -s "$RAILWAY_URL/health" | jq '.' || echo "Response received"
+              exit 0
+            fi
+
+            echo "⏳ HTTP $HTTP_CODE - Retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          done
+
+          echo "❌ Health check failed after $MAX_RETRIES attempts"
+          echo "Last HTTP code: $HTTP_CODE"
+          exit 1
 
       - name: Deployment Summary
         if: always()

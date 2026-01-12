@@ -30,12 +30,13 @@ class TestHealthEndpoint:
         assert "version" in data
         assert "database" in data
 
-    def test_health_check_status_healthy(self):
-        """Test that health check returns healthy status."""
+    def test_health_check_status_healthy_or_degraded(self):
+        """Test that health check returns healthy or degraded status."""
         response = client.get("/health")
         data = response.json()
 
-        assert data["status"] == "healthy"
+        # Status can be "healthy" (DB connected) or "degraded" (DB disconnected)
+        assert data["status"] in ["healthy", "degraded"]
 
     def test_health_check_version(self):
         """Test that health check returns correct API version."""
@@ -44,12 +45,13 @@ class TestHealthEndpoint:
 
         assert data["version"] == "0.1.0"
 
-    def test_health_check_database_not_connected(self):
-        """Test that database status is not_connected (before DB integration)."""
+    def test_health_check_database_status(self):
+        """Test that database status is reported."""
         response = client.get("/health")
         data = response.json()
 
-        assert data["database"] == "not_connected"
+        # Database can be "connected" or "disconnected"
+        assert data["database"] in ["connected", "disconnected"]
 
 
 class TestRootEndpoint:

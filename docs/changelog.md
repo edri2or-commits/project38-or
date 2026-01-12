@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Railway Deployment Configuration** (2026-01-12) - Complete setup for production deployment
+  - `railway.toml` - Railway build & deploy configuration (NIXPACKS builder, uvicorn start command)
+  - `Procfile` - Process definition for web server startup
+  - `docs/RAILWAY_SETUP.md` - Comprehensive deployment guide (over 400 lines)
+    - Step-by-step Railway project setup
+    - GCP Secret Manager integration instructions
+    - GitHub Actions configuration guide
+    - Database migrations and TimescaleDB setup
+    - Troubleshooting common issues
+    - Security best practices
+    - Cost estimation
+  - Enhanced `.github/workflows/deploy-railway.yml`
+    - Added GitHub Variables support: `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_URL`
+    - Improved error handling and validation
+    - Health check with retries (5 attempts, 10s delay)
+    - Automatic rollback on deployment failure
+    - GraphQL API integration for Railway deployments
+  - Updated `CLAUDE.md` - Railway Deployment section
+    - Quick start guide
+    - Configuration files reference
+    - Environment constraints
+    - Deployment flow documentation
+    - Health check endpoint details
+    - Monitoring and cost information
 - **Phase 3.5: Observability - Tests & Integration** (2026-01-12) - Complete testing and integration of observability system
   - `tests/test_observability.py` - 25 comprehensive tests with 100% pass rate (341 lines)
   - Tests cover: tracer (PII redaction, decorator), metrics collector (in-memory + DB), integration tests
@@ -18,6 +42,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed `src/api/routes/metrics.py` - changed `get_db` imports to `get_session`
   - **Test Results:** 148 tests passing (123 existing + 25 new observability tests)
   - **Coverage:** Complete test coverage for tracer.py, metrics.py, and routes/metrics.py
+
+### Changed
+- **Health Check Endpoint Enhancement** (2026-01-12) - Improved production readiness
+  - `src/api/routes/health.py` - Added database connectivity check
+    - Now checks actual database connection via `check_database_connection()`
+    - Returns status: "healthy" (DB connected) or "degraded" (DB disconnected)
+    - Returns database status: "connected" or "disconnected"
+    - Uses `datetime.now(UTC)` instead of deprecated `datetime.utcnow()`
+  - `tests/test_api_health.py` - Updated tests to match new behavior
+    - Changed test expectations to accept both "healthy" and "degraded" statuses
+    - Updated database status assertions to accept "connected" or "disconnected"
+    - All 8 health endpoint tests passing
 
 ### Changed
 - **CLAUDE.md Documentation Alignment** (2026-01-12) - Fixed documentation inconsistencies

@@ -1043,13 +1043,75 @@ python3 -c "from src.github_pr import create_pr; create_pr(...)"
 
 ---
 
-## Railway Constraints (Future)
+## Railway Deployment
 
-When Railway is set up:
-- Filesystem is **ephemeral** - don't write persistent data to disk
-- Use PostgreSQL for all persistence
-- Fetch secrets at startup into memory
-- Use `pool_pre_ping=True` for database connections
+**Status**: Ready for deployment (configuration complete)
+
+### Quick Start
+
+1. **Setup Railway Project** - See [docs/RAILWAY_SETUP.md](docs/RAILWAY_SETUP.md) for complete instructions
+2. **Configure GitHub Variables** - Set `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_URL`
+3. **Deploy** - Trigger `.github/workflows/deploy-railway.yml` workflow
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `railway.toml` | Railway build & deploy configuration |
+| `Procfile` | Process definition (web server) |
+| `.github/workflows/deploy-railway.yml` | Automated deployment workflow |
+| `docs/RAILWAY_SETUP.md` | Complete setup guide |
+
+### Environment Constraints
+
+When deployed to Railway:
+- **Filesystem is ephemeral** - don't write persistent data to disk
+- **Use PostgreSQL** for all persistence (auto-provided by Railway)
+- **Secrets via GCP** - fetched at runtime using WIF authentication
+- **Use connection pooling** - `pool_pre_ping=True` for database connections
+- **Health checks** - `/health` endpoint monitors database connectivity
+
+### Deployment Flow
+
+```bash
+# Manual deployment via GitHub Actions
+# Actions → Deploy to Railway → Run workflow
+# Select: Branch (main), Environment (production)
+
+# Workflow steps:
+1. Pre-deployment checks (lint, tests, docs)
+2. Fetch RAILWAY-API token from GCP Secret Manager
+3. Trigger Railway deployment via GraphQL API
+4. Wait for deployment to complete
+5. Health check (/health endpoint)
+6. Rollback on failure (if needed)
+```
+
+### Health Check Endpoint
+
+```bash
+# Check application health
+curl https://your-app.up.railway.app/health
+
+# Response:
+{
+  "status": "healthy",       # or "degraded"
+  "version": "0.1.0",
+  "database": "connected",   # or "disconnected"
+  "timestamp": "2026-01-12T20:00:00Z"
+}
+```
+
+### Monitoring
+
+- **Railway Dashboard**: Metrics, logs, deployments
+- **Observability**: `/metrics/summary`, `/metrics/agents` endpoints
+- **OpenTelemetry**: Traces (Phase 2)
+
+### Cost
+
+- **Hobby Plan**: ~$5/month (500 execution hours)
+- **Pro Plan**: ~$20/month (dedicated resources, recommended)
 
 ---
 
