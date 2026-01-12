@@ -40,9 +40,7 @@ async def get_task(
         GET /tasks/123
         Response: {"id": 123, "agent_id": 1, "status": "completed", ...}
     """
-    result = await session.execute(
-        select(Task).where(Task.id == task_id)
-    )
+    result = await session.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
 
     if not task:
@@ -122,9 +120,7 @@ async def retry_task(
         Response: {"id": 124, "agent_id": 1, "status": "pending", ...}
     """
     # Load original task
-    result = await session.execute(
-        select(Task).where(Task.id == task_id)
-    )
+    result = await session.execute(select(Task).where(Task.id == task_id))
     original_task = result.scalar_one_or_none()
 
     if not original_task:
@@ -195,9 +191,7 @@ async def delete_task(
         Response: 204 No Content
     """
     # Load task
-    result = await session.execute(
-        select(Task).where(Task.id == task_id)
-    )
+    result = await session.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
 
     if not task:

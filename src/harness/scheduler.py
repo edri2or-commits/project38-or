@@ -109,9 +109,7 @@ async def execute_scheduled_task(
         logger.info("Acquired lock for agent %d, starting execution", agent_id)
 
         # Load agent from database
-        result = await session.execute(
-            select(Agent).where(Agent.id == agent_id)
-        )
+        result = await session.execute(select(Agent).where(Agent.id == agent_id))
         agent = result.scalar_one_or_none()
 
         if not agent:
@@ -182,7 +180,7 @@ async def execute_scheduled_task(
                 if task.retry_count < max_retries:
                     # Schedule retry with exponential backoff
                     task.retry_count += 1
-                    retry_delay = 2 ** task.retry_count  # 2, 4, 8 seconds
+                    retry_delay = 2**task.retry_count  # 2, 4, 8 seconds
                     logger.info(
                         "Scheduling retry %d/%d in %ds",
                         task.retry_count,
@@ -245,9 +243,7 @@ class AgentScheduler:
 
         # Load agents and create schedules
         async with self.session_factory() as session:
-            result = await session.execute(
-                select(Agent).where(Agent.status == "active")
-            )
+            result = await session.execute(select(Agent).where(Agent.status == "active"))
             agents = result.scalars().all()
 
             for agent in agents:

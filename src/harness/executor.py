@@ -210,9 +210,7 @@ if __name__ == "__main__":
         result_data = None
         if "__RESULT_START__" in stdout and "__RESULT_END__" in stdout:
             try:
-                result_start = stdout.index("__RESULT_START__") + len(
-                    "__RESULT_START__"
-                )
+                result_start = stdout.index("__RESULT_START__") + len("__RESULT_START__")
                 result_end = stdout.index("__RESULT_END__")
                 result_json = stdout[result_start:result_end].strip()
                 result_data = json.loads(result_json)
