@@ -9,6 +9,7 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
       - 'requirements*.txt'
+      - 'docs/**'  # Run on docs changes to satisfy branch protection
 
 permissions:
   contents: read
