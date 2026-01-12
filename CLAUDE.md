@@ -1048,13 +1048,20 @@ python3 -c "from src.github_pr import create_pr; create_pr(...)"
 
 ## Railway Deployment
 
-**Status**: Ready for deployment (configuration complete)
+**Status**: ✅ Deployed to production (2026-01-12)
+
+**Production Details:**
+- **Project**: delightful-cat
+- **Project ID**: `95ec21cc-9ada-41c5-8485-12f9a00e0116`
+- **Environment**: production (`99c99a18-aea2-4d01-9360-6a93705102a0`)
+- **Public URL**: https://web-production-47ff.up.railway.app
+- **Database**: PostgreSQL (deployed successfully)
 
 ### Quick Start
 
-1. **Setup Railway Project** - See [docs/RAILWAY_SETUP.md](docs/RAILWAY_SETUP.md) for complete instructions
-2. **Configure GitHub Variables** - Set `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_URL`
-3. **Deploy** - Trigger `.github/workflows/deploy-railway.yml` workflow
+1. ✅ **Setup Railway Project** - Completed
+2. ✅ **Configure GitHub Variables** - Set `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_URL`
+3. **Deploy** - Trigger `.github/workflows/deploy-railway.yml` workflow (ready for use)
 
 ### Configuration Files
 
@@ -1094,9 +1101,9 @@ When deployed to Railway:
 
 ```bash
 # Check application health
-curl https://your-app.up.railway.app/health
+curl https://web-production-47ff.up.railway.app/health
 
-# Response:
+# Expected response:
 {
   "status": "healthy",       # or "degraded"
   "version": "0.1.0",
