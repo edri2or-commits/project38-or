@@ -164,16 +164,24 @@ project38-or/
 │   │   ├── database.py       # PostgreSQL connection management
 │   │   └── routes/
 │   │       ├── __init__.py
-│   │       └── health.py     # Health check endpoints
+│   │       ├── health.py     # Health check endpoints
+│   │       ├── agents.py     # Agent CRUD endpoints (Phase 3.2)
+│   │       └── tasks.py      # Task management endpoints (Phase 3.3)
 │   ├── models/               # SQLModel database schemas (Phase 3.1)
 │   │   ├── __init__.py
 │   │   ├── agent.py          # Agent entity
 │   │   └── task.py           # Task entity
-│   └── factory/              # Agent Factory (Phase 3.2)
+│   ├── factory/              # Agent Factory (Phase 3.2)
+│   │   ├── __init__.py
+│   │   ├── generator.py      # Claude code generation from NL
+│   │   ├── validator.py      # Multi-stage code validation
+│   │   └── ralph_loop.py     # Recursive Test→Fix→Test cycle
+│   └── harness/              # Agent Harness (Phase 3.3)
 │       ├── __init__.py
-│       ├── generator.py      # Claude code generation from NL
-│       ├── validator.py      # Multi-stage code validation
-│       └── ralph_loop.py     # Recursive Test→Fix→Test cycle
+│       ├── executor.py       # Isolated subprocess execution
+│       ├── scheduler.py      # APScheduler + PostgreSQL locks
+│       ├── resources.py      # Resource monitoring & limits
+│       └── handoff.py        # State persistence between runs
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment
