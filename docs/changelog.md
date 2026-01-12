@@ -71,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Deployment process workflow
     - Configuration files reference
   - Updated `CLAUDE.md` File Structure (lines 193, 208, 214-215) to include Railway files
+  - Updated `.gitignore` to allow `railway.json` explicitly (exception to *.json rule)
   - Railway deployment features:
     - Zero-downtime deployments
     - Automatic PostgreSQL backups
