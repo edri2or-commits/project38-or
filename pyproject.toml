@@ -36,6 +36,7 @@ ignore = [
 "scripts/*" = ["E501", "F401", "I001"]  # Long lines, unused imports, import order OK in scripts
 "examples/*" = ["S311", "B007"]  # Random generator and unused loop vars OK in examples
 "src/api/routes/metrics.py" = ["S608"]  # SQL INTERVAL requires string interpolation (not user input)
+"src/mcp/filesystem.py" = ["S108"]  # /tmp usage required for CI compatibility
 
 [tool.pydocstyle]
 convention = "google"
