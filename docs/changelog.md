@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Auto-Merge Pipeline** - Automated PR validation and merge workflow (2026-01-12)
+  - `.github/workflows/auto-merge.yml` - Automatic PR validation and merge (216 lines)
+  - `.claude/skills/preflight-check/SKILL.md` - Pre-PR validation skill (379 lines)
+  - **Auto-merge workflow features:**
+    - Runs 4 parallel checks: Security, Tests, Lint, Documentation
+    - Security: Scans git diff for secrets (API keys, tokens, passwords)
+    - Tests: Full pytest suite with detailed failure reports
+    - Lint: ruff check with error locations
+    - Docs: Verifies changelog updated if src/ changed, runs pydocstyle
+    - Job Summary: Visual pass/fail report in GitHub UI
+    - Auto-merge: Enables squash-merge + branch deletion if all checks pass
+    - Failure notification: Comments on PR with actionable guidance
+  - **Preflight-check skill features:**
+    - Runs same 4 checks locally before PR creation (< 30 seconds)
+    - Fast feedback loop: No waiting for CI
+    - Integration with pr-helper: Automatic preflight before PR creation
+    - Actionable error messages with fix guidance
+    - Zero PR rejections: Ensures auto-merge will succeed
+  - **Benefits:**
+    - < 1 minute from "create PR" to merge (if all checks pass)
+    - No manual approval required for claude/ branches
+    - Redundant verification (local + GitHub) for safety
+    - Zero manual intervention for clean PRs
 - **Railway Deployment Pipeline** - Production deployment automation with secret injection (2026-01-12)
   - `.github/workflows/deploy-railway.yml` - GitHub Actions deployment workflow with pre-flight checks (160 lines)
   - `docs/railway-deployment-guide.md` - Complete deployment and troubleshooting guide (398 lines)

@@ -653,6 +653,61 @@ Provides foundation for all other skills - runs on every session start to prepar
 - 🎯 Available skills (list of all skills)
 - 💡 Quick reminders (security rules, testing, docs)
 
+### preflight-check (v1.0.0)
+
+**Purpose:** Run all validation checks before creating PR to ensure auto-merge will succeed.
+
+**Triggers:**
+- Keywords: `preflight`, `create pr`, `ready to merge`, `open pull request`
+- Before PR creation (automatic integration with pr-helper)
+
+**What it does:**
+1. 🔒 **Security Check** - Scans git diff for secrets (API keys, tokens, passwords)
+2. 🧪 **Tests** - Runs full test suite with `pytest tests/ -v`
+3. 🎨 **Lint** - Runs `ruff check src/ tests/`
+4. 📚 **Documentation** - Verifies changelog updated if src/ changed, runs pydocstyle
+
+**When to use:**
+```bash
+# Before creating PR (automatic)
+"I'm ready to create a PR"  # Preflight runs automatically
+
+# Manual preflight
+"Run preflight checks"
+
+# After fixing issues
+"Check if everything passes now"
+```
+
+**Integration with auto-merge:**
+```
+preflight-check (local) → All pass? → Create PR
+    ↓
+auto-merge.yml (GitHub) → Verify again → Auto-merge
+    ↓
+Merged + branch deleted (< 1 minute)
+```
+
+**Why run checks twice?**
+- **Local (preflight):** Fast feedback (< 30 seconds), no CI wait
+- **GitHub (auto-merge):** Security verification, final gate
+
+**Files:**
+- Skill definition: `.claude/skills/preflight-check/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (read-only checks)
+- Allowed tools: Bash (pytest, ruff, pydocstyle, git)
+- Never modifies code or creates commits
+- Fast execution (< 30 seconds)
+- Provides actionable error messages
+
+**Success metrics:**
+- ✅ Zero PR rejections due to validation failures
+- ✅ < 1 minute from "create PR" to merge
+- ✅ 100% of preflight passes result in auto-merge success
+- ✅ Clear, actionable error messages for failures
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:
