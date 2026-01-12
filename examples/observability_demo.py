@@ -11,9 +11,9 @@ Usage:
 
 import asyncio
 import random
-from src.observability import instrument_tool, get_tracer, MetricsCollector
-from src.observability.metrics import LatencyTracker
 
+from src.observability import MetricsCollector, instrument_tool
+from src.observability.metrics import LatencyTracker
 
 # Initialize metrics collector (Phase 1: in-memory fallback)
 collector = MetricsCollector(db_pool=None)
