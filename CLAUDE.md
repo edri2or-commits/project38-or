@@ -235,7 +235,11 @@ project38-or/
 ### Workflows
 
 - All workflows use `workflow_dispatch` (manual trigger)
-- **Exception:** `docs.yml` uses push trigger for automatic documentation deployment
+- **CI workflows** (`test.yml`, `lint.yml`, `docs-check.yml`) also trigger on `pull_request` to `main`:
+  - Automatic validation when PR is created or updated
+  - Ensures code quality before merge
+  - Blocks merge if checks fail
+- **Exception:** `docs.yml` uses `push` trigger for automatic documentation deployment
   - Rationale: Low risk (GitHub Pages only, no secrets/GCP access)
   - Benefit: Documentation stays synchronized with code (15/16 runs were automatic)
   - Permissions: `contents: read`, `pages: write` (minimal)
@@ -1056,12 +1060,14 @@ This project uses a **src layout** where source code is in `src/` and tests are 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]  # REQUIRED for src layout
+addopts = "-v --tb=short --import-mode=importlib"  # REQUIRED for Python 3.11+ CI
 ```
 
 **Why this matters:**
 - Without `pythonpath = ["src"]`, tests cannot import from `src/` modules
+- Without `--import-mode=importlib`, Python 3.11 CI may fail with import errors
 - CI will fail with `ModuleNotFoundError` errors
-- This is the standard pytest configuration for src layouts
+- This is the standard pytest configuration for src layouts with Python 3.11+
 
 ### Writing Tests
 
