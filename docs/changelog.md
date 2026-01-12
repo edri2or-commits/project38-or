@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3.3: Agent Harness** - 24/7 orchestration and execution infrastructure (2026-01-11)
+  - `src/harness/executor.py` - Executes agent code in isolated subprocesses with timeout protection
+  - `src/harness/scheduler.py` - APScheduler integration with PostgreSQL advisory locks for idempotent execution
+  - `src/harness/resources.py` - Resource monitoring and concurrency control using psutil and asyncio semaphores
+  - `src/harness/handoff.py` - State persistence between agent runs for long-running agents
+  - `src/api/routes/tasks.py` - REST API endpoints for task management (GET, POST retry, DELETE, stats)
+  - `tests/test_harness.py` - 23 comprehensive tests covering all harness components
+  - `docs/api/harness.md` - Complete API documentation with examples and troubleshooting
+  - New dependencies: apscheduler>=3.10.0, psutil>=5.9.0
+  - Advisory lock pattern prevents duplicate execution on Railway multi-replica deployments
+  - Resource limits: 5 concurrent agents max (configurable), 256MB memory per agent, 50% CPU throttling
+  - Handoff artifacts enable agents to maintain context across 100+ consecutive runs
+  - Task API endpoints: GET /api/tasks/{id}, GET /api/tasks/agent/{id}, POST /api/tasks/{id}/retry, DELETE /api/tasks/{id}, GET /api/tasks/stats/summary
+  - Integration with existing Agent Factory for autonomous scheduled execution
+  - Foundation for Phase 3.4 (MCP Tools) and full autonomous agent platform
 - **Phase 3.2: Agent Factory** - Natural Language to Working Python Agent (2026-01-11)
   - `src/factory/generator.py` - Claude Sonnet 4.5 code generation from natural language
   - `src/factory/validator.py` - Multi-stage validation (syntax, ruff, pydocstyle, security patterns)
@@ -47,6 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Foundation for Agent Factory (Phase 3.2) and Agent Harness (Phase 3.3)
 
 ### Fixed
+- **SQLModel Column definition** - Fixed SQLAlchemy ArgumentError in Agent and Task models (2026-01-11)
+  - Changed `sa_column_kwargs={"type_": "TEXT"}` to `sa_column=Column(Text, nullable=True)` in `src/models/agent.py:36,41`
+  - Changed `sa_column_kwargs={"type_": "TEXT"}` to `sa_column=Column(Text, nullable=True)` in `src/models/task.py:39,40`
+  - Resolves "May not pass type_ positionally and as a keyword" error during model imports
+  - Added proper SQLAlchemy imports: `from sqlalchemy import Column, Text`
+  - All 93 tests now pass successfully
 - **BOOTSTRAP_PLAN.md accuracy** - Updated Success Metrics and completed skills documentation
   - Corrected Autonomous Skills count from 5 to 7 in `docs/BOOTSTRAP_PLAN.md:238`
   - Updated Current State date from 2026-01-09 to 2026-01-11 in `docs/BOOTSTRAP_PLAN.md:3`

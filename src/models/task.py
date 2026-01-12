@@ -5,6 +5,7 @@ This module defines the Task entity schema using SQLModel.
 
 from datetime import datetime
 
+from sqlalchemy import Column, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -35,8 +36,8 @@ class Task(SQLModel, table=True):
     scheduled_at: datetime = Field(default_factory=datetime.utcnow, index=True)
     started_at: datetime | None = Field(default=None)
     completed_at: datetime | None = Field(default=None)
-    result: str | None = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
-    error: str | None = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
+    result: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     retry_count: int = Field(default=0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
