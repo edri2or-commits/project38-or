@@ -5,12 +5,11 @@ Tests browser, filesystem, notifications, and registry modules.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-import httpx
 import pytest
 
-from src.mcp.browser import BrowserResult, BrowserServer, BrowserTool
+from src.mcp.browser import BrowserResult, BrowserServer
 from src.mcp.filesystem import FilesystemResult, FilesystemServer, FilesystemTool
 from src.mcp.notifications import NotificationResult, NotificationServer, NotificationTool
 from src.mcp.registry import ToolLimits, ToolRegistry, ToolUsage
@@ -143,14 +142,18 @@ class TestBrowser:
         server = BrowserServer()
 
         # Try to start - should fail with RuntimeError if playwright not installed
-        # (This test will pass if playwright is not installed)
+        # or if browsers not downloaded
         try:
             await server.start()
-            # If we get here, playwright is installed - stop the server
+            # If we get here, playwright is fully installed - stop the server
             await server.stop()
         except RuntimeError as e:
             # Expected if playwright not installed
             assert "playwright not installed" in str(e)
+        except Exception as e:
+            # Also acceptable: browser binaries not downloaded
+            # (playwright installed but not fully configured)
+            assert "Executable doesn't exist" in str(e) or "playwright" in str(e).lower()
 
     @pytest.mark.asyncio
     async def test_navigate_without_start(self):

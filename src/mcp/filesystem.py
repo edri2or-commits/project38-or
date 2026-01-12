@@ -5,9 +5,7 @@ Each agent gets isolated workspace at /workspace/{agent_id}/.
 """
 
 import asyncio
-import hashlib
 import logging
-import os
 import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime
