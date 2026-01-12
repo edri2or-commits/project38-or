@@ -8,6 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Autonomous Control System Research** (2026-01-12) - Comprehensive research for Claude autonomous management of Railway, GitHub, and n8n
+  - `docs/integrations/railway-api-guide.md` (33KB) - Complete Railway GraphQL API reference
+    - Deployment lifecycle management (trigger, monitor, rollback)
+    - Service management (restart, scale, environment variables)
+    - Real-time monitoring with webhooks
+    - Python client with error handling and rate limiting
+    - Critical discovery: Cloudflare query parameter requirement
+  - `docs/integrations/github-app-setup.md` (39KB) - GitHub App authentication and operations
+    - JWT-based authentication flow (private key → JWT → installation token)
+    - Complete permissions matrix for autonomous operations
+    - Python client with automatic token refresh
+    - Workflow triggering and monitoring via API
+    - Migration guide from PAT to GitHub App (2026 best practice)
+  - `docs/integrations/n8n-integration.md` (39KB) - n8n workflow automation integration
+    - Railway template deployment guide (5-minute setup)
+    - REST API operations (create, execute, monitor workflows)
+    - Three integration patterns (n8n→Claude, Claude→n8n, bidirectional)
+    - Workflow version control and backup strategies
+    - Credentials encryption and security best practices
+  - `docs/integrations/autonomous-architecture.md` (40KB) - System design and security
+    - Four-layer architecture (auth, clients, orchestration, observability)
+    - 2026 security best practices (WIF, JIT permissions, short-lived tokens)
+    - Threat model and mitigation strategies
+    - Structured logging and monitoring patterns
+    - Rollback and recovery mechanisms
+  - `docs/integrations/implementation-roadmap.md` (52KB) - 7-day development plan
+    - Day-by-day implementation guide (~2,800 lines Python)
+    - Complete test strategy (unit, integration, e2e)
+    - Production deployment checklist
+    - Security hardening and compliance
+  - **Total:** 86,000+ words, 50+ authoritative sources cited
+  - **Key Findings:**
+    - Railway: GraphQL API with webhooks, Hobby plan rate limit 1,000 RPH
+    - GitHub: App authentication superior to PAT (1-hour tokens, auto-refresh)
+    - n8n: Railway template available, $5/month deployment
+    - Security: WIF authentication, least privilege, 90-day token rotation
 - **Railway Production Deployment** (2026-01-12) - Successful deployment to Railway platform
   - Created Railway project: "delightful-cat"
   - Project ID: `95ec21cc-9ada-41c5-8485-12f9a00e0116`
