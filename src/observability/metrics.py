@@ -10,9 +10,9 @@ Phase 1: Basic metrics without Trust Score integration.
 """
 
 import time
-from datetime import datetime, timezone
-from typing import Dict, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+
 import asyncpg
 
 
@@ -30,10 +30,10 @@ class AgentMetric:
         timestamp: When the metric was recorded
     """
     agent_id: str
-    model_id: Optional[str]
+    model_id: str | None
     metric_name: str
     value: float
-    labels: Dict[str, str]
+    labels: dict[str, str]
     timestamp: datetime
 
 
@@ -49,7 +49,7 @@ class MetricsCollector:
         await collector.record_tokens("agent-123", 500, 200, "claude-sonnet-4.5")
     """
 
-    def __init__(self, db_pool: Optional[asyncpg.Pool] = None):
+    def __init__(self, db_pool: asyncpg.Pool | None = None):
         """
         Initialize metrics collector.
 
@@ -97,7 +97,7 @@ class MetricsCollector:
         self,
         agent_id: str,
         latency_seconds: float,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """
         Record end-to-end latency (Layer 1: Infrastructure).
@@ -116,7 +116,7 @@ class MetricsCollector:
             metric_name="latency_ms",
             value=latency_seconds * 1000,  # Convert to milliseconds
             labels=labels or {},
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
         await self.record_metric(metric)
 
@@ -126,8 +126,8 @@ class MetricsCollector:
         input_tokens: int,
         output_tokens: int,
         model_id: str,
-        reasoning_tokens: Optional[int] = None,
-        labels: Optional[Dict[str, str]] = None
+        reasoning_tokens: int | None = None,
+        labels: dict[str, str] | None = None
     ):
         """
         Record token usage (Layer 2: Economic).
@@ -149,7 +149,7 @@ class MetricsCollector:
             >>>     reasoning_tokens=200
             >>> )
         """
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         # Input tokens
         await self.record_metric(AgentMetric(
@@ -187,7 +187,7 @@ class MetricsCollector:
         agent_id: str,
         error_type: str,
         error_message: str,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """
         Record agent error (Layer 1: Infrastructure).
@@ -215,7 +215,7 @@ class MetricsCollector:
             metric_name="error_count",
             value=1.0,
             labels=error_labels,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
         await self.record_metric(metric)
 
@@ -223,7 +223,7 @@ class MetricsCollector:
         self,
         agent_id: str,
         task_type: str,
-        labels: Optional[Dict[str, str]] = None
+        labels: dict[str, str] | None = None
     ):
         """
         Record successful task completion (Layer 3: Cognitive).
@@ -245,15 +245,15 @@ class MetricsCollector:
             metric_name="success_count",
             value=1.0,
             labels=success_labels,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
         await self.record_metric(metric)
 
     async def get_recent_metrics(
         self,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
         limit: int = 100
-    ) -> list[Dict]:
+    ) -> list[dict]:
         """
         Retrieve recent metrics (for Phase 1 development).
 
@@ -305,7 +305,7 @@ class LatencyTracker:
             result = await some_task()
     """
 
-    def __init__(self, collector: MetricsCollector, agent_id: str, labels: Optional[Dict] = None):
+    def __init__(self, collector: MetricsCollector, agent_id: str, labels: dict | None = None):
         self.collector = collector
         self.agent_id = agent_id
         self.labels = labels or {}

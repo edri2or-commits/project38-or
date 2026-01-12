@@ -12,14 +12,15 @@ Usage:
 
 import json
 import re
-from typing import Any, Callable
+from collections.abc import Callable
 from functools import wraps
+from typing import Any
 
 from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+from opentelemetry.trace import Status, StatusCode
 
 # Initialize tracer provider
 resource = Resource.create({SERVICE_NAME: "project38-agent"})

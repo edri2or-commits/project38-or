@@ -8,15 +8,13 @@ Phase 1: Basic metrics without SSE streaming.
 Phase 2: Add Server-Sent Events (SSE) for real-time updates.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional, List, Dict
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import BaseModel, Field
 import asyncpg
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 
 from src.api.database import get_db
-
 
 router = APIRouter(prefix="/metrics", tags=["Metrics"])
 
@@ -42,7 +40,7 @@ class AgentMetricPoint(BaseModel):
     agent_id: str
     metric_name: str
     value: float
-    labels: Dict[str, str] = {}
+    labels: dict[str, str] = {}
 
 
 class AgentStatus(BaseModel):
@@ -95,7 +93,7 @@ async def get_error_rate(conn: asyncpg.Connection, interval: str = '1 hour') -> 
         """
     )
 
-    total = await conn.fetchval(
+    total = await conn.fetchval(  # noqa: S608
         f"""
         SELECT COALESCE(SUM(value), 0)
         FROM agent_metrics
@@ -111,7 +109,7 @@ async def get_error_rate(conn: asyncpg.Connection, interval: str = '1 hour') -> 
 
 async def get_avg_latency(conn: asyncpg.Connection, interval: str = '1 hour') -> float:
     """Calculate average latency."""
-    result = await conn.fetchval(
+    result = await conn.fetchval(  # noqa: S608
         f"""
         SELECT COALESCE(AVG(value), 0)
         FROM agent_metrics
@@ -124,7 +122,7 @@ async def get_avg_latency(conn: asyncpg.Connection, interval: str = '1 hour') ->
 
 async def get_p95_latency(conn: asyncpg.Connection, interval: str = '1 hour') -> float:
     """Calculate P95 latency."""
-    result = await conn.fetchval(
+    result = await conn.fetchval(  # noqa: S608
         f"""
         SELECT COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY value), 0)
         FROM agent_metrics
@@ -137,7 +135,7 @@ async def get_p95_latency(conn: asyncpg.Connection, interval: str = '1 hour') ->
 
 async def get_total_tokens(conn: asyncpg.Connection, interval: str = '1 hour') -> int:
     """Calculate total token usage."""
-    result = await conn.fetchval(
+    result = await conn.fetchval(  # noqa: S608
         f"""
         SELECT COALESCE(SUM(value), 0)::INT
         FROM agent_metrics
@@ -205,11 +203,11 @@ async def get_metrics_summary(
     )
 
 
-@router.get("/agents", response_model=List[AgentStatus])
+@router.get("/agents", response_model=list[AgentStatus])
 async def get_agent_statuses(
     conn: asyncpg.Connection = Depends(get_db),
     limit: int = Query(10, ge=1, le=100, description="Max agents to return")
-) -> List[AgentStatus]:
+) -> list[AgentStatus]:
     """
     Get status of all active agents.
 
@@ -297,14 +295,14 @@ async def get_agent_statuses(
     return statuses
 
 
-@router.get("/timeseries", response_model=List[AgentMetricPoint])
+@router.get("/timeseries", response_model=list[AgentMetricPoint])
 async def get_metric_timeseries(
     metric_name: str = Query(..., description="Metric name (e.g., 'latency_ms')"),
-    agent_id: Optional[str] = Query(None, description="Filter by agent ID"),
+    agent_id: str | None = Query(None, description="Filter by agent ID"),
     interval: str = Query("1 hour", description="Time interval (e.g., '1 hour', '24 hours')"),
     bucket_size: str = Query("5 minutes", description="Bucket size for aggregation"),
     conn: asyncpg.Connection = Depends(get_db)
-) -> List[AgentMetricPoint]:
+) -> list[AgentMetricPoint]:
     """
     Get time-series data for a specific metric.
 
@@ -364,5 +362,5 @@ async def metrics_health_check():
     return {
         "status": "healthy",
         "service": "metrics-api",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
