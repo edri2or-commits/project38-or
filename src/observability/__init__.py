@@ -1,5 +1,4 @@
-"""
-Observability Module for Project38-OR
+"""Observability Module for Project38-OR.
 
 Implements OpenTelemetry instrumentation and metrics collection
 for AI agent monitoring (Research Paper #08).

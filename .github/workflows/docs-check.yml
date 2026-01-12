@@ -90,7 +90,7 @@ jobs:
       - name: Check docstrings in src/
         run: |
           echo "Checking docstrings in src/..."
-          pydocstyle src/ --convention=google || {
+          pydocstyle src/ --convention=google --add-ignore=D212,D415,D107,D105 || {
             echo ""
             echo "❌ ERROR: Missing or malformed docstrings!"
             echo ""

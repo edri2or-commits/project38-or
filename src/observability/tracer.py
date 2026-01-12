@@ -1,5 +1,4 @@
-"""
-OpenTelemetry Tracer for AI Agents
+"""OpenTelemetry Tracer for AI Agents.
 
 Implements OTel GenAI Semantic Conventions v1.37+ as specified in
 Research Paper #08, Section 5.1 (Phase 1: Instrumentation).
@@ -41,8 +40,7 @@ def get_tracer():
 
 
 def sanitize_pii(data: Any) -> Any:
-    """
-    Simple PII redaction helper.
+    """Simple PII redaction helper.
 
     Redacts common PII patterns:
     - Email addresses
@@ -77,8 +75,7 @@ def sanitize_pii(data: Any) -> Any:
 
 
 def instrument_tool(tool_name: str):
-    """
-    Decorator to instrument agent tools with OTel GenAI conventions v1.37+.
+    """Decorator to instrument agent tools with OTel GenAI conventions v1.37+.
 
     Based on Research Paper #08, Code Snippet (Line 180-223).
 
