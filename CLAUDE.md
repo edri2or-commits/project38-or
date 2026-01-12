@@ -176,12 +176,18 @@ project38-or/
 │   │   ├── generator.py      # Claude code generation from NL
 │   │   ├── validator.py      # Multi-stage code validation
 │   │   └── ralph_loop.py     # Recursive Test→Fix→Test cycle
-│   └── harness/              # Agent Harness (Phase 3.3)
+│   ├── harness/              # Agent Harness (Phase 3.3)
+│   │   ├── __init__.py
+│   │   ├── executor.py       # Isolated subprocess execution
+│   │   ├── scheduler.py      # APScheduler + PostgreSQL locks
+│   │   ├── resources.py      # Resource monitoring & limits
+│   │   └── handoff.py        # State persistence between runs
+│   └── mcp/                  # MCP Tools (Phase 3.4)
 │       ├── __init__.py
-│       ├── executor.py       # Isolated subprocess execution
-│       ├── scheduler.py      # APScheduler + PostgreSQL locks
-│       ├── resources.py      # Resource monitoring & limits
-│       └── handoff.py        # State persistence between runs
+│       ├── browser.py        # Playwright browser automation
+│       ├── filesystem.py     # Sandboxed file operations
+│       ├── notifications.py  # Telegram + n8n webhooks
+│       └── registry.py       # Tool access control & usage tracking
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── docs.yml              # Documentation deployment
