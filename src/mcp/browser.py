@@ -4,7 +4,6 @@ Provides safe browser automation capabilities using Playwright in headless mode.
 Agents can navigate, click, extract text, and capture screenshots.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -123,7 +122,10 @@ class BrowserServer:
             # Dynamic import to avoid requiring playwright if not used
             from playwright.async_api import async_playwright
         except ImportError as e:
-            msg = "playwright not installed. Run: pip install playwright && playwright install chromium"
+            msg = (
+                "playwright not installed. "
+                "Run: pip install playwright && playwright install chromium"
+            )
             raise RuntimeError(msg) from e
 
         try:

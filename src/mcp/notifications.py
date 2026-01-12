@@ -4,7 +4,6 @@ Provides notification capabilities via Telegram bot and n8n webhooks.
 Agents can send alerts, status updates, and execution results.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime

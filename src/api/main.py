@@ -3,10 +3,27 @@
 This module initializes the FastAPI application and registers all route handlers.
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import agents, health, tasks
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan events.
+
+    This context manager handles startup and shutdown events.
+    Resources are initialized on startup and cleaned up on shutdown.
+    """
+    # Startup: Initialize database connection
+    # TODO: Initialize database connection pool
+    yield
+    # Shutdown: Cleanup resources
+    # TODO: Close database connection pool
+
 
 # Create FastAPI app instance
 app = FastAPI(
@@ -15,6 +32,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configure CORS middleware
@@ -30,26 +48,6 @@ app.add_middleware(
 app.include_router(health.router, tags=["health"])
 app.include_router(agents.router, prefix="/api", tags=["agents"])
 app.include_router(tasks.router, prefix="/api", tags=["tasks"])
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Run on application startup.
-
-    Initialize database connection pool and perform health checks.
-    """
-    # TODO: Initialize database connection
-    pass
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Run on application shutdown.
-
-    Close database connections and cleanup resources.
-    """
-    # TODO: Close database connection
-    pass
 
 
 if __name__ == "__main__":

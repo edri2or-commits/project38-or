@@ -4,13 +4,11 @@ Provides centralized registry for agent tool access, usage tracking,
 rate limiting, and cost attribution.
 """
 
-import asyncio
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any
 
 from .browser import BrowserServer
 from .filesystem import FilesystemServer
@@ -61,7 +59,10 @@ class ToolUsage:
             Dictionary representation
 
         Example:
-            >>> usage = ToolUsage(agent_id=1, tool_type="browser", operation="navigate", success=True)
+            >>> usage = ToolUsage(
+            ...     agent_id=1, tool_type="browser",
+            ...     operation="navigate", success=True
+            ... )
             >>> data = usage.to_dict()
         """
         return {

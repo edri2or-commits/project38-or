@@ -8,11 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Auto-Merge Pipeline** - Automated PR validation and merge workflow (2026-01-12)
+  - `.github/workflows/auto-merge.yml` - Automatic PR validation and merge (216 lines)
+  - `.claude/skills/preflight-check/SKILL.md` - Pre-PR validation skill (379 lines)
+  - **Auto-merge workflow features:**
+    - Runs 4 parallel checks: Security, Tests, Lint, Documentation
+    - Security: Scans git diff for secrets (API keys, tokens, passwords)
+    - Tests: Full pytest suite with detailed failure reports
+    - Lint: ruff check with error locations
+    - Docs: Verifies changelog updated if src/ changed, runs pydocstyle
+    - Job Summary: Visual pass/fail report in GitHub UI
+    - Auto-merge: Enables squash-merge + branch deletion if all checks pass
+    - Failure notification: Comments on PR with actionable guidance
+  - **Preflight-check skill features:**
+    - Runs same 4 checks locally before PR creation (< 30 seconds)
+    - Fast feedback loop: No waiting for CI
+    - Integration with pr-helper: Automatic preflight before PR creation
+    - Actionable error messages with fix guidance
+    - Zero PR rejections: Ensures auto-merge will succeed
+  - **Benefits:**
+    - < 1 minute from "create PR" to merge (if all checks pass)
+    - No manual approval required for claude/ branches
+    - Redundant verification (local + GitHub) for safety
+    - Zero manual intervention for clean PRs
+- **Railway Deployment Pipeline** - Production deployment automation with secret injection (2026-01-12)
+  - `.github/workflows/deploy-railway.yml` - GitHub Actions deployment workflow with pre-flight checks (160 lines)
+  - `docs/railway-deployment-guide.md` - Complete deployment and troubleshooting guide (398 lines)
+  - Pre-deployment checks: Lint, tests, documentation build before deployment
+  - Manual approval gate: Uses Production environment (requires reviewer approval)
+  - Secret injection: Fetches `RAILWAY-API` token from GCP Secret Manager via WIF
+  - Health checks: Validates deployment success via `/health` endpoint
+  - Rollback support: Automatic trigger on deployment failure
+  - Bootstrap key pattern: Railway uses dedicated service account for GCP access
+  - Comprehensive setup guide: Railway project configuration, PostgreSQL setup, monitoring
+  - Cost estimation: ~$0-5/month Railway + <$1/month GCP (total <$10/month production)
+  - Security: Dedicated `railway-bootstrap` service account with minimal permissions
+  - Documentation: Complete guide for deployment, rollback, secret rotation, troubleshooting
 - **Phase 3.4: MCP Tools** - Browser automation, sandboxed filesystem, and notifications (2026-01-12)
-  - `src/mcp/browser.py` - Playwright-based web automation with headless Chromium (488 lines)
-  - `src/mcp/filesystem.py` - Sandboxed file operations per agent at /workspace/agent_{id}/ (528 lines)
-  - `src/mcp/notifications.py` - Telegram bot and n8n webhook integration (327 lines)
-  - `src/mcp/registry.py` - Centralized tool access control and usage tracking (497 lines)
+  - `src/mcp/browser.py` - Playwright-based web automation with headless Chromium (490 lines)
+  - `src/mcp/filesystem.py` - Sandboxed file operations per agent at /workspace/agent_{id}/ (526 lines)
+  - `src/mcp/notifications.py` - Telegram bot and n8n webhook integration (326 lines)
+  - `src/mcp/registry.py` - Centralized tool access control and usage tracking (498 lines)
   - `tests/test_mcp.py` - 30 comprehensive tests with 100% pass rate (438 lines)
   - `docs/api/mcp.md` - Complete API documentation with examples and troubleshooting (886 lines)
   - New dependencies: playwright>=1.40.0, httpx>=0.27.0
@@ -81,6 +117,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Foundation for Agent Factory (Phase 3.2) and Agent Harness (Phase 3.3)
 
 ### Fixed
+- **MCP lint errors and deprecation warnings** - Resolved code quality issues (2026-01-12)
+  - Fixed unused imports in MCP modules (browser, filesystem, notifications, registry)
+  - Fixed line-too-long errors in `src/mcp/browser.py` and `src/mcp/registry.py`
+  - Migrated FastAPI from `on_event` decorators to `lifespan` context manager in `src/api/main.py`
+  - Updated `test_browser_start_fails_gracefully_without_playwright` to handle partial playwright installation
+  - All 123 tests passing, ruff lint clean (commit: 9c3f89e)
 - **SQLModel Column definition** - Fixed SQLAlchemy ArgumentError in Agent and Task models (2026-01-11)
   - Changed `sa_column_kwargs={"type_": "TEXT"}` to `sa_column=Column(Text, nullable=True)` in `src/models/agent.py:36,41`
   - Changed `sa_column_kwargs={"type_": "TEXT"}` to `sa_column=Column(Text, nullable=True)` in `src/models/task.py:39,40`
