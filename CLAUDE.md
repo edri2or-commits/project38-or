@@ -191,6 +191,8 @@ project38-or/
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── deploy-railway.yml    # Railway deployment (manual + Production approval)
+│   ├── preview-deploy.yml    # PR preview deployments (automatic on PR open/update)
+│   ├── preview-cleanup.yml   # Preview environment cleanup (automatic on PR close)
 │   ├── docs.yml              # Documentation deployment
 │   ├── docs-check.yml        # Changelog & docstring enforcement (workflow_dispatch + PR)
 │   ├── lint.yml              # PR linting (workflow_dispatch + PR)
@@ -206,6 +208,7 @@ project38-or/
 │   ├── getting-started.md    # Quick start guide
 │   ├── changelog.md          # Version history (auto-updated)
 │   ├── railway-setup.md      # Railway deployment guide
+│   ├── preview-deployments.md # Preview deployments guide
 │   ├── SECURITY.md           # Security documentation
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
 │   ├── api/                  # API reference (auto-generated)

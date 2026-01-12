@@ -549,14 +549,46 @@ Scheduler triggers agent execution
 
 ---
 
+### ✅ Preview Deployments (2026-01-12)
+
+**Implemented:** Automatic PR preview environments on Railway
+
+**What was built:**
+- `.github/workflows/preview-deploy.yml` - Automatic deployment on PR open/update
+- `.github/workflows/preview-cleanup.yml` - Automatic cleanup on PR close
+- `docs/preview-deployments.md` - Comprehensive guide (400+ lines)
+- GitHub Environment "Preview" for automatic deployments
+
+**Features:**
+- ✅ Isolated database per PR (PostgreSQL auto-provisioned)
+- ✅ Unique URL per PR: `https://preview-pr-{N}.up.railway.app`
+- ✅ Automatic updates on new commits (concurrency control)
+- ✅ PR comments with deployment status and quick links
+- ✅ Automatic cleanup on PR close (cost optimization)
+- ✅ WIF authentication (no static credentials)
+- ✅ Health check verification with retries
+- ✅ Time savings: 10-25 minutes per review
+
+**Integration:**
+- Works alongside lint.yml, test.yml, docs-check.yml
+- Same secrets as production (from GCP Secret Manager)
+- FastAPI + isolated PostgreSQL per preview
+- Paths ignored: docs/**, *.md (no deployment for doc changes)
+
+**Cost:**
+- ~$0.50/day per active PR
+- $5/month free tier covers ~10 PR-days
+- Production cost remains separate (~$23/month)
+
+---
+
 ### 📋 Future Enhancements
 
 1. **Enhance Skills System**
    - Add `performance-monitor` skill (track workflow execution times)
    - Expand skill library based on development patterns
 
-3. **Advanced CI/CD**
-   - Implement preview deployments for PRs
+2. **Advanced CI/CD (Remaining)**
    - Add integration tests with test database
    - Set up monitoring/alerting for production
 

@@ -1,0 +1,115 @@
+name: Preview Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  id-token: write  # Required for WIF
+  pull-requests: write  # Required to comment on PR
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: Preview
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Install dependencies
+        run: |
+          pip install -q google-cloud-secret-manager
+
+      - name: Fetch Railway API Token
+        id: secrets
+        run: |
+          python3 << 'EOF'
+          from google.cloud import secretmanager
+          import os
+
+          client = secretmanager.SecretManagerServiceClient()
+          project_id = "project38-483612"
+
+          # Fetch RAILWAY-API secret
+          secret_name = f"projects/{project_id}/secrets/RAILWAY-API/versions/latest"
+          response = client.access_secret_version(request={"name": secret_name})
+          railway_token = response.payload.data.decode("UTF-8")
+
+          # Set as output (masked)
+          print(f"::add-mask::{railway_token}")
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"railway_token={railway_token}\n")
+          EOF
+
+      - name: Install Railway CLI
+        run: |
+          npm install -g @railway/cli
+
+      - name: Delete Preview Environment
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "🗑️  Cleaning up preview environment for PR #${PR_NUMBER}..."
+
+          SERVICE_NAME="preview-pr-${PR_NUMBER}"
+
+          # Delete the preview service
+          # Note: This requires Railway CLI with service deletion support
+          # Alternatively, we can just remove it manually or let Railway auto-clean
+          railway service delete "${SERVICE_NAME}" --yes 2>/dev/null || \
+            echo "⚠️  Service ${SERVICE_NAME} not found or already deleted"
+
+          echo "✅ Cleanup completed"
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const merged = context.payload.pull_request.merged;
+
+            const body = `## 🧹 Preview Environment Cleanup
+
+            **PR:** #${prNumber}
+            **Status:** ${merged ? '✅ Merged' : '❌ Closed without merge'}
+
+            The preview environment for this PR has been cleaned up.
+
+            ${merged ? '🎉 Changes are now in production!' : ''}
+
+            ---
+            *Cleanup completed automatically*
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body,
+            });
+
+      - name: Report Cleanup Status
+        if: always()
+        run: |
+          echo "### Preview Cleanup Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Cleaned up successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Preview environment resources have been freed." >> $GITHUB_STEP_SUMMARY

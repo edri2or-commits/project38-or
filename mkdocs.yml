@@ -64,6 +64,7 @@ nav:
           - מעבר ל-WIF: wif-migration-plan.md
       - פריסה:
           - מדריך הגדרת Railway: railway-setup.md
+          - Preview Deployments: preview-deployments.md
       - מחקר:
           - סקירה: research/index.md
           - תשתית תיעוד: research/01_documentation_infrastructure_zero_tolerance.summary.md

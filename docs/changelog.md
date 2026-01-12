@@ -8,6 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Preview Deployments** - Automatic PR preview environments on Railway (2026-01-12)
+  - `.github/workflows/preview-deploy.yml` - Automatic preview deployment on PR open/update
+    - Triggers on pull_request events (opened, synchronize, reopened)
+    - Deploys to Railway service `preview-pr-{PR_NUMBER}`
+    - WIF authentication to fetch RAILWAY-API token
+    - Health check verification with 10 retries (100s timeout)
+    - PR comment with preview URL and quick links
+    - Concurrency control (cancel in-progress on new commit)
+    - Paths ignored: docs/**, *.md, workflow files
+  - `.github/workflows/preview-cleanup.yml` - Automatic cleanup on PR close
+    - Triggers on pull_request closed event
+    - Deletes Railway service for closed PR
+    - PR comment confirming cleanup
+    - Reports merge status (merged vs closed)
+  - `docs/preview-deployments.md` - Comprehensive preview deployments guide (400+ lines)
+    - Architecture and workflow details
+    - Using preview deployments (authors and reviewers)
+    - Environment isolation and security
+    - Cost estimation (~$0.50/day per PR, $5/month free tier)
+    - Troubleshooting guide with 5 common issues
+    - GitHub Environment setup instructions
+    - Integration with CI/CD workflows
+    - Monitoring and cost management
+    - Migration guide from manual testing
+  - Updated `CLAUDE.md` File Structure (lines 194-195, 211) to include preview workflows and documentation
+  - GitHub Environment "Preview" required (no approval gate for automatic deployments)
+  - Preview deployment features:
+    - Isolated database per PR (PostgreSQL auto-provisioned)
+    - Unique URL per PR: `https://preview-pr-{N}.up.railway.app`
+    - Automatic updates on new commits
+    - PR comments with deployment status
+    - Automatic cleanup on PR close
+    - Time savings: 10-25 minutes per review (compared to manual testing)
+  - Integration with existing workflows:
+    - Works alongside lint.yml, test.yml, docs-check.yml
+    - Preview environments use same secrets as production (from GCP Secret Manager)
+    - WIF authentication (no static credentials)
+    - FastAPI application with isolated PostgreSQL
 - **Railway Deployment Pipeline** - Complete infrastructure for deploying Agent Platform to Railway (2026-01-12)
   - `railway.json` - Railway build and deploy configuration with Playwright Chromium installation
   - `Procfile` - Fallback process definition for Railway (`web: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`)

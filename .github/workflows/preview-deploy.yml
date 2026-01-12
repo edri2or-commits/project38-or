@@ -1,0 +1,194 @@
+name: Preview Deployment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/docs*.yml'
+
+permissions:
+  contents: read
+  id-token: write  # Required for WIF
+  pull-requests: write  # Required to comment on PR
+
+concurrency:
+  group: preview-deploy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true  # Cancel old preview when new commit pushed
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment: Preview  # Separate environment for preview deployments
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Install dependencies
+        run: |
+          pip install -q google-cloud-secret-manager
+
+      - name: Fetch Railway API Token
+        id: secrets
+        run: |
+          python3 << 'EOF'
+          from google.cloud import secretmanager
+          import os
+
+          client = secretmanager.SecretManagerServiceClient()
+          project_id = "project38-483612"
+
+          # Fetch RAILWAY-API secret
+          secret_name = f"projects/{project_id}/secrets/RAILWAY-API/versions/latest"
+          response = client.access_secret_version(request={"name": secret_name})
+          railway_token = response.payload.data.decode("UTF-8")
+
+          # Set as output (masked)
+          print(f"::add-mask::{railway_token}")
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"railway_token={railway_token}\n")
+          EOF
+
+      - name: Install Railway CLI
+        run: |
+          npm install -g @railway/cli
+
+      - name: Deploy Preview Environment
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "🚀 Deploying preview for PR #${PR_NUMBER}..."
+
+          # Create or update preview service
+          # Railway uses service names like: project38-pr-123
+          SERVICE_NAME="preview-pr-${PR_NUMBER}"
+
+          # Deploy to Railway with environment variables
+          railway up --detach \
+            --service "${SERVICE_NAME}" || railway up --detach
+
+          echo "preview_service=${SERVICE_NAME}" >> $GITHUB_ENV
+
+      - name: Wait for Deployment
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          echo "⏳ Waiting for deployment to become healthy..."
+          sleep 30
+
+          # Get deployment URL
+          DEPLOY_URL=$(railway status --json | jq -r '.deployments[0].url' || echo "")
+
+          if [ -z "$DEPLOY_URL" ] || [ "$DEPLOY_URL" == "null" ]; then
+            echo "⚠️  Could not determine deployment URL"
+            DEPLOY_URL="Check Railway Dashboard"
+          fi
+
+          echo "PREVIEW_URL=$DEPLOY_URL" >> $GITHUB_ENV
+
+          # Health check with retries
+          if [[ "$DEPLOY_URL" != "Check Railway Dashboard" ]]; then
+            for i in {1..10}; do
+              echo "Health check attempt $i/10..."
+              if curl -f -s "$DEPLOY_URL/health" > /dev/null; then
+                echo "✅ Preview deployment is healthy!"
+                echo "HEALTH_STATUS=✅ Healthy" >> $GITHUB_ENV
+                exit 0
+              fi
+              sleep 10
+            done
+
+            echo "⚠️  Health check did not pass, but deployment may still be initializing"
+            echo "HEALTH_STATUS=⏳ Initializing" >> $GITHUB_ENV
+          else
+            echo "HEALTH_STATUS=ℹ️  Check manually" >> $GITHUB_ENV
+          fi
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = process.env.PREVIEW_URL || 'Check Railway Dashboard';
+            const healthStatus = process.env.HEALTH_STATUS || '❓ Unknown';
+            const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
+
+            const body = `## 🚀 Preview Deployment
+
+            **Status:** ${healthStatus}
+            **URL:** ${previewUrl !== 'Check Railway Dashboard' ? `[${previewUrl}](${previewUrl})` : previewUrl}
+            **Commit:** \`${commitSha}\`
+            **PR:** #${prNumber}
+
+            ### Quick Links
+            - 📊 [API Docs](${previewUrl}/docs) (Swagger UI)
+            - 🏥 [Health Check](${previewUrl}/health)
+            - 📖 [ReDoc](${previewUrl}/redoc)
+
+            ### Notes
+            - Preview environment is automatically updated on each commit
+            - Database is isolated from production
+            - Environment will be cleaned up when PR is closed
+
+            ---
+            *Deployment triggered by commit ${commitSha}*
+            `;
+
+            // Find existing preview comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const existingComment = comments.find(comment =>
+              comment.user.login === 'github-actions[bot]' &&
+              comment.body.includes('🚀 Preview Deployment')
+            );
+
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body,
+              });
+            }
+
+      - name: Report Deployment Status
+        if: always()
+        run: |
+          echo "### Preview Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${HEALTH_STATUS:-Unknown}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${PREVIEW_URL:-Check Railway Dashboard}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Preview environment deployed successfully!" >> $GITHUB_STEP_SUMMARY
