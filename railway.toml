@@ -1,0 +1,16 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+# Environment variables (set in Railway dashboard)
+# DATABASE_URL - PostgreSQL connection string (auto-provided by Railway)
+# PYTHONPATH - Set to /app
+# PORT - Auto-provided by Railway
