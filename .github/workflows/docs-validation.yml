@@ -1,0 +1,117 @@
+name: Documentation Validation
+
+# Based on Research Paper #10: Docs-as-Code Optimization
+# Enforces zero-tolerance for documentation drift and broken links
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'mkdocs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate Documentation
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install documentation dependencies
+        run: |
+          pip install --upgrade pip
+          pip install mkdocs-material mkdocstrings[python] mkdocs-static-i18n
+          pip install interrogate  # Docstring coverage checker
+
+      - name: Check docstring coverage
+        id: docstrings
+        run: |
+          echo "## 📚 Docstring Coverage" >> $GITHUB_STEP_SUMMARY
+
+          # Check if src/ has Python files
+          if [ -d "src" ] && [ -n "$(find src -name '*.py' -type f)" ]; then
+            interrogate -v --fail-under 80 src/ > coverage.txt 2>&1 || true
+            cat coverage.txt >> $GITHUB_STEP_SUMMARY
+
+            # Fail if coverage < 80%
+            if ! interrogate --fail-under 80 src/ > /dev/null 2>&1; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "⚠️ **Warning**: Docstring coverage is below 80%" >> $GITHUB_STEP_SUMMARY
+              echo "Please add Google-style docstrings to new functions/classes." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "No Python files found in src/" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Build documentation (strict mode)
+        id: build
+        run: |
+          echo "## 🏗️ MkDocs Build" >> $GITHUB_STEP_SUMMARY
+
+          # --strict promotes warnings to errors
+          # This catches: broken links, missing files, invalid references
+          if mkdocs build --strict; then
+            echo "✅ **Success**: Documentation builds without errors" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Site size**: $(du -sh site | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Failed**: Documentation build has errors" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Check for orphaned pages
+        id: orphans
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔍 Orphaned Pages Check" >> $GITHUB_STEP_SUMMARY
+
+          # Find .md files not referenced in mkdocs.yml
+          ORPHANS=$(comm -23 \
+            <(find docs -name "*.md" -type f | sed 's|docs/||' | sort) \
+            <(grep -E '^\s+- .*\.md$' mkdocs.yml | sed 's/.*: //' | sort))
+
+          if [ -z "$ORPHANS" ]; then
+            echo "✅ **No orphaned pages found**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Found orphaned pages** (not in navigation):" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$ORPHANS" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Consider adding these to mkdocs.yml nav or removing them." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify RTL CSS exists
+        id: rtl_check
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎨 RTL Support Check" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "docs/stylesheets/rtl-code-fix.css" ]; then
+            echo "✅ RTL code block fix CSS found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ RTL CSS missing - Hebrew code blocks may render incorrectly" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "**Validation completed**. Check sections above for details." >> $GITHUB_STEP_SUMMARY

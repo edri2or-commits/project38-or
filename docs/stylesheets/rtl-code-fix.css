@@ -1,0 +1,36 @@
+/*
+ * RTL Code Block Fix for Hebrew Documentation
+ * Source: Research Paper #10, Section 6.2, Line 340
+ *
+ * Problem: In RTL (Hebrew) pages, code blocks render backwards
+ * Solution: Force LTR direction for all code elements
+ */
+
+/* Override RTL for code blocks */
+[dir="rtl"] pre,
+[dir="rtl"] code,
+[dir="rtl"] .highlight {
+    direction: ltr !important;
+    text-align: left !important;
+    unicode-bidi: isolate;
+}
+
+/* Ensure code block containers respect LTR */
+[dir="rtl"] .codehilite,
+[dir="rtl"] .highlight pre {
+    direction: ltr !important;
+    text-align: left !important;
+}
+
+/* Fix inline code within RTL text */
+[dir="rtl"] p code,
+[dir="rtl"] li code {
+    direction: ltr !important;
+    unicode-bidi: embed;
+}
+
+/* Admonition icons - flip directional icons for RTL */
+[dir="rtl"] .admonition .admonition-title::before {
+    margin-left: 0.4rem;
+    margin-right: 0;
+}
