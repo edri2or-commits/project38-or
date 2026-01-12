@@ -7,6 +7,7 @@ on:
     paths:
       - '**.py'
       - 'pyproject.toml'
+      - 'docs/**'  # Run on docs changes to satisfy branch protection
 
 permissions:
   contents: read

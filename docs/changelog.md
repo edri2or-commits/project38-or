@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clarified that workflows run automatically on PRs to `main`, not just manual dispatch
 
 ### Fixed
+- **Workflow Path Triggers** (2026-01-12) - Fixed docs-only PRs blocked by branch protection
+  - Added `docs/**` path trigger to test.yml, lint.yml, docs-check.yml
+  - Problem: Branch protection requires test/lint/docs-check, but they didn't run on docs/ changes
+  - Result: PRs changing only docs/changelog.md were blocked (mergeable_state: blocked)
+  - Solution: Workflows now run on docs/ changes, pass quickly (no code to check), satisfy branch protection
+  - Files modified: `.github/workflows/test.yml:12`, `.github/workflows/lint.yml:10`, `.github/workflows/docs-check.yml:11`
 - **CI Compatibility** (2026-01-12) - Fixed GitHub Actions test failures caused by filesystem permissions
   - Changed `src/mcp/filesystem.py` workspace path from `/workspace` to `/tmp/agent_workspace`
   - Reason: GitHub Actions runners don't have `/workspace` directory (PermissionError: [Errno 13])
