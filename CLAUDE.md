@@ -214,6 +214,12 @@ project38-or/
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
 │   ├── RAILWAY_SETUP.md      # Railway deployment guide
 │   ├── api/                  # API reference (auto-generated)
+│   ├── integrations/         # Integration guides (5 documents, 203KB)
+│   │   ├── implementation-roadmap.md    # 7-day development plan
+│   │   ├── autonomous-architecture.md   # System architecture
+│   │   ├── github-app-setup.md         # GitHub App integration
+│   │   ├── n8n-integration.md          # n8n orchestration
+│   │   └── railway-api-guide.md        # Railway GraphQL API
 │   ├── autonomous/           # Autonomous system documentation (8 documents, 211KB)
 │   │   ├── 00-autonomous-philosophy.md      # Automation vs Autonomy, OODA Loop
 │   │   ├── 01-system-architecture-hybrid.md # 4-layer architecture + implementations

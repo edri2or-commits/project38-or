@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **CLAUDE.md File Structure Update** (2026-01-12) - Added documentation for integration guides
+  - Added `docs/integrations/` directory to File Structure section (lines 217-222)
+  - Documents 5 integration guides: implementation-roadmap, autonomous-architecture, github-app-setup, n8n-integration, railway-api-guide
+  - Total size: 203KB across 5 documents
+  - Ensures complete visibility of 7-day development plan and technical integration guides
+
 ### Added
 - **Hybrid Autonomous System Documentation** (2026-01-12) - Complete synthesis of theoretical and practical autonomous control
   - `docs/autonomous/` - 8-document series merging OODA Loop theory with production implementations (211KB total)
