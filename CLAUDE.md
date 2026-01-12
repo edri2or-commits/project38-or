@@ -188,6 +188,8 @@ project38-or/
 │       ├── filesystem.py     # Sandboxed file operations
 │       ├── notifications.py  # Telegram + n8n webhooks
 │       └── registry.py       # Tool access control & usage tracking
+├── railway.toml               # Railway build & deploy configuration
+├── Procfile                   # Process definition for Railway
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
 │   ├── auto-merge.yml        # Auto-merge PRs after CI passes (pull_request)
@@ -210,6 +212,7 @@ project38-or/
 │   ├── changelog.md          # Version history (auto-updated)
 │   ├── SECURITY.md           # Security documentation
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
+│   ├── RAILWAY_SETUP.md      # Railway deployment guide
 │   ├── api/                  # API reference (auto-generated)
 │   └── research/             # Research summaries
 ├── mkdocs.yml                 # MkDocs configuration

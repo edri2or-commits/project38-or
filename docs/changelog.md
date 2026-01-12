@@ -54,8 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Changed test expectations to accept both "healthy" and "degraded" statuses
     - Updated database status assertions to accept "connected" or "disconnected"
     - All 8 health endpoint tests passing
-
-### Changed
 - **CLAUDE.md Documentation Alignment** (2026-01-12) - Fixed documentation inconsistencies
   - Added `--import-mode=importlib` to pytest configuration documentation (critical for Python 3.11+ CI)
   - Documented `pull_request` triggers for CI workflows (`test.yml`, `lint.yml`, `docs-check.yml`, `docs-validation.yml`)
