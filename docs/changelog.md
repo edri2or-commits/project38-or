@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Railway Deployment Pipeline** - Production deployment automation with secret injection (2026-01-12)
+  - `.github/workflows/deploy-railway.yml` - GitHub Actions deployment workflow with pre-flight checks (172 lines)
+  - `docs/railway-deployment-guide.md` - Complete deployment and troubleshooting guide (431 lines)
+  - Pre-deployment checks: Lint, tests, documentation build before deployment
+  - Manual approval gate: Uses Production environment (requires reviewer approval)
+  - Secret injection: Fetches `RAILWAY-API` token from GCP Secret Manager via WIF
+  - Health checks: Validates deployment success via `/health` endpoint
+  - Rollback support: Automatic trigger on deployment failure
+  - Bootstrap key pattern: Railway uses dedicated service account for GCP access
+  - Comprehensive setup guide: Railway project configuration, PostgreSQL setup, monitoring
+  - Cost estimation: ~$0-5/month Railway + <$1/month GCP (total <$10/month production)
+  - Security: Dedicated `railway-bootstrap` service account with minimal permissions
+  - Documentation: Complete guide for deployment, rollback, secret rotation, troubleshooting
 - **Phase 3.4: MCP Tools** - Browser automation, sandboxed filesystem, and notifications (2026-01-12)
   - `src/mcp/browser.py` - Playwright-based web automation with headless Chromium (488 lines)
   - `src/mcp/filesystem.py` - Sandboxed file operations per agent at /workspace/agent_{id}/ (528 lines)
@@ -81,6 +94,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Foundation for Agent Factory (Phase 3.2) and Agent Harness (Phase 3.3)
 
 ### Fixed
+- **MCP lint errors and deprecation warnings** - Resolved code quality issues (2026-01-12)
+  - Fixed unused imports in MCP modules (browser, filesystem, notifications, registry)
+  - Fixed line-too-long errors in `src/mcp/browser.py` and `src/mcp/registry.py`
+  - Migrated FastAPI from `on_event` decorators to `lifespan` context manager in `src/api/main.py`
+  - Updated `test_browser_start_fails_gracefully_without_playwright` to handle partial playwright installation
+  - All 123 tests passing, ruff lint clean (commit: 9c3f89e)
 - **SQLModel Column definition** - Fixed SQLAlchemy ArgumentError in Agent and Task models (2026-01-11)
   - Changed `sa_column_kwargs={"type_": "TEXT"}` to `sa_column=Column(Text, nullable=True)` in `src/models/agent.py:36,41`
   - Changed `sa_column_kwargs={"type_": "TEXT"}` to `sa_column=Column(Text, nullable=True)` in `src/models/task.py:39,40`

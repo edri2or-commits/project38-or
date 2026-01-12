@@ -62,6 +62,7 @@ nav:
       - הגדרות ידניות:
           - מדריך הגדרה: manual-setup-guide.md
           - מעבר ל-WIF: wif-migration-plan.md
+          - פריסה ל-Railway: railway-deployment-guide.md
       - מחקר:
           - סקירה: research/index.md
           - תשתית תיעוד: research/01_documentation_infrastructure_zero_tolerance.summary.md
