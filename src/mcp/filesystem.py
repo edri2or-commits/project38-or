@@ -1,7 +1,7 @@
 """Filesystem MCP Server - Sandboxed file operations for agents.
 
 Provides safe file read/write operations with strict sandboxing.
-Each agent gets isolated workspace at /workspace/{agent_id}/.
+Each agent gets isolated workspace at /tmp/agent_workspace/{agent_id}/.
 """
 
 import asyncio
@@ -78,7 +78,7 @@ class FilesystemResult:
 class FilesystemServer:
     """Sandboxed filesystem server for agents.
 
-    Each agent gets isolated workspace at /workspace/{agent_id}/.
+    Each agent gets isolated workspace at /tmp/agent_workspace/{agent_id}/.
     No access to parent directories, secrets, or system files.
 
     Security features:
@@ -94,14 +94,14 @@ class FilesystemServer:
     """
 
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-    WORKSPACE_ROOT = Path("/workspace")
+    WORKSPACE_ROOT = Path("/tmp/agent_workspace")  # Use /tmp for CI compatibility
 
     def __init__(self, agent_id: int, base_path: Path | None = None):
         """Initialize filesystem server for agent.
 
         Args:
             agent_id: Agent ID (used for sandbox isolation)
-            base_path: Custom workspace root (default: /workspace)
+            base_path: Custom workspace root (default: /tmp/agent_workspace)
 
         Example:
             >>> server = FilesystemServer(agent_id=1)
