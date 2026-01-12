@@ -485,7 +485,7 @@ pytest tests/test_observability.py --cov=src/observability --cov-report=html
 
 ## References
 
-- [Research Paper #08](../../research/08_realtime_observability_dashboard_ai_agents.md) - Complete architecture
+- Research Paper #08 (`research/08_realtime_observability_dashboard_ai_agents.md`) - Complete architecture
 - [OpenTelemetry GenAI Conventions v1.37](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/gen-ai/README.md)
 - [TimescaleDB Documentation](https://docs.timescale.com/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
