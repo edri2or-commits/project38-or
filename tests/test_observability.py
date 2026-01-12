@@ -7,13 +7,12 @@ based on Research Paper #08 (Real-Time Observability Dashboard).
 
 import asyncio
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from src.observability.metrics import AgentMetric, MetricsCollector
 from src.observability.tracer import get_tracer, instrument_tool, sanitize_pii
-
 
 # =============================================================================
 # Tracer Tests
