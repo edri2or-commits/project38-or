@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Railway Deployment Pipeline** - Production deployment automation with secret injection (2026-01-12)
-  - `.github/workflows/deploy-railway.yml` - GitHub Actions deployment workflow with pre-flight checks (172 lines)
-  - `docs/railway-deployment-guide.md` - Complete deployment and troubleshooting guide (431 lines)
+  - `.github/workflows/deploy-railway.yml` - GitHub Actions deployment workflow with pre-flight checks (160 lines)
+  - `docs/railway-deployment-guide.md` - Complete deployment and troubleshooting guide (398 lines)
   - Pre-deployment checks: Lint, tests, documentation build before deployment
   - Manual approval gate: Uses Production environment (requires reviewer approval)
   - Secret injection: Fetches `RAILWAY-API` token from GCP Secret Manager via WIF
