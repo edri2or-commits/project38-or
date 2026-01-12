@@ -25,6 +25,7 @@ wheels/
 
 # Secret files - NEVER commit these!
 *.json
+!railway.json  # Railway configuration is safe to commit
 *.key
 *.pem
 *.p12

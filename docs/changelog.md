@@ -8,6 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Railway Deployment Pipeline** - Complete infrastructure for deploying Agent Platform to Railway (2026-01-12)
+  - `railway.json` - Railway build and deploy configuration with Playwright Chromium installation
+  - `Procfile` - Fallback process definition for Railway (`web: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`)
+  - `.github/workflows/deploy-railway.yml` - GitHub Actions workflow for Railway deployment
+    - Manual trigger with environment selection (production/staging)
+    - GitHub Environment "Production" approval gate
+    - WIF authentication to fetch RAILWAY-API token from GCP Secret Manager
+    - Railway CLI integration for deployment (`railway up --detach`)
+    - Health check verification at `/health` endpoint with 10 retries
+    - Deployment status reporting in GitHub Actions summary
+  - `docs/railway-setup.md` - Comprehensive Railway setup guide (7 sections, 350+ lines)
+    - Step-by-step Railway project creation
+    - PostgreSQL database configuration
+    - Environment variables setup
+    - Deployment process documentation
+    - Monitoring and logging setup
+    - Troubleshooting guide with 5 common issues
+    - Cost estimation and security best practices
+    - Rollback procedure
+  - Updated `CLAUDE.md` Railway section from "Future" to "Current" (lines 979-1017)
+    - Deployment architecture documentation
+    - Key constraints (ephemeral filesystem, PostgreSQL persistence)
+    - Deployment process workflow
+    - Configuration files reference
+  - Updated `CLAUDE.md` File Structure (lines 193, 208, 214-215) to include Railway files
+  - Railway deployment features:
+    - Zero-downtime deployments
+    - Automatic PostgreSQL backups
+    - Built-in metrics and logging
+    - HTTPS by default
+    - $5/month free tier (sufficient for development)
+  - Integration with existing infrastructure:
+    - Secrets from GCP Secret Manager
+    - WIF authentication (no static credentials)
+    - FastAPI application (Phase 3.1)
+    - PostgreSQL database (Phase 3.1)
+    - Agent Factory, Harness, and MCP Tools (Phases 3.2-3.4)
+  - Estimated production cost: ~$23/month (~$10 web service + ~$8 PostgreSQL + ~$5 egress)
 - **Phase 3.4: MCP Tools** - Browser automation, sandboxed filesystem, and notifications (2026-01-12)
   - `src/mcp/browser.py` - Playwright-based web automation with headless Chromium (488 lines)
   - `src/mcp/filesystem.py` - Sandboxed file operations per agent at /workspace/agent_{id}/ (528 lines)

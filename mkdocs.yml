@@ -62,6 +62,8 @@ nav:
       - הגדרות ידניות:
           - מדריך הגדרה: manual-setup-guide.md
           - מעבר ל-WIF: wif-migration-plan.md
+      - פריסה:
+          - מדריך הגדרת Railway: railway-setup.md
       - מחקר:
           - סקירה: research/index.md
           - תשתית תיעוד: research/01_documentation_infrastructure_zero_tolerance.summary.md
@@ -77,6 +79,8 @@ nav:
       - Database: api/database.md
       - Models: api/models.md
       - Agent Factory: api/factory.md
+      - Agent Harness: api/harness.md
+      - MCP Tools: api/mcp.md
       - GitHub Authentication: api/github_auth.md
       - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md

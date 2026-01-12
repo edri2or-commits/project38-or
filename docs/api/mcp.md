@@ -883,4 +883,4 @@ All tools return result objects with `.success`, `.data`, `.error` attributes.
 For more information, see:
 - [Agent Harness Documentation](harness.md)
 - [Agent Factory Documentation](factory.md)
-- [CLAUDE.md](../CLAUDE.md) - Project context and security rules
+- CLAUDE.md (in project root) - Project context and security rules

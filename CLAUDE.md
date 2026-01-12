@@ -190,6 +190,7 @@ project38-or/
 │       └── registry.py       # Tool access control & usage tracking
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
+│   ├── deploy-railway.yml    # Railway deployment (manual + Production approval)
 │   ├── docs.yml              # Documentation deployment
 │   ├── docs-check.yml        # Changelog & docstring enforcement (workflow_dispatch + PR)
 │   ├── lint.yml              # PR linting (workflow_dispatch + PR)
@@ -204,11 +205,14 @@ project38-or/
 │   ├── index.md              # Home page
 │   ├── getting-started.md    # Quick start guide
 │   ├── changelog.md          # Version history (auto-updated)
+│   ├── railway-setup.md      # Railway deployment guide
 │   ├── SECURITY.md           # Security documentation
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
 │   ├── api/                  # API reference (auto-generated)
 │   └── research/             # Research summaries
 ├── mkdocs.yml                 # MkDocs configuration
+├── railway.json               # Railway build & deploy configuration
+├── Procfile                   # Railway process definition (fallback)
 ├── CLAUDE.md                  # This file
 └── README.md
 ```
@@ -976,13 +980,45 @@ python3 -c "from src.github_pr import create_pr; create_pr(...)"
 
 ---
 
-## Railway Constraints (Future)
+## Railway Deployment
 
-When Railway is set up:
+**Status:** ✅ Configured and ready for deployment
+
+### Deployment Architecture
+
+- **Platform:** Railway.app (Platform-as-a-Service)
+- **Database:** PostgreSQL 15 (managed by Railway)
+- **Secrets:** GCP Secret Manager → Railway environment variables
+- **CI/CD:** GitHub Actions workflow with "Production" approval gate
+
+### Key Constraints
+
 - Filesystem is **ephemeral** - don't write persistent data to disk
 - Use PostgreSQL for all persistence
 - Fetch secrets at startup into memory
 - Use `pool_pre_ping=True` for database connections
+- Port is provided via `$PORT` environment variable
+- Playwright Chromium must be installed during build phase
+
+### Deployment Process
+
+1. **Trigger workflow:** Go to Actions → "Deploy to Railway" → Run workflow
+2. **Approval required:** Maintainer approves in GitHub Environment "Production"
+3. **Workflow executes:**
+   - Fetches RAILWAY-API token from GCP Secret Manager (via WIF)
+   - Installs Railway CLI
+   - Deploys application (`railway up`)
+   - Waits for health check at `/health` endpoint
+4. **Verify deployment:** Check Railway Dashboard or visit deployment URL
+
+### Configuration Files
+
+- `railway.json` - Railway build and deploy configuration
+- `Procfile` - Fallback process definition
+- `.github/workflows/deploy-railway.yml` - Deployment automation
+- `docs/railway-setup.md` - Complete setup guide
+
+**See:** [Railway Setup Guide](docs/railway-setup.md) for detailed configuration instructions.
 
 ---
 

@@ -1,0 +1,116 @@
+name: Deploy to Railway
+
+on:
+  workflow_dispatch:  # Manual trigger only for safety
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+permissions:
+  contents: read  # Minimal permissions
+  id-token: write  # Required for WIF
+
+concurrency:
+  group: deploy-railway-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel deployments
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production  # Requires manual approval
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Install dependencies
+        run: |
+          pip install -q google-cloud-secret-manager
+
+      - name: Fetch Railway API Token
+        id: secrets
+        run: |
+          python3 << 'EOF'
+          from google.cloud import secretmanager
+          import os
+
+          client = secretmanager.SecretManagerServiceClient()
+          project_id = "project38-483612"
+
+          # Fetch RAILWAY-API secret
+          secret_name = f"projects/{project_id}/secrets/RAILWAY-API/versions/latest"
+          response = client.access_secret_version(request={"name": secret_name})
+          railway_token = response.payload.data.decode("UTF-8")
+
+          # Set as output (masked)
+          print(f"::add-mask::{railway_token}")
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"railway_token={railway_token}\n")
+          EOF
+
+      - name: Install Railway CLI
+        run: |
+          npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          railway up --detach
+          echo "✅ Deployment triggered successfully"
+
+      - name: Wait for deployment health check
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          echo "Waiting for deployment to become healthy..."
+          sleep 30
+
+          # Get deployment URL
+          DEPLOY_URL=$(railway status --json | jq -r '.deployments[0].url')
+          echo "Deployment URL: $DEPLOY_URL"
+
+          # Health check with retries
+          for i in {1..10}; do
+            echo "Health check attempt $i/10..."
+            if curl -f -s "$DEPLOY_URL/health" > /dev/null; then
+              echo "✅ Deployment is healthy!"
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "❌ Health check failed after 10 attempts"
+          exit 1
+
+      - name: Report deployment status
+        if: always()
+        run: |
+          echo "### Railway Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ $? -eq 0 ]; then
+            echo "✅ **Deployment Successful**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Deployment Failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
