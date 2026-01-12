@@ -3,10 +3,12 @@
 This module provides endpoints for health checks and system status.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+
+from src.api.database import check_database_connection
 
 router = APIRouter()
 
@@ -41,12 +43,17 @@ async def health_check() -> HealthResponse:
         >>> print(response.status)
         healthy
     """
-    # TODO: Add database connection check
+    # Check database connection
+    db_status = "connected" if await check_database_connection() else "disconnected"
+
+    # Determine overall health status
+    status = "healthy" if db_status == "connected" else "degraded"
+
     return HealthResponse(
-        status="healthy",
-        timestamp=datetime.utcnow(),
+        status=status,
+        timestamp=datetime.now(UTC),
         version="0.1.0",
-        database="not_connected",  # Will be updated after database integration
+        database=db_status,
     )
 
 
