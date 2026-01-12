@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 3.5: Observability - Tests & Integration** (2026-01-12) - Complete testing and integration of observability system
+  - `tests/test_observability.py` - 25 comprehensive tests with 100% pass rate (341 lines)
+  - Tests cover: tracer (PII redaction, decorator), metrics collector (in-memory + DB), integration tests
+  - `docs/api/observability.md` - Complete API documentation (631 lines)
+  - Integrated metrics router into `src/api/main.py` - metrics endpoints now accessible
+  - Updated `docs/api/index.md` with Observability section and example code
+  - Updated `mkdocs.yml` navigation with Observability documentation link
+  - Fixed `src/api/routes/metrics.py` - changed `get_db` imports to `get_session`
+  - **Test Results:** 148 tests passing (123 existing + 25 new observability tests)
+  - **Coverage:** Complete test coverage for tracer.py, metrics.py, and routes/metrics.py
+
 ### Changed
 - **CLAUDE.md Documentation Alignment** (2026-01-12) - Fixed documentation inconsistencies
   - Added `--import-mode=importlib` to pytest configuration documentation (critical for Python 3.11+ CI)

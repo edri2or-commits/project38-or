@@ -84,6 +84,7 @@ nav:
       - Agent Factory: api/factory.md
       - Agent Harness: api/harness.md
       - MCP Tools: api/mcp.md
+      - Observability: api/observability.md
       - GitHub Authentication: api/github_auth.md
       - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md

@@ -14,7 +14,7 @@ import asyncpg
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
-from src.api.database import get_db
+from src.api.database import get_session
 
 router = APIRouter(prefix="/metrics", tags=["Metrics"])
 
@@ -171,7 +171,7 @@ def estimate_cost(total_tokens: int, model_id: str = "claude-sonnet-4.5") -> flo
 
 
 @router.get("/summary", response_model=MetricSummary)
-async def get_metrics_summary(conn: asyncpg.Connection = Depends(get_db)) -> MetricSummary:
+async def get_metrics_summary(conn: asyncpg.Connection = Depends(get_session)) -> MetricSummary:
     """
     Get summary metrics for the dashboard.
 
@@ -209,7 +209,7 @@ async def get_metrics_summary(conn: asyncpg.Connection = Depends(get_db)) -> Met
 
 @router.get("/agents", response_model=list[AgentStatus])
 async def get_agent_statuses(
-    conn: asyncpg.Connection = Depends(get_db),
+    conn: asyncpg.Connection = Depends(get_session),
     limit: int = Query(10, ge=1, le=100, description="Max agents to return"),
 ) -> list[AgentStatus]:
     """
@@ -307,7 +307,7 @@ async def get_metric_timeseries(
     agent_id: str | None = Query(None, description="Filter by agent ID"),
     interval: str = Query("1 hour", description="Time interval (e.g., '1 hour', '24 hours')"),
     bucket_size: str = Query("5 minutes", description="Bucket size for aggregation"),
-    conn: asyncpg.Connection = Depends(get_db),
+    conn: asyncpg.Connection = Depends(get_session),
 ) -> list[AgentMetricPoint]:
     """
     Get time-series data for a specific metric.

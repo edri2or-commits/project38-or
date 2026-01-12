@@ -50,20 +50,38 @@ agent = Agent(
 
 ייצור אוטומטי של סוכנים מתיאור בשפה טבעית.
 
+[📖 תיעוד מלא →](factory.md)
+
+### ⚙️ Agent Harness (Phase 3.3)
+
+תשתית לתזמון והפעלה 24/7 של סוכנים.
+
+[📖 תיעוד מלא →](harness.md)
+
+### 🔧 MCP Tools (Phase 3.4)
+
+כלים לאוטומציה (דפדפן, filesystem, התראות).
+
+[📖 תיעוד מלא →](mcp.md)
+
+### 📊 Observability (Phase 3.5)
+
+מערכת ניטור בזמן אמת עם OpenTelemetry ו-3-layer metrics.
+
 ```python
-from src.factory.generator import generate_agent_code
-from src.factory.ralph_loop import ralph_wiggum_loop
+from src.observability import instrument_tool, MetricsCollector
 
-# יצירת קוד מתיאור
-result = await generate_agent_code(
-    description="צור סוכן שעוקב אחרי מניות של טסלה"
-)
+collector = MetricsCollector(db_pool=None)
 
-# תיקון ואימות אוטומטי
-validated = await ralph_wiggum_loop(result['code'])
+@instrument_tool("process_data")
+async def process_data(data: dict):
+    await collector.record_latency("agent-1", 1.5)
+    await collector.record_tokens("agent-1", 100, 50, "claude-sonnet-4.5")
+    await collector.record_success("agent-1", "process_data")
+    return {"status": "ok"}
 ```
 
-[📖 תיעוד מלא →](factory.md)
+[📖 תיעוד מלא →](observability.md)
 
 ### 🔐 Secret Management
 
