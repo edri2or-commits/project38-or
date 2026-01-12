@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3.4: MCP Tools** - Browser automation, sandboxed filesystem, and notifications (2026-01-12)
+  - `src/mcp/browser.py` - Playwright-based web automation with headless Chromium (488 lines)
+  - `src/mcp/filesystem.py` - Sandboxed file operations per agent at /workspace/agent_{id}/ (528 lines)
+  - `src/mcp/notifications.py` - Telegram bot and n8n webhook integration (327 lines)
+  - `src/mcp/registry.py` - Centralized tool access control and usage tracking (497 lines)
+  - `tests/test_mcp.py` - 30 comprehensive tests with 100% pass rate (438 lines)
+  - `docs/api/mcp.md` - Complete API documentation with examples and troubleshooting (886 lines)
+  - New dependencies: playwright>=1.40.0, httpx>=0.27.0
+  - Browser tools: navigate(), click(), extract_text(), screenshot(), fill_form(), wait_for_element()
+  - Filesystem tools: read_file(), write_file(), list_files(), delete_file(), create_dir(), file_info()
+  - Security features: Path traversal prevention, absolute path blocking, 10MB file size limit, sandbox isolation
+  - Rate limiting: Configurable per-minute and per-hour limits to prevent abuse
+  - Usage tracking: Records all operations with success/failure, duration, and agent attribution
+  - Resource limits: Max 2 concurrent browsers, max 10MB files, max 100 notifications/hour
+  - Notification channels: Telegram (direct API), n8n webhooks (via httpx)
+  - Context manager support for automatic cleanup of browser and HTTP clients
+  - Dynamic Playwright import (no dependency if browser not used)
+  - Integration with Agent Harness for tool provisioning during agent execution
+  - All 123 tests passing (including 30 new MCP tests)
 - **Phase 3.3: Agent Harness** - 24/7 orchestration and execution infrastructure (2026-01-11)
   - `src/harness/executor.py` - Executes agent code in isolated subprocesses with timeout protection
   - `src/harness/scheduler.py` - APScheduler integration with PostgreSQL advisory locks for idempotent execution
@@ -40,9 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `CLAUDE.md` File Structure to include `src/api/`, `src/models/`, `src/github_auth.py`, `src/github_pr.py`
   - Added complete Phase 3 documentation to `docs/BOOTSTRAP_PLAN.md` (245 lines):
     - Phase 3.1: Core Infrastructure ✅ COMPLETED (database schema, endpoints, dependencies)
-    - Phase 3.2: Agent Factory 🚧 PLANNED (Claude code generator, Ralph Wiggum loop, CRUD endpoints)
-    - Phase 3.3: Agent Harness 🚧 PLANNED (24/7 orchestration, Handoff Artifacts, scheduler)
-    - Phase 3.4: MCP Tools 🚧 PLANNED (browser automation, filesystem, notifications)
+    - Phase 3.2: Agent Factory ✅ COMPLETED (Claude code generator, Ralph Wiggum loop, CRUD endpoints)
+    - Phase 3.3: Agent Harness ✅ COMPLETED (24/7 orchestration, Handoff Artifacts, scheduler)
+    - Phase 3.4: MCP Tools ✅ COMPLETED (browser automation, filesystem, notifications)
   - Ensures all project documentation accurately reflects current system state
 - **Phase 3.1 API Documentation** - Comprehensive API reference for FastAPI application and database layer
   - `docs/api/fastapi.md` - FastAPI application documentation (configuration, endpoints, lifecycle, testing)
