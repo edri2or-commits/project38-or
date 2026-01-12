@@ -38,6 +38,19 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
+      - name: Debug environment
+        run: |
+          echo "=== Python Version ==="
+          python --version
+          echo "=== Installed Packages ==="
+          pip list | grep -E "(pytest|coverage|opentelemetry)"
+          echo "=== Project Structure ==="
+          ls -la
+          echo "=== Src Directory ==="
+          ls -la src/
+          echo "=== Test Import Check ==="
+          python -c "from src.observability import tracer, metrics; print('✅ Imports OK')" || echo "❌ Import failed"
+
       - name: Run tests with coverage
         run: |
           python -m pytest --cov=src --cov-report=term-missing -v
