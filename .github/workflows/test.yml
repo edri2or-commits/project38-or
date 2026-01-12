@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write  # Required to post test results as comments
 
 concurrency:
   group: test-${{ github.ref }}
