@@ -23,8 +23,10 @@ router = APIRouter(prefix="/metrics", tags=["Metrics"])
 # Pydantic Models
 # =============================================================================
 
+
 class MetricSummary(BaseModel):
     """Summary statistics for dashboard."""
+
     active_agents: int = Field(description="Number of agents with recent activity")
     total_requests_1h: int = Field(description="Total requests in last hour")
     error_rate_pct: float = Field(description="Error rate percentage (0-100)")
@@ -36,6 +38,7 @@ class MetricSummary(BaseModel):
 
 class AgentMetricPoint(BaseModel):
     """Single metric data point."""
+
     timestamp: datetime
     agent_id: str
     metric_name: str
@@ -45,6 +48,7 @@ class AgentMetricPoint(BaseModel):
 
 class AgentStatus(BaseModel):
     """Status of a single agent."""
+
     agent_id: str
     last_seen: datetime
     error_rate_pct: float
@@ -56,6 +60,7 @@ class AgentStatus(BaseModel):
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 async def get_active_agent_count(conn: asyncpg.Connection) -> int:
     """Count agents active in last hour."""
@@ -69,7 +74,7 @@ async def get_active_agent_count(conn: asyncpg.Connection) -> int:
     return result or 0
 
 
-async def get_total_requests(conn: asyncpg.Connection, interval: str = '1 hour') -> int:
+async def get_total_requests(conn: asyncpg.Connection, interval: str = "1 hour") -> int:
     """Count total requests (successes + errors)."""
     result = await conn.fetchval(
         f"""
@@ -82,7 +87,7 @@ async def get_total_requests(conn: asyncpg.Connection, interval: str = '1 hour')
     return result or 0
 
 
-async def get_error_rate(conn: asyncpg.Connection, interval: str = '1 hour') -> float:
+async def get_error_rate(conn: asyncpg.Connection, interval: str = "1 hour") -> float:
     """Calculate global error rate."""
     errors = await conn.fetchval(
         f"""
@@ -107,7 +112,7 @@ async def get_error_rate(conn: asyncpg.Connection, interval: str = '1 hour') -> 
     return round((errors / total) * 100, 2)
 
 
-async def get_avg_latency(conn: asyncpg.Connection, interval: str = '1 hour') -> float:
+async def get_avg_latency(conn: asyncpg.Connection, interval: str = "1 hour") -> float:
     """Calculate average latency."""
     result = await conn.fetchval(  # noqa: S608
         f"""
@@ -120,7 +125,7 @@ async def get_avg_latency(conn: asyncpg.Connection, interval: str = '1 hour') ->
     return round(result or 0, 2)
 
 
-async def get_p95_latency(conn: asyncpg.Connection, interval: str = '1 hour') -> float:
+async def get_p95_latency(conn: asyncpg.Connection, interval: str = "1 hour") -> float:
     """Calculate P95 latency."""
     result = await conn.fetchval(  # noqa: S608
         f"""
@@ -133,7 +138,7 @@ async def get_p95_latency(conn: asyncpg.Connection, interval: str = '1 hour') ->
     return round(result or 0, 2)
 
 
-async def get_total_tokens(conn: asyncpg.Connection, interval: str = '1 hour') -> int:
+async def get_total_tokens(conn: asyncpg.Connection, interval: str = "1 hour") -> int:
     """Calculate total token usage."""
     result = await conn.fetchval(  # noqa: S608
         f"""
@@ -164,10 +169,9 @@ def estimate_cost(total_tokens: int, model_id: str = "claude-sonnet-4.5") -> flo
 # API Endpoints
 # =============================================================================
 
+
 @router.get("/summary", response_model=MetricSummary)
-async def get_metrics_summary(
-    conn: asyncpg.Connection = Depends(get_db)
-) -> MetricSummary:
+async def get_metrics_summary(conn: asyncpg.Connection = Depends(get_db)) -> MetricSummary:
     """
     Get summary metrics for the dashboard.
 
@@ -199,14 +203,14 @@ async def get_metrics_summary(
         avg_latency_ms=avg_latency,
         p95_latency_ms=p95_latency,
         total_tokens_1h=total_tokens,
-        estimated_cost_1h=estimated_cost
+        estimated_cost_1h=estimated_cost,
     )
 
 
 @router.get("/agents", response_model=list[AgentStatus])
 async def get_agent_statuses(
     conn: asyncpg.Connection = Depends(get_db),
-    limit: int = Query(10, ge=1, le=100, description="Max agents to return")
+    limit: int = Query(10, ge=1, le=100, description="Max agents to return"),
 ) -> list[AgentStatus]:
     """
     Get status of all active agents.
@@ -234,20 +238,20 @@ async def get_agent_statuses(
         ORDER BY last_seen DESC
         LIMIT $1
         """,
-        limit
+        limit,
     )
 
     statuses = []
     for row in agent_ids:
-        agent_id = row['agent_id']
-        last_seen = row['last_seen']
+        agent_id = row["agent_id"]
+        last_seen = row["last_seen"]
 
         # Get agent-specific metrics
         error_rate = await conn.fetchval(
             """
             SELECT get_agent_error_rate($1, '1 hour')
             """,
-            agent_id
+            agent_id,
         )
 
         total_requests = await conn.fetchval(
@@ -258,7 +262,7 @@ async def get_agent_statuses(
               AND metric_name IN ('success_count', 'error_count')
               AND time >= NOW() - INTERVAL '1 hour'
             """,
-            agent_id
+            agent_id,
         )
 
         avg_latency = await conn.fetchval(
@@ -269,7 +273,7 @@ async def get_agent_statuses(
               AND metric_name = 'latency_ms'
               AND time >= NOW() - INTERVAL '1 hour'
             """,
-            agent_id
+            agent_id,
         )
 
         total_tokens = await conn.fetchval(
@@ -280,17 +284,19 @@ async def get_agent_statuses(
               AND metric_name IN ('tokens_input', 'tokens_output', 'tokens_reasoning')
               AND time >= NOW() - INTERVAL '1 hour'
             """,
-            agent_id
+            agent_id,
         )
 
-        statuses.append(AgentStatus(
-            agent_id=agent_id,
-            last_seen=last_seen,
-            error_rate_pct=round(error_rate or 0, 2),
-            total_requests_1h=total_requests or 0,
-            avg_latency_ms=round(avg_latency or 0, 2),
-            total_tokens_1h=total_tokens or 0
-        ))
+        statuses.append(
+            AgentStatus(
+                agent_id=agent_id,
+                last_seen=last_seen,
+                error_rate_pct=round(error_rate or 0, 2),
+                total_requests_1h=total_requests or 0,
+                avg_latency_ms=round(avg_latency or 0, 2),
+                total_tokens_1h=total_tokens or 0,
+            )
+        )
 
     return statuses
 
@@ -301,7 +307,7 @@ async def get_metric_timeseries(
     agent_id: str | None = Query(None, description="Filter by agent ID"),
     interval: str = Query("1 hour", description="Time interval (e.g., '1 hour', '24 hours')"),
     bucket_size: str = Query("5 minutes", description="Bucket size for aggregation"),
-    conn: asyncpg.Connection = Depends(get_db)
+    conn: asyncpg.Connection = Depends(get_db),
 ) -> list[AgentMetricPoint]:
     """
     Get time-series data for a specific metric.
@@ -341,11 +347,11 @@ async def get_metric_timeseries(
 
     return [
         AgentMetricPoint(
-            timestamp=row['bucket'],
-            agent_id=row['agent_id'],
-            metric_name=row['metric_name'],
-            value=round(row['value'], 2),
-            labels={}
+            timestamp=row["bucket"],
+            agent_id=row["agent_id"],
+            metric_name=row["metric_name"],
+            value=round(row["value"], 2),
+            labels={},
         )
         for row in rows
     ]
@@ -362,5 +368,5 @@ async def metrics_health_check():
     return {
         "status": "healthy",
         "service": "metrics-api",
-        "timestamp": datetime.now(UTC).isoformat()
+        "timestamp": datetime.now(UTC).isoformat(),
     }

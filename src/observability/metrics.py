@@ -29,6 +29,7 @@ class AgentMetric:
         labels: Additional metadata (JSON)
         timestamp: When the metric was recorded
     """
+
     agent_id: str
     model_id: str | None
     metric_name: str
@@ -82,7 +83,7 @@ class MetricsCollector:
                     metric.model_id,
                     metric.metric_name,
                     metric.value,
-                    metric.labels
+                    metric.labels,
                 )
             return True
         else:
@@ -94,10 +95,7 @@ class MetricsCollector:
             return True
 
     async def record_latency(
-        self,
-        agent_id: str,
-        latency_seconds: float,
-        labels: dict[str, str] | None = None
+        self, agent_id: str, latency_seconds: float, labels: dict[str, str] | None = None
     ):
         """
         Record end-to-end latency (Layer 1: Infrastructure).
@@ -116,7 +114,7 @@ class MetricsCollector:
             metric_name="latency_ms",
             value=latency_seconds * 1000,  # Convert to milliseconds
             labels=labels or {},
-            timestamp=datetime.now(UTC)
+            timestamp=datetime.now(UTC),
         )
         await self.record_metric(metric)
 
@@ -127,7 +125,7 @@ class MetricsCollector:
         output_tokens: int,
         model_id: str,
         reasoning_tokens: int | None = None,
-        labels: dict[str, str] | None = None
+        labels: dict[str, str] | None = None,
     ):
         """
         Record token usage (Layer 2: Economic).
@@ -152,42 +150,48 @@ class MetricsCollector:
         timestamp = datetime.now(UTC)
 
         # Input tokens
-        await self.record_metric(AgentMetric(
-            agent_id=agent_id,
-            model_id=model_id,
-            metric_name="tokens_input",
-            value=float(input_tokens),
-            labels=labels or {},
-            timestamp=timestamp
-        ))
+        await self.record_metric(
+            AgentMetric(
+                agent_id=agent_id,
+                model_id=model_id,
+                metric_name="tokens_input",
+                value=float(input_tokens),
+                labels=labels or {},
+                timestamp=timestamp,
+            )
+        )
 
         # Output tokens
-        await self.record_metric(AgentMetric(
-            agent_id=agent_id,
-            model_id=model_id,
-            metric_name="tokens_output",
-            value=float(output_tokens),
-            labels=labels or {},
-            timestamp=timestamp
-        ))
+        await self.record_metric(
+            AgentMetric(
+                agent_id=agent_id,
+                model_id=model_id,
+                metric_name="tokens_output",
+                value=float(output_tokens),
+                labels=labels or {},
+                timestamp=timestamp,
+            )
+        )
 
         # Reasoning tokens (new in 2026)
         if reasoning_tokens:
-            await self.record_metric(AgentMetric(
-                agent_id=agent_id,
-                model_id=model_id,
-                metric_name="tokens_reasoning",
-                value=float(reasoning_tokens),
-                labels=labels or {},
-                timestamp=timestamp
-            ))
+            await self.record_metric(
+                AgentMetric(
+                    agent_id=agent_id,
+                    model_id=model_id,
+                    metric_name="tokens_reasoning",
+                    value=float(reasoning_tokens),
+                    labels=labels or {},
+                    timestamp=timestamp,
+                )
+            )
 
     async def record_error(
         self,
         agent_id: str,
         error_type: str,
         error_message: str,
-        labels: dict[str, str] | None = None
+        labels: dict[str, str] | None = None,
     ):
         """
         Record agent error (Layer 1: Infrastructure).
@@ -204,10 +208,12 @@ class MetricsCollector:
             >>> )
         """
         error_labels = labels or {}
-        error_labels.update({
-            "error_type": error_type,
-            "error_message": error_message[:200]  # Truncate
-        })
+        error_labels.update(
+            {
+                "error_type": error_type,
+                "error_message": error_message[:200],  # Truncate
+            }
+        )
 
         metric = AgentMetric(
             agent_id=agent_id,
@@ -215,15 +221,12 @@ class MetricsCollector:
             metric_name="error_count",
             value=1.0,
             labels=error_labels,
-            timestamp=datetime.now(UTC)
+            timestamp=datetime.now(UTC),
         )
         await self.record_metric(metric)
 
     async def record_success(
-        self,
-        agent_id: str,
-        task_type: str,
-        labels: dict[str, str] | None = None
+        self, agent_id: str, task_type: str, labels: dict[str, str] | None = None
     ):
         """
         Record successful task completion (Layer 3: Cognitive).
@@ -245,15 +248,11 @@ class MetricsCollector:
             metric_name="success_count",
             value=1.0,
             labels=success_labels,
-            timestamp=datetime.now(UTC)
+            timestamp=datetime.now(UTC),
         )
         await self.record_metric(metric)
 
-    async def get_recent_metrics(
-        self,
-        agent_id: str | None = None,
-        limit: int = 100
-    ) -> list[dict]:
+    async def get_recent_metrics(self, agent_id: str | None = None, limit: int = 100) -> list[dict]:
         """
         Retrieve recent metrics (for Phase 1 development).
 
@@ -274,7 +273,8 @@ class MetricsCollector:
                         ORDER BY time DESC
                         LIMIT $2
                         """,
-                        agent_id, limit
+                        agent_id,
+                        limit,
                     )
                 else:
                     rows = await conn.fetch(
@@ -283,7 +283,7 @@ class MetricsCollector:
                         ORDER BY time DESC
                         LIMIT $1
                         """,
-                        limit
+                        limit,
                     )
                 return [dict(row) for row in rows]
         else:
@@ -322,8 +322,5 @@ class LatencyTracker:
         # Record error if exception occurred
         if exc_type:
             await self.collector.record_error(
-                self.agent_id,
-                exc_type.__name__,
-                str(exc_val),
-                self.labels
+                self.agent_id, exc_type.__name__, str(exc_val), self.labels
             )

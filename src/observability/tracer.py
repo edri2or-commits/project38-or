@@ -58,15 +58,15 @@ def sanitize_pii(data: Any) -> Any:
         return {k: sanitize_pii(v) for k, v in data.items()}
     elif isinstance(data, str):
         # Email pattern
-        data = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
-                     '[EMAIL_REDACTED]', data)
+        data = re.sub(
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL_REDACTED]", data
+        )
         # Phone pattern (US)
-        data = re.sub(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '[PHONE_REDACTED]', data)
+        data = re.sub(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b", "[PHONE_REDACTED]", data)
         # SSN pattern
-        data = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[SSN_REDACTED]', data)
+        data = re.sub(r"\b\d{3}-\d{2}-\d{4}\b", "[SSN_REDACTED]", data)
         # Credit card pattern (simple)
-        data = re.sub(r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b',
-                     '[CC_REDACTED]', data)
+        data = re.sub(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b", "[CC_REDACTED]", data)
         return data
     elif isinstance(data, (list, tuple)):
         return type(data)(sanitize_pii(item) for item in data)
@@ -97,13 +97,13 @@ def instrument_tool(tool_name: str):
         >>> async def query_db(sql: str):
         >>>     return results
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             # Start a span for the tool execution
             with tracer.start_as_current_span(
-                f"tool.execution.{tool_name}",
-                kind=trace.SpanKind.INTERNAL
+                f"tool.execution.{tool_name}", kind=trace.SpanKind.INTERNAL
             ) as span:
                 # Set Standard GenAI Attributes (v1.37)
                 span.set_attribute("gen_ai.system", "project38-agent")
@@ -138,8 +138,7 @@ def instrument_tool(tool_name: str):
         def sync_wrapper(*args, **kwargs):
             # Same logic for sync functions
             with tracer.start_as_current_span(
-                f"tool.execution.{tool_name}",
-                kind=trace.SpanKind.INTERNAL
+                f"tool.execution.{tool_name}", kind=trace.SpanKind.INTERNAL
             ) as span:
                 span.set_attribute("gen_ai.system", "project38-agent")
                 span.set_attribute("gen_ai.tool.name", tool_name)
@@ -165,6 +164,7 @@ def instrument_tool(tool_name: str):
 
         # Return appropriate wrapper based on function type
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:

@@ -23,6 +23,7 @@ collector = MetricsCollector(db_pool=None)
 # Example 1: Basic Tool Instrumentation
 # =============================================================================
 
+
 @instrument_tool("search_database")
 async def search_database(query: str, limit: int = 10):
     """
@@ -48,6 +49,7 @@ async def search_database(query: str, limit: int = 10):
 # Example 2: Manual Metrics Recording
 # =============================================================================
 
+
 async def agent_task_with_metrics():
     """
     Example: Agent task with manual metrics recording.
@@ -72,14 +74,12 @@ async def agent_task_with_metrics():
                 output_tokens=50,
                 model_id="claude-sonnet-4.5",
                 reasoning_tokens=200,  # 2026 models with reasoning tokens
-                labels={"environment": "demo"}
+                labels={"environment": "demo"},
             )
 
             # Record success
             await collector.record_success(
-                agent_id=agent_id,
-                task_type="search",
-                labels={"results_count": str(len(results))}
+                agent_id=agent_id, task_type="search", labels={"results_count": str(len(results))}
             )
 
             print(f"✅ Success: Found {len(results)} results")
@@ -87,9 +87,7 @@ async def agent_task_with_metrics():
         except Exception as e:
             # Record error
             await collector.record_error(
-                agent_id=agent_id,
-                error_type=type(e).__name__,
-                error_message=str(e)
+                agent_id=agent_id, error_type=type(e).__name__, error_message=str(e)
             )
             print(f"❌ Error: {e}")
 
@@ -97,6 +95,7 @@ async def agent_task_with_metrics():
 # =============================================================================
 # Example 3: Simulated Agent Fleet
 # =============================================================================
+
 
 async def simulate_agent_fleet(num_agents: int = 5, duration_seconds: int = 30):
     """
@@ -119,10 +118,7 @@ async def simulate_agent_fleet(num_agents: int = 5, duration_seconds: int = 30):
                 break
 
     # Start all agents
-    tasks = [
-        asyncio.create_task(agent_worker(f"agent-{i:03d}"))
-        for i in range(num_agents)
-    ]
+    tasks = [asyncio.create_task(agent_worker(f"agent-{i:03d}")) for i in range(num_agents)]
 
     # Run for specified duration
     await asyncio.sleep(duration_seconds)
@@ -161,13 +157,16 @@ def print_metrics_summary():
         avg = sum(values) / len(values)
         max_val = max(values)
         min_val = min(values)
-        print(f"{metric_name:20s} | Count: {len(values):4d} | "
-              f"Avg: {avg:8.2f} | Min: {min_val:8.2f} | Max: {max_val:8.2f}")
+        print(
+            f"{metric_name:20s} | Count: {len(values):4d} | "
+            f"Avg: {avg:8.2f} | Min: {min_val:8.2f} | Max: {max_val:8.2f}"
+        )
 
 
 # =============================================================================
 # Main
 # =============================================================================
+
 
 async def main():
     """Main demo function."""
