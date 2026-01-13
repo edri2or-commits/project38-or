@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **GitHub App Client** (2026-01-13) - Complete async client for autonomous GitHub operations with JWT-based authentication
+  - `src/github_app_client.py` (850+ lines) - Production-ready GitHubAppClient class
+  - `tests/test_github_app_client.py` (750+ lines) - 30+ comprehensive tests with 100% coverage
+  - `docs/api/github_app_client.md` (800+ lines) - Complete API documentation
+  - **Features**:
+    - JWT generation with RS256 signing for GitHub App authentication
+    - Automatic IAT (Installation Access Token) refresh (5 minutes before expiration)
+    - Exponential backoff retry logic (5 attempts, max 60s wait)
+    - Comprehensive error handling (authentication, rate limits, not found)
+  - **Workflow Operations**:
+    - `trigger_workflow()` - Trigger workflow_dispatch events (e.g., deploy-railway.yml)
+    - `get_workflow_runs()` - Get recent workflow runs with filtering (status, workflow_id)
+  - **Issue Operations**:
+    - `create_issue()` - Create issues with labels and assignees
+    - `add_issue_comment()` - Comment on issues
+    - `close_issue()` - Close issues with optional final comment
+  - **Pull Request Operations**:
+    - `create_pull_request()` - Create PRs for autonomous code changes
+    - `merge_pull_request()` - Merge PRs with configurable merge method (squash/merge/rebase)
+    - `get_pull_request()` - Get PR details and status
+  - **Commit Operations**:
+    - `get_recent_commits()` - Get recent commits from branch
+    - `get_commit_details()` - Detailed commit analysis (files, stats)
+  - **Repository Operations**:
+    - `get_repository_info()` - Repository metadata
+    - `create_repository_dispatch()` - Trigger custom webhook events
+  - **Exception Classes**:
+    - `GitHubAppError` - Base exception
+    - `GitHubAppAuthenticationError` - JWT/IAT generation failures
+    - `GitHubAppRateLimitError` - 429 rate limit exceeded
+    - `GitHubAppNotFoundError` - 404 resource not found
+  - **Dependencies**: `httpx>=0.27.0`, `pyjwt>=2.0.0`, `tenacity>=8.0.0`
 - **ADR Update Protocol** (2026-01-13) - Surgical alignment mechanism for keeping Architecture Decision Records synchronized with implementation
   - Systematic 5-step checklist for ADR updates after major feature completion
   - Update Log section in ADRs to track implementation timeline with evidence (PR numbers, file sizes, test counts)
