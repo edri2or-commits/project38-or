@@ -587,7 +587,7 @@ Railway uses **Bootstrap Key Pattern** (documented in railway-deployment-guide.m
 - ✅ GitHub Variables configured:
   - `RAILWAY_PROJECT_ID` - Railway project identifier
   - `RAILWAY_ENVIRONMENT_ID` - Production environment identifier
-  - `RAILWAY_URL` - Public endpoint: `https://web-production-47ff.up.railway.app`
+  - `RAILWAY_URL` - Public endpoint: `https://or-infra.com`
 - ✅ Both web and postgres services deployed successfully
 
 **Cost Estimation:**

@@ -23,7 +23,7 @@
 
 **Documentation**: 488KB across 18 files (4-layer architecture)
 **Deployment**: Railway production (`delightful-cat`)
-**URL**: https://web-production-47ff.up.railway.app
+**URL**: https://or-infra.com
 
 ---
 
@@ -160,7 +160,7 @@ async def test_create_agent_end_to_end():
 ```
 1. Create account: https://uptimerobot.com
 2. Add monitor:
-   - URL: https://web-production-47ff.up.railway.app/health
+   - URL: https://or-infra.com/health
    - Interval: 5 minutes
    - Alert: Email/Telegram when down
 3. Create status page (optional)
@@ -262,7 +262,7 @@ async def list_public_agents(
 
 **Frontend** (optional):
 ```html
-<!-- Public gallery at https://web-production-47ff.up.railway.app/gallery -->
+<!-- Public gallery at https://or-infra.com/gallery -->
 <div class="agent-card">
   <h3>Stock Price Monitor</h3>
   <p>Tracks TSLA stock, alerts on 5% change</p>
@@ -357,7 +357,7 @@ class AgentMetrics(BaseModel):
 **Immediate Action** (User):
 ```bash
 # 1. Open browser
-# 2. Navigate to: https://web-production-47ff.up.railway.app/health
+# 2. Navigate to: https://or-infra.com/health
 # 3. Follow PRODUCTION_TESTING_GUIDE.md
 # 4. Report back: "Health OK" or "Error: X"
 ```

@@ -758,7 +758,7 @@ The RailwayClient serves as the **Infrastructure Worker** in the OODA Loop:
 - **Project ID**: `95ec21cc-9ada-41c5-8485-12f9a00e0116`
 - **Environment**: production
 - **Environment ID**: `99c99a18-aea2-4d01-9360-6a93705102a0`
-- **URL**: https://web-production-47ff.up.railway.app
+- **URL**: https://or-infra.com
 - **Health Check**: `/health` endpoint (database connectivity check)
 
 **Usage Example**:

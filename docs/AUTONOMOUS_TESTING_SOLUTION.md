@@ -245,7 +245,7 @@ async def check_database_connection() -> bool:
 │         ▼                                                │
 │ ┌─────────────────────────────────────────────────────┐ │
 │ │ Railway Production                                   │ │
-│ │ https://web-production-47ff.up.railway.app          │ │
+│ │ https://or-infra.com          │ │
 │ │ - FastAPI server                                     │ │
 │ │ - PostgreSQL database                                │ │
 │ └─────────────────────────────────────────────────────┘ │

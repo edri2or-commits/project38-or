@@ -212,7 +212,7 @@ async def debug_info():
 
 **Test**:
 ```bash
-curl https://web-production-47ff.up.railway.app/debug/info
+curl https://or-infra.com/debug/info
 ```
 
 **Benefit**: See all registered routes, confirm app is running, check environment.
@@ -537,7 +537,7 @@ async def debug_routes():
 3. `.github/workflows/production-health-check.yml`:
    ```bash
    # Updated all URLs:
-   https://web-production-47ff.up.railway.app/api/health
+   https://or-infra.com/api/health
    ```
 
 **Merged**: 17:33 UTC (SHA: 3e68e18)
@@ -699,11 +699,11 @@ Updated all documentation with final findings:
 
 **Impact**: Low - Railway confirms system works.
 
-**Next step**: User can verify manually with `curl https://web-production-47ff.up.railway.app/api/health`
+**Next step**: User can verify manually with `curl https://or-infra.com/api/health`
 
 ### Production Status
 
-**Endpoint**: https://web-production-47ff.up.railway.app/api/health (changed from `/health`)
+**Endpoint**: https://or-infra.com/api/health (changed from `/health`)
 
 **Status** (per Railway logs): ✅ Healthy
 
@@ -723,7 +723,7 @@ Updated all documentation with final findings:
 
 **Manual verification**:
 ```bash
-curl https://web-production-47ff.up.railway.app/api/health
+curl https://or-infra.com/api/health
 ```
 
 Expected: `{"status":"healthy","version":"0.1.0",...}`

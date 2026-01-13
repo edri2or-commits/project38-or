@@ -26,6 +26,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Health check was failing silently, causing Railway health check failures
   - **File**: `src/api/database.py` line 81
 
+### Changed
+- **Custom Domain Migration** (2026-01-13) - Migrated from Railway subdomain to custom domain
+  - **Previous**: `https://web-production-47ff.up.railway.app`
+  - **Current**: `https://or-infra.com`
+  - **Configuration**:
+    - Cloudflare DNS: CNAME `@` → `web-production-47ff.up.railway.app` (DNS only)
+    - Cloudflare DNS: CNAME `_acme-challenge` → `authorize-*.railwaydns.net` (DNS only - required for SSL)
+    - Railway Dashboard: Custom domain configured with Let's Encrypt SSL certificate
+    - GitHub Variable `RAILWAY_URL` updated to `https://or-infra.com`
+  - **Files updated** (14 files):
+    - `.github/workflows/debug-check.yml` - Updated health check URL
+    - `.github/workflows/production-health-check.yml` - Updated all endpoint URLs
+    - `CLAUDE.md` - Updated production URL documentation
+    - `docs/BOOTSTRAP_PLAN.md`, `docs/JOURNEY.md`, `docs/PRODUCTION_TESTING_GUIDE.md`
+    - `docs/AUTONOMOUS_TESTING_SOLUTION.md`, `docs/SESSION_SUMMARY_2026-01-13.md`, `docs/NEXT_PHASE_RECOMMENDATIONS.md`
+    - `docs/autonomous/02-railway-integration-hybrid.md`
+    - `docs/decisions/ADR-003-railway-autonomous-control.md`
+    - `docs/integrations/autonomous-architecture.md`, `docs/integrations/implementation-roadmap.md`
+    - `docs/changelog.md` (historical references)
+  - **Benefits**:
+    - Professional branded domain for production API
+    - URL stability - domain remains constant even if Railway service changes
+    - Consistent webhook URLs for GitHub App and n8n integrations
+    - Clean slate - old subdomains (`mcp`, `n8n`) removed for clarity
+  - **Impact**: All production URLs, workflows, and documentation now reference `or-infra.com`
+
 ### Added
 - **Autonomous Production Testing System** (2026-01-13, PRs #65, #70, #73) - Complete autonomous testing infrastructure
   - **production-health-check.yml workflow** (PR #65, 224 lines):
@@ -244,7 +270,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configured GitHub Variables:
     - `RAILWAY_PROJECT_ID` - Railway project identifier
     - `RAILWAY_ENVIRONMENT_ID` - Production environment identifier
-    - `RAILWAY_URL` - Public endpoint: `https://web-production-47ff.up.railway.app`
+    - `RAILWAY_URL` - Public endpoint: `https://or-infra.com`
   - Deployment status: ✅ Both web and postgres services deployed successfully
   - Ready for automated GitHub Actions deployments
 - **Railway Deployment Configuration** (2026-01-12) - Complete setup for production deployment

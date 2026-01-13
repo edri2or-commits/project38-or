@@ -1769,13 +1769,13 @@ railway up --service web --environment production
 
 ```bash
 # 1. Check health
-curl https://web-production-47ff.up.railway.app/health
+curl https://or-infra.com/health
 
 # 2. Check metrics
-curl https://web-production-47ff.up.railway.app/metrics/summary
+curl https://or-infra.com/metrics/summary
 
 # 3. Test webhook
-curl -X POST https://web-production-47ff.up.railway.app/webhooks/github-webhook \
+curl -X POST https://or-infra.com/webhooks/github-webhook \
   -H "Content-Type: application/json" \
   -H "X-GitHub-Event: ping" \
   -d '{"zen": "test"}'
@@ -1791,7 +1791,7 @@ railway logs --service web --environment production --follow
 1. Go to https://github.com/edri2or-commits/project38-or/settings/hooks
 2. Click "Add webhook"
 3. Configure:
-   - Payload URL: `https://web-production-47ff.up.railway.app/webhooks/github-webhook`
+   - Payload URL: `https://or-infra.com/webhooks/github-webhook`
    - Content type: `application/json`
    - Secret: (generate and store in GCP Secret Manager as `GITHUB-WEBHOOK-SECRET`)
    - Events: Pull requests, Issue comments, Workflow runs
@@ -1807,7 +1807,7 @@ railway logs --service web --environment production --follow
 
 ## Production Environment
 
-- **Railway URL**: https://web-production-47ff.up.railway.app
+- **Railway URL**: https://or-infra.com
 - **GitHub Repository**: edri2or-commits/project38-or
 - **n8n URL**: https://n8n-production.up.railway.app
 
@@ -1863,7 +1863,7 @@ cat new-key.pem | base64 | gcloud secrets versions add github-app-private-key --
 
 ```bash
 # 1. Verify all systems operational
-curl https://web-production-47ff.up.railway.app/health | jq .
+curl https://or-infra.com/health | jq .
 
 # 2. Test autonomous deployment with real PR
 # (Create test PR, merge, observe deployment)
@@ -1871,7 +1871,7 @@ curl https://web-production-47ff.up.railway.app/health | jq .
 # 3. Verify notifications received
 
 # 4. Check metrics after deployment
-curl https://web-production-47ff.up.railway.app/metrics/summary | jq .
+curl https://or-infra.com/metrics/summary | jq .
 
 # 5. Review logs for errors
 railway logs --service web --environment production | grep ERROR
