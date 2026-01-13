@@ -1,0 +1,224 @@
+name: Production Health Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      full_test:
+        description: 'Run full test suite (health + API + agent creation)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+  schedule:
+    # Run every 6 hours to monitor production health
+    - cron: '0 */6 * * *'
+
+permissions:
+  contents: read
+  issues: write  # To create issues on failures
+
+concurrency:
+  group: production-health-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel health checks
+
+jobs:
+  health-check:
+    name: Check Production Health
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test Health Endpoint
+        id: health
+        run: |
+          echo "🏥 Testing health endpoint..."
+
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+            https://web-production-47ff.up.railway.app/health)
+
+          HTTP_CODE=$(echo "$RESPONSE" | grep HTTP_CODE | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | sed '/HTTP_CODE/d')
+
+          echo "Response: $BODY"
+          echo "HTTP Code: $HTTP_CODE"
+
+          # Save for later steps
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "body=$BODY" >> $GITHUB_OUTPUT
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Health check failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          # Parse JSON and check status
+          STATUS=$(echo "$BODY" | jq -r '.status // "unknown"')
+          DATABASE=$(echo "$BODY" | jq -r '.database // "unknown"')
+          VERSION=$(echo "$BODY" | jq -r '.version // "unknown"')
+
+          echo "✅ Status: $STATUS"
+          echo "✅ Database: $DATABASE"
+          echo "✅ Version: $VERSION"
+
+          # Export for summary
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "database=$DATABASE" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          if [ "$STATUS" != "healthy" ]; then
+            echo "❌ System status is $STATUS (expected: healthy)"
+            exit 1
+          fi
+
+          if [ "$DATABASE" != "connected" ]; then
+            echo "❌ Database is $DATABASE (expected: connected)"
+            exit 1
+          fi
+
+      - name: Test API Documentation
+        if: always()
+        id: docs
+        run: |
+          echo "📚 Testing API documentation endpoint..."
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            https://web-production-47ff.up.railway.app/docs)
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ API docs failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "✅ API documentation accessible"
+
+      - name: Test Metrics Endpoint
+        if: always()
+        id: metrics
+        run: |
+          echo "📊 Testing metrics endpoint..."
+
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+            https://web-production-47ff.up.railway.app/metrics/summary)
+
+          HTTP_CODE=$(echo "$RESPONSE" | grep HTTP_CODE | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | sed '/HTTP_CODE/d')
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "⚠️ Metrics endpoint returned HTTP $HTTP_CODE"
+            echo "body=$BODY" >> $GITHUB_OUTPUT
+            exit 0  # Don't fail - metrics are optional
+          fi
+
+          echo "✅ Metrics endpoint accessible"
+          echo "Response: $BODY"
+
+      - name: Full API Test (Optional)
+        if: github.event.inputs.full_test == 'true'
+        id: full_test
+        run: |
+          echo "🧪 Running full API test..."
+
+          # Test agent listing
+          echo "Testing GET /api/agents..."
+          curl -s https://web-production-47ff.up.railway.app/api/agents | jq .
+
+          echo "✅ Full API test complete"
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## 🏥 Production Health Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment**: Production (Railway)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Health endpoint
+          if [ "${{ steps.health.outcome }}" == "success" ]; then
+            echo "### ✅ Health Endpoint" >> $GITHUB_STEP_SUMMARY
+            echo "- **Status**: ${{ steps.health.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Database**: ${{ steps.health.outputs.database }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: ${{ steps.health.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Health Endpoint" >> $GITHUB_STEP_SUMMARY
+            echo "- **HTTP Code**: ${{ steps.health.outputs.http_code }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Error**: Health check failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # API docs
+          if [ "${{ steps.docs.outcome }}" == "success" ]; then
+            echo "### ✅ API Documentation" >> $GITHUB_STEP_SUMMARY
+            echo "- Accessible at /docs" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ API Documentation" >> $GITHUB_STEP_SUMMARY
+            echo "- **HTTP Code**: ${{ steps.docs.outputs.http_code }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Metrics
+          if [ "${{ steps.metrics.outcome }}" == "success" ]; then
+            echo "### ✅ Metrics Endpoint" >> $GITHUB_STEP_SUMMARY
+            echo "- Accessible at /metrics/summary" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ⚠️ Metrics Endpoint" >> $GITHUB_STEP_SUMMARY
+            echo "- **HTTP Code**: ${{ steps.metrics.outputs.http_code }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Production URL
+          echo "### 🔗 Production URLs" >> $GITHUB_STEP_SUMMARY
+          echo "- Health: https://web-production-47ff.up.railway.app/health" >> $GITHUB_STEP_SUMMARY
+          echo "- API Docs: https://web-production-47ff.up.railway.app/docs" >> $GITHUB_STEP_SUMMARY
+          echo "- Metrics: https://web-production-47ff.up.railway.app/metrics/summary" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Issue on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 Production Health Check Failed';
+            const body = `## Production Health Check Failed
+
+            **Date**: ${new Date().toISOString()}
+            **Workflow Run**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ### Results
+            - **Health Endpoint**: ${{ steps.health.outcome }}
+            - **API Docs**: ${{ steps.docs.outcome }}
+            - **Metrics**: ${{ steps.metrics.outcome }}
+
+            ### Details
+            - HTTP Code: ${{ steps.health.outputs.http_code }}
+            - Status: ${{ steps.health.outputs.status }}
+            - Database: ${{ steps.health.outputs.database }}
+
+            ### Action Required
+            1. Check Railway dashboard for deployment status
+            2. Review application logs
+            3. Verify database connectivity
+            4. Check GCP Secret Manager access
+
+            ### Quick Links
+            - [Railway Dashboard](https://railway.app/project/95ec21cc-9ada-41c5-8485-12f9a00e0116)
+            - [Production URL](https://web-production-47ff.up.railway.app/health)
+            - [PRODUCTION_TESTING_GUIDE.md](./docs/PRODUCTION_TESTING_GUIDE.md)
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['bug', 'production', 'health-check']
+            });
