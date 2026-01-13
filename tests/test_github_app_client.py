@@ -137,7 +137,7 @@ class TestGetInstallationToken:
         with patch.object(github_client, "generate_jwt") as mock_jwt:
             mock_jwt.return_value = "fake.jwt.token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.json.return_value = {
                 "token": "ghs_test_installation_token",
                 "expires_at": "2026-01-13T12:00:00Z",
@@ -176,7 +176,7 @@ class TestGetInstallationToken:
         with patch.object(github_client, "generate_jwt") as mock_jwt:
             mock_jwt.return_value = "fake.jwt.token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.json.return_value = {
                 "token": "new_token",
                 "expires_at": "2026-01-13T13:00:00Z",
@@ -229,7 +229,7 @@ class TestApiRequest:
         ) as mock_get_token:
             mock_get_token.return_value = "test_token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"data": "test_data"}
             mock_response.raise_for_status = Mock()
@@ -251,7 +251,7 @@ class TestApiRequest:
         ) as mock_get_token:
             mock_get_token.return_value = "test_token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.status_code = 201
             mock_response.json.return_value = {"created": True}
             mock_response.raise_for_status = Mock()
@@ -276,7 +276,7 @@ class TestApiRequest:
         ) as mock_get_token:
             mock_get_token.return_value = "test_token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"results": []}
             mock_response.raise_for_status = Mock()

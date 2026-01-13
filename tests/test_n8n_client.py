@@ -74,7 +74,7 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_success(self, n8n_client):
         """Test successful API request."""
-        mock_response = AsyncMock()
+        mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"data": "test"}
         mock_response.raise_for_status = Mock()
@@ -91,7 +91,7 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_with_json_data(self, n8n_client):
         """Test API request with JSON data."""
-        mock_response = AsyncMock()
+        mock_response = Mock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"id": "wf-123"}
         mock_response.raise_for_status = Mock()
