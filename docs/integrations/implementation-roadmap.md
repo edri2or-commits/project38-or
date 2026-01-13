@@ -1769,7 +1769,7 @@ railway up --service web --environment production
 
 ```bash
 # 1. Check health
-curl https://or-infra.com/health
+curl https://or-infra.com/api/health
 
 # 2. Check metrics
 curl https://or-infra.com/metrics/summary
@@ -1863,7 +1863,7 @@ cat new-key.pem | base64 | gcloud secrets versions add github-app-private-key --
 
 ```bash
 # 1. Verify all systems operational
-curl https://or-infra.com/health | jq .
+curl https://or-infra.com/api/health | jq .
 
 # 2. Test autonomous deployment with real PR
 # (Create test PR, merge, observe deployment)
