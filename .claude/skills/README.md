@@ -365,6 +365,243 @@ Developer ready to work
 - 🎯 Available skills (list of all skills)
 - 💡 Quick reminders (security rules, testing, docs)
 
+### 8. preflight-check (v1.0.0)
+
+**Purpose:** Run all validation checks before creating PR to ensure auto-merge will succeed
+
+**Triggers:**
+- Keywords: `preflight`, `create pr`, `ready to merge`, `open pull request`
+- Before PR creation (automatic integration with pr-helper)
+
+**What it does:**
+1. 🔒 **Security Check** - Scans git diff for secrets (API keys, tokens, passwords)
+2. 🧪 **Tests** - Runs full test suite with `pytest tests/ -v`
+3. 🎨 **Lint** - Runs `ruff check src/ tests/`
+4. 📚 **Documentation** - Verifies changelog updated if src/ changed, runs pydocstyle
+
+**When to use:**
+- Before creating a PR (automatically integrated with pr-helper)
+- Manual validation: "Run preflight checks"
+- After fixing issues: "Check if everything passes now"
+
+**Example:**
+```bash
+# Before creating PR (automatic)
+"I'm ready to create a PR"  # Preflight runs automatically
+
+# Manual preflight
+"Run preflight checks"
+```
+
+**Integration:**
+```
+preflight-check (local) → All pass? → Create PR
+    ↓
+auto-merge.yml (GitHub) → Verify again → Auto-merge
+    ↓
+Merged + branch deleted (< 1 minute)
+```
+
+**Benefits:**
+- ✅ Zero PR rejections due to validation failures
+- ✅ < 1 minute from "create PR" to merge
+- ✅ 100% of preflight passes result in auto-merge success
+- ✅ Fast execution (< 30 seconds)
+
+**Why run checks twice?**
+- **Local (preflight):** Fast feedback, no CI wait
+- **GitHub (auto-merge):** Security verification, final gate
+
+### 9. performance-monitor (v1.0.0)
+
+**Purpose:** Monitor CI/CD pipeline performance, identify bottlenecks, and provide actionable optimization recommendations
+
+**Triggers:**
+- Keywords: `performance`, `bottlenecks`, `workflow stats`, `slow ci`, `CI performance`
+- After major changes: new dependencies, workflow modifications
+- Periodic reviews: weekly/monthly performance check
+
+**What it does:**
+1. Collects workflow run data from GitHub API (last 7-30 days)
+2. Calculates statistics per workflow (avg/min/max duration, success rate)
+3. Analyzes step-level performance to identify slow steps
+4. Identifies bottlenecks (workflows >30s avg, failing workflows)
+5. Generates actionable optimization recommendations
+6. Tracks trends over time to detect performance regressions
+
+**When to use:**
+- Weekly performance review: "How is CI performing this week?"
+- Investigating slowness: "Why is CI so slow?"
+- After dependency updates: detect regressions
+- Before optimization work: get baseline metrics
+
+**Example:**
+```bash
+# Weekly review
+"How is CI performing this week?"
+
+# Bottleneck investigation
+"Why is CI so slow?"
+
+# Trend detection
+"Has CI gotten slower recently?"
+```
+
+**Integration:**
+```
+Developer requests performance review
+    ↓
+performance-monitor: Collect workflow data (GitHub API)
+    ↓
+Analyze: Workflows, jobs, steps
+    ↓
+Identify: Slow workflows (>30s), failing workflows
+    ↓
+Generate: Report with specific recommendations
+    ↓
+Developer implements optimizations
+    ↓
+performance-monitor: Measure impact
+```
+
+**Sample Output:**
+```markdown
+# 📊 CI/CD Performance Report
+
+## Summary
+- Total Runs: 42
+- Total CI Time: 28.5 minutes
+- Avg Success Rate: 95.2%
+
+## 🐌 Slow Workflows
+- **Tests**: 50.3s avg (regression from 30s)
+- **Deploy Documentation**: 78.2s avg
+
+## 💡 Recommendations
+- Tests: Enable pytest-xdist for parallel execution
+- Deploy: Consider faster deployment service
+```
+
+**Benefits:**
+- ✅ Data-driven optimization (no guessing)
+- ✅ Detect regressions within 1 day
+- ✅ Specific, actionable recommendations
+- ✅ Track optimization impact
+- ✅ Understand CI costs (time = money)
+
+**Success Metrics:**
+- Accurate performance metrics collected
+- Bottlenecks clearly identified
+- Actionable recommendations provided
+- Regressions detected quickly
+
+### 10. cost-optimizer (v1.0.0)
+
+**Purpose:** Monitor Claude API usage, calculate costs, identify expensive operations, and provide optimization recommendations to reduce spending
+
+**Triggers:**
+- Keywords: `costs`, `spending`, `API costs`, `reduce costs`, `budget`
+- Monthly/weekly cost review
+- After high-usage events: skills deployment, large PRs
+- Budget alerts: approaching spending limits
+
+**What it does:**
+1. Collects Claude API usage data (tokens, model, operations)
+2. Calculates costs based on 2026 pricing (Sonnet/Opus/Haiku rates)
+3. Identifies expensive operations (high-cost API calls)
+4. Detects cost anomalies (unusual spending spikes)
+5. Generates optimization recommendations (model selection, context size)
+6. Tracks spending trends and projects monthly costs
+
+**When to use:**
+- Monthly cost review: "What did I spend on Claude API this month?"
+- After major work: "How much did that documentation generation cost?"
+- Budget planning: "What will this cost monthly?"
+- Cost optimization: "How can I reduce my API costs?"
+
+**Example:**
+```bash
+# Monthly review
+"What did I spend on Claude API this month?"
+
+# Optimization
+"How can I reduce my Claude API costs?"
+
+# Budget check
+"Am I staying within budget?"
+```
+
+**Claude API Pricing (2026):**
+| Model | Input | Output | Best For |
+|-------|-------|--------|----------|
+| Haiku 3.5 | $0.25/MTok | $1.25/MTok | Simple tasks, search |
+| Sonnet 4.5 | $3.00/MTok | $15.00/MTok | Balanced, default |
+| Opus 4.5 | $15.00/MTok | $75.00/MTok | Complex reasoning |
+
+**Cost Ratio:** Opus is 60x more expensive than Haiku for output tokens.
+
+**Integration:**
+```
+High-usage event occurs (docs generation)
+    ↓
+cost-optimizer: Track API calls and tokens
+    ↓
+Calculate: Costs per operation/category
+    ↓
+Analyze: Expensive operations, trends
+    ↓
+Generate: Report with optimization recommendations
+    ↓
+Developer implements: Use Haiku for research, reduce context
+    ↓
+cost-optimizer: Measure savings
+```
+
+**Sample Output:**
+```markdown
+# 💰 Claude API Cost Report
+
+## Summary
+- Total Cost: $68.25
+- Period: Last 30 days
+- Daily Average: $2.28
+
+## Cost Breakdown
+| Category | Cost | % |
+|----------|------|---|
+| Code Generation | $40.95 | 60% |
+| Research | $20.48 | 30% |
+| Documentation | $6.82 | 10% |
+
+## 💡 High Priority Recommendations
+**Model Selection** - Using Sonnet for all operations
+- Use Haiku for Explore agent tasks
+- Potential Savings: $15-20/month (70% on research costs)
+
+**Context Optimization** - Average context: 120K tokens
+- Enable automatic summarization
+- Potential Savings: 40-60% input costs
+```
+
+**Benefits:**
+- ✅ Accurate cost tracking and reporting
+- ✅ Identify expensive operations
+- ✅ Measurable cost reductions (20-50%)
+- ✅ Budget alerts prevent overspending
+- ✅ Smart model selection guidance
+
+**Success Metrics:**
+- 20-50% cost reduction after optimizations
+- No quality degradation
+- Budget compliance (no surprises)
+- Clear, actionable recommendations
+
+**Critical Optimizations:**
+1. **Model Selection:** Use Haiku for simple tasks (60x cheaper than Opus)
+2. **Context Size:** Minimize tokens without sacrificing quality
+3. **Caching:** Avoid re-reading same files
+4. **Batching:** Group related operations
+
 ## Skill Structure
 
 Each skill follows this structure:

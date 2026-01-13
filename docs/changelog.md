@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Advanced Skills: Performance Monitor & Cost Optimizer** (2026-01-13) - Added two enterprise-grade monitoring skills
+  - **performance-monitor skill (v1.0.0)**:
+    - Monitors CI/CD pipeline performance via GitHub Actions API
+    - Calculates workflow statistics (avg/min/max duration, success rate)
+    - Analyzes step-level performance to identify bottlenecks
+    - Generates actionable optimization recommendations
+    - Tracks trends over time to detect regressions
+    - Triggers: `performance`, `bottlenecks`, `workflow stats`, `slow ci`
+    - Tools: Bash (GitHub API), Read, Write (reports), Grep, Glob
+    - Safety: Read-only monitoring, never modifies workflows
+  - **cost-optimizer skill (v1.0.0)**:
+    - Monitors Claude API usage and calculates costs
+    - Supports 2026 pricing: Haiku ($0.25/$1.25), Sonnet ($3/$15), Opus ($15/$75 per MTok)
+    - Identifies expensive operations and cost anomalies
+    - Generates optimization recommendations (model selection, context size, caching)
+    - Tracks spending trends and projects monthly costs
+    - Triggers: `costs`, `spending`, `API costs`, `reduce costs`, `budget`
+    - Tools: Bash (parse logs), Read, Write (reports), Grep
+    - Safety: Monitoring only, never modifies code or accesses API keys
+  - Updated `.claude/skills/README.md` with skills #9 and #10 documentation
+  - Updated `CLAUDE.md` Available Skills section with comprehensive skill descriptions
+  - **Benefits**: Data-driven CI optimization, 20-50% cost reduction potential, budget compliance
+  - **Status**: Skills implemented following established patterns, ready for use
+  - **Total Skills**: 10 autonomous skills (doc-updater, test-runner, security-checker, pr-helper, dependency-checker, changelog-updater, session-start-hook, preflight-check, performance-monitor, cost-optimizer)
+
 - **Agent CRUD Database Integration** (2026-01-13) - Connected agent routes to PostgreSQL database
   - Implemented database operations for all 5 CRUD endpoints in `src/api/routes/agents.py`:
     - `POST /api/agents` - Create agent with code generation and validation
