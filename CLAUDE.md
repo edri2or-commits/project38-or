@@ -89,12 +89,12 @@ When making changes:
 |-------|-------|------|---------|
 | Layer 1 (CLAUDE.md) | 1 | 48KB | Quick context |
 | Layer 2 (decisions/) | 4 ADRs | 32KB | Decision records |
-| Layer 3 (JOURNEY.md) | 1 | 23KB | Narrative timeline |
+| Layer 3 (JOURNEY.md) | 1 | 26KB | Narrative timeline |
 | Layer 4a (integrations/) | 5 | 203KB | Practical research |
 | Layer 4b (autonomous/) | 8 | 212KB | Theory + code synthesis |
-| **Total** | **19** | **518KB** | Complete context |
+| **Total** | **19** | **521KB** | Complete context |
 
-**Verification**: Measured 2026-01-13 with `du -k` (commit after this fix)
+**Verification**: Measured 2026-01-13 evening with `du -k` AFTER all edits (commit 42a9c21 + this fix)
 
 ### Industry Standards Referenced
 

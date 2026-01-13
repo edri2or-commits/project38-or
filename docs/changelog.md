@@ -65,7 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Total**: 4 ADRs, Phase 7 in JOURNEY.md, Truth Protocol section in CLAUDE.md
 
 ### Fixed
-- **Documentation Statistics Correction** (2026-01-13 Evening) - Fixed misalignment between documented and actual sizes
+- **Documentation Statistics Correction #2** (2026-01-13 Late Evening) - Fixed JOURNEY.md size after Phase 7 Continuation
+  - **Root Cause**: Measured sizes BEFORE adding Phase 7 Continuation (~60 lines), not AFTER
+  - **The Error**: Commit 42a9c21 fixed stats to 518KB, but then added content growing JOURNEY.md from 23KB → 26KB
+  - **Corrections**: Layer 3: 23KB → 26KB, Total: 518KB → 521KB (measured AFTER all edits)
+  - **Learning**: Measure AFTER completing ALL edits, not before - "מדידה פעמיים, כתיבה פעם אחת"
+- **Documentation Statistics Correction #1** (2026-01-13 Evening) - Fixed misalignment between documented and actual sizes
   - **Root Cause**: Used mental calculations instead of `du -k` measurements in commit `72e4641`
   - **Corrections Applied**:
     - Layer 2 (decisions/): 33KB → 32KB (measured with `du -k`)
