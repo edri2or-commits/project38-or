@@ -119,9 +119,7 @@ async def test_execute_graphql_errors_in_response(railway_client):
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_response
 
-        with pytest.raises(
-            RailwayAPIError, match="Deployment not found.*Invalid service ID"
-        ):
+        with pytest.raises(RailwayAPIError, match="Deployment not found.*Invalid service ID"):
             await railway_client._execute_graphql("query { test }")
 
 
@@ -145,9 +143,7 @@ async def test_execute_graphql_timeout(railway_client):
 @pytest.mark.asyncio
 async def test_trigger_deployment(railway_client, mock_httpx_response):
     """Test triggering a new deployment."""
-    mock_httpx_response.json.return_value = {
-        "data": {"serviceInstanceDeploy": "deploy-new-123"}
-    }
+    mock_httpx_response.json.return_value = {"data": {"serviceInstanceDeploy": "deploy-new-123"}}
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_httpx_response
@@ -412,8 +408,7 @@ async def test_monitor_deployment_until_stable_success(railway_client):
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.side_effect = [
-            MagicMock(status_code=200, json=lambda r=resp: r)
-            for resp in mock_responses
+            MagicMock(status_code=200, json=lambda r=resp: r) for resp in mock_responses
         ]
 
         final_status = await railway_client.monitor_deployment_until_stable(
@@ -435,8 +430,7 @@ async def test_monitor_deployment_until_stable_failed(railway_client):
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.side_effect = [
-            MagicMock(status_code=200, json=lambda r=resp: r)
-            for resp in mock_responses
+            MagicMock(status_code=200, json=lambda r=resp: r) for resp in mock_responses
         ]
 
         final_status = await railway_client.monitor_deployment_until_stable(
@@ -450,14 +444,10 @@ async def test_monitor_deployment_until_stable_failed(railway_client):
 async def test_monitor_deployment_timeout(railway_client):
     """Test monitoring deployment that times out."""
     # Always return BUILDING (transient state)
-    mock_response = {
-        "data": {"deployment": {"id": "deploy-123", "status": "BUILDING"}}
-    }
+    mock_response = {"data": {"deployment": {"id": "deploy-123", "status": "BUILDING"}}}
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = MagicMock(
-            status_code=200, json=lambda: mock_response
-        )
+        mock_post.return_value = MagicMock(status_code=200, json=lambda: mock_response)
 
         with pytest.raises(TimeoutError, match="did not stabilize within"):
             await railway_client.monitor_deployment_until_stable(
@@ -468,14 +458,10 @@ async def test_monitor_deployment_timeout(railway_client):
 @pytest.mark.asyncio
 async def test_monitor_deployment_unknown_status(railway_client):
     """Test monitoring deployment with unknown status."""
-    mock_response = {
-        "data": {"deployment": {"id": "deploy-123", "status": "UNKNOWN_STATE"}}
-    }
+    mock_response = {"data": {"deployment": {"id": "deploy-123", "status": "UNKNOWN_STATE"}}}
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value = MagicMock(
-            status_code=200, json=lambda: mock_response
-        )
+        mock_post.return_value = MagicMock(status_code=200, json=lambda: mock_response)
 
         with pytest.raises(ValueError, match="Unknown deployment status"):
             await railway_client.monitor_deployment_until_stable(
@@ -580,9 +566,7 @@ async def test_get_service_details(railway_client, mock_httpx_response):
 @pytest.mark.asyncio
 async def test_set_environment_variable(railway_client, mock_httpx_response):
     """Test setting environment variable."""
-    mock_httpx_response.json.return_value = {
-        "data": {"variableUpsert": {"id": "var-123"}}
-    }
+    mock_httpx_response.json.return_value = {"data": {"variableUpsert": {"id": "var-123"}}}
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_httpx_response
