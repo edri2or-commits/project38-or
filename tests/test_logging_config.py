@@ -186,3 +186,4 @@ class TestSetupLogging:
 
         assert log_data["message"] == "Test JSON output"
         assert log_data["correlation_id"] == "test-123"
+
