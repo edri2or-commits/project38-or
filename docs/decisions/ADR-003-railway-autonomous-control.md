@@ -343,6 +343,36 @@ This section tracks implementation progress against the decision:
 
 ---
 
+### 2026-01-13: ADR Update Protocol Created
+
+**Completed:**
+- ✅ ADR Update Protocol documentation in CLAUDE.md
+  - 5-step systematic checklist for continuous ADR-implementation alignment
+  - Evidence requirements (PR numbers, file sizes, test counts)
+  - Frequency guidance (major features, not every commit)
+- ✅ ADR-003 Update Log section established
+  - Tracks implementation timeline with verifiable evidence
+  - Pattern for documenting completion (not just planning)
+- ✅ Railway Client code formatting fixes
+  - Applied `ruff format` to src/railway_client.py and tests/test_railway_client.py
+  - 19 insertions, 53 deletions (whitespace only, no logic changes)
+
+**Pull Request:**
+- PR #83: ADR Update Protocol implementation (merged 2026-01-13)
+
+**Impact:**
+- Solves "ADRs swallowed by system" problem - continuous alignment mechanism established
+- Enables surgical (not one-time) synchronization between ADRs and implementation
+- Provides template for future ADR updates (GitHub Client, n8n Client, etc.)
+
+**Evidence:**
+- Protocol documented: `grep "ADR Update Protocol" CLAUDE.md` (19 lines)
+- ADR-003 updated: Update Log section exists (58 lines)
+- Changelog entry: `docs/changelog.md` lines 11-16
+- Merged to main: commit `cb63cc4`
+
+---
+
 ### 2026-01-12: ADR Created
 
 **Decision Recorded:**
