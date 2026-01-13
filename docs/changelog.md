@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added comprehensive integration tests in `tests/test_api_agents.py` (9 tests, all passing)
   - Updated `requirements-dev.txt` with test dependencies (pytest-mock, aiosqlite)
   - Updated `pyproject.toml` with pytest-asyncio configuration
+  - Updated `docs/getting-started.md` with Agent Platform API usage guide (curl examples, API endpoints)
   - **Status**: Phase 3.1-3.4 now 100% complete with full database persistence
   - **Total test suite**: 157 tests passing
 
