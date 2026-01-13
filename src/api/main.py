@@ -3,12 +3,17 @@
 This module initializes the FastAPI application and registers all route handlers.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import agents, health, metrics, tasks
+from src.logging_config import setup_logging
+
+# Initialize structured logging on module import
+setup_logging(level=os.getenv("LOG_LEVEL", "INFO"))
 
 
 @asynccontextmanager
@@ -76,7 +81,12 @@ async def debug_routes():
 
 
 if __name__ == "__main__":
+    import logging
     import uvicorn
+
+    # Logging already configured by setup_logging() above
+    logger = logging.getLogger(__name__)
+    logger.info("Starting FastAPI application", extra={"port": 8000})
 
     uvicorn.run(
         "src.api.main:app",

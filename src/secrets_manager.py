@@ -115,6 +115,11 @@ class SecretManager:
         """Clear the secrets cache."""
         self._secrets_cache.clear()
 
+    def __del__(self):
+        """Clear cached secrets from memory on cleanup."""
+        if hasattr(self, "_secrets_cache"):
+            self.clear_cache()
+
 
 def get_secret(secret_id: str, project_id: str | None = None) -> str | None:
     """Convenience function to get a single secret.

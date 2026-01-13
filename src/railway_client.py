@@ -135,6 +135,11 @@ class RailwayClient:
         self.api_token = api_token
         self.base_url = "https://backboard.railway.com/graphql/v2"
 
+    def __del__(self):
+        """Clear sensitive token from memory on cleanup."""
+        if hasattr(self, "api_token"):
+            self.api_token = None
+
     def _build_url(self) -> str:
         """Build GraphQL URL with Cloudflare workaround.
 

@@ -57,6 +57,17 @@ class AgentStatus(BaseModel):
     total_tokens_1h: int
 
 
+class SystemMetrics(BaseModel):
+    """System resource metrics."""
+
+    timestamp: datetime
+    cpu_percent: float = Field(description="CPU usage percentage (0-100)")
+    memory_percent: float = Field(description="Memory usage percentage (0-100)")
+    memory_available_mb: float = Field(description="Available memory in MB")
+    disk_percent: float = Field(description="Disk usage percentage (0-100)")
+    disk_available_gb: float = Field(description="Available disk space in GB")
+
+
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -355,6 +366,45 @@ async def get_metric_timeseries(
         )
         for row in rows
     ]
+
+
+@router.get("/system", response_model=SystemMetrics)
+async def get_system_metrics() -> SystemMetrics:
+    """
+    Get system resource metrics (CPU, memory, disk).
+
+    Returns:
+        SystemMetrics with current resource usage
+
+    Example:
+        >>> curl http://localhost:8000/metrics/system
+        {
+            "timestamp": "2026-01-13T12:00:00Z",
+            "cpu_percent": 45.2,
+            "memory_percent": 62.8,
+            "memory_available_mb": 4096.5,
+            "disk_percent": 73.1,
+            "disk_available_gb": 125.7
+        }
+    """
+    import psutil
+
+    # Get memory info
+    memory = psutil.virtual_memory()
+    memory_available_mb = memory.available / (1024 * 1024)
+
+    # Get disk info (root partition)
+    disk = psutil.disk_usage("/")
+    disk_available_gb = disk.free / (1024 * 1024 * 1024)
+
+    return SystemMetrics(
+        timestamp=datetime.now(UTC),
+        cpu_percent=round(psutil.cpu_percent(interval=0.1), 2),
+        memory_percent=round(memory.percent, 2),
+        memory_available_mb=round(memory_available_mb, 2),
+        disk_percent=round(disk.percent, 2),
+        disk_available_gb=round(disk_available_gb, 2),
+    )
 
 
 @router.get("/health")
