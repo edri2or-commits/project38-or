@@ -1,19 +1,18 @@
 """Tests for Railway GraphQL API client."""
 
 import time
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 
 from src.railway_client import (
-    RailwayClient,
+    DeploymentStatus,
     RailwayAPIError,
     RailwayAuthenticationError,
+    RailwayClient,
     RailwayRateLimitError,
-    RailwayDeploymentError,
-    DeploymentStatus,
 )
-
 
 # =============================================================================
 # FIXTURES
@@ -413,7 +412,7 @@ async def test_monitor_deployment_until_stable_success(railway_client):
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.side_effect = [
-            MagicMock(status_code=200, json=lambda: resp)
+            MagicMock(status_code=200, json=lambda r=resp: r)
             for resp in mock_responses
         ]
 
@@ -436,7 +435,7 @@ async def test_monitor_deployment_until_stable_failed(railway_client):
 
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.side_effect = [
-            MagicMock(status_code=200, json=lambda: resp)
+            MagicMock(status_code=200, json=lambda r=resp: r)
             for resp in mock_responses
         ]
 
