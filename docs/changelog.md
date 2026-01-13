@@ -8,6 +8,121 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **4-Layer Context Architecture** (2026-01-13) - Industry-standard documentation structure for AI agents and knowledge management
+  - **Layer 1: Quick Context** - `CLAUDE.md` (81KB) with new Context Architecture section
+  - **Layer 2: Decision Records** - `docs/decisions/` with 3 ADRs following AWS/Azure/Google Cloud standard:
+    - `ADR-001-research-synthesis-approach.md` (8.5KB) - Why dual documentation strategy exists
+    - `ADR-002-dual-documentation-strategy.md` (9.2KB) - The 4-layer architecture design
+    - `ADR-003-railway-autonomous-control.md` (9.8KB) - Autonomous Railway management approach
+  - **Layer 3: Journey Documentation** - `docs/JOURNEY.md` (18KB) - Chronological project narrative from 2026-01-11 to present
+  - **Layer 4: Technical Artifacts** - `docs/integrations/` + `docs/autonomous/` (already existed)
+  - **Total documentation**: 533KB across 18 files (was 414KB)
+  - **Standards followed**: [Context Engineering 2026](https://codeconductor.ai/blog/context-engineering/), [AWS ADR Process](https://docs.aws.amazon.com/prescriptive-guidance/latest/architectural-decision-records/adr-process.html)
+  - **Problem solved**: "Context failures are #1 cause of agent failures" - new AI sessions now have complete context
+  - **Updated**: CLAUDE.md File Structure section (lines 299-327) to include decisions/, JOURNEY.md with Layer annotations
+
+### Changed
+- **CLAUDE.md File Structure Update** (2026-01-12) - Added documentation for integration guides
+  - Added `docs/integrations/` directory to File Structure section (lines 217-222)
+  - Documents 5 integration guides: implementation-roadmap, autonomous-architecture, github-app-setup, n8n-integration, railway-api-guide
+  - Total size: 203KB across 5 documents
+  - Ensures complete visibility of 7-day development plan and technical integration guides
+- **Hybrid Autonomous System Documentation** (2026-01-12) - Complete synthesis of theoretical and practical autonomous control
+  - `docs/autonomous/` - 8-document series merging OODA Loop theory with production implementations (211KB total)
+  - `00-autonomous-philosophy.md` (14KB) - Foundation: Automation vs Autonomy, OODA Loop, ethical constraints
+    - Paradigm shift from automation to true autonomy
+    - Four-phase OODA Loop (Observe-Orient-Decide-Act) with examples
+    - Principle of Least Astonishment for predictable agent behavior
+    - Ethical constraints (Primum Non Nocere, transparency, killswitch, scope limitation)
+  - `01-system-architecture-hybrid.md` (39KB) - Supervisor-Worker pattern with complete implementations
+    - Multi-agent architecture (Orchestrator + specialized Workers)
+    - Four-layer architecture (Authentication → API Clients → Orchestration → Observability)
+    - Complete SecretManager, RailwayClient, GitHubAppClient, N8nClient implementations
+    - Layer 4: Observability (structured logging, Prometheus metrics, audit trail, alerting)
+  - `02-railway-integration-hybrid.md` (25KB) - Infrastructure as Autonomous Domain
+    - Deployment State Machine (INITIALIZING → BUILDING → DEPLOYING → ACTIVE/FAILED)
+    - Complete RailwayClient with Cloudflare workaround, rollback, monitoring
+    - Operational scenarios (deployment success, failure recovery, crash handling)
+    - Production configuration for project38-or deployment
+  - `03-github-app-integration-hybrid.md` (29KB) - Code as Autonomous Domain
+    - JWT authentication flow (RS256 signing, auto-refresh)
+    - Complete GitHubAppClient (workflows, issues, PRs, commits)
+    - Why GitHub App > PAT (1-hour tokens, granular permissions, 17,500/hr rate limit)
+    - Operational scenarios (autonomous deployment trigger, bug report creation, issue lifecycle)
+  - `04-n8n-orchestration-hybrid.md` (26KB) - Nervous System of Autonomous Operations
+    - Railway template deployment (5-minute setup)
+    - Complete N8nClient (create/execute workflows, monitoring)
+    - Workflow node examples (Telegram alerts, multi-step routing, webhook triggers)
+    - Three integration patterns (n8n→Claude, Claude→n8n, bidirectional)
+  - `05-resilience-patterns-hybrid.md` (23KB) - Antifragile System Design
+    - Pattern 1: Exponential backoff with jitter (Tenacity library)
+    - Pattern 2: Circuit breaker (prevent cascading failures)
+    - Pattern 3: Bulkhead isolation (resource partitioning)
+    - Pattern 4: Graceful degradation (cached fallbacks)
+    - Pattern 5: Health checks + Dead Letter Queue
+    - Retry budget to prevent infinite loops
+  - `06-security-architecture-hybrid.md` (21KB) - Zero Trust Security
+    - Threat model (8 attack surfaces, 3 detailed scenarios)
+    - Layer 1: WIF authentication (no service account keys)
+    - Layer 2: GCP Secret Manager (automatic rotation)
+    - Layer 3: Network security (TLS, request signing, rate limiting)
+    - Layer 4: Application security (input validation, SQL injection prevention)
+    - Layer 5: Audit & monitoring (immutable logs, anomaly detection)
+    - Layer 6: Human oversight (JIT permissions, killswitch)
+  - `07-operational-scenarios-hybrid.md` (35KB) - System in Action
+    - Scenario 1: Complete autonomous deployment failure recovery (110-second timeline)
+    - Scenario 2: Performance degradation detection (CPU monitoring)
+    - Scenario 3: Self-healing CI/CD pipeline (transient failure retry)
+    - Complete MainOrchestrator implementation with OODA loop
+  - **Synthesis:** Combines user's theoretical research (8,000 words) with AI practical research (86,000 words)
+  - **Result:** Production-ready autonomous system with philosophical rigor and working code
+- **Autonomous Control System Research** (2026-01-12) - Comprehensive research for Claude autonomous management of Railway, GitHub, and n8n
+  - `docs/integrations/railway-api-guide.md` (33KB) - Complete Railway GraphQL API reference
+    - Deployment lifecycle management (trigger, monitor, rollback)
+    - Service management (restart, scale, environment variables)
+    - Real-time monitoring with webhooks
+    - Python client with error handling and rate limiting
+    - Critical discovery: Cloudflare query parameter requirement
+  - `docs/integrations/github-app-setup.md` (39KB) - GitHub App authentication and operations
+    - JWT-based authentication flow (private key → JWT → installation token)
+    - Complete permissions matrix for autonomous operations
+    - Python client with automatic token refresh
+    - Workflow triggering and monitoring via API
+    - Migration guide from PAT to GitHub App (2026 best practice)
+  - `docs/integrations/n8n-integration.md` (39KB) - n8n workflow automation integration
+    - Railway template deployment guide (5-minute setup)
+    - REST API operations (create, execute, monitor workflows)
+    - Three integration patterns (n8n→Claude, Claude→n8n, bidirectional)
+    - Workflow version control and backup strategies
+    - Credentials encryption and security best practices
+  - `docs/integrations/autonomous-architecture.md` (40KB) - System design and security
+    - Four-layer architecture (auth, clients, orchestration, observability)
+    - 2026 security best practices (WIF, JIT permissions, short-lived tokens)
+    - Threat model and mitigation strategies
+    - Structured logging and monitoring patterns
+    - Rollback and recovery mechanisms
+  - `docs/integrations/implementation-roadmap.md` (52KB) - 7-day development plan
+    - Day-by-day implementation guide (~2,800 lines Python)
+    - Complete test strategy (unit, integration, e2e)
+    - Production deployment checklist
+    - Security hardening and compliance
+  - **Total:** 86,000+ words, 50+ authoritative sources cited
+  - **Key Findings:**
+    - Railway: GraphQL API with webhooks, Hobby plan rate limit 1,000 RPH
+    - GitHub: App authentication superior to PAT (1-hour tokens, auto-refresh)
+    - n8n: Railway template available, $5/month deployment
+    - Security: WIF authentication, least privilege, 90-day token rotation
+- **Railway Production Deployment** (2026-01-12) - Successful deployment to Railway platform
+  - Created Railway project: "delightful-cat"
+  - Project ID: `95ec21cc-9ada-41c5-8485-12f9a00e0116`
+  - Environment ID: `99c99a18-aea2-4d01-9360-6a93705102a0` (production)
+  - Added PostgreSQL database (successful deployment)
+  - Configured GitHub Variables:
+    - `RAILWAY_PROJECT_ID` - Railway project identifier
+    - `RAILWAY_ENVIRONMENT_ID` - Production environment identifier
+    - `RAILWAY_URL` - Public endpoint: `https://web-production-47ff.up.railway.app`
+  - Deployment status: ✅ Both web and postgres services deployed successfully
+  - Ready for automated GitHub Actions deployments
 - **Railway Deployment Configuration** (2026-01-12) - Complete setup for production deployment
   - `railway.toml` - Railway build & deploy configuration (NIXPACKS builder, uvicorn start command)
   - `Procfile` - Process definition for web server startup

@@ -61,12 +61,32 @@ nav:
   - בית: index.md
   - התחלה מהירה: getting-started.md
   - אבטחה: SECURITY.md
+  - המסע: JOURNEY.md
   - ארכיטקטורה:
       - תוכנית Bootstrap: BOOTSTRAP_PLAN.md
+      - החלטות ארכיטקטורה:
+          - ADR-001 Research Synthesis: decisions/ADR-001-research-synthesis-approach.md
+          - ADR-002 Documentation Strategy: decisions/ADR-002-dual-documentation-strategy.md
+          - ADR-003 Railway Control: decisions/ADR-003-railway-autonomous-control.md
       - הגדרות ידניות:
           - מדריך הגדרה: manual-setup-guide.md
           - מעבר ל-WIF: wif-migration-plan.md
           - פריסה ל-Railway: RAILWAY_SETUP.md
+      - אינטגרציות:
+          - תוכנית 7 ימים: integrations/implementation-roadmap.md
+          - ארכיטקטורה אוטונומית: integrations/autonomous-architecture.md
+          - GitHub App Setup: integrations/github-app-setup.md
+          - n8n Integration: integrations/n8n-integration.md
+          - Railway API Guide: integrations/railway-api-guide.md
+      - מערכת אוטונומית:
+          - פילוסופיה: autonomous/00-autonomous-philosophy.md
+          - ארכיטקטורה: autonomous/01-system-architecture-hybrid.md
+          - Railway Integration: autonomous/02-railway-integration-hybrid.md
+          - GitHub App Integration: autonomous/03-github-app-integration-hybrid.md
+          - n8n Orchestration: autonomous/04-n8n-orchestration-hybrid.md
+          - Resilience Patterns: autonomous/05-resilience-patterns-hybrid.md
+          - Security Architecture: autonomous/06-security-architecture-hybrid.md
+          - Operational Scenarios: autonomous/07-operational-scenarios-hybrid.md
       - מחקר:
           - סקירה: research/index.md
           - תשתית תיעוד: research/01_documentation_infrastructure_zero_tolerance.summary.md

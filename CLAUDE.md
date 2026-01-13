@@ -13,6 +13,96 @@ Personal AI System with autonomous GCP Secret Manager integration. This is a **p
 
 ---
 
+## Context Architecture (Multi-Layer Documentation)
+
+This project uses a **4-layer context architecture** following 2026 industry best practices for AI agent documentation and knowledge management.
+
+### Why Multi-Layer?
+
+**Problem**: Single-file documentation (CLAUDE.md only) loses decision history, making every new AI session start from zero. Context failures are the #1 cause of agent failures ([LangChain 2026 Report](https://www.langchain.com/state-of-agent-engineering)).
+
+**Solution**: "Context is infrastructure, not optional" - treat documentation as critical as code.
+
+### The 4 Layers
+
+#### Layer 1: Quick Context (`CLAUDE.md` - this file)
+**Purpose**: Session bootstrap for AI agents and developers
+**Content**: Project overview, security rules, file structure, quick reference
+**When to use**: First read in every new session
+**Size**: ~1,300 lines
+
+#### Layer 2: Decision Records (`docs/decisions/`)
+**Purpose**: Architecture decisions with rationale, alternatives, consequences
+**Format**: ADR (Architecture Decision Record) - AWS/Azure/Google Cloud standard
+**When to use**: Understanding WHY decisions were made, reviewing trade-offs
+
+**Current ADRs**:
+- [ADR-001: Research Synthesis Approach](docs/decisions/ADR-001-research-synthesis-approach.md) - Why dual documentation strategy
+- [ADR-002: Dual Documentation Strategy](docs/decisions/ADR-002-dual-documentation-strategy.md) - The 4-layer architecture
+- [ADR-003: Railway Autonomous Control](docs/decisions/ADR-003-railway-autonomous-control.md) - Autonomous Railway management approach
+
+#### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
+**Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
+**When to use**: Onboarding, understanding project history, "how did we get here?"
+**Content**: Timeline from 2026-01-11 to present, research process, key decisions, challenges overcome
+
+#### Layer 4: Technical Artifacts
+**Purpose**: Deep technical details, API references, working code examples
+
+**Structure**:
+- `docs/integrations/` (203KB, 5 files) - Original practical research with API guides
+- `docs/autonomous/` (208KB, 8 files) - Hybrid synthesis merging theory + implementation
+- See [File Structure](#file-structure) section below for complete directory tree
+
+### How to Use This Architecture
+
+**For AI Agents Starting New Session**:
+```
+1. Read CLAUDE.md (Layer 1) → Get current state
+2. Skim docs/JOURNEY.md (Layer 3) → Understand timeline
+3. Check docs/decisions/ (Layer 2) → Review recent ADRs
+4. Deep dive Layer 4 → Technical implementation details
+```
+
+**For Human Developers Onboarding**:
+```
+1. Start with docs/JOURNEY.md → Get the story
+2. Read CLAUDE.md → Quick reference
+3. Review ADRs in docs/decisions/ → Understand architecture
+4. Explore docs/autonomous/ → Learn the system
+```
+
+**For Updates**:
+```
+When making changes:
+- Update Layer 4 (code/docs)
+- Create ADR if architectural decision (Layer 2)
+- Update JOURNEY.md if major milestone (Layer 3)
+- Update CLAUDE.md if structure changed (Layer 1)
+- Always update docs/changelog.md
+```
+
+### Documentation Statistics
+
+| Layer | Files | Size | Purpose |
+|-------|-------|------|---------|
+| Layer 1 (CLAUDE.md) | 1 | 81KB | Quick context |
+| Layer 2 (decisions/) | 3 ADRs | 23KB | Decision records |
+| Layer 3 (JOURNEY.md) | 1 | 18KB | Narrative timeline |
+| Layer 4a (integrations/) | 5 | 203KB | Practical research |
+| Layer 4b (autonomous/) | 8 | 208KB | Theory + code synthesis |
+| **Total** | **18** | **533KB** | Complete context |
+
+### Industry Standards Referenced
+
+- **Context Engineering 2026**: [Guide](https://codeconductor.ai/blog/context-engineering/)
+- **AWS ADR Process**: [Documentation](https://docs.aws.amazon.com/prescriptive-guidance/latest/architectural-decision-records/adr-process.html)
+- **Azure ADR Guide**: [Well-Architected](https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-decision-record)
+- **Google Cloud ADR**: [Architecture Center](https://docs.cloud.google.com/architecture/architecture-decision-records)
+- **LangChain State of Agents**: [Report](https://www.langchain.com/state-of-agent-engineering)
+
+---
+
 ## Security Rules (Non-Negotiable)
 
 ### Never Do These
@@ -210,10 +300,30 @@ project38-or/
 │   ├── index.md              # Home page
 │   ├── getting-started.md    # Quick start guide
 │   ├── changelog.md          # Version history (auto-updated)
+│   ├── JOURNEY.md            # Project timeline and narrative (Layer 3)
 │   ├── SECURITY.md           # Security documentation
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
 │   ├── RAILWAY_SETUP.md      # Railway deployment guide
 │   ├── api/                  # API reference (auto-generated)
+│   ├── decisions/            # Architecture Decision Records (Layer 2, 3 ADRs)
+│   │   ├── ADR-001-research-synthesis-approach.md
+│   │   ├── ADR-002-dual-documentation-strategy.md
+│   │   └── ADR-003-railway-autonomous-control.md
+│   ├── integrations/         # Integration guides (5 documents, 203KB) (Layer 4a)
+│   │   ├── implementation-roadmap.md    # 7-day development plan
+│   │   ├── autonomous-architecture.md   # System architecture
+│   │   ├── github-app-setup.md         # GitHub App integration
+│   │   ├── n8n-integration.md          # n8n orchestration
+│   │   └── railway-api-guide.md        # Railway GraphQL API
+│   ├── autonomous/           # Autonomous system documentation (8 documents, 211KB) (Layer 4b)
+│   │   ├── 00-autonomous-philosophy.md      # Automation vs Autonomy, OODA Loop
+│   │   ├── 01-system-architecture-hybrid.md # 4-layer architecture + implementations
+│   │   ├── 02-railway-integration-hybrid.md # Infrastructure domain
+│   │   ├── 03-github-app-integration-hybrid.md # Code domain
+│   │   ├── 04-n8n-orchestration-hybrid.md   # Nervous system
+│   │   ├── 05-resilience-patterns-hybrid.md # Circuit breaker, retry logic
+│   │   ├── 06-security-architecture-hybrid.md # Zero trust security
+│   │   └── 07-operational-scenarios-hybrid.md # End-to-end scenarios
 │   └── research/             # Research summaries
 ├── mkdocs.yml                 # MkDocs configuration
 ├── CLAUDE.md                  # This file
@@ -1048,13 +1158,20 @@ python3 -c "from src.github_pr import create_pr; create_pr(...)"
 
 ## Railway Deployment
 
-**Status**: Ready for deployment (configuration complete)
+**Status**: ✅ Deployed to production (2026-01-12)
+
+**Production Details:**
+- **Project**: delightful-cat
+- **Project ID**: `95ec21cc-9ada-41c5-8485-12f9a00e0116`
+- **Environment**: production (`99c99a18-aea2-4d01-9360-6a93705102a0`)
+- **Public URL**: https://web-production-47ff.up.railway.app
+- **Database**: PostgreSQL (deployed successfully)
 
 ### Quick Start
 
-1. **Setup Railway Project** - See [docs/RAILWAY_SETUP.md](docs/RAILWAY_SETUP.md) for complete instructions
-2. **Configure GitHub Variables** - Set `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_URL`
-3. **Deploy** - Trigger `.github/workflows/deploy-railway.yml` workflow
+1. ✅ **Setup Railway Project** - Completed
+2. ✅ **Configure GitHub Variables** - Set `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_URL`
+3. **Deploy** - Trigger `.github/workflows/deploy-railway.yml` workflow (ready for use)
 
 ### Configuration Files
 
@@ -1094,9 +1211,9 @@ When deployed to Railway:
 
 ```bash
 # Check application health
-curl https://your-app.up.railway.app/health
+curl https://web-production-47ff.up.railway.app/health
 
-# Response:
+# Expected response:
 {
   "status": "healthy",       # or "degraded"
   "version": "0.1.0",
