@@ -833,6 +833,121 @@ Merged + branch deleted (< 1 minute)
 - ✅ 100% of preflight passes result in auto-merge success
 - ✅ Clear, actionable error messages for failures
 
+### performance-monitor (v1.0.0)
+
+**Purpose:** Monitor CI/CD pipeline performance, identify bottlenecks, and provide actionable optimization recommendations.
+
+**Triggers:**
+- Keywords: `performance`, `bottlenecks`, `workflow stats`, `slow ci`, `CI performance`
+- After major changes: new dependencies, workflow modifications
+- Periodic reviews: weekly/monthly performance check
+
+**What it does:**
+1. Collects workflow run data from GitHub API (last 7-30 days)
+2. Calculates statistics per workflow (avg/min/max duration, success rate)
+3. Analyzes step-level performance to identify slow steps
+4. Identifies bottlenecks (workflows >30s avg, failing workflows)
+5. Generates actionable optimization recommendations
+6. Tracks trends over time to detect performance regressions
+
+**When to use:**
+```bash
+# Weekly review
+"How is CI performing this week?"
+
+# Bottleneck investigation
+"Why is CI so slow?"
+
+# Trend detection
+"Has CI gotten slower recently?"
+```
+
+**Integration:**
+- Provides data-driven insights for CI optimization
+- Detects regressions within 1 day
+- Tracks impact of optimization efforts
+- Reports specific, actionable recommendations
+
+**Files:**
+- Skill definition: `.claude/skills/performance-monitor/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (read-only monitoring)
+- Allowed tools: Bash (GitHub API), Read, Write (reports), Grep, Glob
+- Never modifies workflows or code
+- Only analyzes public metrics
+
+**Success metrics:**
+- ✅ Accurate performance metrics collected
+- ✅ Bottlenecks clearly identified
+- ✅ Actionable recommendations provided
+- ✅ Regressions detected quickly
+
+### cost-optimizer (v1.0.0)
+
+**Purpose:** Monitor Claude API usage, calculate costs, identify expensive operations, and provide optimization recommendations to reduce spending.
+
+**Triggers:**
+- Keywords: `costs`, `spending`, `API costs`, `reduce costs`, `budget`
+- Monthly/weekly cost review
+- After high-usage events: skills deployment, large PRs
+- Budget alerts: approaching spending limits
+
+**What it does:**
+1. Collects Claude API usage data (tokens, model, operations)
+2. Calculates costs based on 2026 pricing (Sonnet/Opus/Haiku rates)
+3. Identifies expensive operations (high-cost API calls)
+4. Detects cost anomalies (unusual spending spikes)
+5. Generates optimization recommendations (model selection, context size)
+6. Tracks spending trends and projects monthly costs
+
+**When to use:**
+```bash
+# Monthly review
+"What did I spend on Claude API this month?"
+
+# Optimization
+"How can I reduce my Claude API costs?"
+
+# Budget check
+"Am I staying within budget?"
+```
+
+**Claude API Pricing (2026):**
+- Haiku 3.5: $0.25/MTok input, $1.25/MTok output (fast, simple tasks)
+- Sonnet 4.5: $3.00/MTok input, $15.00/MTok output (balanced, default)
+- Opus 4.5: $15.00/MTok input, $75.00/MTok output (complex reasoning)
+
+**Cost Ratio:** Opus is 60x more expensive than Haiku for output tokens.
+
+**Integration:**
+- Tracks API usage across all operations
+- Provides budget alerts to prevent overspending
+- Measures savings from optimization efforts
+- Guides smart model selection (Haiku for simple, Sonnet for balanced, Opus for complex)
+
+**Files:**
+- Skill definition: `.claude/skills/cost-optimizer/SKILL.md`
+
+**Safety:**
+- `plan_mode_required: false` (monitoring only)
+- Allowed tools: Bash (parse logs, API), Read, Write (reports), Grep
+- Never modifies code automatically
+- Never accesses or logs API keys
+
+**Success metrics:**
+- ✅ Accurate cost tracking and reporting
+- ✅ Identify expensive operations
+- ✅ Measurable cost reductions (20-50%)
+- ✅ Budget alerts prevent overspending
+- ✅ Smart model selection guidance
+
+**Critical Optimizations:**
+1. **Model Selection:** Use Haiku for simple tasks (60x cheaper than Opus)
+2. **Context Size:** Minimize tokens without sacrificing quality
+3. **Caching:** Avoid re-reading same files
+4. **Batching:** Group related operations
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:
