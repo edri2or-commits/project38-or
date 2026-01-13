@@ -294,7 +294,7 @@ User manually created Railway project through Railway dashboard:
 - CI/CD workflows (test, lint, docs validation)
 
 **✅ Verified**:
-- Health endpoint: https://or-infra.com/health returns 200 OK
+- Health endpoint: https://or-infra.com/api/health returns 200 OK
 - All 148/148 tests passing (as of last commit)
 - No secrets exposed (verified by security-checker skill)
 - Git history clean and well-documented
