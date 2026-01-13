@@ -209,9 +209,7 @@ class GitHubAppClient:
                 f"Failed to get installation token: HTTP {e.response.status_code}"
             ) from e
         except Exception as e:
-            raise GitHubAppAuthenticationError(
-                f"Failed to get installation token: {e}"
-            ) from e
+            raise GitHubAppAuthenticationError(f"Failed to get installation token: {e}") from e
 
     @retry(
         wait=wait_exponential(multiplier=1, min=2, max=60),
@@ -264,9 +262,7 @@ class GitHubAppClient:
                 # Handle rate limiting
                 if response.status_code == 429:
                     reset_time = int(response.headers.get("X-RateLimit-Reset", 0))
-                    raise GitHubAppRateLimitError(
-                        f"Rate limit exceeded. Resets at {reset_time}"
-                    )
+                    raise GitHubAppRateLimitError(f"Rate limit exceeded. Resets at {reset_time}")
 
                 # Handle not found
                 if response.status_code == 404:
@@ -280,9 +276,7 @@ class GitHubAppClient:
 
                 return response.json()
         except httpx.HTTPStatusError as e:
-            raise GitHubAppError(
-                f"GitHub API error: HTTP {e.response.status_code}"
-            ) from e
+            raise GitHubAppError(f"GitHub API error: HTTP {e.response.status_code}") from e
         except httpx.TimeoutException as e:
             raise GitHubAppError(f"GitHub API timeout: {e}") from e
         except httpx.NetworkError as e:
@@ -385,7 +379,7 @@ class GitHubAppClient:
         labels: list[str] | None = None,
         assignees: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Create a GitHub issue.
+        r"""Create a GitHub issue.
 
         Use Case: Agent creates bug report when deployment fails.
 
@@ -501,7 +495,7 @@ class GitHubAppClient:
         head: str,
         base: str = "main",
     ) -> dict[str, Any]:
-        """Create a pull request.
+        r"""Create a pull request.
 
         Use Case: Agent creates PR for autonomous code changes (future capability).
 
@@ -562,9 +556,7 @@ class GitHubAppClient:
             json_data={"merge_method": merge_method},
         )
 
-    async def get_pull_request(
-        self, owner: str, repo: str, pull_number: int
-    ) -> dict[str, Any]:
+    async def get_pull_request(self, owner: str, repo: str, pull_number: int) -> dict[str, Any]:
         """Get pull request details.
 
         Args:
@@ -622,9 +614,7 @@ class GitHubAppClient:
         )
         return result
 
-    async def get_commit_details(
-        self, owner: str, repo: str, commit_sha: str
-    ) -> dict[str, Any]:
+    async def get_commit_details(self, owner: str, repo: str, commit_sha: str) -> dict[str, Any]:
         """Get detailed information about a specific commit.
 
         Use Case: Agent analyzes what changed in a failing deployment.
@@ -670,9 +660,7 @@ class GitHubAppClient:
             ... )
             >>> print(f"Default branch: {repo_info['default_branch']}")
         """
-        return await self._api_request(
-            method="GET", endpoint=f"/repos/{owner}/{repo}"
-        )
+        return await self._api_request(method="GET", endpoint=f"/repos/{owner}/{repo}")
 
     async def create_repository_dispatch(
         self,

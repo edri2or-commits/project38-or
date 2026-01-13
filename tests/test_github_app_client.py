@@ -137,7 +137,7 @@ class TestGetInstallationToken:
         with patch.object(github_client, "generate_jwt") as mock_jwt:
             mock_jwt.return_value = "fake.jwt.token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.json.return_value = {
                 "token": "ghs_test_installation_token",
                 "expires_at": "2026-01-13T12:00:00Z",
@@ -176,7 +176,7 @@ class TestGetInstallationToken:
         with patch.object(github_client, "generate_jwt") as mock_jwt:
             mock_jwt.return_value = "fake.jwt.token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.json.return_value = {
                 "token": "new_token",
                 "expires_at": "2026-01-13T13:00:00Z",
@@ -224,12 +224,10 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_success(self, github_client):
         """Test successful API request."""
-        with patch.object(
-            github_client, "get_installation_token"
-        ) as mock_get_token:
+        with patch.object(github_client, "get_installation_token") as mock_get_token:
             mock_get_token.return_value = "test_token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"data": "test_data"}
             mock_response.raise_for_status = Mock()
@@ -246,12 +244,10 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_with_json_data(self, github_client):
         """Test API request with JSON data."""
-        with patch.object(
-            github_client, "get_installation_token"
-        ) as mock_get_token:
+        with patch.object(github_client, "get_installation_token") as mock_get_token:
             mock_get_token.return_value = "test_token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.status_code = 201
             mock_response.json.return_value = {"created": True}
             mock_response.raise_for_status = Mock()
@@ -271,12 +267,10 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_with_params(self, github_client):
         """Test API request with query parameters."""
-        with patch.object(
-            github_client, "get_installation_token"
-        ) as mock_get_token:
+        with patch.object(github_client, "get_installation_token") as mock_get_token:
             mock_get_token.return_value = "test_token"
 
-            mock_response = AsyncMock()
+            mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"results": []}
             mock_response.raise_for_status = Mock()
@@ -296,9 +290,7 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_204_no_content(self, github_client):
         """Test API request with 204 No Content response."""
-        with patch.object(
-            github_client, "get_installation_token"
-        ) as mock_get_token:
+        with patch.object(github_client, "get_installation_token") as mock_get_token:
             mock_get_token.return_value = "test_token"
 
             mock_response = AsyncMock()
@@ -317,9 +309,7 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_rate_limit_error(self, github_client):
         """Test that 429 rate limit raises GitHubAppRateLimitError."""
-        with patch.object(
-            github_client, "get_installation_token"
-        ) as mock_get_token:
+        with patch.object(github_client, "get_installation_token") as mock_get_token:
             mock_get_token.return_value = "test_token"
 
             mock_response = AsyncMock()
@@ -337,9 +327,7 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_not_found_error(self, github_client):
         """Test that 404 raises GitHubAppNotFoundError."""
-        with patch.object(
-            github_client, "get_installation_token"
-        ) as mock_get_token:
+        with patch.object(github_client, "get_installation_token") as mock_get_token:
             mock_get_token.return_value = "test_token"
 
             mock_response = AsyncMock()
@@ -500,9 +488,7 @@ class TestIssueOperations:
                 )
 
                 assert result["state"] == "closed"
-                mock_comment.assert_called_once_with(
-                    "test-owner", "test-repo", 42, "Fixed"
-                )
+                mock_comment.assert_called_once_with("test-owner", "test-repo", 42, "Fixed")
 
 
 # ============================================================================
@@ -646,9 +632,7 @@ class TestRepositoryOperations:
                 "description": "Test repository",
             }
 
-            repo = await github_client.get_repository_info(
-                owner="test-owner", repo="test-repo"
-            )
+            repo = await github_client.get_repository_info(owner="test-owner", repo="test-repo")
 
             assert repo["name"] == "test-repo"
             assert repo["default_branch"] == "main"

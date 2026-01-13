@@ -176,8 +176,7 @@ class Decision:
     def __repr__(self) -> str:
         """String representation."""
         return (
-            f"Decision(action={self.action}, priority={self.priority}, "
-            f"reasoning={self.reasoning})"
+            f"Decision(action={self.action}, priority={self.priority}, reasoning={self.reasoning})"
         )
 
 
@@ -398,9 +397,7 @@ class MainOrchestrator:
             >>> print(f"Rollback result: {result}")
         """
         self.state = DeploymentState.ACTING
-        self.logger.info(
-            f"Executing action: {decision.action}, Reasoning: {decision.reasoning}"
-        )
+        self.logger.info(f"Executing action: {decision.action}, Reasoning: {decision.reasoning}")
 
         try:
             if decision.action == ActionType.DEPLOY:
@@ -513,9 +510,7 @@ class MainOrchestrator:
         result = await self.act(decision)
         return result
 
-    async def handle_deployment_failure(
-        self, deployment_id: str
-    ) -> dict[str, Any] | None:
+    async def handle_deployment_failure(self, deployment_id: str) -> dict[str, Any] | None:
         """Handle deployment failure - rollback and alert.
 
         Args:
@@ -583,9 +578,7 @@ class MainOrchestrator:
         )
 
         # Wait for deployment to complete
-        result = await self.railway.wait_for_deployment(
-            deployment_id=deployment["id"], timeout=600
-        )
+        result = await self.railway.wait_for_deployment(deployment_id=deployment["id"], timeout=600)
 
         return {
             "deployment_id": deployment["id"],

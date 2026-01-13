@@ -147,9 +147,7 @@ class TestWorldModel:
         wm = WorldModel()
 
         for i in range(15):
-            obs = Observation(
-                source="railway", timestamp=datetime.now(UTC), data={"count": i}
-            )
+            obs = Observation(source="railway", timestamp=datetime.now(UTC), data={"count": i})
             wm.update(obs)
 
         recent = wm.get_recent_observations(limit=5)
@@ -389,7 +387,9 @@ class TestOODALoop:
     async def test_act_invalid_action(self, orchestrator):
         """Test ACT phase raises error for invalid action."""
         decision = Decision(
-            action="INVALID_ACTION", reasoning="Test", parameters={}  # type: ignore
+            action="INVALID_ACTION",
+            reasoning="Test",
+            parameters={},  # type: ignore
         )
 
         with pytest.raises(ValueError, match="Unsupported action type"):

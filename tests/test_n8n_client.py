@@ -74,7 +74,7 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_success(self, n8n_client):
         """Test successful API request."""
-        mock_response = AsyncMock()
+        mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"data": "test"}
         mock_response.raise_for_status = Mock()
@@ -91,7 +91,7 @@ class TestApiRequest:
     @pytest.mark.asyncio
     async def test_api_request_with_json_data(self, n8n_client):
         """Test API request with JSON data."""
-        mock_response = AsyncMock()
+        mock_response = Mock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"id": "wf-123"}
         mock_response.raise_for_status = Mock()
@@ -100,9 +100,7 @@ class TestApiRequest:
             mock_request = AsyncMock(return_value=mock_response)
             mock_client.return_value.__aenter__.return_value.request = mock_request
 
-            result = await n8n_client._api_request(
-                "POST", "/workflows", json_data={"name": "Test"}
-            )
+            result = await n8n_client._api_request("POST", "/workflows", json_data={"name": "Test"})
 
             assert result == {"id": "wf-123"}
             call_args = mock_request.call_args
@@ -270,9 +268,7 @@ class TestWorkflowManagement:
 
             await n8n_client.delete_workflow("wf-123")
 
-            mock_request.assert_called_once_with(
-                method="DELETE", endpoint="/workflows/wf-123"
-            )
+            mock_request.assert_called_once_with(method="DELETE", endpoint="/workflows/wf-123")
 
     @pytest.mark.asyncio
     async def test_activate_workflow(self, n8n_client):
@@ -350,9 +346,7 @@ class TestWorkflowExecution:
 
             assert result["finished"] is True
             assert result["status"] == "success"
-            mock_request.assert_called_once_with(
-                method="GET", endpoint="/executions/exec-123"
-            )
+            mock_request.assert_called_once_with(method="GET", endpoint="/executions/exec-123")
 
     @pytest.mark.asyncio
     async def test_get_recent_executions(self, n8n_client):

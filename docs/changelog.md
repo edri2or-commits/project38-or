@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Test Suite Async Mocking Issues** (2026-01-13) - Fixed async mocking in GitHub App and n8n client tests
+  - Changed `AsyncMock()` to `Mock()` for `httpx.Response.json()` (synchronous method)
+  - Fixed 7 failing tests in `test_github_app_client.py`
+  - Fixed 2 failing tests in `test_n8n_client.py`
+  - Added `pytest-mock` dependency
+  - Achieved 100% test success rate (291/291 passing)
+- **Code Formatting** (2026-01-13) - Applied ruff format to all Phase 2 & 3 source files
+  - Formatted `src/github_app_client.py`, `src/n8n_client.py`, `src/orchestrator.py`, `src/state_machine.py`
+  - Formatted test files to pass CI Ruff format check
+  - All files now comply with project style guidelines
+
 ### Added
 - **Main Orchestrator with OODA Loop** (2026-01-13) - Complete autonomous deployment orchestration coordinating Railway, GitHub, and n8n
   - `src/orchestrator.py` (695 lines) - Production-ready MainOrchestrator class implementing OODA Loop pattern
