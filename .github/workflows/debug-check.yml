@@ -1,0 +1,57 @@
+name: Debug Routes Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  debug:
+    name: Check Debug Routes Endpoint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test /debug/routes
+        id: debug
+        run: |
+          echo "🔍 Testing /debug/routes endpoint..."
+
+          RESPONSE=$(curl -s https://web-production-47ff.up.railway.app/debug/routes)
+
+          echo "Response:"
+          echo "$RESPONSE" | jq .
+
+          # Check if we got valid JSON
+          if echo "$RESPONSE" | jq -e . >/dev/null 2>&1; then
+            echo "✅ Valid JSON response"
+
+            # Extract route count
+            ROUTE_COUNT=$(echo "$RESPONSE" | jq -r '.total_routes // 0')
+            echo "Total routes: $ROUTE_COUNT"
+
+            # Check if /health is registered
+            HEALTH_ROUTE=$(echo "$RESPONSE" | jq -r '.routes[] | select(.path == "/health") | .path')
+
+            if [ -n "$HEALTH_ROUTE" ]; then
+              echo "✅ /health route IS registered"
+            else
+              echo "❌ /health route NOT registered"
+            fi
+
+            # List all routes
+            echo ""
+            echo "All routes:"
+            echo "$RESPONSE" | jq -r '.routes[] | "\(.methods[]) \(.path)"'
+
+          else
+            echo "❌ Invalid JSON response or endpoint not accessible"
+            exit 1
+          fi
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## 🔍 Debug Routes Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Endpoint: https://web-production-47ff.up.railway.app/debug/routes" >> $GITHUB_STEP_SUMMARY
