@@ -379,7 +379,7 @@ class GitHubAppClient:
         labels: list[str] | None = None,
         assignees: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Create a GitHub issue.
+        r"""Create a GitHub issue.
 
         Use Case: Agent creates bug report when deployment fails.
 
@@ -495,7 +495,7 @@ class GitHubAppClient:
         head: str,
         base: str = "main",
     ) -> dict[str, Any]:
-        """Create a pull request.
+        r"""Create a pull request.
 
         Use Case: Agent creates PR for autonomous code changes (future capability).
 
