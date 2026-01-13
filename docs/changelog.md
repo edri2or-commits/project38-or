@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR Update Protocol** (2026-01-13) - Surgical alignment mechanism for keeping Architecture Decision Records synchronized with implementation
+  - Systematic 5-step checklist for ADR updates after major feature completion
+  - Update Log section in ADRs to track implementation timeline with evidence (PR numbers, file sizes, test counts)
+  - Protocol documented in CLAUDE.md for repeatability
+  - ADR-003 updated with Phase 2.1 completion status (Railway Client)
+  - Establishes pattern for continuous ADR-implementation alignment (not one-time updates)
 - **Railway GraphQL API Client** (2026-01-13) - Complete async client for autonomous Railway deployment management
   - `src/railway_client.py` (650+ lines) - Production-ready RailwayClient class
   - `tests/test_railway_client.py` (850+ lines) - 30+ comprehensive tests with 100% coverage
@@ -75,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **File**: `src/api/database.py` line 81
 
 ### Changed
+- **Code Formatting** (2026-01-13) - Applied ruff format to Railway Client files for consistent code style
+  - Reformatted `src/railway_client.py` and `tests/test_railway_client.py`
+  - 19 insertions, 53 deletions (whitespace/formatting only, no logic changes)
+  - Fixes CI lint workflow format check
 - **Custom Domain Migration** (2026-01-13) - Migrated from Railway subdomain to custom domain
   - **Previous**: `https://web-production-47ff.up.railway.app`
   - **Current**: `https://or-infra.com`

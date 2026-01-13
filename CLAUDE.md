@@ -77,9 +77,28 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 When making changes:
 - Update Layer 4 (code/docs)
 - Create ADR if architectural decision (Layer 2)
+- Update existing ADR if implementing a decision (see ADR Update Protocol below)
 - Update JOURNEY.md if major milestone (Layer 3)
 - Update CLAUDE.md if structure changed (Layer 1)
 - Always update docs/changelog.md
+```
+
+**ADR Update Protocol** (Surgical Alignment):
+```
+When completing an ADR-tracked task:
+1. Locate the relevant ADR in docs/decisions/
+2. Update checkbox: - [ ] → - [x] with completion date and PR numbers
+3. Update Status header if phase complete
+4. Add entry to Update Log section (bottom of ADR)
+5. Commit with message: "docs(adr): update ADR-NNN with [feature] completion"
+
+Example:
+- ADR-003 line 111: Railway Client implementation
+  Before: - [ ] src/railway_client.py
+  After:  - [x] src/railway_client.py (✅ Completed 2026-01-13, PRs #81, #82)
+
+Evidence required: file existence, PR numbers, test counts, line counts
+Frequency: Every major feature completion (not every commit)
 ```
 
 ### Documentation Statistics

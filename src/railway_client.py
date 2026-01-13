@@ -220,9 +220,7 @@ class RailwayClient:
     # DEPLOYMENT OPERATIONS
     # =========================================================================
 
-    async def trigger_deployment(
-        self, environment_id: str, service_id: str
-    ) -> str:
+    async def trigger_deployment(self, environment_id: str, service_id: str) -> str:
         """Trigger a new deployment.
 
         Use Case: Agent detects new commit on main branch → trigger deployment.
@@ -370,8 +368,7 @@ class RailwayClient:
         new_deployment_id = result["serviceInstanceRedeploy"]
 
         logger.info(
-            f"Rolled back to deployment: {deployment_id}, "
-            f"new deployment: {new_deployment_id}"
+            f"Rolled back to deployment: {deployment_id}, new deployment: {new_deployment_id}"
         )
         return new_deployment_id
 
@@ -432,9 +429,7 @@ class RailwayClient:
     # MONITORING & LOGS
     # =========================================================================
 
-    async def get_build_logs(
-        self, deployment_id: str, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def get_build_logs(self, deployment_id: str, limit: int = 100) -> list[dict[str, Any]]:
         """Retrieve build logs for debugging.
 
         Use Case: Deployment FAILED → agent reads logs to identify error.
@@ -467,14 +462,10 @@ class RailwayClient:
         }
         """
 
-        result = await self._execute_graphql(
-            query, {"deploymentId": deployment_id, "limit": limit}
-        )
+        result = await self._execute_graphql(query, {"deploymentId": deployment_id, "limit": limit})
         return result["buildLogs"]["lines"]
 
-    async def get_runtime_logs(
-        self, deployment_id: str, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    async def get_runtime_logs(self, deployment_id: str, limit: int = 100) -> list[dict[str, Any]]:
         """Retrieve runtime logs (stdout/stderr).
 
         Use Case: Deployment CRASHED → agent reads logs to identify exception.
@@ -503,14 +494,10 @@ class RailwayClient:
         }
         """
 
-        result = await self._execute_graphql(
-            query, {"deploymentId": deployment_id, "limit": limit}
-        )
+        result = await self._execute_graphql(query, {"deploymentId": deployment_id, "limit": limit})
         return result["runtimeLogs"]["lines"]
 
-    async def get_deployment_metrics(
-        self, deployment_id: str
-    ) -> dict[str, Any]:
+    async def get_deployment_metrics(self, deployment_id: str) -> dict[str, Any]:
         """Get resource utilization metrics.
 
         Use Case: Agent detects performance degradation → scales resources.
@@ -600,17 +587,14 @@ class RailwayClient:
             raise ValueError(f"Unknown deployment status: {status}")
 
         raise TimeoutError(
-            f"Deployment {deployment_id} did not stabilize "
-            f"within {timeout_seconds}s"
+            f"Deployment {deployment_id} did not stabilize within {timeout_seconds}s"
         )
 
     # =========================================================================
     # SERVICE MANAGEMENT
     # =========================================================================
 
-    async def list_services(
-        self, project_id: str, environment_id: str
-    ) -> list[dict[str, Any]]:
+    async def list_services(self, project_id: str, environment_id: str) -> list[dict[str, Any]]:
         """List all services in a project environment.
 
         Args:
@@ -690,9 +674,7 @@ class RailwayClient:
         service = result["service"]
 
         # Flatten deployments
-        service["deployments"] = [
-            edge["node"] for edge in service["deployments"]["edges"]
-        ]
+        service["deployments"] = [edge["node"] for edge in service["deployments"]["edges"]]
 
         return service
 
