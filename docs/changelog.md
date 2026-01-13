@@ -7,16 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Documentation Statistics Accuracy** (2026-01-13) - Updated file size values to match actual measurements
+  - CLAUDE.md: 81KB → 44KB (actual size)
+  - Layer 2 (decisions/): 23KB → 21KB
+  - Layer 3 (JOURNEY.md): 18KB → 16KB
+  - Layer 4a (integrations/): 203KB → 199KB
+  - Total: 533KB → 488KB (100% accurate)
+  - Updated in: CLAUDE.md (lines 89-94), JOURNEY.md (lines 315-320, 370, 437), changelog.md (line 19)
+  - Verification: `du -b` command measurements
+  - [Truth Protocol] requirement for 100% accuracy compliance
+
 ### Added
 - **4-Layer Context Architecture** (2026-01-13) - Industry-standard documentation structure for AI agents and knowledge management
-  - **Layer 1: Quick Context** - `CLAUDE.md` (81KB) with new Context Architecture section
+  - **Layer 1: Quick Context** - `CLAUDE.md` (44KB) with new Context Architecture section
   - **Layer 2: Decision Records** - `docs/decisions/` with 3 ADRs following AWS/Azure/Google Cloud standard:
     - `ADR-001-research-synthesis-approach.md` (8.5KB) - Why dual documentation strategy exists
     - `ADR-002-dual-documentation-strategy.md` (9.2KB) - The 4-layer architecture design
     - `ADR-003-railway-autonomous-control.md` (9.8KB) - Autonomous Railway management approach
-  - **Layer 3: Journey Documentation** - `docs/JOURNEY.md` (18KB) - Chronological project narrative from 2026-01-11 to present
+  - **Layer 3: Journey Documentation** - `docs/JOURNEY.md` (16KB) - Chronological project narrative from 2026-01-11 to present
   - **Layer 4: Technical Artifacts** - `docs/integrations/` + `docs/autonomous/` (already existed)
-  - **Total documentation**: 533KB across 18 files (was 414KB)
+  - **Total documentation**: 488KB across 18 files (was 414KB)
   - **Standards followed**: [Context Engineering 2026](https://codeconductor.ai/blog/context-engineering/), [AWS ADR Process](https://docs.aws.amazon.com/prescriptive-guidance/latest/architectural-decision-records/adr-process.html)
   - **Problem solved**: "Context failures are #1 cause of agent failures" - new AI sessions now have complete context
   - **Updated**: CLAUDE.md File Structure section (lines 299-327) to include decisions/, JOURNEY.md with Layer annotations

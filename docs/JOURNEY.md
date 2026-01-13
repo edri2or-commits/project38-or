@@ -312,12 +312,12 @@ User manually created Railway project through Railway dashboard:
 
 | Layer | Location | Files | Size | Purpose |
 |-------|----------|-------|------|---------|
-| 1 | CLAUDE.md | 1 | 81KB | Quick context |
-| 2 | docs/decisions/ | 3 ADRs | 23KB | Decision records |
-| 3 | docs/JOURNEY.md | 1 | 18KB | Narrative timeline |
-| 4a | docs/integrations/ | 5 | 203KB | Original research |
+| 1 | CLAUDE.md | 1 | 44KB | Quick context |
+| 2 | docs/decisions/ | 3 ADRs | 21KB | Decision records |
+| 3 | docs/JOURNEY.md | 1 | 16KB | Narrative timeline |
+| 4a | docs/integrations/ | 5 | 199KB | Original research |
 | 4b | docs/autonomous/ | 8 | 208KB | Hybrid synthesis |
-| **Total** | | **18 files** | **533KB** | Full context |
+| **Total** | | **18 files** | **488KB** | Full context |
 
 ### Next Steps
 
@@ -367,7 +367,7 @@ User manually created Railway project through Railway dashboard:
 1. **Cloudflare Rate Limiting**: Railway GraphQL blocked requests without query params - discovered workaround
 2. **Dual Research Streams**: User theoretical + AI practical → solved via hybrid synthesis
 3. **Context Preservation**: New AI sessions lost history → solved via 4-layer architecture
-4. **Documentation Volume**: 414KB → 533KB after context layers (manageable with clear structure)
+4. **Documentation Volume**: 414KB → 488KB after context layers (manageable with clear structure)
 
 ---
 
@@ -434,7 +434,7 @@ This journey demonstrates that **documentation is not overhead - it's infrastruc
 The autonomous system isn't built yet, but the **foundation is solid**. When implementation begins (Day 1 of roadmap), we'll have:
 - Clear architectural vision (OODA Loop + Supervisor-Worker)
 - Proven infrastructure (Railway deployed, secrets managed)
-- Complete documentation (533KB across 18 files)
+- Complete documentation (488KB across 18 files)
 - Decision history (3 ADRs)
 - Narrative context (this JOURNEY.md)
 

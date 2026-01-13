@@ -86,12 +86,12 @@ When making changes:
 
 | Layer | Files | Size | Purpose |
 |-------|-------|------|---------|
-| Layer 1 (CLAUDE.md) | 1 | 81KB | Quick context |
-| Layer 2 (decisions/) | 3 ADRs | 23KB | Decision records |
-| Layer 3 (JOURNEY.md) | 1 | 18KB | Narrative timeline |
-| Layer 4a (integrations/) | 5 | 203KB | Practical research |
+| Layer 1 (CLAUDE.md) | 1 | 44KB | Quick context |
+| Layer 2 (decisions/) | 3 ADRs | 21KB | Decision records |
+| Layer 3 (JOURNEY.md) | 1 | 16KB | Narrative timeline |
+| Layer 4a (integrations/) | 5 | 199KB | Practical research |
 | Layer 4b (autonomous/) | 8 | 208KB | Theory + code synthesis |
-| **Total** | **18** | **533KB** | Complete context |
+| **Total** | **18** | **488KB** | Complete context |
 
 ### Industry Standards Referenced
 
