@@ -27,18 +27,18 @@ Example:
     >>> print(f"Final status: {status}")
 """
 
-import time
 import asyncio
 import logging
-from typing import Optional, Dict, Any, List
+import time
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from tenacity import (
     retry,
-    wait_exponential,
-    stop_after_attempt,
     retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
 )
 
 logger = logging.getLogger(__name__)
@@ -94,10 +94,10 @@ class DeploymentStatus:
 
     id: str
     status: str
-    static_url: Optional[str]
+    static_url: str | None
     created_at: str
     updated_at: str
-    meta: Optional[Dict[str, Any]] = None
+    meta: dict[str, Any] | None = None
 
 
 # =============================================================================
@@ -153,8 +153,8 @@ class RailwayClient:
         reraise=True,
     )
     async def _execute_graphql(
-        self, query: str, variables: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, query: str, variables: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Execute a GraphQL query with retry logic.
 
         Retry strategy:
@@ -210,11 +210,11 @@ class RailwayClient:
 
             except httpx.TimeoutException as e:
                 logger.error(f"Request timed out: {e}")
-                raise RailwayAPIError(f"Request timed out after 30s: {e}")
+                raise RailwayAPIError(f"Request timed out after 30s: {e}") from e
 
             except httpx.HTTPError as e:
                 logger.error(f"HTTP error: {e}")
-                raise RailwayAPIError(f"HTTP error: {e}")
+                raise RailwayAPIError(f"HTTP error: {e}") from e
 
     # =========================================================================
     # DEPLOYMENT OPERATIONS
@@ -377,7 +377,7 @@ class RailwayClient:
 
     async def get_last_active_deployment(
         self, project_id: str, environment_id: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get the last successful (ACTIVE) deployment.
 
         Use Case: Find stable version to rollback to.
@@ -434,7 +434,7 @@ class RailwayClient:
 
     async def get_build_logs(
         self, deployment_id: str, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve build logs for debugging.
 
         Use Case: Deployment FAILED → agent reads logs to identify error.
@@ -474,7 +474,7 @@ class RailwayClient:
 
     async def get_runtime_logs(
         self, deployment_id: str, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve runtime logs (stdout/stderr).
 
         Use Case: Deployment CRASHED → agent reads logs to identify exception.
@@ -510,7 +510,7 @@ class RailwayClient:
 
     async def get_deployment_metrics(
         self, deployment_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get resource utilization metrics.
 
         Use Case: Agent detects performance degradation → scales resources.
@@ -610,7 +610,7 @@ class RailwayClient:
 
     async def list_services(
         self, project_id: str, environment_id: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """List all services in a project environment.
 
         Args:
@@ -652,7 +652,7 @@ class RailwayClient:
 
         return [edge["node"] for edge in edges]
 
-    async def get_service_details(self, service_id: str) -> Dict[str, Any]:
+    async def get_service_details(self, service_id: str) -> dict[str, Any]:
         """Get detailed information about a service.
 
         Args:
