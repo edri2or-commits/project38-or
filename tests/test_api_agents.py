@@ -107,6 +107,7 @@ class TestCreateAgent:
         # When refresh is called, populate the agent with an ID
         async def mock_refresh(obj):
             obj.id = 1
+
         mock_db_session.refresh.side_effect = mock_refresh
 
         # Create agent

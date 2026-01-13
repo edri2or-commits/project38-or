@@ -337,9 +337,7 @@ async def get_agent(
     logger.info("Getting agent %d", agent_id)
 
     # Query database
-    result = await session.execute(
-        select(Agent).where(Agent.id == agent_id)
-    )
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
     agent = result.scalar_one_or_none()
 
     if not agent:
@@ -391,9 +389,7 @@ async def update_agent(
     logger.info("Updating agent %d", agent_id)
 
     # Query database
-    result = await session.execute(
-        select(Agent).where(Agent.id == agent_id)
-    )
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
     agent = result.scalar_one_or_none()
 
     if not agent:
@@ -455,9 +451,7 @@ async def delete_agent(
     logger.info("Deleting agent %d", agent_id)
 
     # Query database
-    result = await session.execute(
-        select(Agent).where(Agent.id == agent_id)
-    )
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
     agent = result.scalar_one_or_none()
 
     if not agent:
