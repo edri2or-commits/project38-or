@@ -611,10 +611,10 @@ Railway uses **Bootstrap Key Pattern** (documented in railway-deployment-guide.m
 
 **Solution:**
 1. **preflight-check skill** - Runs validation locally before PR creation (< 30 seconds)
-2. **auto-merge.yml workflow** - Runs same checks on GitHub + auto-merges if pass
+2. ~~**auto-merge.yml workflow**~~ - *(Removed 2026-01-13 due to GitHub Actions token limitations, see ADR-004)*
 
 **Completed Files:**
-- `.github/workflows/auto-merge.yml` - Automated PR validation and merge (225 lines)
+- ~~`.github/workflows/auto-merge.yml`~~ - *(Removed after 3 failed attempts to fix permission/timing issues)*
 - `.claude/skills/preflight-check/SKILL.md` - Pre-PR validation skill (379 lines)
 
 **Features:**
@@ -625,15 +625,15 @@ Railway uses **Bootstrap Key Pattern** (documented in railway-deployment-guide.m
   - 📚 Docs: Changelog + docstring validation
 - **Redundant Verification:**
   - Local (preflight): Fast feedback, no waiting
-  - GitHub (auto-merge): Final security gate
-- **Smart Auto-Merge:**
-  - Only for `claude/` branches (safety)
-  - Squash merge + auto-delete branch
-  - Failure notifications with fix guidance
-- **Zero Manual Intervention:**
-  - < 1 minute from "create PR" to merged
-  - No reviewer approval needed
-  - No CI wait time (preflight catches issues early)
+  - GitHub (CI): Final security gate, public audit trail
+- **Manual Merge Workflow:**
+  - PR created after preflight passes
+  - CI validates again (test.yml, lint.yml, docs-check.yml)
+  - Manual 1-click merge (< 10 seconds)
+- **Minimal Manual Intervention:**
+  - < 1 minute from "create PR" to merged (including CI time)
+  - One-click merge after CI passes
+  - Preflight catches issues early (saves CI time)
 
 **Workflow:**
 ```
@@ -643,9 +643,9 @@ preflight-check skill (< 30 sec)
     ↓
 All pass? → Create PR
     ↓
-auto-merge.yml (GitHub CI)
+GitHub CI (test.yml, lint.yml, docs-check.yml)
     ↓
-Verify again → Auto-merge
+Verify again → Manual merge (1-click)
     ↓
 Done! (total: < 1 minute)
 ```
@@ -655,7 +655,7 @@ Done! (total: < 1 minute)
 - ✅ All tests pass (123/123)
 - ✅ Lint clean (ruff)
 - ✅ Documentation complete (changelog + docstrings)
-- ✅ Only `claude/` branches (never auto-merge user branches)
+- ✅ Only `claude/` branches (user reviews their own branches)
 
 **Integration with Skills:**
 - Works with all existing skills (test-runner, security-checker, doc-updater)
@@ -663,9 +663,9 @@ Done! (total: < 1 minute)
 - pr-helper automatically runs preflight before creating PR
 
 **Success Metrics:**
-- ✅ Zero manual approvals
-- ✅ < 1 minute PR → merge time
-- ✅ 100% of preflight passes → auto-merge success
+- ✅ Minimal manual intervention (1-click merge only)
+- ✅ < 1 minute PR → merge time (including CI)
+- ✅ 100% of preflight passes → CI success
 - ✅ Zero failed PRs (preflight catches issues early)
 
 ---

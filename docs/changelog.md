@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Documentation Alignment** (2026-01-13) - Fixed all inconsistencies from auto-merge removal
+  - Updated documentation sizes in CLAUDE.md: 48KB (was 44KB), total 494KB (was 488KB)
+  - Removed all active references to deleted `auto-merge.yml` workflow
+  - Updated preflight-check skill documentation to reflect manual merge workflow
+  - Marked historical references as removed/deprecated with strikethrough
+  - Files updated: CLAUDE.md, .claude/skills/README.md, .claude/skills/preflight-check/SKILL.md, docs/BOOTSTRAP_PLAN.md, docs/changelog.md, docs/integrations/implementation-roadmap.md, README.md
+  - Verification: 157/157 tests passing, all auto-merge references properly handled
+  - **Result**: 100% system alignment achieved - documentation accurately reflects current state
+
 ### Changed
 - **Removed Auto-Merge Workflow** (2026-01-13) - Simplified CI/CD by removing problematic auto-merge automation
   - **Issues identified during PR #61, #62, #63**:
@@ -239,8 +249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLAUDE.md Documentation Alignment** (2026-01-12) - Fixed documentation inconsistencies
   - Added `--import-mode=importlib` to pytest configuration documentation (critical for Python 3.11+ CI)
   - Documented `pull_request` triggers for CI workflows (`test.yml`, `lint.yml`, `docs-check.yml`, `docs-validation.yml`)
-  - Added missing workflows to File Structure: `auto-merge.yml`, `docs-validation.yml`, `test-wif.yml`, `deploy-railway.yml`
-  - Documented `auto-merge.yml` workflow that automatically merges PRs after CI passes
+  - Added missing workflows to File Structure: ~~`auto-merge.yml`~~ (later removed), `docs-validation.yml`, `test-wif.yml`, `deploy-railway.yml`
+  - ~~Documented `auto-merge.yml` workflow~~ (workflow removed 2026-01-13, see "Removed Auto-Merge Workflow" entry above)
   - Clarified that workflows run automatically on PRs to `main`, not just manual dispatch
 
 ### Fixed
@@ -289,8 +299,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Minimized README from 253→106 lines (58% reduction)
   - Updated BOOTSTRAP_PLAN with hybrid approach (ADR + GitHub Projects)
   - Based on Research Paper #10
-- **Auto-Merge Pipeline** - Automated PR validation and merge workflow (2026-01-12)
-  - `.github/workflows/auto-merge.yml` - Automatic PR validation and merge (225 lines)
+- **Auto-Merge Pipeline** - *(Removed 2026-01-13, see above)* - Historical record of attempted automation (2026-01-12)
+  - ~~`.github/workflows/auto-merge.yml`~~ - Automatic PR validation and merge (225 lines, removed after 3 failed attempts)
   - `.claude/skills/preflight-check/SKILL.md` - Pre-PR validation skill (379 lines)
   - **Auto-merge workflow features:**
     - Runs 4 parallel checks: Security, Tests, Lint, Documentation
@@ -306,7 +316,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Fast feedback loop: No waiting for CI
     - Integration with pr-helper: Automatic preflight before PR creation
     - Actionable error messages with fix guidance
-    - Zero PR rejections: Ensures auto-merge will succeed
+    - Zero PR rejections: Ensures CI will succeed
   - **Benefits:**
     - < 1 minute from "create PR" to merge (if all checks pass)
     - No manual approval required for claude/ branches

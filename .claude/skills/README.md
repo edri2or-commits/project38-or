@@ -367,7 +367,7 @@ Developer ready to work
 
 ### 8. preflight-check (v1.0.0)
 
-**Purpose:** Run all validation checks before creating PR to ensure auto-merge will succeed
+**Purpose:** Run all validation checks before creating PR to ensure CI will succeed
 
 **Triggers:**
 - Keywords: `preflight`, `create pr`, `ready to merge`, `open pull request`
@@ -397,20 +397,20 @@ Developer ready to work
 ```
 preflight-check (local) → All pass? → Create PR
     ↓
-auto-merge.yml (GitHub) → Verify again → Auto-merge
+GitHub CI (test.yml, lint.yml, docs-check.yml) → Validate again
     ↓
-Merged + branch deleted (< 1 minute)
+Manual merge (1-click, < 10 seconds)
 ```
 
 **Benefits:**
 - ✅ Zero PR rejections due to validation failures
 - ✅ < 1 minute from "create PR" to merge
-- ✅ 100% of preflight passes result in auto-merge success
+- ✅ 100% of preflight passes result in CI success
 - ✅ Fast execution (< 30 seconds)
 
 **Why run checks twice?**
 - **Local (preflight):** Fast feedback, no CI wait
-- **GitHub (auto-merge):** Security verification, final gate
+- **GitHub (CI):** Security verification, final gate, public audit trail
 
 ### 9. performance-monitor (v1.0.0)
 

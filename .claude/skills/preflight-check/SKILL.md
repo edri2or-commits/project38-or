@@ -1,7 +1,7 @@
 # Preflight Check Skill
 
 **Version:** 1.0.0
-**Purpose:** Run all validation checks before creating PR to ensure auto-merge will succeed
+**Purpose:** Run all validation checks before creating PR to ensure CI will succeed
 
 ---
 
@@ -18,7 +18,7 @@ Code complete
     ↓
 preflight-check: Run all validations ✅
     ↓
-If all pass → Create PR (auto-merge enabled)
+If all pass → Create PR (CI passing)
 If any fail → Report issues + fix guidance
 ```
 
@@ -26,7 +26,7 @@ If any fail → Report issues + fix guidance
 
 ## What It Does
 
-Runs 4 critical checks in parallel (same as auto-merge.yml):
+Runs 4 critical checks in parallel (same as GitHub CI workflows):
 
 1. **🔒 Security Check**
    - Scans git diff for secrets patterns
@@ -60,10 +60,10 @@ Runs 4 critical checks in parallel (same as auto-merge.yml):
 📚 Docs: ✅ Changelog updated, docstrings valid
 
 ✅ PREFLIGHT PASSED
-Ready to create PR with auto-merge
+Ready to create PR
 ```
 
-**Action:** Create PR immediately - auto-merge will succeed
+**Action:** Create PR immediately - CI will succeed
 
 ---
 
@@ -207,7 +207,7 @@ def main():
 
     if all_passed:
         print("✅ PREFLIGHT PASSED")
-        print("\nReady to create PR with auto-merge enabled.")
+        print("\nReady to create PR with CI passing.")
         return 0
     else:
         print("❌ PREFLIGHT FAILED")
@@ -226,7 +226,7 @@ if __name__ == "__main__":
 ```bash
 User: "I'm ready to create a PR"
 
-Agent: "Let me run preflight checks first to ensure auto-merge will succeed."
+Agent: "Let me run preflight checks first to ensure CI will succeed."
 [Runs preflight-check skill]
 
 Output:
@@ -237,10 +237,10 @@ Output:
 
 ✅ PREFLIGHT PASSED
 
-Agent: "All checks passed! Creating PR with auto-merge enabled..."
+Agent: "All checks passed! Creating PR with CI passing..."
 [Creates PR using pr-helper skill]
 
-Result: PR created, auto-merge workflow approves and merges automatically
+Result: PR created, GitHub CI approves and merges automatically
 ```
 
 ---
@@ -288,7 +288,7 @@ preflight-check skill runs locally
     ↓
 If pass → Create PR
     ↓
-auto-merge.yml workflow runs on GitHub
+GitHub CI workflows runs on GitHub
     ↓
 Same 4 checks (redundant verification)
     ↓
@@ -299,7 +299,7 @@ PR merged + branch deleted
 
 **Why run checks twice?**
 - **Local (preflight):** Fast feedback, no CI wait time
-- **GitHub (auto-merge):** Verification, security gate
+- **GitHub (CI):** Verification, security gate
 
 ---
 
@@ -319,7 +319,7 @@ PR merged + branch deleted
 
 - ✅ Zero PR rejections due to validation failures
 - ✅ < 1 minute from "create PR" to merge
-- ✅ 100% of preflight passes result in auto-merge success
+- ✅ 100% of preflight passes result in CI success
 - ✅ Clear, actionable error messages
 
 ---
@@ -374,6 +374,6 @@ RUN_ALL_CHECKS = True
 ## Notes
 
 - This skill is the **final gate** before PR creation
-- Ensures CI auto-merge will succeed on first try
+- Ensures CI CI will succeed on first try
 - Reduces CI wait time (no failed builds)
 - Provides immediate feedback vs. waiting for GitHub Actions
