@@ -293,8 +293,8 @@ Two research efforts provided foundation:
 ## References
 
 - [Railway Project Dashboard](https://railway.app/project/95ec21cc-9ada-41c5-8485-12f9a00e0116)
-- [Implementation Roadmap](../integrations/implementation-roadmap.md)
-- [Railway Integration Guide](../autonomous/02-railway-integration-hybrid.md)
-- [Operational Scenarios](../autonomous/07-operational-scenarios-hybrid.md)
-- [BOOTSTRAP_PLAN.md](../BOOTSTRAP_PLAN.md)
+- [Implementation Roadmap](/integrations/implementation-roadmap.md)
+- [Railway Integration Guide](/autonomous/02-railway-integration-hybrid.md)
+- [Operational Scenarios](/autonomous/07-operational-scenarios-hybrid.md)
+- [BOOTSTRAP_PLAN.md](/BOOTSTRAP_PLAN/)
 - CLAUDE.md lines 1058-1134 (Railway Deployment section)
