@@ -29,7 +29,7 @@ The question arose: How do we document both perspectives without creating redund
 
 **We chose a dual-layer documentation strategy with explicit synthesis**:
 
-1. **Preserve original research** (`docs/integrations/`):
+1. **Preserve original research** (`docs../integrations/`):
    - Railway GraphQL API guide (33KB)
    - GitHub App setup guide (39KB)
    - n8n integration patterns (39KB)
@@ -37,7 +37,7 @@ The question arose: How do we document both perspectives without creating redund
    - 7-day implementation roadmap (52KB)
    - **Purpose**: Practical reference, API details, code examples
 
-2. **Create hybrid synthesis** (`docs/autonomous/`):
+2. **Create hybrid synthesis** (`docs../autonomous/`):
    - 8 documents (208KB) merging OODA Loop theory with production code
    - Each document contains both philosophical foundation AND working implementations
    - **Purpose**: Holistic understanding, onboarding, architectural decisions

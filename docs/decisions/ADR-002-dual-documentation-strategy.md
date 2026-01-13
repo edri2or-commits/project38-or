@@ -151,7 +151,7 @@ docs/
 1. Read CLAUDE.md (Layer 1) → Get current state
 2. Check docs/decisions/ (Layer 2) → Understand WHY
 3. Reference docs/JOURNEY.md (Layer 3) → Get timeline
-4. Deep dive docs/autonomous/ or docs/integrations/ (Layer 4) → Technical details
+4. Deep dive docs../autonomous/ or docs../integrations/ (Layer 4) → Technical details
 
 ### For Humans
 
@@ -159,7 +159,7 @@ docs/
 1. Start with docs/JOURNEY.md → Understand the story
 2. Read CLAUDE.md → Get quick reference
 3. Review ADRs in docs/decisions/ → Understand key decisions
-4. Explore docs/autonomous/ → Learn the system
+4. Explore docs../autonomous/ → Learn the system
 
 ### For Updates
 

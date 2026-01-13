@@ -359,4 +359,4 @@ The result: **faster recovery from failures, proactive optimization, and a drama
 
 ---
 
-**Next Document**: [System Architecture](01-system-architecture.md) - The Supervisor-Worker Pattern
+**Next Document**: [System Architecture](01-system-architecture-hybrid.md) - The Supervisor-Worker Pattern

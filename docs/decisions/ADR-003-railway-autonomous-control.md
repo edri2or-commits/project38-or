@@ -31,7 +31,7 @@ Railway deployment currently requires manual intervention:
 ### Research Context
 
 Two research efforts provided foundation:
-1. **Practical Research** (docs/integrations/railway-api-guide.md):
+1. **Practical Research** (docs../integrations/railway-api-guide.md):
    - Railway GraphQL API complete reference
    - Deployment lifecycle management
    - Critical discovery: Cloudflare workaround required (`?t={timestamp}` query param)
@@ -77,7 +77,7 @@ Two research efforts provided foundation:
 - AI agent provides guidance, human approves actions
 
 ### Phase 2: Supervised Autonomy (Implementation)
-**Timeline**: Following 7-day roadmap in docs/integrations/implementation-roadmap.md
+**Timeline**: Following 7-day roadmap in docs../integrations/implementation-roadmap.md
 **Capabilities**:
 - Railway deployment lifecycle management (trigger, monitor, rollback)
 - GitHub App integration for automated PR/issue handling
@@ -133,7 +133,7 @@ Two research efforts provided foundation:
 ✅ **Iterative Implementation**: 7-day roadmap provides clear path forward
 ✅ **Risk Mitigation**: Small steps, daily validation, rollback capability
 ✅ **Infrastructure-First**: Database/secrets/auth working before autonomous code
-✅ **Documentation-Driven**: Every implementation step ties back to docs/integrations/ and docs/autonomous/
+✅ **Documentation-Driven**: Every implementation step ties back to docs../integrations/ and docs../autonomous/
 
 ### Negative
 
@@ -227,9 +227,9 @@ Two research efforts provided foundation:
 
 ### Mitigation
 
-- Begin Day 1 implementation following roadmap (docs/integrations/implementation-roadmap.md)
+- Begin Day 1 implementation following roadmap (docs../integrations/implementation-roadmap.md)
 - Railway costs monitored via dashboard, alerts at $20/month threshold
-- Multi-region failover documented in docs/autonomous/05-resilience-patterns-hybrid.md
+- Multi-region failover documented in docs../autonomous/05-resilience-patterns-hybrid.md
 
 ---
 
@@ -293,8 +293,8 @@ Two research efforts provided foundation:
 ## References
 
 - [Railway Project Dashboard](https://railway.app/project/95ec21cc-9ada-41c5-8485-12f9a00e0116)
-- [Implementation Roadmap](/integrations/implementation-roadmap.md)
-- [Railway Integration Guide](/autonomous/02-railway-integration-hybrid.md)
-- [Operational Scenarios](/autonomous/07-operational-scenarios-hybrid.md)
-- [BOOTSTRAP_PLAN.md](/BOOTSTRAP_PLAN/)
+- [Implementation Roadmap](../integrations/implementation-roadmap.md)
+- [Railway Integration Guide](../autonomous/02-railway-integration-hybrid.md)
+- [Operational Scenarios](../autonomous/07-operational-scenarios-hybrid.md)
+- [BOOTSTRAP_PLAN.md](../BOOTSTRAP_PLAN.md)
 - CLAUDE.md lines 1058-1134 (Railway Deployment section)
