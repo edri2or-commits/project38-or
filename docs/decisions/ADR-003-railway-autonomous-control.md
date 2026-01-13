@@ -115,10 +115,12 @@ Two research efforts provided foundation:
 - [x] Unit tests for GitHub App client (✅ 30+ tests, 750 lines)
 - [x] Unit tests for n8n client (✅ 30+ tests, 448 lines)
 
-### Phase 3: Orchestration Layer (Days 4-5)
-- [ ] MainOrchestrator with OODA loop
-- [ ] Worker agents (Railway, GitHub, n8n)
-- [ ] State machine for deployment lifecycle
+### Phase 3: Orchestration Layer (Days 4-5) ✅ **COMPLETED** (2026-01-13)
+- [x] `src/orchestrator.py` - MainOrchestrator with OODA loop (✅ Completed 2026-01-13, PR pending)
+- [x] `src/state_machine.py` - Deployment lifecycle state machine (✅ Completed 2026-01-13, PR pending)
+- [x] Unit tests for orchestrator (✅ 25+ tests, 390 lines)
+- [x] Unit tests for state machine (✅ 25+ tests, 360 lines)
+- [x] API documentation (`docs/api/orchestrator.md`) (✅ 400+ lines)
 
 ### Phase 4: Production Deployment (Days 6-7)
 - [ ] Railway deployment
@@ -430,6 +432,77 @@ This section tracks implementation progress against the decision:
 - Changelog updated: `docs/changelog.md` n8n Client entry added
 
 **ADR Status Updated:** ☑️ Phase 2 complete (all 3 clients: Railway, GitHub, n8n) in ADR-003 line 110
+
+---
+
+### 2026-01-13: Phase 3 Complete - Orchestration Layer with OODA Loop
+
+**Completed:**
+- ✅ `src/orchestrator.py` (695 lines)
+  - MainOrchestrator class implementing complete OODA Loop (Observe-Orient-Decide-Act)
+  - Multi-source observation (Railway, GitHub, n8n simultaneous data collection)
+  - WorldModel for context-aware state management
+  - Policy engine decision making (6 action types: DEPLOY, ROLLBACK, CREATE_ISSUE, MERGE_PR, ALERT, EXECUTE_WORKFLOW)
+  - Event handlers (deployment events, failure recovery)
+  - Continuous operation mode (`run_continuous()`)
+- ✅ `src/state_machine.py` (430 lines)
+  - DeploymentStateMachine class for lifecycle management
+  - DeploymentStatus enum (PENDING, BUILDING, DEPLOYING, ACTIVE, FAILED, CRASHED, ROLLING_BACK, ROLLED_BACK, REMOVED)
+  - Transition validation (enforces valid state transitions)
+  - StateMachineManager for managing multiple deployments
+  - Complete history tracking with timestamps and reasons
+- ✅ `tests/test_orchestrator.py` (390 lines)
+  - 25+ comprehensive tests
+  - OODA loop phase tests (observe, orient, decide, act)
+  - Decision type tests (deploy, rollback, create_issue, merge_pr, alert)
+  - Event handler tests (deployment event, failure recovery)
+  - Complete cycle integration tests
+- ✅ `tests/test_state_machine.py` (360 lines)
+  - 25+ tests for state machine
+  - Transition validation tests
+  - State machine manager tests
+  - Complete deployment lifecycle integration tests
+- ✅ `docs/api/orchestrator.md` (400+ lines)
+  - Complete API documentation
+  - OODA loop method documentation
+  - Event handler documentation
+  - Integration examples with all 3 clients
+  - Production configuration guide
+
+**OODA Loop Implementation:**
+- **OBSERVE**: `observe()` - Collect data from Railway (services, deployments), GitHub (workflow runs, PRs), n8n (executions)
+- **ORIENT**: `orient()` - Analyze observations, build WorldModel, detect patterns and correlations
+- **DECIDE**: `decide()` - Policy engine makes decisions (rollback on failure, create issue on CI failure, merge PR when ready)
+- **ACT**: `act()` - Execute decisions through worker clients (Railway, GitHub, n8n)
+- **CYCLE**: `run_cycle()` - Complete OODA cycle, `run_continuous()` - Production mode with configurable interval
+
+**Autonomous Capabilities:**
+- Multi-source data fusion (3 simultaneous observations)
+- Context-aware decision making (temporal analysis, event correlation)
+- Automatic failure recovery (rollback + issue creation + alerting in parallel)
+- Priority-based action execution (1-10 priority scale)
+- Graceful degradation (continues if one source fails)
+
+**State Machine Features:**
+- 9 deployment states with validated transitions
+- Terminal states (ACTIVE, ROLLED_BACK, REMOVED)
+- Failure states (FAILED, CRASHED) trigger automatic rollback
+- Multiple deployment tracking via StateMachineManager
+- Complete audit trail with history tracking
+
+**Pull Requests:**
+- PR pending: Phase 3 complete (Orchestration Layer + State Machine) on branch `claude/read-claude-md-mPGrc`
+
+**Next Steps:**
+- Phase 4: Production Deployment (Days 6-7) - Railway deployment, monitoring & alerts, testing & validation
+
+**Evidence:**
+- Files exist: `ls -lh src/orchestrator.py src/state_machine.py tests/test_orchestrator.py tests/test_state_machine.py docs/api/orchestrator.md`
+- Line counts: 695 (orchestrator.py), 430 (state_machine.py), 390 (test_orchestrator.py), 360 (test_state_machine.py), 400+ (orchestrator.md)
+- Total Phase 3 code: 1,125 lines production code, 750 lines tests, 400+ lines documentation
+- Changelog updated: `docs/changelog.md` Phase 3 entry added with complete feature list
+
+**ADR Status Updated:** ☑️ Phase 3 complete (MainOrchestrator + State Machine) in ADR-003 line 118
 
 ---
 
