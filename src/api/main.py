@@ -82,6 +82,7 @@ async def debug_routes():
 
 if __name__ == "__main__":
     import logging
+
     import uvicorn
 
     # Logging already configured by setup_logging() above
