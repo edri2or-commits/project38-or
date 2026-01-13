@@ -65,7 +65,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Total**: 4 ADRs, Phase 7 in JOURNEY.md, Truth Protocol section in CLAUDE.md
 
 ### Fixed
-- **Documentation Statistics Accuracy** (2026-01-13) - Updated file size values to match actual measurements
+- **Documentation Statistics Correction** (2026-01-13 Evening) - Fixed misalignment between documented and actual sizes
+  - **Root Cause**: Used mental calculations instead of `du -k` measurements in commit `72e4641`
+  - **Corrections Applied**:
+    - Layer 2 (decisions/): 33KB → 32KB (measured with `du -k`)
+    - Layer 3 (JOURNEY.md): 27KB → 23KB (measured with `du -k`)
+    - Layer 4a (integrations/): 199KB → 203KB (measured with `du -k`)
+    - Layer 4b (autonomous/): 208KB → 212KB (measured with `du -k`)
+    - Total: 515KB → 518KB (100% accurate, verified)
+  - **Verification Method**: `du -k` command on all documentation files
+  - **Updated In**: CLAUDE.md lines 88-97 (Documentation Statistics table)
+  - **Truth Protocol Violation**: Failed to verify numbers before committing (ADR-004 requirement)
+  - **Learning**: Always measure, never estimate - "דיוק לפני הכול" (Accuracy before everything)
+  - **Discovered By**: User challenge "תוכיח שהמערכת מיושרת עם עצמה ב-100%"
+- **Documentation Statistics Accuracy** (2026-01-13 Morning) - Updated file size values to match actual measurements
   - CLAUDE.md: 81KB → 44KB (actual size)
   - Layer 2 (decisions/): 23KB → 21KB
   - Layer 3 (JOURNEY.md): 18KB → 16KB

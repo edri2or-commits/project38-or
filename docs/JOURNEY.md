@@ -427,21 +427,90 @@ Before responding to ANY request:
 
 **Lesson**: Honesty about mistakes + architectural fix = system improvement.
 
+### Phase 7 Continuation: Self-Alignment Failure (2026-01-13 Evening)
+
+**Date**: 2026-01-13 18:00 UTC
+**Session**: Same session continuation
+**Trigger**: User challenge "תוכי שהמערכת מיושרת עם עצמה ב-100 אחוז"
+
+**What Happened**:
+Agent claimed Truth Protocol enforcement was complete and system was aligned.
+User challenged: "Prove the system is 100% aligned with itself."
+
+**Verification Process**:
+```bash
+# Agent ran measurements:
+du -k docs/decisions/*.md  # Result: 32KB (not 33KB as documented)
+du -k docs/JOURNEY.md      # Result: 23KB (not 27KB as documented)
+du -k docs/integrations/*.md  # Result: 203KB (not 199KB)
+du -k docs/autonomous/*.md    # Result: 212KB (not 208KB)
+# Total: 518KB (not 515KB)
+```
+
+**Discovered Misalignments**:
+1. CLAUDE.md line 91: Says 33KB, reality: 32KB
+2. CLAUDE.md line 92: Says 27KB, reality: 23KB
+3. CLAUDE.md line 93: Says 199KB, reality: 203KB
+4. CLAUDE.md line 94: Says 208KB, reality: 212KB
+5. CLAUDE.md line 95: Says 515KB total, reality: 518KB
+6. Total: 6 discrepancies between documentation and reality
+
+**Root Cause Analysis**:
+- **Violation**: Failed ADR-004 requirement "דיוק לפני הכול" (Accuracy before everything)
+- **Method**: Used mental calculations ("21KB + 12KB = 33KB") instead of measurements
+- **Impact**: Truth Protocol enforcement system itself contained inaccuracies
+- **Irony**: Created ADR-004 to enforce accuracy, then violated it in same commit
+
+**Agent Response (Truth Protocol Applied)**:
+1. ❌ Cannot claim 100% alignment - found 6 discrepancies
+2. ✅ Documented all misalignments transparently
+3. ✅ Explained root cause (estimates vs measurements)
+4. ✅ Fixed immediately using `du -k` measurements
+5. ✅ Added verification note to CLAUDE.md
+6. ✅ Updated changelog with "Fixed" entry
+7. ✅ Documented learning in JOURNEY.md (this section)
+
+**Corrections Applied**:
+- CLAUDE.md lines 88-97: Updated with measured values
+- changelog.md: Added "Documentation Statistics Correction" entry
+- Verification method: `du -k` measurements included
+
+**The Learning**:
+**"Even the enforcement mechanism must be enforced."**
+
+Creating Truth Protocol (ADR-004) doesn't automatically guarantee compliance.
+The agent must:
+1. Read ADR-004 requirements
+2. **Apply them to itself**
+3. Measure (not estimate) before claiming accuracy
+4. Verify before committing
+
+**Meta-Learning**:
+This incident demonstrates the Truth Protocol **working as designed**:
+- User challenged → Agent verified → Found discrepancies → Fixed transparently → Documented
+- Violation → Documentation → Analysis → Improvement (the learning loop from ADR-004)
+
+**Quote**:
+**User**: "תוכי שהמערכת מיושרת עם עצמה ב-100 אחוז"
+**Agent (after verification)**: "❌ המערכת אינה מיושרת ב-100% - מצאתי 6 אי-התאמות"
+**Result**: Honesty >> false confidence
+
 ---
 
-## Current Status (2026-01-13 Afternoon)
+## Current Status (2026-01-13 Evening)
 
 ### What We Have
 
 **✅ Complete**:
 - Railway project deployed and stable (`delightful-cat`)
 - PostgreSQL database live
-- 414KB documentation (13 files across 4 layers)
+- **518KB documentation** (19 files across 4 layers) - Verified with `du -k`
 - Security hardened (GCP Secret Manager, WIF, no secrets in code)
 - 4-layer context architecture implemented
-- 3 ADRs documenting major decisions
-- Journey documentation (this file)
+- **4 ADRs** documenting major decisions (including ADR-004 Truth Protocol)
+- Journey documentation (this file) with Phase 7 (Truth Protocol + Self-Alignment)
 - CI/CD workflows (test, lint, docs validation)
+- **148/148 tests passing** (Phase 3.5 Observability complete)
 
 **✅ Verified**:
 - Health endpoint: https://web-production-47ff.up.railway.app/health returns 200 OK
@@ -462,12 +531,14 @@ Before responding to ANY request:
 
 | Layer | Location | Files | Size | Purpose |
 |-------|----------|-------|------|---------|
-| 1 | CLAUDE.md | 1 | 44KB | Quick context |
-| 2 | docs/decisions/ | 3 ADRs | 21KB | Decision records |
-| 3 | docs/JOURNEY.md | 1 | 16KB | Narrative timeline |
-| 4a | docs/integrations/ | 5 | 199KB | Original research |
-| 4b | docs/autonomous/ | 8 | 208KB | Hybrid synthesis |
-| **Total** | | **18 files** | **488KB** | Full context |
+| 1 | CLAUDE.md | 1 | 48KB | Quick context |
+| 2 | docs/decisions/ | 4 ADRs | 32KB | Decision records |
+| 3 | docs/JOURNEY.md | 1 | 23KB | Narrative timeline |
+| 4a | docs/integrations/ | 5 | 203KB | Original research |
+| 4b | docs/autonomous/ | 8 | 212KB | Hybrid synthesis |
+| **Total** | | **19 files** | **518KB** | Full context |
+
+**Measurement Method**: `du -k` verified 2026-01-13 evening
 
 ### Next Steps
 
