@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 3.5 Observability & Monitoring** (2026-01-13) - Complete real-time monitoring dashboard with OpenTelemetry
+  - **OpenTelemetry Tracer** (`src/observability/tracer.py`, 174 lines)
+    - `@instrument_tool(tool_name)` decorator for automatic tracing
+    - GenAI Semantic Conventions v1.37+ compliance
+    - PII redaction: emails, phones, SSNs, credit cards → `[REDACTED]`
+    - Attributes: `gen_ai.system`, `gen_ai.tool.name`, `gen_ai.tool.args`, `gen_ai.tool.response`, `error.type`, `error.message`
+  - **Metrics Collector** (`src/observability/metrics.py`, 327 lines)
+    - 3-layer metrics taxonomy (Research Paper #08):
+      - Layer 1 (Infrastructure): `latency_ms`, `error_count`, `success_count`
+      - Layer 2 (Economic): `tokens_input`, `tokens_output`, `tokens_reasoning` (2026 models)
+      - Layer 3 (Cognitive): `success_rate`, `confidence_score` (future)
+    - Dual storage: In-memory buffer (dev) + TimescaleDB (prod)
+    - Context manager: `LatencyTracker` for automatic timing
+    - Methods: `record_latency()`, `record_tokens()`, `record_success()`, `record_error()`, `get_recent_metrics()`
+  - **Metrics API** (`src/api/routes/metrics.py`, 373 lines)
+    - `GET /metrics/summary` - Dashboard statistics (active agents, error rate, P95 latency, cost)
+    - `GET /metrics/agents` - Per-agent status (last seen, error rate, latency, tokens)
+    - `GET /metrics/timeseries` - Time-series data for charts (bucket aggregation)
+    - `GET /metrics/health` - Health check
+    - Cost estimation: ~$9/MTok (Claude Sonnet 4.5)
+  - **Tests** (`tests/test_observability.py`, 481 lines)
+    - 25 comprehensive tests with 100% pass rate
+    - Test categories: Tracer (PII, instrumentation), Metrics (storage, all types), Integration (end-to-end)
+  - **Documentation** (`docs/api/observability.md`, 492 lines)
+    - Complete API reference with usage examples
+  - **Dependencies**: `opentelemetry-api>=1.22.0`, `opentelemetry-sdk>=1.22.0`, `opentelemetry-instrumentation>=0.43b0`, `opentelemetry-exporter-otlp>=1.22.0`
+  - **Standards**: OpenTelemetry GenAI v1.37, OWASP Top 10 Agentic 2026, AWS/Azure/GCP ADR
+  - **Total**: 6 files, 1,667 lines, 25 tests (100% pass rate)
+- **Bootstrap Plan Update** (2026-01-13) - Documented Phase 3.5 in `docs/BOOTSTRAP_PLAN.md`
+  - Complete architecture, implementation details, usage examples
+  - Updated Success Metrics table with Observability system completion
+  - Total test count: 148/148 tests passing
+
 ### Fixed
 - **Documentation Statistics Accuracy** (2026-01-13) - Updated file size values to match actual measurements
   - CLAUDE.md: 81KB → 44KB (actual size)

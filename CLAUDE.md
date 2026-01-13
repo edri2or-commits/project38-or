@@ -272,12 +272,16 @@ project38-or/
 │   │   ├── scheduler.py      # APScheduler + PostgreSQL locks
 │   │   ├── resources.py      # Resource monitoring & limits
 │   │   └── handoff.py        # State persistence between runs
-│   └── mcp/                  # MCP Tools (Phase 3.4)
+│   ├── mcp/                  # MCP Tools (Phase 3.4)
+│   │   ├── __init__.py
+│   │   ├── browser.py        # Playwright browser automation
+│   │   ├── filesystem.py     # Sandboxed file operations
+│   │   ├── notifications.py  # Telegram + n8n webhooks
+│   │   └── registry.py       # Tool access control & usage tracking
+│   └── observability/        # Observability & Monitoring (Phase 3.5)
 │       ├── __init__.py
-│       ├── browser.py        # Playwright browser automation
-│       ├── filesystem.py     # Sandboxed file operations
-│       ├── notifications.py  # Telegram + n8n webhooks
-│       └── registry.py       # Tool access control & usage tracking
+│       ├── tracer.py         # OpenTelemetry instrumentation (GenAI v1.37+)
+│       └── metrics.py        # MetricsCollector with 3-layer taxonomy
 ├── railway.toml               # Railway build & deploy configuration
 ├── Procfile                   # Process definition for Railway
 ├── .github/workflows/
@@ -294,6 +298,8 @@ project38-or/
 │   ├── test.yml              # PR testing (workflow_dispatch + PR)
 │   ├── test-wif.yml          # Test GCP WIF authentication (workflow_dispatch only)
 │   └── verify-secrets.yml    # workflow_dispatch only
+├── sql/                       # Database schemas
+│   └── observability_schema.sql  # TimescaleDB schema for metrics
 ├── tests/                     # pytest tests
 ├── research/                  # Research documents (read-only)
 ├── docs/                      # MkDocs source
