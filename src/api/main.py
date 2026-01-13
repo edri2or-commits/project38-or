@@ -70,9 +70,7 @@ async def debug_routes():
         "environment": {
             "DATABASE_URL": "set" if os.environ.get("DATABASE_URL") else "missing",
             "PORT": os.environ.get("PORT", "not set"),
-            "RAILWAY_ENVIRONMENT": os.environ.get(
-                "RAILWAY_ENVIRONMENT", "not railway"
-            ),
+            "RAILWAY_ENVIRONMENT": os.environ.get("RAILWAY_ENVIRONMENT", "not railway"),
         },
     }
 
