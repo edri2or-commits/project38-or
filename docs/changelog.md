@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Agent CRUD Database Integration** (2026-01-13) - Connected agent routes to PostgreSQL database
+  - Implemented database operations for all 5 CRUD endpoints in `src/api/routes/agents.py`:
+    - `POST /api/agents` - Create agent with code generation and validation
+    - `GET /api/agents` - List agents with filtering (status, created_by) and pagination
+    - `GET /api/agents/{id}` - Retrieve specific agent by ID
+    - `PUT /api/agents/{id}` - Update agent fields (name, description, code, status, config)
+    - `DELETE /api/agents/{id}` - Delete agent from database
+  - Added comprehensive integration tests in `tests/test_api_agents.py` (9 tests, all passing)
+  - Updated `requirements-dev.txt` with test dependencies (pytest-mock, aiosqlite)
+  - Updated `pyproject.toml` with pytest-asyncio configuration
+  - Updated `docs/getting-started.md` with Agent Platform API usage guide (curl examples, API endpoints)
+  - **Status**: Phase 3.1-3.4 now 100% complete with full database persistence
+  - **Total test suite**: 157 tests passing
+
 ### Fixed
 - **Documentation Statistics Accuracy** (2026-01-13) - Updated file size values to match actual measurements
   - CLAUDE.md: 81KB → 44KB (actual size)

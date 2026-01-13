@@ -8,11 +8,15 @@ agents from natural language descriptions.
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
+from src.api.database import get_session
 from src.factory.generator import estimate_cost, generate_agent_code
 from src.factory.ralph_loop import get_loop_summary, ralph_wiggum_loop
+from src.models.agent import Agent
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +136,10 @@ class AgentExecuteResponse(BaseModel):
     response_model=AgentCreateResponse,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_agent(request: AgentCreateRequest) -> AgentCreateResponse:
+async def create_agent(
+    request: AgentCreateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> AgentCreateResponse:
     """Create a new agent from natural language description.
 
     This endpoint implements the core Agent Factory functionality:
@@ -194,10 +201,21 @@ async def create_agent(request: AgentCreateRequest) -> AgentCreateResponse:
             words = request.description.split()[:5]
             agent_name = " ".join(words) + " Agent"
 
-        # Step 4: Save to database (TODO: Implement database layer)
-        # For now, return mock response
-        # In Phase 3.3, this will actually save to PostgreSQL
-        agent_id = 1  # Mock ID
+        # Step 4: Save to database
+        agent = Agent(
+            name=agent_name,
+            description=request.description,
+            code=loop_result["code"],
+            status="active",
+            created_by=request.created_by,
+            config=None,
+        )
+
+        session.add(agent)
+        await session.commit()
+        await session.refresh(agent)
+
+        agent_id = agent.id
 
         # Calculate cost
         total_tokens = generation_result["tokens_used"] + loop_result.get("tokens_used", 0)
@@ -236,6 +254,7 @@ async def list_agents(
     created_by: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    session: AsyncSession = Depends(get_session),
 ) -> list[AgentResponse]:
     """List all agents with optional filtering.
 
@@ -244,6 +263,7 @@ async def list_agents(
         created_by: Filter by creator identifier
         limit: Maximum number of results (default: 100, max: 1000)
         offset: Pagination offset (default: 0)
+        session: Database session (injected)
 
     Returns:
         List[AgentResponse]: List of agents
@@ -260,17 +280,49 @@ async def list_agents(
         offset,
     )
 
-    # TODO: Implement database query
-    # For now, return empty list
-    return []
+    # Build query
+    stmt = select(Agent)
+
+    # Apply filters
+    if status:
+        stmt = stmt.where(Agent.status == status)
+    if created_by:
+        stmt = stmt.where(Agent.created_by == created_by)
+
+    # Apply pagination (enforce max limit of 1000)
+    stmt = stmt.offset(offset).limit(min(limit, 1000))
+
+    # Execute query
+    result = await session.execute(stmt)
+    agents = result.scalars().all()
+
+    # Convert to response model
+    return [
+        AgentResponse(
+            id=agent.id,
+            name=agent.name,
+            description=agent.description,
+            code=agent.code,
+            status=agent.status,
+            created_at=agent.created_at,
+            updated_at=agent.updated_at,
+            created_by=agent.created_by,
+            config=agent.config,
+        )
+        for agent in agents
+    ]
 
 
 @router.get("/agents/{agent_id}", response_model=AgentResponse)
-async def get_agent(agent_id: int) -> AgentResponse:
+async def get_agent(
+    agent_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> AgentResponse:
     """Get a specific agent by ID.
 
     Args:
         agent_id: Agent unique identifier
+        session: Database session (injected)
 
     Returns:
         AgentResponse: Agent details
@@ -284,20 +336,41 @@ async def get_agent(agent_id: int) -> AgentResponse:
     """
     logger.info("Getting agent %d", agent_id)
 
-    # TODO: Implement database query
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Agent {agent_id} not found",
+    # Query database
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
+    agent = result.scalar_one_or_none()
+
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent {agent_id} not found",
+        )
+
+    return AgentResponse(
+        id=agent.id,
+        name=agent.name,
+        description=agent.description,
+        code=agent.code,
+        status=agent.status,
+        created_at=agent.created_at,
+        updated_at=agent.updated_at,
+        created_by=agent.created_by,
+        config=agent.config,
     )
 
 
 @router.put("/agents/{agent_id}", response_model=AgentResponse)
-async def update_agent(agent_id: int, request: AgentUpdateRequest) -> AgentResponse:
+async def update_agent(
+    agent_id: int,
+    request: AgentUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> AgentResponse:
     """Update an existing agent.
 
     Args:
         agent_id: Agent unique identifier
         request: Update request with fields to change
+        session: Database session (injected)
 
     Returns:
         AgentResponse: Updated agent details
@@ -315,19 +388,59 @@ async def update_agent(agent_id: int, request: AgentUpdateRequest) -> AgentRespo
     """
     logger.info("Updating agent %d", agent_id)
 
-    # TODO: Implement database update
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Agent {agent_id} not found",
+    # Query database
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
+    agent = result.scalar_one_or_none()
+
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent {agent_id} not found",
+        )
+
+    # Update fields (only if provided)
+    if request.name is not None:
+        agent.name = request.name
+    if request.description is not None:
+        agent.description = request.description
+    if request.code is not None:
+        agent.code = request.code
+    if request.status is not None:
+        agent.status = request.status
+    if request.config is not None:
+        agent.config = request.config
+
+    # Update timestamp
+    agent.updated_at = datetime.utcnow()
+
+    # Save to database
+    session.add(agent)
+    await session.commit()
+    await session.refresh(agent)
+
+    return AgentResponse(
+        id=agent.id,
+        name=agent.name,
+        description=agent.description,
+        code=agent.code,
+        status=agent.status,
+        created_at=agent.created_at,
+        updated_at=agent.updated_at,
+        created_by=agent.created_by,
+        config=agent.config,
     )
 
 
 @router.delete("/agents/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_agent(agent_id: int) -> None:
+async def delete_agent(
+    agent_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> None:
     """Delete an agent.
 
     Args:
         agent_id: Agent unique identifier
+        session: Database session (injected)
 
     Raises:
         HTTPException: 404 if agent not found
@@ -337,11 +450,19 @@ async def delete_agent(agent_id: int) -> None:
     """
     logger.info("Deleting agent %d", agent_id)
 
-    # TODO: Implement database deletion
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Agent {agent_id} not found",
-    )
+    # Query database
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
+    agent = result.scalar_one_or_none()
+
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent {agent_id} not found",
+        )
+
+    # Delete from database
+    await session.delete(agent)
+    await session.commit()
 
 
 @router.post(

@@ -118,8 +118,97 @@ ruff format .
 | TELEGRAM-BOT-TOKEN | Telegram bot |
 | github-app-private-key | GitHub App auth |
 
+## Agent Platform API
+
+### הרצת השרת
+
+```bash
+# הפעל את שרת FastAPI
+python -m src.api.main
+
+# או עם uvicorn ישירות
+uvicorn src.api.main:app --reload --port 8000
+```
+
+השרת יהיה זמין ב-`http://localhost:8000`
+
+### תיעוד API אינטראקטיבי
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+### יצירת Agent חדש
+
+```bash
+# בקשה ליצירת agent
+curl -X POST "http://localhost:8000/api/agents" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Agent שעוקב אחרי מחירי מניות של טסלה ומתריע על שינויים",
+    "name": "Tesla Stock Monitor",
+    "created_by": "user123"
+  }'
+```
+
+תגובה לדוגמה:
+```json
+{
+  "id": 1,
+  "name": "Tesla Stock Monitor",
+  "code": "# Generated Python code here",
+  "status": "active",
+  "generation_cost": 0.0024,
+  "iterations": 2,
+  "tokens_used": 1500
+}
+```
+
+### רשימת Agents
+
+```bash
+# קבל את כל ה-agents
+curl "http://localhost:8000/api/agents"
+
+# סינון לפי סטטוס
+curl "http://localhost:8000/api/agents?status=active&limit=10"
+```
+
+### עדכון Agent
+
+```bash
+# עדכן את הסטטוס של agent
+curl -X PUT "http://localhost:8000/api/agents/1" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "paused"}'
+```
+
+### מחיקת Agent
+
+```bash
+# מחק agent
+curl -X DELETE "http://localhost:8000/api/agents/1"
+```
+
+### בדיקת תקינות המערכת
+
+```bash
+# בדוק שהשרת פעיל
+curl "http://localhost:8000/health"
+```
+
+תגובה תקינה:
+```json
+{
+  "status": "healthy",
+  "version": "0.1.0",
+  "database": "connected",
+  "timestamp": "2026-01-13T10:30:00Z"
+}
+```
+
 ## הצעד הבא
 
 - קרא את [מדיניות האבטחה](SECURITY.md)
 - הבן את [תוכנית הארכיטקטורה](BOOTSTRAP_PLAN.md)
 - עיין ב[מסמכי המחקר](research/index.md)
+- נסה את [API documentation](http://localhost:8000/docs) האינטראקטיבי
