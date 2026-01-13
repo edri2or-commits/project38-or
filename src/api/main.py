@@ -51,6 +51,32 @@ app.include_router(tasks.router, prefix="/api", tags=["tasks"])
 app.include_router(metrics.router, tags=["metrics"])
 
 
+# Debug endpoint to verify routes are registered
+@app.get("/debug/routes")
+async def debug_routes():
+    """Debug endpoint showing all registered routes."""
+    import os
+
+    return {
+        "total_routes": len(app.routes),
+        "routes": [
+            {
+                "path": route.path,
+                "name": route.name,
+                "methods": list(route.methods) if hasattr(route, "methods") else [],
+            }
+            for route in app.routes
+        ],
+        "environment": {
+            "DATABASE_URL": "set" if os.environ.get("DATABASE_URL") else "missing",
+            "PORT": os.environ.get("PORT", "not set"),
+            "RAILWAY_ENVIRONMENT": os.environ.get(
+                "RAILWAY_ENVIRONMENT", "not railway"
+            ),
+        },
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
 
