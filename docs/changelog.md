@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Removed Auto-Merge Workflow** (2026-01-13) - Simplified CI/CD by removing problematic auto-merge automation
+  - **Issues identified during PR #61, #62, #63**:
+    1. Permission error: `gh pr merge --auto` requires platform permissions unavailable to Actions token ([GitHub CLI #6695](https://github.com/cli/cli/issues/6695))
+    2. Timing race: Direct merge failed when other workflows (Tests) still running
+    3. Recursive wait: `gh pr checks --watch` waits for Auto-Merge itself (infinite loop)
+  - **Decision**: After 3 failed attempts to fix, removed `.github/workflows/auto-merge.yml`
+  - **New workflow**: Validation automatic → Manual merge (1-click, < 10 seconds)
+  - **Benefits**:
+    - ✅ Simpler, more reliable workflow
+    - ✅ Human review before merge (security best practice)
+    - ✅ No GitHub API permission issues
+    - ✅ Validation still fully automatic
+  - **Manual merge**: Use GitHub UI "Merge" button or `src.github_pr` module
+  - **Impact**: CI validates automatically, human approves merge (pragmatic solution)
+
 ### Added
 - **Advanced Skills: Performance Monitor & Cost Optimizer** (2026-01-13) - Added two enterprise-grade monitoring skills
   - **performance-monitor skill (v1.0.0)**:
