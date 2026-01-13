@@ -560,7 +560,7 @@ See `tests/test_orchestrator.py` for comprehensive test suite.
 
 ## Related Documentation
 
-- [Railway Client API](railway_client.md) - Railway GraphQL API integration
+- [Railway Client API](railway.md) - Railway GraphQL API integration
 - [GitHub App Client API](github_app_client.md) - GitHub App authentication and operations
 - [n8n Client API](n8n_client.md) - n8n workflow orchestration
 - [State Machine](../autonomous/01-system-architecture-hybrid.md#state-machine) - Deployment lifecycle management

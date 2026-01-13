@@ -106,6 +106,9 @@ nav:
       - MCP Tools: api/mcp.md
       - Observability: api/observability.md
       - Railway Client: api/railway.md
+      - GitHub App Client: api/github_app_client.md
+      - n8n Client: api/n8n_client.md
+      - Main Orchestrator: api/orchestrator.md
       - GitHub Authentication: api/github_auth.md
       - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md
