@@ -123,9 +123,14 @@ Two research efforts provided foundation:
 - [x] API documentation (`docs/api/orchestrator.md`) (✅ 400+ lines)
 
 ### Phase 4: Production Deployment (Days 6-7)
-- [ ] Railway deployment
-- [ ] Monitoring & alerts
-- [ [ Testing & validation
+- [x] Day 6: Monitoring & alerts (✅ Completed 2026-01-13, commits 718ee8d, 1b5a09a)
+  - Structured JSON logging
+  - System metrics endpoint
+  - Security hardening (token cleanup)
+  - Alert system integration
+- [ ] Day 7: Integration tests
+- [ ] Day 7: Production deployment
+- [ ] Day 7: Testing & validation
 
 ---
 
@@ -503,6 +508,46 @@ This section tracks implementation progress against the decision:
 - Changelog updated: `docs/changelog.md` Phase 3 entry added with complete feature list
 
 **ADR Status Updated:** ☑️ Phase 3 complete (MainOrchestrator + State Machine) in ADR-003 line 118
+
+---
+
+### 2026-01-13: Day 6 Complete - Monitoring, Security, Alerts
+
+**Completed:**
+- ✅ Structured JSON Logging
+  - `src/logging_config.py` (108 lines) - JSONFormatter with correlation_id, deployment_id, agent_id
+  - `tests/test_logging_config.py` (189 lines) - 9 comprehensive tests
+  - Integrated with FastAPI (`src/api/main.py`)
+  - ISO 8601 timestamps, exception stack traces, silences noisy libraries
+- ✅ System Metrics Endpoint
+  - `GET /metrics/system` - CPU, memory, disk monitoring
+  - SystemMetrics Pydantic model
+  - psutil integration for real-time metrics
+- ✅ Security Hardening - Token Cleanup
+  - `__del__` methods added to RailwayClient, GitHubAppClient, N8nClient, SecretManager
+  - Automatic token cleanup on object destruction
+  - Prevents sensitive data lingering in memory
+- ✅ Alert System Integration
+  - Deployment success notifications (severity: info) via n8n
+  - Deployment failure alerts (severity: high) via n8n
+  - Enhanced `_act_deploy()` and `handle_deployment_failure()` in orchestrator
+  - Configurable workflow IDs: deployment-success-alert, deployment-failure-alert
+
+**Pull Requests:**
+- PR pending: Day 6 Complete on branch `claude/read-claude-md-Y7pN6`
+
+**Test Results:**
+- 300/300 tests passing (100% success rate)
+- +9 new logging tests
+
+**Evidence:**
+- Files created: `src/logging_config.py`, `tests/test_logging_config.py`
+- Files modified: `src/api/main.py`, `src/api/routes/metrics.py`, `src/orchestrator.py`, `src/railway_client.py`, `src/github_app_client.py`, `src/n8n_client.py`, `src/secrets_manager.py`
+- Line counts: +441 lines total (108 logging_config, 189 test_logging_config, +144 modifications)
+- Commits: `718ee8d` (Logging/Metrics/Security), `1b5a09a` (Alerts)
+- Changelog updated: `docs/changelog.md` with 4 Day 6 features
+
+**ADR Status Updated:** ☑️ Day 6 complete (4/4 tasks) - Production observability ready
 
 ---
 
