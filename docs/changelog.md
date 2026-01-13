@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Railway GraphQL API Client** (2026-01-13) - Complete async client for autonomous Railway deployment management
+  - `src/railway_client.py` (650+ lines) - Production-ready RailwayClient class
+  - `tests/test_railway_client.py` (850+ lines) - 30+ comprehensive tests with 100% coverage
+  - `docs/api/railway.md` (900+ lines) - Complete API documentation
+  - **Features**:
+    - Cloudflare workaround (timestamp query param to prevent Error 1015)
+    - Exponential backoff retry with Tenacity (5 attempts, max 60s wait)
+    - State machine monitoring (INITIALIZING → BUILDING → DEPLOYING → ACTIVE/FAILED/CRASHED)
+    - Rollback capability (recovery from failed deployments)
+    - Build and runtime log retrieval (debugging)
+    - Resource metrics (CPU, memory, request count, latency)
+    - Environment variable management
+    - Service listing and details
+  - **Deployment Operations**:
+    - `trigger_deployment()` - Initiate new deployment via GraphQL
+    - `get_deployment_status()` - Poll current status
+    - `get_deployment_details()` - Full deployment metadata (DeploymentStatus dataclass)
+    - `rollback_deployment()` - Redeploy previous stable version
+    - `get_last_active_deployment()` - Find last known good deployment
+    - `monitor_deployment_until_stable()` - Autonomous monitoring until ACTIVE/FAILED/CRASHED
+  - **Monitoring & Logs**:
+    - `get_build_logs()` - Debug failed builds
+    - `get_runtime_logs()` - Debug crashed deployments
+    - `get_deployment_metrics()` - Resource utilization tracking
+  - **Service Management**:
+    - `list_services()` - List all services in project/environment
+    - `get_service_details()` - Service metadata with recent deployments
+    - `set_environment_variable()` - Dynamic configuration updates
+  - **Exception Classes**:
+    - `RailwayAPIError` - Base exception
+    - `RailwayAuthenticationError` - 401 authentication failures
+    - `RailwayRateLimitError` - 429 rate limit exceeded
+    - `RailwayDeploymentError` - Deployment operation failures
+  - **Dependencies**: `httpx>=0.27.0`, `tenacity>=8.0.0`
+  - **Implementation**: Day 2 of 7-day autonomous control roadmap
+  - **Production Config**: project38-or (95ec21cc-9ada-41c5-8485-12f9a00e0116)
+  - **Next Step**: GitHub App Client (Day 3)
+
 ### Fixed
 - **Documentation Health Endpoint URLs** (2026-01-13) - Aligned all documentation with production /api/health endpoint
   - **Issue**: Documentation examples used `/health` instead of `/api/health`
