@@ -189,9 +189,7 @@ class DeploymentStateMachine:
         valid_next_states = VALID_TRANSITIONS.get(self.current_state, set())
         return to_state in valid_next_states
 
-    def transition(
-        self, to_state: DeploymentStatus, reason: str | None = None
-    ) -> bool:
+    def transition(self, to_state: DeploymentStatus, reason: str | None = None) -> bool:
         """Transition to new state.
 
         Args:
@@ -442,9 +440,7 @@ class StateMachineManager:
             >>> for sm in failed:
             ...     print(f"Failed: {sm.deployment_id}")
         """
-        return [
-            sm for sm in self.state_machines.values() if sm.is_failed()
-        ]
+        return [sm for sm in self.state_machines.values() if sm.is_failed()]
 
     def get_all_healthy(self) -> list[DeploymentStateMachine]:
         """Get all state machines in healthy state.

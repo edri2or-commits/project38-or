@@ -163,9 +163,7 @@ class N8nClient:
                 # Handle validation errors
                 if response.status_code == 400:
                     error_detail = response.text
-                    raise N8nValidationError(
-                        f"Workflow validation failed: {error_detail}"
-                    )
+                    raise N8nValidationError(f"Workflow validation failed: {error_detail}")
 
                 response.raise_for_status()
 
@@ -390,9 +388,7 @@ class N8nClient:
     # WORKFLOW EXECUTION
     # ========================================================================
 
-    async def execute_workflow(
-        self, workflow_id: str, data: dict[str, Any] | None = None
-    ) -> str:
+    async def execute_workflow(self, workflow_id: str, data: dict[str, Any] | None = None) -> str:
         """Execute a workflow with custom input data.
 
         Use Case: Agent triggers alert workflow with deployment details.
@@ -451,9 +447,7 @@ class N8nClient:
             ...     print(f"Status: {execution.get('status', 'unknown')}")
             ...     print(f"Duration: {execution['stoppedAt']} - {execution['startedAt']}")
         """
-        return await self._api_request(
-            method="GET", endpoint=f"/executions/{execution_id}"
-        )
+        return await self._api_request(method="GET", endpoint=f"/executions/{execution_id}")
 
     async def get_recent_executions(self, limit: int = 20) -> list[dict[str, Any]]:
         """Get recent workflow executions.
