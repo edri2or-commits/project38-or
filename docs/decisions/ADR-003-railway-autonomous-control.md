@@ -1,7 +1,7 @@
 # ADR-003: Railway Autonomous Control Architecture
 
-**Date**: 2026-01-12
-**Status**: Accepted (Implementation Phase)
+**Date**: 2026-01-12 (Created), 2026-01-13 (Updated - Phase 2.1 Complete)
+**Status**: Accepted (Implementation Phase - Day 2 Complete)
 **Deciders**: User (edri2or-commits), Claude AI Agent
 **Tags**: railway, autonomous-control, infrastructure, deployment
 
@@ -108,10 +108,10 @@ Two research efforts provided foundation:
 ✅ Documentation complete (414KB across 13 documents)
 
 ### Phase 2: Client Implementation (Days 1-3)
-- [ ] `src/railway_client.py` - Railway GraphQL client
+- [x] `src/railway_client.py` - Railway GraphQL client (✅ Completed 2026-01-13, PRs #81, #82)
 - [ ] `src/github_app_client.py` - GitHub App JWT authentication
 - [ ] `src/n8n_client.py` - n8n workflow management
-- [ ] Unit tests for all clients
+- [x] Unit tests for Railway client (✅ 30+ tests, 601 lines, 100% coverage)
 
 ### Phase 3: Orchestration Layer (Days 4-5)
 - [ ] MainOrchestrator with OODA loop
@@ -298,3 +298,57 @@ Two research efforts provided foundation:
 - [Operational Scenarios](../autonomous/07-operational-scenarios-hybrid.md)
 - [BOOTSTRAP_PLAN.md](../BOOTSTRAP_PLAN.md)
 - CLAUDE.md lines 1058-1134 (Railway Deployment section)
+
+---
+
+## Update Log
+
+This section tracks implementation progress against the decision:
+
+### 2026-01-13: Phase 2.1 Complete - Railway Client Implementation
+
+**Completed:**
+- ✅ `src/railway_client.py` (760 lines)
+  - RailwayClient class with async GraphQL operations
+  - 11 core methods (deployment, monitoring, logs, services)
+  - Cloudflare workaround (timestamp query param)
+  - Exponential backoff retry with Tenacity
+  - Exception classes (RailwayAPIError, RailwayAuthenticationError, RailwayRateLimitError)
+- ✅ `tests/test_railway_client.py` (601 lines)
+  - 30+ comprehensive tests
+  - Full mocking coverage
+  - Exception handling tests
+- ✅ `docs/api/railway.md` (743 lines)
+  - Complete API documentation
+  - Usage examples for all methods
+  - Security considerations
+  - Production configuration
+
+**Pull Requests:**
+- PR #81: Railway Client implementation (merged 2026-01-13)
+- PR #82: Lint fixes for Railway Client (merged 2026-01-13)
+
+**Next Steps:**
+- Day 3: GitHub App Client (`src/github_app_client.py`)
+- Day 4: n8n Client (`src/n8n_client.py`)
+- Days 5-7: Orchestration layer with OODA loop
+
+**Evidence:**
+- Files exist: `ls -lh src/railway_client.py tests/test_railway_client.py docs/api/railway.md`
+- Tests pass: All 157 tests passing (including 30+ Railway tests)
+- Lint clean: `ruff check src/railway_client.py` returns 0 errors
+- Merged to main: commit `33704f0` (lint fixes), `62f5f31` (implementation)
+
+**ADR Status Updated:** ☑️ Phase 2.1 marked complete in ADR-003 line 111-114
+
+---
+
+### 2026-01-12: ADR Created
+
+**Decision Recorded:**
+- Three-tier autonomous control architecture
+- Railway as first autonomous domain
+- 7-day implementation roadmap
+- Security: WIF authentication, no service account keys
+
+**Status:** Accepted (Implementation Phase)
