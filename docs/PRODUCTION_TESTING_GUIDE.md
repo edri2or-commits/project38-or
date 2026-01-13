@@ -2,7 +2,7 @@
 
 **Project**: project38-or
 **Environment**: Railway Production
-**URL**: https://web-production-47ff.up.railway.app
+**URL**: https://or-infra.com
 **Last Updated**: 2026-01-13
 
 ---
@@ -56,7 +56,7 @@ This guide helps you test the deployed Agent Platform on Railway production. Sin
 
 ### 1. Test Health Endpoint
 
-**URL**: https://web-production-47ff.up.railway.app/health
+**URL**: https://or-infra.com/health
 
 **Expected Response**:
 ```json
@@ -79,7 +79,7 @@ This guide helps you test the deployed Agent Platform on Railway production. Sin
 
 ### 2. Test API Documentation (Swagger UI)
 
-**URL**: https://web-production-47ff.up.railway.app/docs
+**URL**: https://or-infra.com/docs
 
 **You should see**:
 - Interactive API documentation (Swagger UI)
@@ -94,7 +94,7 @@ This guide helps you test the deployed Agent Platform on Railway production. Sin
 
 ```bash
 # Test health endpoint
-curl https://web-production-47ff.up.railway.app/health
+curl https://or-infra.com/health
 
 # Expected: {"status":"healthy","version":"0.1.0",...}
 ```
@@ -103,7 +103,7 @@ curl https://web-production-47ff.up.railway.app/health
 
 ```bash
 # Create a simple agent from natural language
-curl -X POST https://web-production-47ff.up.railway.app/api/agents \
+curl -X POST https://or-infra.com/api/agents \
   -H "Content-Type: application/json" \
   -d '{
     "description": "צור סוכן פשוט שמדפיס Hello World",
@@ -138,7 +138,7 @@ curl -X POST https://web-production-47ff.up.railway.app/api/agents \
 
 ```bash
 # Get all agents
-curl https://web-production-47ff.up.railway.app/api/agents
+curl https://or-infra.com/api/agents
 
 # Expected: [{"id":1,"name":"Hello Agent",...}]
 ```
@@ -147,7 +147,7 @@ curl https://web-production-47ff.up.railway.app/api/agents
 
 ```bash
 # Get agent by ID
-curl https://web-production-47ff.up.railway.app/api/agents/1
+curl https://or-infra.com/api/agents/1
 
 # Expected: {"id":1,"name":"Hello Agent","code":"..."}
 ```
@@ -156,7 +156,7 @@ curl https://web-production-47ff.up.railway.app/api/agents/1
 
 ```bash
 # Trigger manual execution
-curl -X POST https://web-production-47ff.up.railway.app/api/agents/1/execute
+curl -X POST https://or-infra.com/api/agents/1/execute
 
 # Expected: Task ID returned, execution happens async
 {
@@ -170,7 +170,7 @@ curl -X POST https://web-production-47ff.up.railway.app/api/agents/1/execute
 
 ```bash
 # Get task execution history
-curl https://web-production-47ff.up.railway.app/api/agents/1/tasks
+curl https://or-infra.com/api/agents/1/tasks
 
 # Expected: [{"id":1,"status":"completed","result":"Hello World\n",...}]
 ```
@@ -179,10 +179,10 @@ curl https://web-production-47ff.up.railway.app/api/agents/1/tasks
 
 ```bash
 # System metrics summary
-curl https://web-production-47ff.up.railway.app/metrics/summary
+curl https://or-infra.com/metrics/summary
 
 # Agent-specific metrics
-curl https://web-production-47ff.up.railway.app/metrics/agents/1
+curl https://or-infra.com/metrics/agents/1
 ```
 
 ---
@@ -217,7 +217,7 @@ curl https://web-production-47ff.up.railway.app/metrics/agents/1
 Create agent with MCP tool usage:
 
 ```bash
-curl -X POST https://web-production-47ff.up.railway.app/api/agents \
+curl -X POST https://or-infra.com/api/agents \
   -H "Content-Type: application/json" \
   -d '{
     "description": "צור סוכן שגולש לאתר example.com ומחלץ את הכותרת",
@@ -287,7 +287,7 @@ gh workflow run test-wif.yml --repo edri2or-commits/project38-or
 **Solution**:
 ```bash
 # Get task details to see error
-curl https://web-production-47ff.up.railway.app/api/tasks/1
+curl https://or-infra.com/api/tasks/1
 
 # Check error field for stack trace
 {
@@ -340,7 +340,7 @@ browser = await get_browser(agent_id=1)
 ### 1. Enable Monitoring (UptimeRobot)
 
 Set up external monitoring:
-- URL: https://web-production-47ff.up.railway.app/health
+- URL: https://or-infra.com/health
 - Interval: 5 minutes
 - Alert on: status != 200 OR database != "connected"
 
@@ -382,9 +382,9 @@ Implement preview deployments for PRs (BOOTSTRAP_PLAN.md, line 681):
 
 | Endpoint | URL | Purpose |
 |----------|-----|---------|
-| **Health** | https://web-production-47ff.up.railway.app/health | System health |
-| **API Docs** | https://web-production-47ff.up.railway.app/docs | Swagger UI |
-| **ReDoc** | https://web-production-47ff.up.railway.app/redoc | Alternative docs |
+| **Health** | https://or-infra.com/health | System health |
+| **API Docs** | https://or-infra.com/docs | Swagger UI |
+| **ReDoc** | https://or-infra.com/redoc | Alternative docs |
 | **Create Agent** | POST /api/agents | Agent Factory |
 | **List Agents** | GET /api/agents | All agents |
 | **Execute Agent** | POST /api/agents/{id}/execute | Trigger execution |

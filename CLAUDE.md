@@ -1275,7 +1275,7 @@ python3 -c "from src.github_pr import create_pr; create_pr(...)"
 - **Project**: delightful-cat
 - **Project ID**: `95ec21cc-9ada-41c5-8485-12f9a00e0116`
 - **Environment**: production (`99c99a18-aea2-4d01-9360-6a93705102a0`)
-- **Public URL**: https://web-production-47ff.up.railway.app
+- **Public URL**: https://or-infra.com
 - **Database**: PostgreSQL (deployed successfully)
 
 ### Quick Start
@@ -1322,7 +1322,7 @@ When deployed to Railway:
 
 ```bash
 # Check application health
-curl https://web-production-47ff.up.railway.app/health
+curl https://or-infra.com/health
 
 # Expected response:
 {

@@ -54,7 +54,7 @@ User manually created Railway project through Railway dashboard:
 - Project ID: `95ec21cc-9ada-41c5-8485-12f9a00e0116`
 - Environment: production (`99c99a18-aea2-4d01-9360-6a93705102a0`)
 - PostgreSQL database provisioned
-- Public URL: https://web-production-47ff.up.railway.app
+- Public URL: https://or-infra.com
 - Health endpoint responding with 200 OK
 
 **Key Decisions**:
@@ -294,7 +294,7 @@ User manually created Railway project through Railway dashboard:
 - CI/CD workflows (test, lint, docs validation)
 
 **✅ Verified**:
-- Health endpoint: https://web-production-47ff.up.railway.app/health returns 200 OK
+- Health endpoint: https://or-infra.com/health returns 200 OK
 - All 148/148 tests passing (as of last commit)
 - No secrets exposed (verified by security-checker skill)
 - Git history clean and well-documented

@@ -945,7 +945,7 @@ class RollbackManager:
 │  └────────────────────────────────────────────┘   │
 │                                                     │
 │  Environment: production                            │
-│  URL: https://web-production-47ff.up.railway.app   │
+│  URL: https://or-infra.com   │
 └─────────────────────────────────────────────────────┘
 ```
 
