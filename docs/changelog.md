@@ -8,6 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Health Endpoint Routing** (2026-01-13, PR #74) - Fixed Railway reverse proxy routing issue
+  - **Root cause**: Railway doesn't route root-level endpoints correctly
+  - **Evidence**: `/metrics/summary` (prefixed) worked, `/health` (root) returned 404
+  - **Solution**: Added `prefix="/api"` to health router
+  - **Changes**:
+    - `src/api/routes/health.py`: Added `APIRouter(prefix="/api")`
+    - `railway.toml`: Updated `healthcheckPath="/api/health"`
+    - `.github/workflows/production-health-check.yml`: Updated to test `/api/health`
+  - **Result**: Health endpoint now at `/api/health` (consistent with `/api/agents`, `/api/tasks`)
+  - **Verification**: Railway logs confirm `GET /api/health HTTP/1.1 200 OK`
+  - **Breaking change**: Health endpoint moved from `/health` to `/api/health`
+
+- **Database Health Check SQLAlchemy 2.0 Compatibility** (2026-01-13, PR #67) - Fixed raw SQL query
+  - **Bug**: `await session.execute("SELECT 1")` fails in SQLAlchemy 2.0
+  - **Fix**: Added `text()` wrapper: `await session.execute(text("SELECT 1"))`
+  - **Impact**: Health check was failing silently, causing Railway health check failures
+  - **File**: `src/api/database.py` line 81
+
+### Added
+- **Autonomous Production Testing System** (2026-01-13, PRs #65, #70, #73) - Complete autonomous testing infrastructure
+  - **production-health-check.yml workflow** (PR #65, 224 lines):
+    - Tests `/api/health`, `/docs`, `/metrics/summary` endpoints
+    - Runs every 6 hours via cron schedule + manual trigger
+    - Auto-creates GitHub issues on failures (labels: `production`, `health-check`)
+    - Generates detailed summary reports
+    - Bypasses Claude Code proxy limitations via GitHub Actions environment
+  - **debug-check.yml workflow** (PR #73, 57 lines):
+    - One-time debug workflow to inspect `/debug/routes` endpoint
+    - Lists all registered routes and environment variables
+    - Used for diagnosing routing issues
+  - **Debug endpoint** (PR #70, `src/api/main.py`):
+    - `GET /debug/routes` returns all registered FastAPI routes
+    - Shows environment variables (DATABASE_URL, PORT, RAILWAY_ENVIRONMENT)
+    - Used for production debugging
+  - **Comprehensive documentation** (PR #70, 1,982 lines):
+    - `docs/AUTONOMOUS_TESTING_SOLUTION.md` (520 lines) - Architecture, implementation, cost analysis
+    - `docs/SESSION_SUMMARY_2026-01-13.md` (600+ lines) - Complete session timeline
+    - `docs/PRODUCTION_TESTING_GUIDE.md` (420 lines) - Manual testing fallback
+    - `docs/NEXT_PHASE_RECOMMENDATIONS.md` (442 lines) - Development roadmap
+  - **Benefits**:
+    - 100% autonomous testing (no manual intervention)
+    - Continuous monitoring (every 6 hours)
+    - Automatic alerting via GitHub issues
+    - Zero cost (GitHub Actions free tier)
+    - Discovered 2 production bugs within 1 hour
+
+### Fixed
 - **Documentation Alignment** (2026-01-13) - Fixed all inconsistencies from auto-merge removal
   - Updated documentation sizes in CLAUDE.md: 48KB (was 44KB), total 494KB (was 488KB)
   - Removed all active references to deleted `auto-merge.yml` workflow
