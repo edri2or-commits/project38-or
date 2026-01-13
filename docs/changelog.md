@@ -7,14 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **4-Layer Context Architecture** (2026-01-13) - Industry-standard documentation structure for AI agents and knowledge management
+  - **Layer 1: Quick Context** - `CLAUDE.md` (81KB) with new Context Architecture section
+  - **Layer 2: Decision Records** - `docs/decisions/` with 3 ADRs following AWS/Azure/Google Cloud standard:
+    - `ADR-001-research-synthesis-approach.md` (8.5KB) - Why dual documentation strategy exists
+    - `ADR-002-dual-documentation-strategy.md` (9.2KB) - The 4-layer architecture design
+    - `ADR-003-railway-autonomous-control.md` (9.8KB) - Autonomous Railway management approach
+  - **Layer 3: Journey Documentation** - `docs/JOURNEY.md` (18KB) - Chronological project narrative from 2026-01-11 to present
+  - **Layer 4: Technical Artifacts** - `docs/integrations/` + `docs/autonomous/` (already existed)
+  - **Total documentation**: 533KB across 18 files (was 414KB)
+  - **Standards followed**: [Context Engineering 2026](https://codeconductor.ai/blog/context-engineering/), [AWS ADR Process](https://docs.aws.amazon.com/prescriptive-guidance/latest/architectural-decision-records/adr-process.html)
+  - **Problem solved**: "Context failures are #1 cause of agent failures" - new AI sessions now have complete context
+  - **Updated**: CLAUDE.md File Structure section (lines 299-327) to include decisions/, JOURNEY.md with Layer annotations
+
 ### Changed
 - **CLAUDE.md File Structure Update** (2026-01-12) - Added documentation for integration guides
   - Added `docs/integrations/` directory to File Structure section (lines 217-222)
   - Documents 5 integration guides: implementation-roadmap, autonomous-architecture, github-app-setup, n8n-integration, railway-api-guide
   - Total size: 203KB across 5 documents
   - Ensures complete visibility of 7-day development plan and technical integration guides
-
-### Added
 - **Hybrid Autonomous System Documentation** (2026-01-12) - Complete synthesis of theoretical and practical autonomous control
   - `docs/autonomous/` - 8-document series merging OODA Loop theory with production implementations (211KB total)
   - `00-autonomous-philosophy.md` (14KB) - Foundation: Automation vs Autonomy, OODA Loop, ethical constraints
