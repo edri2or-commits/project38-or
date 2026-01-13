@@ -8,6 +8,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Main Orchestrator with OODA Loop** (2026-01-13) - Complete autonomous deployment orchestration coordinating Railway, GitHub, and n8n
+  - `src/orchestrator.py` (695 lines) - Production-ready MainOrchestrator class implementing OODA Loop pattern
+  - `src/state_machine.py` (430 lines) - Deployment lifecycle state machine with transition validation
+  - `tests/test_orchestrator.py` (390 lines) - 25+ comprehensive orchestrator tests
+  - `tests/test_state_machine.py` (360 lines) - 25+ state machine tests with integration scenarios
+  - `docs/api/orchestrator.md` (400+ lines) - Complete API documentation with integration examples
+  - **OODA Loop Implementation**:
+    - `observe()` - Collect data from Railway, GitHub, n8n simultaneously
+    - `orient()` - Analyze observations and build WorldModel (context-aware state)
+    - `decide()` - Policy engine makes decisions based on world model
+    - `act()` - Execute decisions through worker agents (Railway, GitHub, n8n)
+    - `run_cycle()` - Complete OODA cycle (Observe → Orient → Decide → Act)
+    - `run_continuous()` - Continuous OODA loop with configurable interval (production mode)
+  - **Decision Types**:
+    - `ActionType.DEPLOY` - Trigger Railway deployment
+    - `ActionType.ROLLBACK` - Rollback failed deployment to last known good version
+    - `ActionType.CREATE_ISSUE` - Create GitHub issue for investigation
+    - `ActionType.MERGE_PR` - Merge pull request when checks pass
+    - `ActionType.ALERT` - Send alert via n8n workflow
+    - `ActionType.EXECUTE_WORKFLOW` - Execute arbitrary n8n workflow
+  - **Event Handlers**:
+    - `handle_deployment_event()` - Handle GitHub push events (auto-deploy main branch)
+    - `handle_deployment_failure()` - Autonomous recovery (rollback + create issue + alert)
+  - **State Management**:
+    - `DeploymentState` enum - Orchestrator states (IDLE, OBSERVING, ORIENTING, DECIDING, ACTING, SUCCESS, FAILED)
+    - `WorldModel` class - Agent's understanding of system state (Railway, GitHub, n8n)
+    - `Observation` class - Single observation from data source with timestamp
+    - `Decision` class - Policy engine decision with reasoning and priority
+  - **Deployment State Machine**:
+    - `DeploymentStatus` enum - Railway deployment states (PENDING, BUILDING, DEPLOYING, ACTIVE, FAILED, CRASHED, ROLLING_BACK, ROLLED_BACK)
+    - `DeploymentStateMachine` class - Finite state machine for deployment lifecycle
+    - `StateMachineManager` class - Manage multiple deployments simultaneously
+    - Transition validation (enforces valid state transitions)
+    - Terminal states (ACTIVE, ROLLED_BACK, REMOVED)
+    - Failure states (FAILED, CRASHED) trigger automatic rollback
+    - Complete history tracking with timestamps and reasons
+  - **Autonomous Capabilities**:
+    - Multi-source data fusion (Railway + GitHub + n8n)
+    - Context-aware decision making (temporal analysis, correlation detection)
+    - Automatic failure recovery (rollback + issue creation + alerting)
+    - Priority-based action execution (1-10 priority scale)
+    - Graceful degradation (continues if one source fails)
+  - **Integration Example**: Complete autonomous deployment flow with failure recovery
+  - **Dependencies**: Uses existing Railway, GitHub, n8n clients from Phase 2
+- **GitHub App Client** (2026-01-13) - Complete async client for autonomous GitHub operations with JWT-based authentication
+  - `src/github_app_client.py` (850+ lines) - Production-ready GitHubAppClient class
+  - `tests/test_github_app_client.py` (750+ lines) - 30+ comprehensive tests with 100% coverage
+  - `docs/api/github_app_client.md` (800+ lines) - Complete API documentation
+  - **Features**:
+    - JWT generation with RS256 signing for GitHub App authentication
+    - Automatic IAT (Installation Access Token) refresh (5 minutes before expiration)
+    - Exponential backoff retry logic (5 attempts, max 60s wait)
+    - Comprehensive error handling (authentication, rate limits, not found)
+  - **Workflow Operations**:
+    - `trigger_workflow()` - Trigger workflow_dispatch events (e.g., deploy-railway.yml)
+    - `get_workflow_runs()` - Get recent workflow runs with filtering (status, workflow_id)
+  - **Issue Operations**:
+    - `create_issue()` - Create issues with labels and assignees
+    - `add_issue_comment()` - Comment on issues
+    - `close_issue()` - Close issues with optional final comment
+  - **Pull Request Operations**:
+    - `create_pull_request()` - Create PRs for autonomous code changes
+    - `merge_pull_request()` - Merge PRs with configurable merge method (squash/merge/rebase)
+    - `get_pull_request()` - Get PR details and status
+  - **Commit Operations**:
+    - `get_recent_commits()` - Get recent commits from branch
+    - `get_commit_details()` - Detailed commit analysis (files, stats)
+  - **Repository Operations**:
+    - `get_repository_info()` - Repository metadata
+    - `create_repository_dispatch()` - Trigger custom webhook events
+  - **Exception Classes**:
+    - `GitHubAppError` - Base exception
+    - `GitHubAppAuthenticationError` - JWT/IAT generation failures
+    - `GitHubAppRateLimitError` - 429 rate limit exceeded
+    - `GitHubAppNotFoundError` - 404 resource not found
+  - **Dependencies**: `httpx>=0.27.0`, `pyjwt>=2.0.0`, `tenacity>=8.0.0`
+- **n8n Workflow Orchestration Client** (2026-01-13) - Complete async client for autonomous workflow automation
+  - `src/n8n_client.py` (540 lines) - Production-ready N8nClient class
+  - `tests/test_n8n_client.py` (448 lines) - 30+ comprehensive tests with 100% coverage
+  - `docs/api/n8n_client.md` (200+ lines) - Complete API documentation
+  - **Features**:
+    - Create/update/delete workflows programmatically
+    - Execute workflows with custom data
+    - Monitor execution status and results
+    - Import/export workflows (version control)
+    - Exponential backoff retry logic (3 attempts, max 30s wait)
+  - **Workflow Management**:
+    - `create_workflow()` - Create workflows from JSON definition
+    - `get_workflow()` / `list_workflows()` - Retrieve workflow details
+    - `update_workflow()` - Modify existing workflows
+    - `delete_workflow()` - Remove workflows
+    - `activate_workflow()` / `deactivate_workflow()` - Control workflow state
+  - **Execution Operations**:
+    - `execute_workflow()` - Run workflow with custom input data
+    - `get_execution_status()` - Monitor execution progress
+    - `get_recent_executions()` - Audit automation health
+  - **Import/Export**:
+    - `export_workflow()` - Backup workflows to GitHub (version control)
+    - `import_workflow()` - Restore workflows from JSON
+  - **Exception Classes**:
+    - `N8nError` - Base exception
+    - `N8nAuthenticationError` - 401 Invalid API key
+    - `N8nNotFoundError` - 404 Workflow/execution not found
+    - `N8nValidationError` - 400 Workflow validation failed
+  - **Dependencies**: `httpx>=0.27.0`, `tenacity>=8.0.0`
 - **ADR Update Protocol** (2026-01-13) - Surgical alignment mechanism for keeping Architecture Decision Records synchronized with implementation
   - Systematic 5-step checklist for ADR updates after major feature completion
   - Update Log section in ADRs to track implementation timeline with evidence (PR numbers, file sizes, test counts)
