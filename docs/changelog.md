@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Structured JSON Logging** (2026-01-13) - Production-grade logging for observability (Day 6)
+  - `src/logging_config.py` (108 lines) - JSONFormatter with correlation ID support
+  - `tests/test_logging_config.py` (189 lines) - 9 comprehensive tests
+  - Integrated with FastAPI application (`src/api/main.py`)
+  - Supports correlation_id, deployment_id, agent_id for request tracing
+  - ISO 8601 timestamps with timezone
+  - Exception stack traces in JSON format
+  - Silences noisy libraries (httpx, httpcore, asyncpg, sqlmodel)
+- **System Metrics Endpoint** (2026-01-13) - System resource monitoring (Day 6)
+  - `GET /metrics/system` - CPU, memory, disk usage
+  - SystemMetrics model with detailed resource information
+  - Real-time psutil integration
+- **Security Hardening - Token Cleanup** (2026-01-13) - Memory security for sensitive data (Day 6)
+  - Added `__del__` methods to all API clients for automatic token cleanup
+  - RailwayClient: Clears api_token on cleanup
+  - GitHubAppClient: Clears private_key and _installation_token
+  - N8nClient: Clears api_key
+  - SecretManager: Calls clear_cache() on cleanup
+  - Prevents sensitive data from lingering in memory
+- **Alert System Integration** (2026-01-13) - n8n workflow notifications (Day 6 Complete ✅)
+  - Deployment success notifications via n8n (severity: info)
+  - Deployment failure alerts via n8n (severity: high)
+  - Automatic alert triggering in orchestrator
+  - Success alert in `_act_deploy()` after successful deployment
+  - Failure alert in `handle_deployment_failure()` alongside rollback and issue creation
+  - Configurable workflow IDs: `deployment-success-alert`, `deployment-failure-alert`
+  - Alert data includes deployment_id, url, commit, timestamp, severity
+
 ### Fixed
 - **Test Suite Async Mocking Issues** (2026-01-13) - Fixed async mocking in GitHub App and n8n client tests
   - Changed `AsyncMock()` to `Mock()` for `httpx.Response.json()` (synchronous method)

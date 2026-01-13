@@ -108,6 +108,11 @@ class N8nClient:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
 
+    def __del__(self):
+        """Clear sensitive API key from memory on cleanup."""
+        if hasattr(self, "api_key"):
+            self.api_key = None
+
     @retry(
         wait=wait_exponential(multiplier=1, min=2, max=30),
         stop=stop_after_attempt(3),

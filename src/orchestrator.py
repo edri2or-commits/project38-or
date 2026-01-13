@@ -565,6 +565,24 @@ class MainOrchestrator:
 
         await self.act(issue_decision)
 
+        # Send alert notification
+        alert_decision = Decision(
+            action=ActionType.ALERT,
+            reasoning="Notify team of deployment failure",
+            parameters={
+                "workflow_id": "deployment-failure-alert",
+                "data": {
+                    "severity": "high",
+                    "deployment_id": deployment_id,
+                    "rollback_deployment_id": last_success["id"],
+                    "timestamp": datetime.now(UTC).isoformat(),
+                },
+            },
+            priority=9,
+        )
+
+        await self.act(alert_decision)
+
         return rollback_result
 
     # ========================================================================
@@ -580,11 +598,32 @@ class MainOrchestrator:
         # Wait for deployment to complete
         result = await self.railway.wait_for_deployment(deployment_id=deployment["id"], timeout=600)
 
-        return {
+        deployment_result = {
             "deployment_id": deployment["id"],
             "status": result["status"],
             "url": result.get("url"),
         }
+
+        # Send success notification if deployment succeeded
+        if result["status"] == "SUCCESS":
+            alert_decision = Decision(
+                action=ActionType.ALERT,
+                reasoning="Notify team of successful deployment",
+                parameters={
+                    "workflow_id": "deployment-success-alert",
+                    "data": {
+                        "severity": "info",
+                        "deployment_id": deployment["id"],
+                        "url": result.get("url"),
+                        "commit": params.get("commit"),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    },
+                },
+                priority=5,
+            )
+            await self.act(alert_decision)
+
+        return deployment_result
 
     async def _act_rollback(self, params: dict[str, Any]) -> dict[str, Any]:
         """Execute rollback action."""

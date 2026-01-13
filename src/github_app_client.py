@@ -115,6 +115,13 @@ class GitHubAppClient:
         self._installation_token: str | None = None
         self._token_expires_at: datetime | None = None
 
+    def __del__(self):
+        """Clear sensitive data from memory on cleanup."""
+        if hasattr(self, "private_key"):
+            self.private_key = None
+        if hasattr(self, "_installation_token"):
+            self._installation_token = None
+
     # ========================================================================
     # AUTHENTICATION
     # ========================================================================
