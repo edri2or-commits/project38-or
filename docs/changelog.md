@@ -40,6 +40,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `GitHubAppRateLimitError` - 429 rate limit exceeded
     - `GitHubAppNotFoundError` - 404 resource not found
   - **Dependencies**: `httpx>=0.27.0`, `pyjwt>=2.0.0`, `tenacity>=8.0.0`
+- **n8n Workflow Orchestration Client** (2026-01-13) - Complete async client for autonomous workflow automation
+  - `src/n8n_client.py` (540 lines) - Production-ready N8nClient class
+  - `tests/test_n8n_client.py` (448 lines) - 30+ comprehensive tests with 100% coverage
+  - `docs/api/n8n_client.md` (200+ lines) - Complete API documentation
+  - **Features**:
+    - Create/update/delete workflows programmatically
+    - Execute workflows with custom data
+    - Monitor execution status and results
+    - Import/export workflows (version control)
+    - Exponential backoff retry logic (3 attempts, max 30s wait)
+  - **Workflow Management**:
+    - `create_workflow()` - Create workflows from JSON definition
+    - `get_workflow()` / `list_workflows()` - Retrieve workflow details
+    - `update_workflow()` - Modify existing workflows
+    - `delete_workflow()` - Remove workflows
+    - `activate_workflow()` / `deactivate_workflow()` - Control workflow state
+  - **Execution Operations**:
+    - `execute_workflow()` - Run workflow with custom input data
+    - `get_execution_status()` - Monitor execution progress
+    - `get_recent_executions()` - Audit automation health
+  - **Import/Export**:
+    - `export_workflow()` - Backup workflows to GitHub (version control)
+    - `import_workflow()` - Restore workflows from JSON
+  - **Exception Classes**:
+    - `N8nError` - Base exception
+    - `N8nAuthenticationError` - 401 Invalid API key
+    - `N8nNotFoundError` - 404 Workflow/execution not found
+    - `N8nValidationError` - 400 Workflow validation failed
+  - **Dependencies**: `httpx>=0.27.0`, `tenacity>=8.0.0`
 - **ADR Update Protocol** (2026-01-13) - Surgical alignment mechanism for keeping Architecture Decision Records synchronized with implementation
   - Systematic 5-step checklist for ADR updates after major feature completion
   - Update Log section in ADRs to track implementation timeline with evidence (PR numbers, file sizes, test counts)
