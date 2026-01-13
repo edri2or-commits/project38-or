@@ -6,9 +6,6 @@ Tests logging_config.py module functionality.
 
 import json
 import logging
-from io import StringIO
-
-import pytest
 
 from src.logging_config import JSONFormatter, setup_logging
 
@@ -186,4 +183,3 @@ class TestSetupLogging:
 
         assert log_data["message"] == "Test JSON output"
         assert log_data["correlation_id"] == "test-123"
-
