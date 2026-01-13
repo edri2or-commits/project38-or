@@ -1322,7 +1322,7 @@ When deployed to Railway:
 
 ```bash
 # Check application health
-curl https://or-infra.com/health
+curl https://or-infra.com/api/health
 
 # Expected response:
 {
