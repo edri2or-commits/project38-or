@@ -100,9 +100,7 @@ class TestApiRequest:
             mock_request = AsyncMock(return_value=mock_response)
             mock_client.return_value.__aenter__.return_value.request = mock_request
 
-            result = await n8n_client._api_request(
-                "POST", "/workflows", json_data={"name": "Test"}
-            )
+            result = await n8n_client._api_request("POST", "/workflows", json_data={"name": "Test"})
 
             assert result == {"id": "wf-123"}
             call_args = mock_request.call_args
@@ -270,9 +268,7 @@ class TestWorkflowManagement:
 
             await n8n_client.delete_workflow("wf-123")
 
-            mock_request.assert_called_once_with(
-                method="DELETE", endpoint="/workflows/wf-123"
-            )
+            mock_request.assert_called_once_with(method="DELETE", endpoint="/workflows/wf-123")
 
     @pytest.mark.asyncio
     async def test_activate_workflow(self, n8n_client):
@@ -350,9 +346,7 @@ class TestWorkflowExecution:
 
             assert result["finished"] is True
             assert result["status"] == "success"
-            mock_request.assert_called_once_with(
-                method="GET", endpoint="/executions/exec-123"
-            )
+            mock_request.assert_called_once_with(method="GET", endpoint="/executions/exec-123")
 
     @pytest.mark.asyncio
     async def test_get_recent_executions(self, n8n_client):
