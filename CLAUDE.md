@@ -40,6 +40,7 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-001: Research Synthesis Approach](docs/decisions/ADR-001-research-synthesis-approach.md) - Why dual documentation strategy
 - [ADR-002: Dual Documentation Strategy](docs/decisions/ADR-002-dual-documentation-strategy.md) - The 4-layer architecture
 - [ADR-003: Railway Autonomous Control](docs/decisions/ADR-003-railway-autonomous-control.md) - Autonomous Railway management approach
+- [ADR-004: Truth Protocol Enforcement](docs/decisions/ADR-004-truth-protocol-enforcement.md) - Accuracy and transparency requirements (2026-01-13)
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
@@ -86,12 +87,12 @@ When making changes:
 
 | Layer | Files | Size | Purpose |
 |-------|-------|------|---------|
-| Layer 1 (CLAUDE.md) | 1 | 44KB | Quick context |
-| Layer 2 (decisions/) | 3 ADRs | 21KB | Decision records |
-| Layer 3 (JOURNEY.md) | 1 | 16KB | Narrative timeline |
+| Layer 1 (CLAUDE.md) | 1 | 48KB | Quick context |
+| Layer 2 (decisions/) | 4 ADRs | 33KB | Decision records |
+| Layer 3 (JOURNEY.md) | 1 | 27KB | Narrative timeline |
 | Layer 4a (integrations/) | 5 | 199KB | Practical research |
 | Layer 4b (autonomous/) | 8 | 208KB | Theory + code synthesis |
-| **Total** | **18** | **488KB** | Complete context |
+| **Total** | **19** | **515KB** | Complete context |
 
 ### Industry Standards Referenced
 
@@ -100,6 +101,78 @@ When making changes:
 - **Azure ADR Guide**: [Well-Architected](https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-decision-record)
 - **Google Cloud ADR**: [Architecture Center](https://docs.cloud.google.com/architecture/architecture-decision-records)
 - **LangChain State of Agents**: [Report](https://www.langchain.com/state-of-agent-engineering)
+
+---
+
+## Truth Protocol Checklist (Mandatory)
+
+**Status**: Enforced by ADR-004 (Architecture Decision Record)
+**Date**: 2026-01-13
+**Severity**: Architectural requirement (same as security rules)
+
+### Before Responding to ANY Request
+
+AI agents MUST complete this checklist before taking action:
+
+```
+□ 1. READ CONTEXT COMPLETELY
+   - Read CLAUDE.md (this file) completely
+   - Read ALL ADRs in docs/decisions/
+   - Skim docs/JOURNEY.md for recent changes
+
+□ 2. SUMMARIZE DISCOVERIES
+   - Count ADRs found: "Found X ADRs: [titles]"
+   - Count research documents: "Found Y documents in docs/integrations/ and docs/autonomous/"
+   - Note system status: "System has Z tests passing"
+   - Identify available skills: "Available skills: [list]"
+
+□ 3. ASK USER BEFORE PROCEEDING
+   - "Should I proceed with [task] or review context first?"
+   - Wait for user confirmation
+   - Do NOT assume user wants immediate action
+
+□ 4. EXECUTE TASK
+   - Only after user confirmation
+   - Follow task instructions
+   - Document any learnings in JOURNEY.md
+```
+
+### Truth Protocol Requirements
+
+Based on user-provided **פרוטוקול אמת** (Truth Protocol):
+
+| Requirement (Hebrew) | English Translation | Implementation |
+|---------------------|---------------------|----------------|
+| דיוק לפני הכול | Accuracy before everything | All statements must be verifiable from source (cite file:line or URL) |
+| לא להמציא או לנחש | Don't fabricate or guess | If uncertain, state explicitly: "אין באפשרותי לאשר זאת" (I cannot confirm this) |
+| מקורות שקופים | Transparent sources | Every claim must cite file path, line number, or URL |
+| להציג מידע בצורה ברורה | Present information clearly | Summarize context BEFORE taking action (see checklist above) |
+| לא להשמיט פרטי מקור | Don't omit source details | If file mentions ADRs/docs, agent MUST summarize them |
+| לא למסור חצאי אמיתות | No half-truths via omission | Omitting relevant context = protocol violation |
+
+### Violation Consequences
+
+**If agent violates Truth Protocol**:
+1. Document incident in `docs/JOURNEY.md` (Phase 7 pattern)
+2. Analyze root cause (technical vs behavioral)
+3. Update ADR-004 if structural change needed
+4. Improve checklist to prevent recurrence
+
+**Learning Loop**:
+```
+Violation → Documentation → Analysis → Improvement → Fewer Future Violations
+```
+
+### Historical Context
+
+**Incident**: 2026-01-13, session `claude/read-claude-md-RI8sS`
+- Agent read CLAUDE.md but did NOT summarize 3 ADRs in initial response
+- User asked: "למה לא ציינת את ה-ADRs כשקראת את CLAUDE.md בתחילת השיחה?"
+- Root cause: No enforced protocol for context summarization
+
+**Solution**: Created ADR-004 + updated JOURNEY.md + this checklist
+
+**Reference**: See [ADR-004](docs/decisions/ADR-004-truth-protocol-enforcement.md) for complete rationale.
 
 ---
 

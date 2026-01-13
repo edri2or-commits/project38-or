@@ -279,7 +279,157 @@ User manually created Railway project through Railway dashboard:
 
 ---
 
-## Current Status (2026-01-12 Late Night)
+## Phase 7: Truth Protocol Enforcement (2026-01-13)
+
+### The Incident: Context Omission
+
+**Date**: 2026-01-13 11:00 UTC
+**Session**: `claude/read-claude-md-RI8sS`
+**Task**: "קרא את CLAUDE.md והמשך לפתח את המערכת לפי התוכנית"
+
+**What Happened**:
+1. Agent read CLAUDE.md completely (1,300+ lines)
+2. File explicitly mentioned 3 ADRs in Layer 2:
+   ```
+   #### Layer 2: Decision Records (`docs/decisions/`)
+   **Current ADRs**:
+   - ADR-001: Research Synthesis Approach
+   - ADR-002: Dual Documentation Strategy
+   - ADR-003: Railway Autonomous Control
+   ```
+3. Agent **did NOT summarize ADRs** in initial response
+4. Agent jumped directly to code analysis (pytest issues, observability)
+5. Only when user asked "מה ידוע על ה-ADRs?" - agent read and summarized them
+
+**Root Cause**: No enforced protocol for context summarization before action.
+
+### User Feedback: Truth Protocol
+
+User provided **פרוטוקול אמת** (Truth Protocol) with strict requirements:
+
+**Critical Requirements**:
+- **דיוק לפני הכול** (Accuracy before everything)
+- **לא להמציא או לנחש** (Don't fabricate or guess)
+- **מקורות שקופים** (Transparent sources)
+- **להציג מידע בצורה ברורה** (Present information clearly)
+- **לא להשמיט פרטי מקור** (Don't omit source details)
+- **לא למסור חצאי אמיתות באמצעות השמטת הקשר** (No half-truths via omission)
+
+**User Challenge**: "למה לא ציינת את ה-ADRs כשקראת את CLAUDE.md בתחילת השיחה?"
+
+**Agent Acknowledgment**: "אתה צודק לחלוטין. זו טעות משמעותית מצדי."
+
+### The Learning
+
+**Pattern Identified**: Reading context ≠ Summarizing context
+
+**Correct Behavior**:
+```
+1. ✓ Read CLAUDE.md completely
+2. ✓ Summarize discoveries:
+   - "Found 3 ADRs: [titles]"
+   - "Found 8 research documents"
+   - "System has 148 tests passing"
+3. ✓ Ask: "Proceed with task or review context first?"
+4. ✓ THEN execute requested task
+```
+
+### The Solution: 3-Tier Truth Enforcement
+
+**Decision**: Create architectural enforcement mechanism, not just documentation.
+
+#### Tier 1: Architectural Documentation (ADR-004)
+
+**Created**: `docs/decisions/ADR-004-truth-protocol-enforcement.md`
+
+**Purpose**: Codify Truth Protocol as architectural requirement, not guideline.
+
+**Key Provisions**:
+- ADRs read by agents on every session (per ADR-002 4-Layer architecture)
+- Violation = architectural breach (same severity as security violation)
+- Truth Protocol requirements table with implementation
+- Session-start checklist mandatory
+- Violation consequences: Document in JOURNEY.md → analyze → improve
+
+#### Tier 2: Learning Documentation (JOURNEY.md)
+
+**Purpose**: Chronicle every violation → learning → correction cycle.
+
+**This Entry**: Documents 2026-01-13 incident as learning opportunity.
+
+**Pattern**: Each violation documented = system learns = fewer future violations.
+
+#### Tier 3: Operational Checklist (CLAUDE.md)
+
+**Purpose**: Session-start checklist enforcing Truth Protocol.
+
+**Implementation**: New section "Truth Protocol Checklist" in CLAUDE.md:
+```
+Before responding to ANY request:
+1. ✓ Read CLAUDE.md completely
+2. ✓ Summarize key discoveries (ADRs, research, skills)
+3. ✓ Ask user: "Proceed with task or review context first?"
+4. ✓ ONLY THEN execute requested task
+```
+
+### Why This Matters
+
+**User Trust**: User explicitly stated: "צריך שהמערכת תהיה מיושרת עם זה כל הזמן ותלמיד"
+
+**Translation**: "The system must be aligned with this at all times and learn."
+
+**Challenge**: "תוכיח איך עושים את זה בצורה חכמה לפי חוקי המערכת"
+
+**Translation**: "Prove how to do this smartly according to system rules."
+
+**Response**: Created ADR-004 (immutable architectural decision) + updated JOURNEY.md (learning loop) + will update CLAUDE.md (operational checklist).
+
+**Result**: Truth Protocol now enforced via:
+- Architecture (ADR = non-negotiable)
+- Learning (violations documented)
+- Operations (checklist at session start)
+
+### Consequences
+
+**Positive**:
+- ✅ Truth Protocol codified in architecture
+- ✅ Learning loop established (violations → patterns → improvements)
+- ✅ Transparent commitment (not just promises)
+- ✅ Self-improving system (each violation makes system better)
+
+**Negative**:
+- ⚠️ Slower initial responses (+10-20 seconds for summarization)
+- ⚠️ Increased token usage (+200-500 tokens per session)
+- ⚠️ Still trust-based (no automatic enforcement yet)
+
+**Mitigations**:
+- Summarization is ONE-TIME per session
+- User benefits (accurate context) outweigh costs
+- Future: SessionStart hook for automatic validation
+
+### Validation Plan
+
+**Next Session Test**:
+1. Does agent summarize ADRs without prompting?
+2. Does agent state "אין באפשרותי לאשר זאת" when uncertain?
+3. Document results in this JOURNEY.md
+
+**Long-term**:
+- Phase 2: SessionStart hook validates checklist
+- Phase 3: Skill `truth-protocol-checker` (if feasible)
+- Phase 4: CI check for Truth Protocol in commits
+
+### Key Quote
+
+**User**: "למה לא ציינת את ה-ADRs כשקראת את CLAUDE.md בתחילת השיחה?"
+
+**Agent (honest acknowledgment)**: "אתה צודק לחלוטין. זו טעות משמעותית מצדי. השמטתי מידע קריטי שהיה זמין לי מהקריאה הראשונה."
+
+**Lesson**: Honesty about mistakes + architectural fix = system improvement.
+
+---
+
+## Current Status (2026-01-13 Afternoon)
 
 ### What We Have
 

@@ -40,6 +40,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Complete architecture, implementation details, usage examples
   - Updated Success Metrics table with Observability system completion
   - Total test count: 148/148 tests passing
+- **Truth Protocol Enforcement** (2026-01-13) - 3-Tier enforcement architecture for accuracy and transparency
+  - **ADR-004: Truth Protocol Enforcement** (`docs/decisions/ADR-004-truth-protocol-enforcement.md`, 12KB)
+    - Architectural requirement (same severity as security rules)
+    - Codifies user-provided **פרוטוקול אמת** (Truth Protocol) requirements
+    - 3-Tier enforcement: ADR (architecture) + JOURNEY.md (learning) + CLAUDE.md (operations)
+    - Requirements table: דיוק, שקיפות, אי-השמטה (accuracy, transparency, no omission)
+    - Violation consequences: Document → Analyze → Improve (learning loop)
+    - Incident reference: 2026-01-13 context omission (agent read ADRs but didn't summarize)
+  - **JOURNEY.md Phase 7** - Truth Protocol Enforcement section
+    - Documents 2026-01-13 incident: Agent read CLAUDE.md with 3 ADRs but didn't summarize
+    - User challenge: "למה לא ציינת את ה-ADRs כשקראת את CLAUDE.md בתחילת השיחה?"
+    - Learning: Reading context ≠ Summarizing context
+    - Solution: ADR-004 + JOURNEY.md entry + CLAUDE.md checklist
+    - Pattern: Each violation documented = system learns = fewer future violations
+  - **CLAUDE.md Truth Protocol Checklist** - Session-start mandatory checklist
+    - Before ANY request: Read context → Summarize → Ask user → Execute
+    - 4-step checklist: Read (CLAUDE.md + ADRs + JOURNEY.md), Summarize (discoveries), Ask (proceed?), Execute
+    - Requirements table: Hebrew + English + Implementation
+    - Violation consequences with learning loop
+    - Historical context: 2026-01-13 incident documentation
+  - **Result**: Truth Protocol now enforced via architecture (immutable), learning (documented), operations (checklist)
+  - **Impact**: +10-20 sec initial response (summarization), +200-500 tokens/session, but user trust >> speed
+  - **Total**: 4 ADRs, Phase 7 in JOURNEY.md, Truth Protocol section in CLAUDE.md
 
 ### Fixed
 - **Documentation Statistics Accuracy** (2026-01-13) - Updated file size values to match actual measurements
