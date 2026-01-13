@@ -38,7 +38,7 @@ jobs:
           echo "🏥 Testing health endpoint..."
 
           RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
-            https://web-production-47ff.up.railway.app/health)
+            https://web-production-47ff.up.railway.app/api/health)
 
           HTTP_CODE=$(echo "$RESPONSE" | grep HTTP_CODE | cut -d: -f2)
           BODY=$(echo "$RESPONSE" | sed '/HTTP_CODE/d')
@@ -178,7 +178,7 @@ jobs:
 
           # Production URL
           echo "### 🔗 Production URLs" >> $GITHUB_STEP_SUMMARY
-          echo "- Health: https://web-production-47ff.up.railway.app/health" >> $GITHUB_STEP_SUMMARY
+          echo "- Health: https://web-production-47ff.up.railway.app/api/health" >> $GITHUB_STEP_SUMMARY
           echo "- API Docs: https://web-production-47ff.up.railway.app/docs" >> $GITHUB_STEP_SUMMARY
           echo "- Metrics: https://web-production-47ff.up.railway.app/metrics/summary" >> $GITHUB_STEP_SUMMARY
 
@@ -211,7 +211,7 @@ jobs:
 
             ### Quick Links
             - [Railway Dashboard](https://railway.app/project/95ec21cc-9ada-41c5-8485-12f9a00e0116)
-            - [Production URL](https://web-production-47ff.up.railway.app/health)
+            - [Production URL](https://web-production-47ff.up.railway.app/api/health)
             - [PRODUCTION_TESTING_GUIDE.md](./docs/PRODUCTION_TESTING_GUIDE.md)
             `;
 
