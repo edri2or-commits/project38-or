@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from src.api.database import check_database_connection
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
 
 class HealthResponse(BaseModel):
