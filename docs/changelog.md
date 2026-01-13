@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Documentation Health Endpoint URLs** (2026-01-13) - Aligned all documentation with production /api/health endpoint
+  - **Issue**: Documentation examples used `/health` instead of `/api/health`
+  - **Files updated**:
+    - `CLAUDE.md`: Updated curl example to use `/api/health`
+    - `docs/PRODUCTION_TESTING_GUIDE.md`: Updated 4 occurrences
+    - `docs/NEXT_PHASE_RECOMMENDATIONS.md`: Updated 2 occurrences
+  - **Impact**: Users following documentation will now use correct endpoint
+  - **Verification**: `grep -r "or-infra.com/health" --exclude "api/health"` returns no results
+
 - **Health Endpoint Routing** (2026-01-13, PR #74) - Fixed Railway reverse proxy routing issue
   - **Root cause**: Railway doesn't route root-level endpoints correctly
   - **Evidence**: `/metrics/summary` (prefixed) worked, `/health` (root) returned 404

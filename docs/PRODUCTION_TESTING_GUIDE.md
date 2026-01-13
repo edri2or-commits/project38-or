@@ -56,7 +56,7 @@ This guide helps you test the deployed Agent Platform on Railway production. Sin
 
 ### 1. Test Health Endpoint
 
-**URL**: https://or-infra.com/health
+**URL**: https://or-infra.com/api/health
 
 **Expected Response**:
 ```json
@@ -94,7 +94,7 @@ This guide helps you test the deployed Agent Platform on Railway production. Sin
 
 ```bash
 # Test health endpoint
-curl https://or-infra.com/health
+curl https://or-infra.com/api/health
 
 # Expected: {"status":"healthy","version":"0.1.0",...}
 ```
@@ -340,7 +340,7 @@ browser = await get_browser(agent_id=1)
 ### 1. Enable Monitoring (UptimeRobot)
 
 Set up external monitoring:
-- URL: https://or-infra.com/health
+- URL: https://or-infra.com/api/health
 - Interval: 5 minutes
 - Alert on: status != 200 OR database != "connected"
 
@@ -382,7 +382,7 @@ Implement preview deployments for PRs (BOOTSTRAP_PLAN.md, line 681):
 
 | Endpoint | URL | Purpose |
 |----------|-----|---------|
-| **Health** | https://or-infra.com/health | System health |
+| **Health** | https://or-infra.com/api/health | System health |
 | **API Docs** | https://or-infra.com/docs | Swagger UI |
 | **ReDoc** | https://or-infra.com/redoc | Alternative docs |
 | **Create Agent** | POST /api/agents | Agent Factory |

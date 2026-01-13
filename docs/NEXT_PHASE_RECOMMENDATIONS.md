@@ -160,7 +160,7 @@ async def test_create_agent_end_to_end():
 ```
 1. Create account: https://uptimerobot.com
 2. Add monitor:
-   - URL: https://or-infra.com/health
+   - URL: https://or-infra.com/api/health
    - Interval: 5 minutes
    - Alert: Email/Telegram when down
 3. Create status page (optional)
@@ -357,7 +357,7 @@ class AgentMetrics(BaseModel):
 **Immediate Action** (User):
 ```bash
 # 1. Open browser
-# 2. Navigate to: https://or-infra.com/health
+# 2. Navigate to: https://or-infra.com/api/health
 # 3. Follow PRODUCTION_TESTING_GUIDE.md
 # 4. Report back: "Health OK" or "Error: X"
 ```
