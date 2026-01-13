@@ -188,23 +188,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Enable auto-merge
+      - name: Wait for all checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Waiting for all required checks to complete..."
+          gh pr checks ${{ github.event.pull_request.number }} --watch --interval 10
+
+      - name: Merge PR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh pr merge ${{ github.event.pull_request.number }} \
             --squash \
             --delete-branch \
-            --auto \
             --repo ${{ github.repository }}
 
       - name: 🎉 Success
         run: |
-          echo "## 🎉 Auto-Merge Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎉 PR Merged Successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "PR #${{ github.event.pull_request.number }} will be merged automatically once all required checks pass." >> $GITHUB_STEP_SUMMARY
+          echo "PR #${{ github.event.pull_request.number }} has been merged to main." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** \`${{ github.head_ref }}\` will be deleted after merge." >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.head_ref }}\` has been deleted." >> $GITHUB_STEP_SUMMARY
 
   notify-failure:
     name: Notify on Failure

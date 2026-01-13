@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Auto-Merge Workflow** (2026-01-13) - Fixed timing and permission issues preventing auto-merge
+  - **Issue #1**: `gh pr merge --auto` caused "Resource not accessible by integration" (PR #61, #62)
+    - Root cause: `--auto` requires platform permissions not available to Actions token
+    - Reference: [GitHub CLI Issue #6695](https://github.com/cli/cli/issues/6695)
+  - **Issue #2**: Direct merge failed with "Pull request in unstable status" (PR #63 initial attempt)
+    - Root cause: Auto-Merge job tried to merge while other checks (Tests) still running
+    - Timeline: Merge attempted at 14:58:01, Tests finished at 14:58:02 (1s race condition)
+  - **Solution**:
+    - Removed `--auto` flag (addresses permission issue)
+    - Added `gh pr checks --watch` to wait for all checks before merge (addresses timing issue)
+    - Checks now complete in order: Validation Gate → Wait for checks → Merge
+  - **Impact**: Auto-merge works correctly - PRs merge after ALL checks complete
+  - **Changed in**: `.github/workflows/auto-merge.yml` (lines 191-205)
+
 ### Added
 - **Advanced Skills: Performance Monitor & Cost Optimizer** (2026-01-13) - Added two enterprise-grade monitoring skills
   - **performance-monitor skill (v1.0.0)**:
