@@ -46,7 +46,7 @@ api_key = manager.get_secret("ANTHROPIC-API")
 - **Backend**: FastAPI + PostgreSQL (asyncpg, SQLModel)
 - **AI**: Claude Sonnet 4.5 via Anthropic SDK
 - **Secrets**: GCP Secret Manager (Workload Identity Federation)
-- **CI/CD**: GitHub Actions with auto-merge
+- **CI/CD**: GitHub Actions with automated validation
 - **Deployment**: Railway (ephemeral filesystem, persistent DB)
 
 ---

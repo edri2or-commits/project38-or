@@ -532,7 +532,7 @@ async def auto_merge_when_ready(
     merge_method: str = "squash"
 ):
     """
-    Wait for PR checks to pass, then auto-merge.
+    Wait for PR checks to pass, then merge manually (auto-merge removed 2026-01-13).
 
     Args:
         pr_number: PR number

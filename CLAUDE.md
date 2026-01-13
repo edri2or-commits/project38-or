@@ -86,12 +86,12 @@ When making changes:
 
 | Layer | Files | Size | Purpose |
 |-------|-------|------|---------|
-| Layer 1 (CLAUDE.md) | 1 | 44KB | Quick context |
-| Layer 2 (decisions/) | 3 ADRs | 21KB | Decision records |
-| Layer 3 (JOURNEY.md) | 1 | 16KB | Narrative timeline |
+| Layer 1 (CLAUDE.md) | 1 | 48KB | Quick context |
+| Layer 2 (decisions/) | 3 ADRs | 22KB | Decision records |
+| Layer 3 (JOURNEY.md) | 1 | 17KB | Narrative timeline |
 | Layer 4a (integrations/) | 5 | 199KB | Practical research |
-| Layer 4b (autonomous/) | 8 | 208KB | Theory + code synthesis |
-| **Total** | **18** | **488KB** | Complete context |
+| Layer 4b (autonomous/) | 8 | 209KB | Theory + code synthesis |
+| **Total** | **18** | **494KB** | Complete context |
 
 ### Industry Standards Referenced
 
@@ -282,7 +282,6 @@ project38-or/
 ├── Procfile                   # Process definition for Railway
 ├── .github/workflows/
 │   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
-│   ├── auto-merge.yml        # Auto-merge PRs after CI passes (pull_request)
 │   ├── deploy-railway.yml    # Railway deployment (workflow_dispatch only)
 │   ├── docs.yml              # Documentation deployment (push to main)
 │   ├── docs-check.yml        # Changelog & docstring enforcement (workflow_dispatch + PR)
@@ -356,10 +355,7 @@ project38-or/
   - Automatic validation when PR is created or updated
   - Ensures code quality before merge
   - Blocks merge if checks fail
-- **Auto-merge workflow** (`auto-merge.yml`) triggers on `pull_request` events:
-  - Automatically merges PR after all CI checks pass
-  - Requires: tests pass, lint passes, docs validation passes
-  - Deletes branch after merge
+- **Merge workflow**: Manual merge after CI passes (removed auto-merge due to GitHub Actions token limitations)
 - **Exception:** `docs.yml` uses `push` trigger for automatic documentation deployment
   - Rationale: Low risk (GitHub Pages only, no secrets/GCP access)
   - Benefit: Documentation stays synchronized with code (15/16 runs were automatic)
@@ -780,7 +776,7 @@ Provides foundation for all other skills - runs on every session start to prepar
 
 ### preflight-check (v1.0.0)
 
-**Purpose:** Run all validation checks before creating PR to ensure auto-merge will succeed.
+**Purpose:** Run all validation checks before creating PR to ensure CI will succeed.
 
 **Triggers:**
 - Keywords: `preflight`, `create pr`, `ready to merge`, `open pull request`
@@ -804,18 +800,18 @@ Provides foundation for all other skills - runs on every session start to prepar
 "Check if everything passes now"
 ```
 
-**Integration with auto-merge:**
+**Integration with CI:**
 ```
 preflight-check (local) → All pass? → Create PR
     ↓
-auto-merge.yml (GitHub) → Verify again → Auto-merge
+GitHub CI (test.yml, lint.yml, docs-check.yml) → Validate again
     ↓
-Merged + branch deleted (< 1 minute)
+Manual merge (1-click, < 10 seconds)
 ```
 
 **Why run checks twice?**
 - **Local (preflight):** Fast feedback (< 30 seconds), no CI wait
-- **GitHub (auto-merge):** Security verification, final gate
+- **GitHub (CI):** Security verification, final gate, public audit trail
 
 **Files:**
 - Skill definition: `.claude/skills/preflight-check/SKILL.md`
@@ -829,8 +825,8 @@ Merged + branch deleted (< 1 minute)
 
 **Success metrics:**
 - ✅ Zero PR rejections due to validation failures
-- ✅ < 1 minute from "create PR" to merge
-- ✅ 100% of preflight passes result in auto-merge success
+- ✅ < 1 minute from "create PR" to merge (including CI time)
+- ✅ 100% of preflight passes result in CI success
 - ✅ Clear, actionable error messages for failures
 
 ### performance-monitor (v1.0.0)
