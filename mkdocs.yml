@@ -105,6 +105,7 @@ nav:
       - Agent Harness: api/harness.md
       - MCP Tools: api/mcp.md
       - Observability: api/observability.md
+      - Railway Client: api/railway.md
       - GitHub Authentication: api/github_auth.md
       - GitHub PR Operations: api/github_pr.md
   - Changelog: changelog.md
