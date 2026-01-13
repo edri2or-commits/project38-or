@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - N8nClient: Clears api_key
   - SecretManager: Calls clear_cache() on cleanup
   - Prevents sensitive data from lingering in memory
+- **Alert System Integration** (2026-01-13) - n8n workflow notifications (Day 6 Complete ✅)
+  - Deployment success notifications via n8n (severity: info)
+  - Deployment failure alerts via n8n (severity: high)
+  - Automatic alert triggering in orchestrator
+  - Success alert in `_act_deploy()` after successful deployment
+  - Failure alert in `handle_deployment_failure()` alongside rollback and issue creation
+  - Configurable workflow IDs: `deployment-success-alert`, `deployment-failure-alert`
+  - Alert data includes deployment_id, url, commit, timestamp, severity
 
 ### Fixed
 - **Test Suite Async Mocking Issues** (2026-01-13) - Fixed async mocking in GitHub App and n8n client tests
