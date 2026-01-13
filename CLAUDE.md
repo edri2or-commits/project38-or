@@ -267,6 +267,10 @@ project38-or/
 │   ├── secrets_manager.py    # USE THIS for all secret access
 │   ├── github_auth.py        # GitHub WIF authentication
 │   ├── github_pr.py          # Universal PR creation (gh CLI + requests fallback)
+│   ├── github_app_client.py  # GitHub App JWT authentication & API client (Phase 2)
+│   ├── n8n_client.py         # n8n workflow orchestration client (Phase 2)
+│   ├── orchestrator.py       # MainOrchestrator with OODA Loop (Phase 3)
+│   ├── state_machine.py      # Deployment lifecycle state machine (Phase 3)
 │   ├── api/                  # FastAPI application (Phase 3.1)
 │   │   ├── __init__.py
 │   │   ├── main.py           # FastAPI app entry point
@@ -313,6 +317,10 @@ project38-or/
 │   ├── test-wif.yml          # Test GCP WIF authentication (workflow_dispatch only)
 │   └── verify-secrets.yml    # workflow_dispatch only
 ├── tests/                     # pytest tests
+│   ├── test_github_app_client.py  # GitHub App client tests (30+ tests, Phase 2)
+│   ├── test_n8n_client.py        # n8n client tests (30+ tests, Phase 2)
+│   ├── test_orchestrator.py      # MainOrchestrator tests (25+ tests, Phase 3)
+│   └── test_state_machine.py     # State machine tests (25+ tests, Phase 3)
 ├── research/                  # Research documents (read-only)
 ├── docs/                      # MkDocs source
 │   ├── index.md              # Home page
@@ -323,6 +331,9 @@ project38-or/
 │   ├── BOOTSTRAP_PLAN.md     # Architecture plan
 │   ├── RAILWAY_SETUP.md      # Railway deployment guide
 │   ├── api/                  # API reference (auto-generated)
+│   │   ├── github_app_client.md   # GitHub App client API docs (Phase 2)
+│   │   ├── n8n_client.md         # n8n client API docs (Phase 2)
+│   │   └── orchestrator.md       # MainOrchestrator API docs (Phase 3)
 │   ├── decisions/            # Architecture Decision Records (Layer 2, 3 ADRs)
 │   │   ├── ADR-001-research-synthesis-approach.md
 │   │   ├── ADR-002-dual-documentation-strategy.md
