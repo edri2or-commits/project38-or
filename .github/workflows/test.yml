@@ -23,6 +23,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agentplatform
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -55,11 +70,13 @@ jobs:
 
       - name: Run tests with coverage
         id: pytest
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/agentplatform
         run: |
-          # conftest.py now auto-skips tests with missing dependencies
-          python -m pytest --cov=src --cov-report=term-missing -v --cov-fail-under=0 \
-            --ignore=tests/test_backup_manager.py \
-            --ignore=tests/test_secrets_manager.py \
+          # All tests enabled after fixing mocking issues (BUG-005A/B)
+          # Coverage threshold set to 70% (current: 71%)
+          # PostgreSQL service container provides database for API tests
+          python -m pytest --cov=src --cov-report=term-missing -v --cov-fail-under=70 \
             2>&1 | tee pytest-output.txt
           exit ${PIPESTATUS[0]}
 

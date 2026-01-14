@@ -39,3 +39,6 @@ opentelemetry-api>=1.22.0
 opentelemetry-sdk>=1.22.0
 opentelemetry-instrumentation>=0.43b0
 opentelemetry-exporter-otlp>=1.22.0
+
+# Fix for cryptography/_cffi_backend import issue
+cffi>=2.0.0

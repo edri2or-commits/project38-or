@@ -4,6 +4,7 @@ This module handles PostgreSQL connection pooling and session management
 using SQLModel and asyncpg.
 """
 
+import logging
 import os
 from collections.abc import AsyncGenerator
 
@@ -12,12 +13,26 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
+logger = logging.getLogger(__name__)
+
 # Database connection URL from environment variable
-# Format: postgresql+asyncpg://user:password@host:port/database
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/agentplatform",
-)
+# Railway provides postgres:// but SQLAlchemy async requires postgresql+asyncpg://
+DATABASE_URL_RAW = os.environ.get("DATABASE_URL")
+
+if DATABASE_URL_RAW:
+    if DATABASE_URL_RAW.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL_RAW.replace("postgres://", "postgresql+asyncpg://", 1)
+        logger.info("Converted Railway postgres:// URL to postgresql+asyncpg://")
+    elif DATABASE_URL_RAW.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL_RAW.replace("postgresql://", "postgresql+asyncpg://", 1)
+        logger.info("Converted postgresql:// URL to postgresql+asyncpg://")
+    else:
+        DATABASE_URL = DATABASE_URL_RAW
+        logger.info("Using DATABASE_URL as provided")
+else:
+    # Development fallback
+    DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/agentplatform"
+    logger.warning("DATABASE_URL not set, using development default")
 
 # Create async engine
 engine = create_async_engine(

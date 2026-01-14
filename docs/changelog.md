@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Critical Bug Fixes from System Audit** (2026-01-14) - Resolved 7 critical and high-priority bugs
+  - `src/api/main.py` - Database initialization and CORS security
+    - Fixed BUG-001: Added `create_db_and_tables()` call in lifespan startup to create database tables automatically
+    - Fixed BUG-003: Restricted CORS origins based on environment (production: `https://or-infra.com`, development: localhost)
+    - Added `close_db_connection()` call in lifespan shutdown for proper cleanup
+  - `src/api/database.py` - Railway DATABASE_URL compatibility
+    - Fixed BUG-006: Automatic conversion of Railway's `postgres://` to `postgresql+asyncpg://` format
+    - Added logging for database connection URL handling
+    - Improved error handling for missing DATABASE_URL
+  - `requirements.txt` - Cryptography dependency fix
+    - Fixed BUG-004: Added `cffi>=2.0.0` to resolve `ModuleNotFoundError: _cffi_backend`
+  - `tests/test_backup_manager.py` - Test mocking fixes
+    - Fixed BUG-005A: Resolved recursion error in `test_load_metadata_success` by using real temp directories
+  - `tests/test_secrets_manager.py` - Exception mocking fixes
+    - Fixed BUG-005B: Fixed 4 failing tests by changing exception `side_effect` to use callable functions
+  - `.github/workflows/test.yml` - CI test coverage
+    - Fixed BUG-008: Enabled all tests by removing `--ignore` flags for backup and secrets tests
+    - Increased coverage threshold to 80%
+
 ### Added
 - **Week 4: Performance Baseline & Alerting Refinement** (2026-01-14) - Performance monitoring and enhanced alerting
   - `src/performance_baseline.py` (700+ lines) - Performance baseline establishment module
