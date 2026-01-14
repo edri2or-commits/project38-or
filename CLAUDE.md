@@ -320,7 +320,12 @@ project38-or/
 │   ├── test_github_app_client.py  # GitHub App client tests (30+ tests, Phase 2)
 │   ├── test_n8n_client.py        # n8n client tests (30+ tests, Phase 2)
 │   ├── test_orchestrator.py      # MainOrchestrator tests (25+ tests, Phase 3)
-│   └── test_state_machine.py     # State machine tests (25+ tests, Phase 3)
+│   ├── test_state_machine.py     # State machine tests (25+ tests, Phase 3)
+│   └── e2e/                   # E2E integration tests (Day 7)
+│       ├── conftest.py        # Shared fixtures for E2E tests
+│       ├── test_orchestrator_e2e.py   # OODA loop E2E (9 tests)
+│       ├── test_deployment_flow.py    # Deployment lifecycle E2E (10 tests)
+│       └── test_api_integration.py    # API endpoints E2E (18 tests)
 ├── research/                  # Research documents (read-only)
 ├── docs/                      # MkDocs source
 │   ├── index.md              # Home page
