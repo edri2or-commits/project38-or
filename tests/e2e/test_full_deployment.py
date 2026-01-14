@@ -13,9 +13,9 @@ Note: These tests use mocking since we cannot access Railway production
 from the Claude Code environment due to Anthropic proxy restrictions.
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime
 
 
 class TestFullDeploymentFlow:
@@ -24,10 +24,10 @@ class TestFullDeploymentFlow:
     @pytest.mark.asyncio
     async def test_orchestrator_initialization(self):
         """Test that orchestrator initializes with all required clients."""
-        from src.orchestrator import MainOrchestrator
-        from src.railway_client import RailwayClient
         from src.github_app_client import GitHubAppClient
         from src.n8n_client import N8nClient
+        from src.orchestrator import MainOrchestrator
+        from src.railway_client import RailwayClient
 
         # Create mock clients
         railway_client = Mock(spec=RailwayClient)
@@ -91,7 +91,7 @@ class TestFullDeploymentFlow:
     @pytest.mark.asyncio
     async def test_deployment_decision_making(self):
         """Test orchestrator makes correct deployment decisions."""
-        from src.orchestrator import MainOrchestrator, Decision, ActionType
+        from src.orchestrator import ActionType, MainOrchestrator
 
         # Create mock clients
         railway_client = AsyncMock()
@@ -293,7 +293,7 @@ class TestFullDeploymentFlow:
         )
 
         # Trigger deployment action
-        from src.orchestrator import Decision, ActionType
+        from src.orchestrator import ActionType, Decision
 
         decision = Decision(
             action_type=ActionType.DEPLOY,
@@ -323,7 +323,7 @@ class TestFullDeploymentFlow:
         )
 
         # Trigger success notification
-        from src.orchestrator import Decision, ActionType
+        from src.orchestrator import ActionType, Decision
 
         decision = Decision(
             action_type=ActionType.ALERT,
@@ -385,7 +385,7 @@ class TestMultiServiceOrchestration:
     @pytest.mark.asyncio
     async def test_concurrent_deployments(self):
         """Test orchestrator handles concurrent deployment decisions."""
-        from src.orchestrator import MainOrchestrator, Decision, ActionType
+        from src.orchestrator import ActionType, Decision, MainOrchestrator
 
         railway_client = AsyncMock()
         github_client = AsyncMock()

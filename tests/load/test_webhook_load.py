@@ -12,10 +12,10 @@ under simulated load conditions.
 """
 
 import asyncio
-import time
-from typing import List, Dict, Any
-from datetime import datetime
 import statistics
+import time
+from datetime import datetime
+from typing import Any
 
 
 class LoadTestMetrics:
@@ -26,8 +26,8 @@ class LoadTestMetrics:
         self.end_time = None
         self.successful = 0
         self.failed = 0
-        self.response_times: List[float] = []
-        self.errors: List[str] = []
+        self.response_times: list[float] = []
+        self.errors: list[str] = []
 
     def record_success(self, response_time: float):
         """Record successful request."""
@@ -90,7 +90,7 @@ class LoadTestMetrics:
             return sorted_times[index]
         return 0.0
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Get metrics summary."""
         return {
             "total_requests": self.total_requests,
@@ -267,8 +267,9 @@ class TestOrchestratorLoad:
         Expected: Consistent cycle times
         Target: <5 seconds per cycle
         """
-        from src.orchestrator import MainOrchestrator
         from unittest.mock import AsyncMock
+
+        from src.orchestrator import MainOrchestrator
 
         # Create mock clients
         railway_client = AsyncMock()
@@ -324,8 +325,9 @@ class TestOrchestratorLoad:
         Expected: No resource contention or deadlocks
         Target: All cycles complete successfully
         """
-        from src.orchestrator import MainOrchestrator
         from unittest.mock import AsyncMock
+
+        from src.orchestrator import MainOrchestrator
 
         num_orchestrators = 3
         cycles_per_orchestrator = 5
