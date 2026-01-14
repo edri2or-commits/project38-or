@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **MCP Gateway for Full Autonomy** (2026-01-14) - Remote MCP Server enabling Claude Code to autonomously operate Railway and n8n
-  - `docs/autonomous/08-mcp-gateway-architecture.md` (450+ lines) - Comprehensive architecture proposal
+  - `docs/autonomous/08-mcp-gateway-architecture.md` (834 lines) - Comprehensive architecture proposal
     - Problem statement: Anthropic proxy blocks Railway/n8n direct access
     - Solution: Remote MCP Server deployed on Railway bypasses proxy limitations
     - Component diagram with data flow (Claude → MCP Gateway → Railway/n8n)
@@ -17,12 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Integration with existing FastAPI app
     - OODA Loop integration for true autonomous operations
   - `src/mcp_gateway/` - Complete MCP Gateway implementation
-    - `server.py` (180 lines) - FastMCP server with 10 autonomous tools
-    - `config.py` (65 lines) - Configuration from GCP Secret Manager
-    - `auth.py` (55 lines) - Bearer token authentication
-    - `tools/railway.py` (180 lines) - Railway operations (deploy, status, rollback)
-    - `tools/n8n.py` (130 lines) - n8n workflow operations (trigger, list, status)
-    - `tools/monitoring.py` (170 lines) - Health checks and metrics
+    - `server.py` (228 lines) - FastMCP server with 10 autonomous tools
+    - `config.py` (84 lines) - Configuration from GCP Secret Manager
+    - `auth.py` (74 lines) - Bearer token authentication
+    - `tools/railway.py` (324 lines) - Railway operations (deploy, status, rollback)
+    - `tools/n8n.py` (218 lines) - n8n workflow operations (trigger, list, status)
+    - `tools/monitoring.py` (243 lines) - Health checks and metrics
   - `docs/api/mcp_gateway.md` - Complete API reference documentation
   - **Available MCP Tools**:
     - `railway_deploy()` - Trigger new Railway deployment
