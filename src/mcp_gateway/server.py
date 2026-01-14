@@ -181,7 +181,7 @@ def create_mcp_server() -> Any | None:
     return mcp
 
 
-def create_mcp_app():
+def create_mcp_app() -> object | None:
     """
     Create ASGI app for mounting in FastAPI.
 

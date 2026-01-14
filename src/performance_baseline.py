@@ -29,7 +29,7 @@ Example:
 
 import logging
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -444,7 +444,11 @@ class PerformanceBaseline:
                     p95=round(
                         statistics.quantiles(values, n=20)[18], 2
                     ),  # 19th of 20 quantiles
-                    p99=round(statistics.quantiles(values, n=100)[98], 2) if len(values) >= 100 else max(values),
+                    p99=(
+                        round(statistics.quantiles(values, n=100)[98], 2)
+                        if len(values) >= 100
+                        else max(values)
+                    ),
                     stddev=round(statistics.stdev(values), 2) if len(values) > 1 else 0.0,
                     min_value=round(min(values), 2),
                     max_value=round(max(values), 2),
@@ -532,8 +536,11 @@ class PerformanceBaseline:
                         expected_value=baseline.mean,
                         deviation_stddev=round(z_score, 2),
                         severity=severity,
-                        message=f"{metric_name} is {z_score:.1f}σ {direction} baseline "
-                        f"(current: {current_value:.2f}, expected: {baseline.mean:.2f}±{baseline.stddev:.2f})",
+                        message=(
+                            f"{metric_name} is {z_score:.1f}σ {direction} baseline "
+                            f"(current: {current_value:.2f}, "
+                            f"expected: {baseline.mean:.2f}±{baseline.stddev:.2f})"
+                        ),
                     )
                 )
 
@@ -685,7 +692,8 @@ class PerformanceBaseline:
         Example:
             >>> data = await baseline.get_dashboard_data()
             >>> print(f"Active anomalies: {len(data['anomalies'])}")
-            >>> print(f"Degrading metrics: {sum(1 for t in data['trends'] if t['trend'] == 'degrading')}")
+            >>> degrading = sum(1 for t in data['trends'] if t['trend'] == 'degrading')
+            >>> print(f"Degrading metrics: {degrading}")
         """
         current_snapshot = await self.collect_metrics()
         baselines = await self.get_baseline_stats()

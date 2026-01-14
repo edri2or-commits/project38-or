@@ -8,7 +8,6 @@ Tests cover:
 - Dashboard data generation
 """
 
-import statistics
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -22,7 +21,6 @@ from src.performance_baseline import (
     PerformanceBaseline,
     TrendAnalysis,
 )
-
 
 # =============================================================================
 # FIXTURES

@@ -207,7 +207,8 @@ class AlertManager:
         Args:
             n8n_webhook_url: n8n webhook URL for alert notifications
             telegram_chat_id: Telegram chat ID for direct notifications
-            rate_limit_minutes: Rate limit per severity (default: critical=15, warning=60, info=1440)
+            rate_limit_minutes: Rate limit per severity
+                (default: critical=15, warning=60, info=1440)
         """
         self.n8n_webhook_url = n8n_webhook_url
         self.telegram_chat_id = telegram_chat_id

@@ -16,7 +16,6 @@ import pytest
 
 from src.alert_manager import Alert, AlertManager, AlertResult, MaintenanceWindow
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================
