@@ -87,6 +87,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `all`: Include major version updates
   - **Test Results**: 23/23 passing
 
+- **Week 2: Auto-Scaling Recommendations** (2026-01-14) - Intelligent scaling recommendations based on resource usage
+  - `src/autoscaling.py` (638 lines) - Complete auto-scaling module
+    - `AutoScalingAdvisor` class for intelligent scaling analysis
+    - `ResourceMetrics` dataclass for utilization tracking
+    - `ScalingRecommendation` dataclass for actionable recommendations
+    - `ScalingReport` dataclass for comprehensive reports
+    - `ScalingThresholds` for configurable scaling triggers
+    - CPU utilization analysis (scale up at 80%, down at 20%)
+    - Memory utilization analysis (scale up at 85%, down at 30%)
+    - Response time analysis (critical at 2s, warning at 1s)
+    - Error rate analysis (critical at 5%, warning at 1%)
+    - Cost-aware recommendations with savings/cost estimates
+    - Priority-sorted recommendations (critical, high, medium, low, info)
+  - `tests/test_autoscaling.py` (570 lines) - 42 comprehensive tests
+    - ResourceMetrics serialization tests
+    - ScalingRecommendation tests
+    - ScalingReport tests
+    - ScalingThresholds default and custom tests
+    - CPU analysis tests (critical, warning, scale down, normal)
+    - Memory analysis tests (critical, warning, scale down, normal)
+    - Response time analysis tests
+    - Error rate analysis tests
+    - Report generation tests with status determination
+    - Helper function tests
+    - Enum value tests
+  - **Scaling Thresholds (Default)**:
+    - CPU: Scale up at 80%, scale down at 20%
+    - Memory: Scale up at 85%, scale down at 30%
+    - Response time: Warning at 1000ms, critical at 2000ms
+    - Error rate: Warning at 1%, critical at 5%
+  - **Recommendation Priorities**: CRITICAL → HIGH → MEDIUM → LOW → INFO
+  - **Test Results**: 42/42 passing
+  - **Completes**: Week 2 Post-Launch Maintenance at 100%
+
 - **MCP Gateway for Full Autonomy** (2026-01-14) - Remote MCP Server enabling Claude Code to autonomously operate Railway and n8n
   - `docs/autonomous/08-mcp-gateway-architecture.md` (834 lines) - Comprehensive architecture proposal
     - Problem statement: Anthropic proxy blocks Railway/n8n direct access
