@@ -37,6 +37,9 @@ service-account*.json
 secrets/
 .secrets/
 
+# Exception: n8n workflow definitions (safe, no secrets)
+!n8n-workflows/*.json
+
 # IDE
 .vscode/
 .idea/

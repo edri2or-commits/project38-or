@@ -1,0 +1,335 @@
+{
+  "name": "Railway Auto-Rollback",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rollback-railway",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Rollback Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "rollback-railway"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=⚠️ Rollback Initiated\n\n🔄 Rolling back Railway deployment...\n📝 Reason: {{ $json.body.reason || 'Manual trigger' }}\n⏰ Time: {{ $now.toISO() }}",
+        "additionalFields": {}
+      },
+      "id": "notify-rollback-start",
+      "name": "Notify Rollback Start",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [460, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://backboard.railway.app/graphql/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"query { deployments(first: 5, input: { serviceId: \\\"{{ $env.RAILWAY_SERVICE_ID }}\\\", environmentId: \\\"{{ $env.RAILWAY_ENVIRONMENT_ID }}\\\" }) { edges { node { id status } } } }\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "get-deployments",
+      "name": "Get Recent Deployments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "railway-auth",
+          "name": "Railway API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Find last successful deployment (not the current one)\nconst deployments = $input.first().json.data?.deployments?.edges || [];\n\n// Filter for SUCCESS status, skip first (current)\nconst successfulDeployments = deployments\n  .map(edge => edge.node)\n  .filter(d => d.status === 'SUCCESS')\n  .slice(1); // Skip current deployment\n\nif (successfulDeployments.length === 0) {\n  return [{ json: { error: 'No previous successful deployment found', canRollback: false } }];\n}\n\nconst targetDeployment = successfulDeployments[0];\n\nreturn [{ \n  json: { \n    targetDeploymentId: targetDeployment.id,\n    canRollback: true,\n    message: `Found deployment ${targetDeployment.id} to rollback to`\n  } \n}];"
+      },
+      "id": "find-rollback-target",
+      "name": "Find Rollback Target",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "can-rollback",
+              "leftValue": "={{ $json.canRollback }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "can-rollback",
+      "name": "Can Rollback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://backboard.railway.app/graphql/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"mutation { deploymentRollback(id: \\\"{{ $json.targetDeploymentId }}\\\") { id status } }\"\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "execute-rollback",
+      "name": "Execute Rollback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "railway-auth",
+          "name": "Railway API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "wait-rollback",
+      "name": "Wait 30s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://or-infra.com/api/health",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "verify-rollback",
+      "name": "Verify Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=✅ Rollback Successful!\n\n🔄 Rolled back to previous deployment\n📦 Status: {{ $json.status }}\n🔗 URL: https://or-infra.com\n⏰ Time: {{ $now.toISO() }}",
+        "additionalFields": {}
+      },
+      "id": "notify-rollback-success",
+      "name": "Notify Rollback Success",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1780, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=❌ Rollback Failed!\n\n⚠️ Could not rollback: {{ $json.error || 'No previous deployment found' }}\n\n🔧 Manual intervention required!\n🔗 Railway: https://railway.app/project/95ec21cc-9ada-41c5-8485-12f9a00e0116",
+        "additionalFields": {}
+      },
+      "id": "notify-rollback-failed",
+      "name": "Notify Rollback Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1120, 500],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'rollback_initiated', targetDeploymentId: $json.targetDeploymentId }) }}"
+      },
+      "id": "respond-success",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'rollback_failed', error: $json.error }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-failed",
+      "name": "Respond Failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 500]
+    }
+  ],
+  "connections": {
+    "Rollback Trigger": {
+      "main": [
+        [
+          {
+            "node": "Notify Rollback Start",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Deployments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Deployments": {
+      "main": [
+        [
+          {
+            "node": "Find Rollback Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Rollback Target": {
+      "main": [
+        [
+          {
+            "node": "Can Rollback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Rollback?": {
+      "main": [
+        [
+          {
+            "node": "Execute Rollback",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Rollback Failed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Rollback": {
+      "main": [
+        [
+          {
+            "node": "Wait 30s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30s": {
+      "main": [
+        [
+          {
+            "node": "Verify Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Health": {
+      "main": [
+        [
+          {
+            "node": "Notify Rollback Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["railway", "rollback", "autonomous", "recovery"]
+}

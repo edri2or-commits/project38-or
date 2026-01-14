@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **n8n Autonomous Workflows** (2026-01-14) - Railway automation agents for n8n
+  - `n8n-workflows/01-railway-health-monitor.json` - Production health monitoring (5 min cron)
+    - Checks `/api/health` endpoint
+    - Sends Telegram alerts on failure
+    - Creates GitHub issues automatically
+  - `n8n-workflows/02-deployment-trigger.json` - Auto-deploy on push to main
+    - GitHub webhook trigger
+    - Triggers Railway deployment via GraphQL
+    - Verifies health after deploy
+    - Notifies success/failure via Telegram
+  - `n8n-workflows/03-auto-rollback.json` - Automatic rollback agent
+    - Webhook trigger for manual/automated rollback
+    - Finds last successful deployment
+    - Executes Railway rollback via GraphQL
+    - Verifies health after rollback
+  - `n8n-workflows/README.md` - Complete setup and installation guide
+    - Prerequisites and credentials
+    - Step-by-step installation
+    - Architecture diagram
+    - Troubleshooting guide
+  - **Benefit**: Enables autonomous Railway operations via n8n
+  - **Status**: Ready for import to n8n instance
+
 - **Post-Launch Maintenance: Operational Runbook** (2026-01-14) - Comprehensive maintenance documentation and automation
   - `docs/maintenance-runbook.md` (350+ lines) - Complete operational runbook
     - Daily operations: Health check verification, metrics review, log analysis

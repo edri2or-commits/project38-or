@@ -1,0 +1,316 @@
+{
+  "name": "Railway Deployment Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deploy-railway",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "GitHub Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "deploy-railway"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-ref",
+              "leftValue": "={{ $json.body.ref }}",
+              "rightValue": "refs/heads/main",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "is-main-branch",
+      "name": "Is Main Branch?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://backboard.railway.app/graphql/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"mutation { serviceInstanceRedeploy(serviceId: \\\"{{ $env.RAILWAY_SERVICE_ID }}\\\", environmentId: \\\"{{ $env.RAILWAY_ENVIRONMENT_ID }}\\\") }\"\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "trigger-deploy",
+      "name": "Trigger Railway Deploy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "railway-auth",
+          "name": "Railway API Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=🚀 Deployment Triggered!\n\n📦 Branch: main\n👤 Pusher: {{ $json.body.pusher.name }}\n💬 Commit: {{ $json.body.head_commit.message }}\n🔗 SHA: {{ $json.body.head_commit.id.substring(0, 8) }}\n\n⏳ Deploying to Railway...",
+        "additionalFields": {}
+      },
+      "id": "notify-deploy-start",
+      "name": "Notify Deploy Start",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [680, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "wait-deploy",
+      "name": "Wait 60s for Deploy",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://or-infra.com/api/health",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "verify-health",
+      "name": "Verify Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "deploy-success",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "healthy",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "deploy-success",
+      "name": "Deploy Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=✅ Deployment Successful!\n\n🎉 Production is healthy\n📦 Version: {{ $json.version }}\n🔗 URL: https://or-infra.com\n⏰ Time: {{ $now.toISO() }}",
+        "additionalFields": {}
+      },
+      "id": "notify-success",
+      "name": "Notify Success",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1560, 100],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 Deployment FAILED!\n\n❌ Health check failed after deploy\n❌ Status: {{ $json.status || 'UNREACHABLE' }}\n\n⚠️ Consider rollback!\n🔗 Railway: https://railway.app/project/95ec21cc-9ada-41c5-8485-12f9a00e0116",
+        "additionalFields": {}
+      },
+      "id": "notify-failure",
+      "name": "Notify Failure",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [1560, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-creds",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'accepted', message: 'Deployment triggered' }) }}"
+      },
+      "id": "respond-success",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ignored', message: 'Not main branch' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-ignored",
+      "name": "Respond Ignored",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 500]
+    }
+  ],
+  "connections": {
+    "GitHub Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Main Branch?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Main Branch?": {
+      "main": [
+        [
+          {
+            "node": "Trigger Railway Deploy",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Deploy Start",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Ignored",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Railway Deploy": {
+      "main": [
+        [
+          {
+            "node": "Wait 60s for Deploy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Deploy Start": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 60s for Deploy": {
+      "main": [
+        [
+          {
+            "node": "Verify Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Health": {
+      "main": [
+        [
+          {
+            "node": "Deploy Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy Success?": {
+      "main": [
+        [
+          {
+            "node": "Notify Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["railway", "deployment", "github", "autonomous"]
+}
