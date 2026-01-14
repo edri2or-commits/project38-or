@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `fastmcp>=2.0.0` to requirements.txt
   - Updated mkdocs.yml navigation with MCP Gateway documentation
   - **References**: [FastMCP](https://github.com/jlowin/fastmcp), [Railway MCP Server](https://docs.railway.com/reference/mcp-server), [Claude Code MCP Docs](https://code.claude.com/docs/en/mcp)
+  - `.github/workflows/setup-mcp-gateway.yml` (105 lines) - Automated token management workflow
+    - Actions: `create` (new token), `rotate` (refresh token), `deliver` (post to issue)
+    - Uses WIF authentication to GCP Secret Manager
+    - Secure token delivery via GitHub issue comments
+    - PRs: #97 (initial), #99 (deliver action)
 
 - **Post-Launch Maintenance: Operational Runbook** (2026-01-14) - Comprehensive maintenance documentation and automation
   - `docs/maintenance-runbook.md` (350+ lines) - Complete operational runbook
