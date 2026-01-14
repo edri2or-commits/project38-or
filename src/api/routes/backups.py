@@ -29,12 +29,8 @@ class CreateBackupRequest(BaseModel):
     retention_days: int | None = Field(
         default=30, description="Number of days to retain backup", ge=1, le=365
     )
-    verify: bool = Field(
-        default=True, description="Whether to verify backup after creation"
-    )
-    custom_backup_id: str | None = Field(
-        default=None, description="Optional custom backup ID"
-    )
+    verify: bool = Field(default=True, description="Whether to verify backup after creation")
+    custom_backup_id: str | None = Field(default=None, description="Optional custom backup ID")
 
 
 class BackupMetadataResponse(BaseModel):
@@ -188,8 +184,7 @@ async def create_backup(request: CreateBackupRequest) -> CreateBackupResponse:
             metadata_response = BackupMetadataResponse(**metadata_dict)
 
         logger.info(
-            f"Backup created successfully: {result.backup_id} "
-            f"({result.duration_seconds:.1f}s)"
+            f"Backup created successfully: {result.backup_id} ({result.duration_seconds:.1f}s)"
         )
 
         return CreateBackupResponse(
@@ -219,7 +214,7 @@ async def create_backup(request: CreateBackupRequest) -> CreateBackupResponse:
 async def list_backups(
     limit: int = Query(
         default=100, description="Maximum number of backups to return", ge=1, le=1000
-    )
+    ),
 ) -> ListBackupsResponse:
     """
     List available database backups.
@@ -262,9 +257,7 @@ async def list_backups(
         backups = await manager.list_backups(limit=limit)
 
         # Convert to response models
-        backup_responses = [
-            BackupMetadataResponse(**backup.to_dict()) for backup in backups
-        ]
+        backup_responses = [BackupMetadataResponse(**backup.to_dict()) for backup in backups]
 
         logger.info(f"Found {len(backup_responses)} backups")
 
@@ -339,9 +332,7 @@ async def verify_backup(request: VerifyBackupRequest) -> VerifyBackupResponse:
             )
 
         # Verify using existing method
-        verified = await manager._verify_gcs_upload(
-            backup.gcs_path, backup.checksum_sha256
-        )
+        verified = await manager._verify_gcs_upload(backup.gcs_path, backup.checksum_sha256)
 
         logger.info(f"Backup verification: {request.backup_id} -> {verified}")
 

@@ -279,18 +279,17 @@ class AutoScalingAdvisor:
 
         if cpu >= self.thresholds.cpu_scale_up:
             # High CPU - recommend scale up
-            priority = (
-                RecommendationPriority.CRITICAL
-                if cpu >= 95
-                else RecommendationPriority.HIGH
-            )
+            priority = RecommendationPriority.CRITICAL if cpu >= 95 else RecommendationPriority.HIGH
             return ScalingRecommendation(
                 resource=ResourceType.CPU,
                 direction=ScalingDirection.SCALE_UP,
                 priority=priority,
                 current_value=1.0,  # vCPU
                 recommended_value=2.0,
-                reason=f"CPU utilization at {cpu:.1f}% exceeds {self.thresholds.cpu_scale_up}% threshold",
+                reason=(
+                    f"CPU utilization at {cpu:.1f}% exceeds "
+                    f"{self.thresholds.cpu_scale_up}% threshold"
+                ),
                 impact="Increase capacity to handle load and prevent throttling",
                 estimated_savings=-self.vcpu_cost_per_hour * 24 * 30,  # Additional cost
             )
@@ -304,7 +303,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.MEDIUM,
                 current_value=1.0,
                 recommended_value=0.5,
-                reason=f"CPU utilization at {cpu:.1f}% is below {self.thresholds.cpu_scale_down}% threshold",
+                reason=(
+                    f"CPU utilization at {cpu:.1f}% is below "
+                    f"{self.thresholds.cpu_scale_down}% threshold"
+                ),
                 impact="Reduce costs without impacting performance",
                 estimated_savings=savings,
             )
@@ -326,9 +328,7 @@ class AutoScalingAdvisor:
         if mem_pct >= self.thresholds.memory_scale_up:
             # High memory - recommend scale up
             priority = (
-                RecommendationPriority.CRITICAL
-                if mem_pct >= 95
-                else RecommendationPriority.HIGH
+                RecommendationPriority.CRITICAL if mem_pct >= 95 else RecommendationPriority.HIGH
             )
             return ScalingRecommendation(
                 resource=ResourceType.MEMORY,
@@ -336,7 +336,10 @@ class AutoScalingAdvisor:
                 priority=priority,
                 current_value=512,  # MB
                 recommended_value=1024,
-                reason=f"Memory utilization at {mem_pct:.1f}% exceeds {self.thresholds.memory_scale_up}% threshold",
+                reason=(
+                    f"Memory utilization at {mem_pct:.1f}% exceeds "
+                    f"{self.thresholds.memory_scale_up}% threshold"
+                ),
                 impact="Prevent OOM errors and improve stability",
                 estimated_savings=-self.memory_cost_per_gb_hour * 0.5 * 24 * 30,
             )
@@ -350,16 +353,17 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.LOW,
                 current_value=512,
                 recommended_value=256,
-                reason=f"Memory utilization at {mem_pct:.1f}% ({mem_mb:.0f}MB) is below {self.thresholds.memory_scale_down}% threshold",
+                reason=(
+                    f"Memory utilization at {mem_pct:.1f}% ({mem_mb:.0f}MB) is below "
+                    f"{self.thresholds.memory_scale_down}% threshold"
+                ),
                 impact="Reduce costs with minimal risk",
                 estimated_savings=savings,
             )
 
         return None
 
-    def analyze_response_time(
-        self, metrics: ResourceMetrics
-    ) -> ScalingRecommendation | None:
+    def analyze_response_time(self, metrics: ResourceMetrics) -> ScalingRecommendation | None:
         """Analyze response time and generate recommendation.
 
         Args:
@@ -377,7 +381,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.CRITICAL,
                 current_value=1,
                 recommended_value=2,
-                reason=f"Response time at {rt:.0f}ms exceeds critical threshold of {self.thresholds.response_time_critical:.0f}ms",
+                reason=(
+                    f"Response time at {rt:.0f}ms exceeds critical threshold of "
+                    f"{self.thresholds.response_time_critical:.0f}ms"
+                ),
                 impact="Reduce latency and improve user experience",
                 estimated_savings=0,
             )
@@ -389,16 +396,17 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.MEDIUM,
                 current_value=1.0,
                 recommended_value=1.5,
-                reason=f"Response time at {rt:.0f}ms exceeds warning threshold of {self.thresholds.response_time_warning:.0f}ms",
+                reason=(
+                    f"Response time at {rt:.0f}ms exceeds warning threshold of "
+                    f"{self.thresholds.response_time_warning:.0f}ms"
+                ),
                 impact="Improve response times before they become critical",
                 estimated_savings=0,
             )
 
         return None
 
-    def analyze_error_rate(
-        self, metrics: ResourceMetrics
-    ) -> ScalingRecommendation | None:
+    def analyze_error_rate(self, metrics: ResourceMetrics) -> ScalingRecommendation | None:
         """Analyze error rate and generate recommendation.
 
         Args:
@@ -416,7 +424,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.CRITICAL,
                 current_value=1,
                 recommended_value=2,
-                reason=f"Error rate at {err:.2f}% exceeds critical threshold of {self.thresholds.error_rate_critical}%",
+                reason=(
+                    f"Error rate at {err:.2f}% exceeds critical threshold of "
+                    f"{self.thresholds.error_rate_critical}%"
+                ),
                 impact="Add redundancy to reduce errors and improve reliability",
                 estimated_savings=0,
             )
@@ -428,16 +439,17 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.HIGH,
                 current_value=1.0,
                 recommended_value=1.5,
-                reason=f"Error rate at {err:.2f}% exceeds warning threshold of {self.thresholds.error_rate_warning}%",
+                reason=(
+                    f"Error rate at {err:.2f}% exceeds warning threshold of "
+                    f"{self.thresholds.error_rate_warning}%"
+                ),
                 impact="Increase resources to handle load better",
                 estimated_savings=0,
             )
 
         return None
 
-    async def analyze_and_recommend(
-        self, deployment_id: str
-    ) -> list[ScalingRecommendation]:
+    async def analyze_and_recommend(self, deployment_id: str) -> list[ScalingRecommendation]:
         """Analyze deployment and generate all recommendations.
 
         Args:
@@ -491,17 +503,11 @@ class AutoScalingAdvisor:
         recommendations = await self.analyze_and_recommend(deployment_id)
 
         # Calculate total potential savings
-        total_savings = sum(
-            r.estimated_savings for r in recommendations if r.estimated_savings > 0
-        )
+        total_savings = sum(r.estimated_savings for r in recommendations if r.estimated_savings > 0)
 
         # Determine overall status
-        has_critical = any(
-            r.priority == RecommendationPriority.CRITICAL for r in recommendations
-        )
-        has_high = any(
-            r.priority == RecommendationPriority.HIGH for r in recommendations
-        )
+        has_critical = any(r.priority == RecommendationPriority.CRITICAL for r in recommendations)
+        has_high = any(r.priority == RecommendationPriority.HIGH for r in recommendations)
 
         if has_critical:
             status = "critical"
@@ -521,9 +527,7 @@ class AutoScalingAdvisor:
             estimated_monthly_savings=total_savings,
         )
 
-    def get_scaling_summary(
-        self, recommendations: list[ScalingRecommendation]
-    ) -> dict[str, Any]:
+    def get_scaling_summary(self, recommendations: list[ScalingRecommendation]) -> dict[str, Any]:
         """Get summary of scaling recommendations.
 
         Args:
@@ -533,9 +537,7 @@ class AutoScalingAdvisor:
             Summary dictionary
         """
         scale_up = [r for r in recommendations if r.direction == ScalingDirection.SCALE_UP]
-        scale_down = [
-            r for r in recommendations if r.direction == ScalingDirection.SCALE_DOWN
-        ]
+        scale_down = [r for r in recommendations if r.direction == ScalingDirection.SCALE_DOWN]
 
         return {
             "total_recommendations": len(recommendations),

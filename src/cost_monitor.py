@@ -306,9 +306,7 @@ class CostMonitor:
         # Estimate memory GB-minutes
         memory_gb = current.memory_mb / 1024.0
         memory_gb_minutes_used = memory_gb * minutes_running
-        memory_gb_minutes_projected = memory_gb_minutes_used * (
-            days_in_month / days_elapsed
-        )
+        memory_gb_minutes_projected = memory_gb_minutes_used * (days_in_month / days_elapsed)
 
         # Egress estimate (conservative: 1GB/day based on typical usage)
         egress_gb_projected = days_in_month * 1.0
@@ -320,9 +318,7 @@ class CostMonitor:
             period_days=days_in_month,
         )
 
-    async def is_budget_exceeded(
-        self, deployment_id: str, budget: float
-    ) -> tuple[bool, float]:
+    async def is_budget_exceeded(self, deployment_id: str, budget: float) -> tuple[bool, float]:
         """Check if projected cost exceeds budget.
 
         Args:
@@ -412,9 +408,7 @@ class CostMonitor:
 
         return recommendations
 
-    def get_usage_trend(
-        self, metric: str = "cpu", hours: int = 1
-    ) -> dict[str, float]:
+    def get_usage_trend(self, metric: str = "cpu", hours: int = 1) -> dict[str, float]:
         """Analyze usage trends from history.
 
         Args:
@@ -488,7 +482,9 @@ class CostMonitor:
                 "status": (
                     "ok"
                     if estimate.total_cost < 40
-                    else "warning" if estimate.total_cost < 50 else "alert"
+                    else "warning"
+                    if estimate.total_cost < 50
+                    else "alert"
                 ),
             },
         }
@@ -496,9 +492,7 @@ class CostMonitor:
         if include_recommendations and self._usage_history:
             latest = self._usage_history[-1] if self._usage_history else None
             if latest:
-                report["recommendations"] = self.get_cost_optimization_recommendations(
-                    latest
-                )
+                report["recommendations"] = self.get_cost_optimization_recommendations(latest)
                 report["trends"] = {
                     "cpu": self.get_usage_trend("cpu"),
                     "memory": self.get_usage_trend("memory"),
@@ -527,9 +521,7 @@ def format_cost(amount: float, currency: str = "USD") -> str:
     return f"{amount:.2f} {currency}"
 
 
-def estimate_monthly_from_daily(
-    daily_cost: float, days_elapsed: int = 1
-) -> float:
+def estimate_monthly_from_daily(daily_cost: float, days_elapsed: int = 1) -> float:
     """Project monthly cost from daily usage.
 
     Args:

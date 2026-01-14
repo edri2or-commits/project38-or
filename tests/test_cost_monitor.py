@@ -22,7 +22,7 @@ sys.modules["google.api_core.exceptions"] = MagicMock()
 sys.modules["google.cloud"] = MagicMock()
 sys.modules["google.cloud.secretmanager"] = MagicMock()
 
-from src.cost_monitor import (
+from src.cost_monitor import (  # noqa: E402
     CostEstimate,
     CostMonitor,
     RailwayPricing,
@@ -169,9 +169,7 @@ class TestCostMonitor:
         assert snapshot.cpu_percent == 25.0
         assert snapshot.memory_mb == 256.0
         assert snapshot.request_count == 500
-        mock_railway_client.get_deployment_metrics.assert_called_once_with(
-            "deployment-123"
-        )
+        mock_railway_client.get_deployment_metrics.assert_called_once_with("deployment-123")
 
     @pytest.mark.asyncio
     async def test_usage_history_tracking(self, monitor):
@@ -237,9 +235,7 @@ class TestCostMonitor:
     @pytest.mark.asyncio
     async def test_budget_not_exceeded(self, monitor):
         """Test budget check when under budget."""
-        exceeded, cost = await monitor.is_budget_exceeded(
-            "deployment-123", budget=100.0
-        )
+        exceeded, cost = await monitor.is_budget_exceeded("deployment-123", budget=100.0)
 
         assert exceeded is False
         assert cost > 0
@@ -248,9 +244,7 @@ class TestCostMonitor:
     async def test_budget_exceeded(self, monitor):
         """Test budget check when over budget."""
         # Set very low budget to trigger alert
-        exceeded, cost = await monitor.is_budget_exceeded(
-            "deployment-123", budget=0.01
-        )
+        exceeded, cost = await monitor.is_budget_exceeded("deployment-123", budget=0.01)
 
         assert exceeded is True
         assert cost > 0.01

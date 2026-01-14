@@ -590,22 +590,14 @@ async def get_update_summary(requirements_path: str = "requirements.txt") -> dic
         "outdated_count": report.outdated_count,
         "has_critical": report.has_critical,
         "can_auto_update": report.can_auto_update,
-        "security_updates": [
-            v.package for v in report.vulnerabilities if v.fixed_version
-        ],
+        "security_updates": [v.package for v in report.vulnerabilities if v.fixed_version],
         "patch_updates": [
-            p.name
-            for p in report.outdated_packages
-            if p.update_type == UpdateType.PATCH
+            p.name for p in report.outdated_packages if p.update_type == UpdateType.PATCH
         ],
         "minor_updates": [
-            p.name
-            for p in report.outdated_packages
-            if p.update_type == UpdateType.MINOR
+            p.name for p in report.outdated_packages if p.update_type == UpdateType.MINOR
         ],
         "major_updates": [
-            p.name
-            for p in report.outdated_packages
-            if p.update_type == UpdateType.MAJOR
+            p.name for p in report.outdated_packages if p.update_type == UpdateType.MAJOR
         ],
     }

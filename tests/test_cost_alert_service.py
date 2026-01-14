@@ -20,8 +20,8 @@ sys.modules["google.api_core.exceptions"] = MagicMock()
 sys.modules["google.cloud"] = MagicMock()
 sys.modules["google.cloud.secretmanager"] = MagicMock()
 
-from src.cost_alert_service import AlertResult, CostAlertService
-from src.workflows.cost_alert_workflow import (
+from src.cost_alert_service import AlertResult, CostAlertService  # noqa: E402
+from src.workflows.cost_alert_workflow import (  # noqa: E402
     COST_ALERT_REGISTRY,
     create_alert_payload,
     create_cost_alert_workflow,
@@ -142,9 +142,7 @@ class TestWorkflowConfiguration:
     def test_telegram_node_configuration(self):
         """Test Telegram node is properly configured."""
         nodes = get_workflow_nodes()
-        telegram = next(
-            n for n in nodes if n["name"] == "Send Telegram Notification"
-        )
+        telegram = next(n for n in nodes if n["name"] == "Send Telegram Notification")
 
         assert telegram["type"] == "n8n-nodes-base.telegram"
         assert "chatId" in telegram["parameters"]
@@ -178,9 +176,7 @@ class TestCostAlertService:
         """Create mock cost monitor."""
         monitor = MagicMock()
         monitor.is_budget_exceeded = AsyncMock(return_value=(False, 25.0))
-        monitor.get_current_usage = AsyncMock(
-            return_value=MagicMock(cpu_percent=50, memory_mb=512)
-        )
+        monitor.get_current_usage = AsyncMock(return_value=MagicMock(cpu_percent=50, memory_mb=512))
         monitor.get_cost_optimization_recommendations = MagicMock(
             return_value=[{"title": "Resources optimized", "priority": "low"}]
         )

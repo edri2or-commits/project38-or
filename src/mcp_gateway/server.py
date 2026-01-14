@@ -19,11 +19,11 @@ from typing import Any
 # Check if fastmcp is available
 try:
     from fastmcp import FastMCP
+
     FASTMCP_AVAILABLE = True
 except ImportError:
     FASTMCP_AVAILABLE = False
     FastMCP = None
-
 
 
 def create_mcp_server() -> Any | None:
@@ -37,8 +37,7 @@ def create_mcp_server() -> Any | None:
         return None
 
     mcp = FastMCP(
-        "Claude Gateway",
-        description="MCP Gateway for Railway and n8n autonomous operations"
+        "Claude Gateway", description="MCP Gateway for Railway and n8n autonomous operations"
     )
 
     # Register Railway tools
@@ -54,6 +53,7 @@ def create_mcp_server() -> Any | None:
             Deployment status and ID
         """
         from .tools.railway import trigger_deployment
+
         return await trigger_deployment(service_id if service_id else None)
 
     @mcp.tool
@@ -65,6 +65,7 @@ def create_mcp_server() -> Any | None:
             Current deployment status with ID, status, and timestamp
         """
         from .tools.railway import get_deployment_status
+
         return await get_deployment_status()
 
     @mcp.tool
@@ -79,6 +80,7 @@ def create_mcp_server() -> Any | None:
             List of recent deployments
         """
         from .tools.railway import get_recent_deployments
+
         return await get_recent_deployments(count)
 
     @mcp.tool
@@ -93,6 +95,7 @@ def create_mcp_server() -> Any | None:
             Rollback status and new deployment ID
         """
         from .tools.railway import execute_rollback
+
         return await execute_rollback(deployment_id if deployment_id else None)
 
     # Register n8n tools
@@ -128,6 +131,7 @@ def create_mcp_server() -> Any | None:
             List of workflow names and their webhook URLs
         """
         from .tools.n8n import list_workflows
+
         return await list_workflows()
 
     @mcp.tool
@@ -142,6 +146,7 @@ def create_mcp_server() -> Any | None:
             Workflow availability status
         """
         from .tools.n8n import get_workflow_status
+
         return await get_workflow_status(workflow_name)
 
     # Register monitoring tools
@@ -154,6 +159,7 @@ def create_mcp_server() -> Any | None:
             Health status of Railway, n8n, production app, and MCP gateway
         """
         from .tools.monitoring import check_health
+
         return await check_health()
 
     @mcp.tool
@@ -165,6 +171,7 @@ def create_mcp_server() -> Any | None:
             System metrics from production app
         """
         from .tools.monitoring import get_metrics
+
         return await get_metrics()
 
     @mcp.tool
@@ -176,12 +183,13 @@ def create_mcp_server() -> Any | None:
             Combined health + deployment status with action recommendations
         """
         from .tools.monitoring import check_deployment_health
+
         return await check_deployment_health()
 
     return mcp
 
 
-def create_mcp_app():
+def create_mcp_app() -> object | None:
     """
     Create ASGI app for mounting in FastAPI.
 

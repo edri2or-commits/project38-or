@@ -810,7 +810,7 @@ Result: {
 ### Related Project Documentation
 
 - [ADR-003: Railway Autonomous Control](../decisions/ADR-003-railway-autonomous-control.md)
-- [n8n Workflows README](../../n8n-workflows/README.md)
+- n8n Workflows: See `src/workflows/` directory
 - [Railway Setup Guide](../RAILWAY_SETUP.md)
 - [Autonomous System Architecture](01-system-architecture-hybrid.md)
 

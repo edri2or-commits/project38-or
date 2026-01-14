@@ -153,9 +153,7 @@ class CostAlertService:
         now = datetime.now(UTC)
 
         # Get current cost estimate
-        exceeded, projected_cost = await self.cost_monitor.is_budget_exceeded(
-            deployment_id, budget
-        )
+        exceeded, projected_cost = await self.cost_monitor.is_budget_exceeded(deployment_id, budget)
 
         percentage_used = round((projected_cost / budget) * 100, 1)
         severity = get_severity_from_percentage(percentage_used)
@@ -177,12 +175,8 @@ class CostAlertService:
         # Get recommendations if available
         try:
             usage = await self.cost_monitor.get_current_usage(deployment_id)
-            recommendations = self.cost_monitor.get_cost_optimization_recommendations(
-                usage
-            )
-            recommendations_text = "\n".join(
-                [f"• {r['title']}" for r in recommendations[:3]]
-            )
+            recommendations = self.cost_monitor.get_cost_optimization_recommendations(usage)
+            recommendations_text = "\n".join([f"• {r['title']}" for r in recommendations[:3]])
         except Exception:
             recommendations_text = "Unable to fetch recommendations"
 
@@ -317,9 +311,7 @@ class CostAlertService:
             Dictionary with last alert times and cooldowns
         """
         return {
-            "last_alerts": {
-                k: v.isoformat() for k, v in self._last_alert.items()
-            },
+            "last_alerts": {k: v.isoformat() for k, v in self._last_alert.items()},
             "cooldowns": self._alert_cooldown_minutes,
             "webhook_url": self.n8n_webhook_url,
             "thresholds": {
@@ -358,9 +350,7 @@ def create_cost_alert_service(
     railway_token = railway_api_token or os.environ.get("RAILWAY_API_TOKEN")
 
     if not n8n_url or not railway_token:
-        logger.warning(
-            "CostAlertService not configured: missing N8N_BASE_URL or RAILWAY_API_TOKEN"
-        )
+        logger.warning("CostAlertService not configured: missing N8N_BASE_URL or RAILWAY_API_TOKEN")
         return None
 
     # Import here to avoid circular imports

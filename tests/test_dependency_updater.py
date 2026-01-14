@@ -21,7 +21,7 @@ sys.modules["google.api_core.exceptions"] = MagicMock()
 sys.modules["google.cloud"] = MagicMock()
 sys.modules["google.cloud.secretmanager"] = MagicMock()
 
-from src.dependency_updater import (
+from src.dependency_updater import (  # noqa: E402
     DependencyUpdater,
     OutdatedPackage,
     UpdatePriority,
@@ -327,19 +327,20 @@ class TestDependencyUpdater:
     @pytest.mark.asyncio
     async def test_generate_update_report(self, updater):
         """Test generating full update report."""
-        with patch.object(
-            updater, "scan_vulnerabilities", return_value=[]
-        ), patch.object(
-            updater,
-            "check_outdated",
-            return_value=[
-                OutdatedPackage(
-                    name="pytest",
-                    current_version="7.4.0",
-                    latest_version="7.4.3",
-                    update_type=UpdateType.PATCH,
-                )
-            ],
+        with (
+            patch.object(updater, "scan_vulnerabilities", return_value=[]),
+            patch.object(
+                updater,
+                "check_outdated",
+                return_value=[
+                    OutdatedPackage(
+                        name="pytest",
+                        current_version="7.4.0",
+                        latest_version="7.4.3",
+                        update_type=UpdateType.PATCH,
+                    )
+                ],
+            ),
         ):
             report = await updater.generate_update_report()
 
