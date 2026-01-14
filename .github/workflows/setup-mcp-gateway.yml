@@ -1,0 +1,64 @@
+name: Setup MCP Gateway Token
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'create'
+        type: choice
+        options:
+          - create
+          - rotate
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  setup-token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Generate and store MCP Gateway token
+        run: |
+          TOKEN=$(openssl rand -hex 32)
+
+          # Check if secret exists
+          if gcloud secrets describe MCP-GATEWAY-TOKEN --project=project38-483612 2>/dev/null; then
+            echo "Secret exists, adding new version..."
+            echo -n "$TOKEN" | gcloud secrets versions add MCP-GATEWAY-TOKEN --data-file=- --project=project38-483612
+          else
+            echo "Creating new secret..."
+            echo -n "$TOKEN" | gcloud secrets create MCP-GATEWAY-TOKEN --data-file=- --project=project38-483612
+          fi
+
+          echo "::notice::MCP Gateway token created/rotated successfully"
+          echo ""
+          echo "============================================"
+          echo "YOUR MCP GATEWAY TOKEN (copy this!):"
+          echo "============================================"
+          echo "$TOKEN"
+          echo "============================================"
+          echo ""
+          echo "Next step - run this command locally:"
+          echo "claude mcp add --transport http --header \"Authorization: Bearer $TOKEN\" --scope user claude-gateway https://or-infra.com/mcp"
+
+      - name: Verify secret
+        run: |
+          echo "Verifying secret exists..."
+          gcloud secrets describe MCP-GATEWAY-TOKEN --project=project38-483612
+          echo "Secret versions:"
+          gcloud secrets versions list MCP-GATEWAY-TOKEN --project=project38-483612
