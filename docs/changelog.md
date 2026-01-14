@@ -39,6 +39,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Egress: $0.10/GB
   - **Implementation**: Week 2 of Post-Launch Maintenance (implementation-roadmap.md)
 
+- **Week 2: n8n Cost Alert Workflow** (2026-01-14) - Automated cost alerts via n8n and Telegram
+  - `src/workflows/cost_alert_workflow.py` (280 lines) - n8n workflow configuration
+    - Complete n8n workflow node definitions
+    - Webhook trigger for cost alerts
+    - Severity-based routing (critical/warning/info)
+    - Telegram message formatting with Markdown
+    - Workflow connection graph
+  - `src/cost_alert_service.py` (290 lines) - Alert service with rate limiting
+    - CostAlertService class for monitoring and alerting
+    - AlertResult dataclass for alert tracking
+    - Rate limiting (15min critical, 1hr warning, 24hr info)
+    - Factory function for easy initialization
+  - `tests/test_cost_alert_service.py` (280 lines) - 20 comprehensive tests
+    - Alert payload tests
+    - Severity detection tests
+    - Workflow configuration tests
+    - Service tests (rate limiting, force alerts)
+  - Updated `src/mcp_gateway/tools/n8n.py` with cost-alert workflow
+  - **Alert Severities**:
+    - Critical: Budget exceeded (≥100%)
+    - Warning: Approaching limit (80-99%)
+    - Info: Weekly summary (<80%)
+  - **Test Results**: 20/20 passing
+
 - **MCP Gateway for Full Autonomy** (2026-01-14) - Remote MCP Server enabling Claude Code to autonomously operate Railway and n8n
   - `docs/autonomous/08-mcp-gateway-architecture.md` (834 lines) - Comprehensive architecture proposal
     - Problem statement: Anthropic proxy blocks Railway/n8n direct access
