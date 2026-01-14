@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Post-Launch Maintenance: Operational Runbook** (2026-01-14) - Comprehensive maintenance documentation and automation
+  - `docs/maintenance-runbook.md` (350+ lines) - Complete operational runbook
+    - Daily operations: Health check verification, metrics review, log analysis
+    - Weekly operations: Dependency security audit, performance review, cost review
+    - Monthly operations: Token rotation schedule, GCP audit logs, GitHub App permissions
+    - Monitoring procedures: Automated and manual checklists
+    - Performance tuning: Week 1 tasks, optimization opportunities
+    - Incident response: Severity levels, response procedures, rollback procedures
+    - Quick reference: Key URLs, commands, emergency contacts
+  - `scripts/health-check.sh` (65 lines) - Production health verification script
+    - Checks `/api/health` endpoint with timeout handling
+    - Reports status, database, version, timestamp
+    - Optional `--verbose` flag for system metrics (CPU, Memory, Disk)
+    - Returns exit code 0 (healthy) or 1 (unhealthy)
+  - `scripts/collect-metrics.sh` (90 lines) - Comprehensive metrics collection
+    - Collects health, system metrics, summary metrics
+    - Health assessment with threshold warnings
+    - JSON output mode (`--json`) for automation
+    - Resource utilization alerts (CPU > 80%, Memory > 85%, Disk > 90%)
+  - Updated `mkdocs.yml` navigation with maintenance-runbook.md
+  - Updated `docs/JOURNEY.md` with Phase 8: Post-Launch Maintenance section
+  - **Benefit**: Formalized operational procedures for production system
+  - **Status**: Post-Launch Maintenance Week 1 initiated
+
 - **Day 7: End-to-End Integration Tests** (2026-01-14) - Complete E2E test coverage for autonomous deployment
   - `tests/e2e/test_full_deployment.py` (400+ lines) - 12 comprehensive integration test scenarios
   - OODA loop phase testing (observe, orient, decide, act)
