@@ -1631,6 +1631,126 @@ Business-hours metrics differ from off-hours:
 
 ---
 
+## Phase 13: Anomaly-Triggered Self-Healing Integration (2026-01-14)
+
+### Motivation
+
+With MLAnomalyDetector (Phase 12) and AutonomousController (Phase 11) complete, the logical next step is **closing the loop**: anomaly detection should automatically trigger appropriate self-healing actions.
+
+### Technical Implementation
+
+#### AnomalyResponseIntegrator Architecture
+
+Created `src/anomaly_response_integrator.py` (~550 lines) implementing:
+
+**Closed-Loop Flow**:
+```
+Metrics → MLAnomalyDetector → AnomalyResponseIntegrator → AutonomousController
+                                                                    ↓
+                                                          Self-Healing Actions
+```
+
+**Key Components**:
+
+1. **Response Strategies** (4 modes):
+   - `IMMEDIATE`: Act on first anomaly detected
+   - `CONFIRM_PATTERN`: Wait for pattern confirmation (2+ anomalies in 5 min)
+   - `ESCALATE_ONLY`: Only escalate, no auto-action
+   - `LEARNING`: Observe and learn, no action
+
+2. **Metric-to-Action Mapping**:
+   ```python
+   "latency" → RESTART_SERVICE, SCALE_UP
+   "memory_usage" → CLEANUP_MEMORY, RESTART_SERVICE
+   "connection_count" → RESET_CONNECTIONS
+   "error_rate" → RESTART_SERVICE, CLEAR_CACHE
+   "cache_hit_rate" → CLEAR_CACHE
+   ```
+
+3. **Safety Features**:
+   - Confidence threshold (default: 60%)
+   - Severity threshold (default: WARNING)
+   - Action cooldown (default: 10 minutes)
+   - Max actions per metric per hour (default: 3)
+   - Kill switch integration
+
+4. **Pattern Confirmation**:
+   - Configurable confirmation window
+   - Prevents reaction to transient spikes
+   - Requires N anomalies in window before action
+
+### Integration with AutonomousController
+
+Added `trigger_self_healing()` public method to AutonomousController:
+
+```python
+result = await controller.trigger_self_healing(
+    action=SelfHealingAction.RESTART_SERVICE,
+    reason="High latency detected by ML anomaly detector",
+)
+```
+
+### Files Created/Modified
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/anomaly_response_integrator.py` | ~550 | Integration module |
+| `tests/test_anomaly_response_integrator.py` | ~500 | 30+ tests |
+| `src/autonomous_controller.py` | +40 | `trigger_self_healing()` method |
+
+### Usage Example
+
+```python
+from src.anomaly_response_integrator import (
+    AnomalyResponseIntegrator,
+    ResponseStrategy,
+)
+
+# Create integrator
+integrator = AnomalyResponseIntegrator(
+    detector=ml_detector,
+    controller=autonomous_controller,
+    strategy=ResponseStrategy.CONFIRM_PATTERN,
+)
+
+# Run detection cycle with metrics
+responses = await integrator.run_detection_cycle(
+    metrics={
+        "latency": 150.0,
+        "memory_usage": 85.0,
+        "error_rate": 0.05,
+    }
+)
+
+# Check responses
+for response in responses:
+    if response.executed:
+        print(f"Triggered {response.action} for {response.anomaly.metric}")
+```
+
+### Achievements
+
+**Integration Milestone**:
+- ✅ Closed-loop anomaly → healing pipeline
+- ✅ 4 response strategies for different use cases
+- ✅ Configurable thresholds and cooldowns
+- ✅ Pattern confirmation prevents false positives
+- ✅ Kill switch and rate limiting integration
+- ✅ Comprehensive test coverage
+
+### Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Files Created** | 2 |
+| **Lines Added** | ~1,100 lines |
+| **Response Strategies** | 4 |
+| **Metric Mappings** | 15+ |
+| **Safety Features** | 5 |
+| **Test Scenarios** | 30+ |
+
+---
+
 *Last Updated: 2026-01-14*
-*Status: **Month 3 Goal - ML Anomaly Detection - ACHIEVED***
-*Current Milestone: ML-Based Anomaly Detection with Ensemble Voting*
+*Status: **Anomaly-Triggered Self-Healing - ACHIEVED***
+*Current Milestone: Closed-Loop Autonomous Healing System*

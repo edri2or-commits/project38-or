@@ -34,6 +34,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Sensitivity configuration tests
     - Status and reporting tests
 
+- **Anomaly-Triggered Self-Healing Integration** (2026-01-14) - Closed-loop autonomous healing
+  - `src/anomaly_response_integrator.py` (~550 lines) - Integration module
+    - `AnomalyResponseIntegrator` class bridging MLAnomalyDetector with AutonomousController
+    - `ResponseStrategy` enum: IMMEDIATE, CONFIRM_PATTERN, ESCALATE_ONLY, LEARNING
+    - `AnomalyResponse` dataclass for tracking responses
+    - `IntegratorConfig` dataclass for configuration
+    - **Metric-to-Action Mapping**: 15+ metric patterns mapped to healing actions
+    - **Pattern Confirmation**: Configurable window to prevent false positives
+    - **Cooldown Management**: Per-metric, per-action cooldowns
+    - **Rate Limiting**: Max actions per metric per hour
+    - **Kill Switch Integration**: Respects controller safety guardrails
+  - `tests/test_anomaly_response_integrator.py` (~500 lines) - Comprehensive tests
+    - Metric mapping tests
+    - Response strategy tests
+    - Threshold tests (confidence, severity)
+    - Cooldown and rate limiting tests
+    - Kill switch integration tests
+    - Detection cycle tests
+    - Status and monitoring tests
+  - `src/autonomous_controller.py` - Added public healing method
+    - `trigger_self_healing()` method for external integrators
+    - Safety guardrail checks before execution
+
 ### Fixed
 - **Critical Bug Fixes from System Audit** (2026-01-14) - Resolved 7 critical and high-priority bugs
   - `src/api/main.py` - Database initialization and CORS security
