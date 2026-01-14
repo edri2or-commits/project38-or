@@ -11,10 +11,16 @@ on:
         options:
           - create
           - rotate
+          - deliver
+      issue_number:
+        description: 'Issue number to post token (for deliver action)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
   id-token: write
+  issues: write
 
 jobs:
   setup-token:
@@ -33,6 +39,8 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Generate and store MCP Gateway token
+        if: inputs.action == 'create' || inputs.action == 'rotate'
+        id: generate
         run: |
           TOKEN=$(openssl rand -hex 32)
 
@@ -45,15 +53,48 @@ jobs:
             echo -n "$TOKEN" | gcloud secrets create MCP-GATEWAY-TOKEN --data-file=- --project=project38-483612
           fi
 
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
           echo "::notice::MCP Gateway token created/rotated successfully"
-          echo ""
+
+      - name: Read existing token
+        if: inputs.action == 'deliver'
+        id: read
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret=MCP-GATEWAY-TOKEN --project=project38-483612)
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Post token to issue
+        if: inputs.issue_number != ''
+        uses: actions/github-script@v7
+        env:
+          TOKEN: ${{ steps.generate.outputs.token || steps.read.outputs.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        with:
+          script: |
+            const token = process.env.TOKEN;
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `## MCP Gateway Token\n\n\`\`\`\n${token}\n\`\`\`\n\n**Command to run:**\n\`\`\`bash\nclaude mcp add --transport http --header "Authorization: Bearer ${token}" --scope user claude-gateway https://or-infra.com/mcp\n\`\`\`\n\n⚠️ **Delete this comment after copying the token!**`
+            });
+
+            console.log(`Token posted to issue #${issueNumber}`);
+
+      - name: Display token (if no issue specified)
+        if: inputs.issue_number == ''
+        env:
+          TOKEN: ${{ steps.generate.outputs.token || steps.read.outputs.token }}
+        run: |
           echo "============================================"
-          echo "YOUR MCP GATEWAY TOKEN (copy this!):"
+          echo "YOUR MCP GATEWAY TOKEN:"
           echo "============================================"
           echo "$TOKEN"
           echo "============================================"
           echo ""
-          echo "Next step - run this command locally:"
+          echo "Run this command:"
           echo "claude mcp add --transport http --header \"Authorization: Bearer $TOKEN\" --scope user claude-gateway https://or-infra.com/mcp"
 
       - name: Verify secret
