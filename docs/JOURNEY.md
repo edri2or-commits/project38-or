@@ -1751,6 +1751,145 @@ for response in responses:
 
 ---
 
+## Phase 14: Monitoring Loop & API Endpoints (2026-01-14)
+
+### Objective
+
+Bridge the gap between the anomaly detection/response system and real-world metrics by implementing:
+1. **MetricsCollector**: Fetches metrics from Railway health endpoints
+2. **MonitoringLoop**: Scheduler-based continuous monitoring
+3. **API Endpoints**: Control and status visibility
+
+### Architecture
+
+```
+Railway /health endpoint
+        ↓
+MetricsCollector (httpx async client)
+        ↓
+MonitoringLoop (scheduler)
+        ↓
+MLAnomalyDetector (5 algorithms)
+        ↓
+AnomalyResponseIntegrator (routing)
+        ↓
+AutonomousController (self-healing)
+```
+
+### Components Created
+
+#### MetricsCollector (`src/monitoring_loop.py`)
+
+```python
+collector = MetricsCollector()
+collector.add_endpoint(MetricsEndpoint(
+    url="https://or-infra.com/api/health",
+    name="railway_health",
+    timeout=10.0,
+))
+
+metrics = await collector.collect_all()
+# Returns: latency_ms, status_code, health_status, database_connected
+```
+
+Features:
+- Async HTTP client (httpx)
+- Configurable timeouts per endpoint
+- Automatic retry on timeout
+- Recursive metric extraction from JSON
+
+#### MonitoringLoop (`src/monitoring_loop.py`)
+
+```python
+loop = create_railway_monitoring_loop(
+    railway_url="https://or-infra.com",
+    controller=autonomous_controller,
+)
+
+await loop.start()  # Begins background monitoring
+```
+
+Features:
+- Configurable collection interval (default: 30s)
+- Pause/resume capability
+- Automatic error recovery (max consecutive errors → pause)
+- Statistics tracking (collections, anomalies, healing actions)
+- Metrics history with configurable size
+
+#### API Endpoints (`src/api/routes/monitoring.py`)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/monitoring/status` | GET | Current monitoring state and statistics |
+| `/api/monitoring/start` | POST | Start the monitoring loop |
+| `/api/monitoring/stop` | POST | Stop the monitoring loop |
+| `/api/monitoring/pause` | POST | Pause monitoring |
+| `/api/monitoring/resume` | POST | Resume monitoring |
+| `/api/monitoring/config` | GET/PUT | View/update configuration |
+| `/api/monitoring/endpoints` | GET/POST/DELETE | Manage monitored endpoints |
+| `/api/monitoring/collect-now` | POST | Trigger immediate collection |
+| `/api/monitoring/metrics/recent` | GET | Recent metrics history |
+
+### Files Created/Modified
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/monitoring_loop.py` | ~550 | Core monitoring module |
+| `src/api/routes/monitoring.py` | ~300 | API endpoints |
+| `src/api/main.py` | +2 | Router registration |
+| `tests/test_monitoring_loop.py` | ~700 | 45+ test scenarios |
+
+### Monitoring Configuration
+
+```python
+config = MonitoringConfig(
+    collection_interval=30.0,   # Seconds between collections
+    min_interval=5.0,           # Rate limiting
+    max_consecutive_errors=5,   # Before auto-pause
+    error_pause_duration=60.0,  # Pause duration on errors
+    anomaly_detection_enabled=True,
+    self_healing_enabled=True,
+    history_size=1000,          # Metrics to retain
+)
+```
+
+### Achievements
+
+**Operational Milestone**:
+- ✅ Continuous metrics collection from Railway
+- ✅ Full pipeline: Collection → Detection → Response → Healing
+- ✅ REST API for monitoring control
+- ✅ Graceful error handling and recovery
+- ✅ Comprehensive test coverage (45+ scenarios)
+
+### Usage
+
+```bash
+# Start monitoring
+curl -X POST https://or-infra.com/api/monitoring/start
+
+# Check status
+curl https://or-infra.com/api/monitoring/status
+
+# View recent metrics
+curl https://or-infra.com/api/monitoring/metrics/recent?limit=5
+
+# Trigger immediate collection
+curl -X POST https://or-infra.com/api/monitoring/collect-now
+```
+
+### Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Files Created** | 3 |
+| **Lines Added** | ~1,550 lines |
+| **API Endpoints** | 10 |
+| **Test Scenarios** | 45+ |
+| **Monitoring States** | 5 (stopped, starting, running, paused, error) |
+
+---
+
 *Last Updated: 2026-01-14*
-*Status: **Anomaly-Triggered Self-Healing - ACHIEVED***
-*Current Milestone: Closed-Loop Autonomous Healing System*
+*Status: **Continuous Monitoring - OPERATIONAL***
+*Current Milestone: End-to-End Autonomous Healing Pipeline*
