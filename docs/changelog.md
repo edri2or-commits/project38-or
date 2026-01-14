@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **ML-Based Anomaly Detection - Month 3 Goal** (2026-01-14) - Intelligent anomaly detection with ensemble algorithms
+  - `src/ml_anomaly_detector.py` (700+ lines) - ML-based anomaly detection module
+    - `MLAnomalyDetector` class with 5 detection algorithms
+    - `DataPoint` dataclass for timestamped metric values
+    - `MLAnomaly` dataclass with confidence, severity, and recommendations
+    - `MetricStats` dataclass for statistical summaries
+    - `SeasonalPattern` dataclass for hourly pattern learning
+    - **5 Detection Algorithms (Ensemble)**:
+      - Adaptive Z-Score: Dynamic threshold based on data stability
+      - EMA Deviation: Exponential moving average trend detection
+      - IQR Outlier: Interquartile range method, robust to outliers
+      - Seasonal Detection: Hour-of-day pattern awareness
+      - Rolling Statistics: Recent window analysis
+    - **Weighted Voting**: Combines algorithm results with configurable weights
+    - **Severity Classification**: INFO, WARNING, CRITICAL, EMERGENCY levels
+    - **Sensitivity Tuning**: 0.0 (loose) to 1.0 (strict) configurable
+    - **Seasonal Learning**: Automatic hourly baseline detection
+    - **Auto Recommendations**: Contextual suggestions based on anomaly type
+  - `tests/test_ml_anomaly_detector.py` (600+ lines) - Comprehensive test coverage
+    - Data management tests (add, batch, clear, window limits)
+    - Individual algorithm tests (Z-score, EMA, IQR, seasonal, rolling)
+    - Ensemble detection tests (voting, confidence, severity)
+    - Seasonal pattern learning tests
+    - Sensitivity configuration tests
+    - Status and reporting tests
+
 ### Fixed
 - **Critical Bug Fixes from System Audit** (2026-01-14) - Resolved 7 critical and high-priority bugs
   - `src/api/main.py` - Database initialization and CORS security

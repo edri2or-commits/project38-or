@@ -1478,6 +1478,159 @@ Beyond rollback, 8 healing actions address different failure modes:
 
 ---
 
+## Phase 12: ML-Based Anomaly Detection - Month 3 Goal (2026-01-14)
+
+### Motivation
+
+After achieving Full Autonomous Operations (Phase 11), the next advancement is **intelligent anomaly detection**. Rather than relying solely on static Z-score thresholds, Month 3 introduces machine learning techniques that adapt to each metric's unique patterns.
+
+### Technical Implementation
+
+#### MLAnomalyDetector Architecture
+
+Created `src/ml_anomaly_detector.py` (700+ lines) implementing:
+
+**5 Detection Algorithms (Ensemble Approach)**:
+1. **Adaptive Z-Score**: Dynamic threshold based on data stability
+2. **EMA Deviation**: Exponential moving average tracking for trend detection
+3. **IQR Outlier**: Interquartile range method, robust to existing outliers
+4. **Seasonal Detection**: Hour-of-day pattern learning (business vs off-hours)
+5. **Rolling Statistics**: Recent window focus for detecting shifts
+
+**Weighted Voting System**:
+```python
+method_weights = {
+    DetectionMethod.ZSCORE: 0.25,
+    DetectionMethod.EMA: 0.20,
+    DetectionMethod.IQR: 0.20,
+    DetectionMethod.SEASONAL: 0.15,
+    DetectionMethod.ROLLING: 0.20
+}
+# Weighted sum determines final confidence
+```
+
+**Severity Classification**:
+- `INFO`: Weighted confidence ≤ 0.3
+- `WARNING`: Weighted confidence ≤ 0.5
+- `CRITICAL`: Weighted confidence ≤ 0.7
+- `EMERGENCY`: Weighted confidence > 0.7
+
+**Key Features**:
+- **Sliding window**: Maintains last N data points (configurable)
+- **Automatic stats**: Mean, median, stddev, percentiles (P25, P75, P95, P99)
+- **Sensitivity tuning**: 0.0 (very loose) to 1.0 (very strict)
+- **Seasonal learning**: Detects hourly baselines automatically
+- **Batch ingestion**: Efficient bulk data loading
+
+### Integration Points
+
+```
+PerformanceBaseline (Phase 10)
+        ↓
+    MLAnomalyDetector (Phase 12)
+        ↓
+    AutonomousController (Phase 11)
+        ↓
+    Self-Healing Actions
+```
+
+MLAnomalyDetector enhances PerformanceBaseline with:
+- Multiple detection algorithms instead of single Z-score
+- Seasonal awareness for time-based patterns
+- Confidence scores for severity prioritization
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/ml_anomaly_detector.py` | ~700 | 5-algorithm ensemble anomaly detection |
+| `tests/test_ml_anomaly_detector.py` | ~600 | Comprehensive test coverage |
+
+### Key Classes
+
+```python
+@dataclass
+class DataPoint:
+    timestamp: datetime
+    value: float
+    metadata: dict[str, Any]
+
+@dataclass
+class MLAnomaly:
+    metric: str
+    value: float
+    expected: float
+    deviation: float
+    confidence: float
+    severity: AnomalySeverity
+    methods_triggered: list[DetectionMethod]
+    reason: str
+    recommendations: list[str]
+
+@dataclass
+class SeasonalPattern:
+    hourly_baselines: dict[int, float]
+    hourly_stddev: dict[int, float]
+    day_of_week_factor: dict[int, float]
+    established_at: datetime
+```
+
+### Comparison with Basic Anomaly Detection
+
+| Aspect | Basic (Phase 10) | ML-Based (Phase 12) |
+|--------|------------------|---------------------|
+| Algorithms | Single Z-score | 5-algorithm ensemble |
+| Threshold | Static | Adaptive per metric |
+| Seasonal | No | Yes (hourly patterns) |
+| Confidence | Binary | Weighted 0.0-1.0 |
+| Severity | 2 levels | 4 levels |
+| Recommendations | None | Auto-generated |
+
+### Achievements
+
+**Month 3 Milestone Progress**:
+- ✅ Ensemble anomaly detection (5 algorithms)
+- ✅ Weighted voting with configurable weights
+- ✅ Seasonal pattern learning
+- ✅ Adaptive thresholds
+- ✅ Auto-generated recommendations
+- ✅ Integration with PerformanceBaseline architecture
+
+### Lessons Learned
+
+**1. Ensemble > Single Algorithm**
+
+No single algorithm catches all anomaly types:
+- Z-score misses gradual drift
+- IQR misses subtle but significant changes
+- Seasonal detection catches time-based patterns others miss
+
+**2. Weighted Voting Provides Nuance**
+
+Instead of "anomaly or not," weighted voting produces:
+- Confidence score (0.0-1.0)
+- Severity classification (INFO → EMERGENCY)
+- Actionable recommendations
+
+**3. Seasonal Patterns Matter**
+
+Business-hours metrics differ from off-hours:
+- 120 latency at 10 AM = normal
+- 120 latency at 3 AM = anomaly (expected ~90)
+
+### Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Files Created** | 2 |
+| **Lines Added** | ~1,300 lines |
+| **Detection Algorithms** | 5 |
+| **Severity Levels** | 4 |
+| **Seasonal Hours Tracked** | 24 |
+| **Test Scenarios** | 30+ |
+
+---
+
 *Last Updated: 2026-01-14*
-*Status: **Quarter 2 Goal - Full Autonomous Operations - ACHIEVED***
-*Current Milestone: Full Autonomous Operations with Safety Guardrails*
+*Status: **Month 3 Goal - ML Anomaly Detection - ACHIEVED***
+*Current Milestone: ML-Based Anomaly Detection with Ensemble Voting*
