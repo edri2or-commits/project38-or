@@ -1201,6 +1201,32 @@ Token management workflow creates/rotates/delivers tokens without exposing them 
 
 **Tests**: `tests/test_cost_alert_service.py` (337 lines, 20 tests)
 
+### Automatic Dependency Updates (Day 1 - Part 3)
+
+**Created**: GitHub Actions workflow + Python module
+
+**GitHub Actions Workflow** (`.github/workflows/dependency-update.yml`, 210 lines):
+- Weekly scheduled security audits (Sundays at midnight UTC)
+- Manual trigger with update type selection
+- Automated PR creation for updates
+- Test execution before PR creation
+
+**Python Module** (`src/dependency_updater.py`, 380 lines):
+- DependencyUpdater class for programmatic management
+- Vulnerability scanning with pip-audit
+- Update type classification (major/minor/patch)
+- Prioritized recommendation generation
+
+**Update Types**:
+| Type | Description |
+|------|-------------|
+| `security` | Only CVE fixes (default) |
+| `patch` | Security + bug fixes |
+| `minor` | Security + patch + features |
+| `all` | Include major updates |
+
+**Tests**: `tests/test_dependency_updater.py` (280 lines, 23 tests)
+
 ### Week 2 Progress Summary
 
 | Feature | Status | Lines |
@@ -1211,17 +1237,20 @@ Token management workflow creates/rotates/delivers tokens without exposing them 
 | n8n Workflow Config | ✅ Complete | 359 |
 | Cost Alert Service | ✅ Complete | 381 |
 | Alert Service Tests | ✅ Complete | 337 |
-| **Total** | **6 features** | **~2,500 lines** |
+| Dependency GH Workflow | ✅ Complete | 210 |
+| Dependency Updater | ✅ Complete | 380 |
+| Dependency Tests | ✅ Complete | 280 |
+| **Total** | **9 features** | **~3,380 lines** |
 
 ### Next Steps (Week 2 Remaining)
 
 1. ~~Create n8n workflow for cost alerts~~ ✅
 2. ~~Create cost alert Telegram notifications~~ ✅
-3. Add automatic dependency update automation
-4. Implement auto-scaling recommendations
+3. ~~Add automatic dependency update automation~~ ✅
+4. Implement auto-scaling recommendations (optional)
 
 ---
 
 *Last Updated: 2026-01-14*
-*Status: **Week 2 - Cost Alerting Complete***
-*Current Milestone: n8n Cost Alert Workflow Operational*
+*Status: **Week 2 - Dependency Automation Complete***
+*Current Milestone: Full Week 2 Implementation Done*

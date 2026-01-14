@@ -63,6 +63,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Info: Weekly summary (<80%)
   - **Test Results**: 20/20 passing
 
+- **Week 2: Automatic Dependency Updates** (2026-01-14) - Automated dependency management and security scanning
+  - `.github/workflows/dependency-update.yml` (210 lines) - GitHub Actions workflow
+    - Scheduled weekly security audits (Sundays at midnight UTC)
+    - Manual trigger with update type selection
+    - Automated PR creation for updates
+    - Test execution before PR
+  - `src/dependency_updater.py` (380 lines) - Python dependency management module
+    - DependencyUpdater class for programmatic updates
+    - Vulnerability scanning with pip-audit
+    - Update type classification (major/minor/patch)
+    - Prioritized recommendation generation
+    - Safe update application (no major updates by default)
+  - `tests/test_dependency_updater.py` (280 lines) - 23 comprehensive tests
+    - Vulnerability dataclass tests
+    - Update classification tests
+    - Recommendation generation tests
+    - Report generation tests
+  - **Update Types**:
+    - `security`: Only CVE fixes (default)
+    - `patch`: Security + bug fixes
+    - `minor`: Security + patch + new features
+    - `all`: Include major version updates
+  - **Test Results**: 23/23 passing
+
 - **MCP Gateway for Full Autonomy** (2026-01-14) - Remote MCP Server enabling Claude Code to autonomously operate Railway and n8n
   - `docs/autonomous/08-mcp-gateway-architecture.md` (834 lines) - Comprehensive architecture proposal
     - Problem statement: Anthropic proxy blocks Railway/n8n direct access

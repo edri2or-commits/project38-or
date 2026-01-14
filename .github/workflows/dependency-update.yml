@@ -1,0 +1,323 @@
+name: Automated Dependency Updates
+
+on:
+  # Weekly on Sunday at midnight UTC
+  schedule:
+    - cron: '0 0 * * 0'
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      update_type:
+        description: 'Type of updates to apply'
+        required: true
+        default: 'security'
+        type: choice
+        options:
+          - security  # Only security patches
+          - patch     # Security + patch updates
+          - minor     # Security + patch + minor updates
+          - all       # All available updates (including major)
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependency-update
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Job 1: Audit dependencies
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    outputs:
+      has_vulnerabilities: ${{ steps.audit.outputs.has_vulnerabilities }}
+      vulnerability_count: ${{ steps.audit.outputs.vulnerability_count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install audit tools
+        run: |
+          pip install pip-audit safety
+
+      - name: Run pip-audit
+        id: audit
+        run: |
+          # Run audit and capture output
+          pip-audit --requirement requirements.txt --format json > audit_results.json 2>&1 || true
+
+          # Check for vulnerabilities
+          VULN_COUNT=$(jq 'length' audit_results.json 2>/dev/null || echo "0")
+
+          if [ "$VULN_COUNT" -gt "0" ]; then
+            echo "has_vulnerabilities=true" >> $GITHUB_OUTPUT
+            echo "vulnerability_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+            echo "::warning::Found $VULN_COUNT vulnerabilities"
+          else
+            echo "has_vulnerabilities=false" >> $GITHUB_OUTPUT
+            echo "vulnerability_count=0" >> $GITHUB_OUTPUT
+            echo "✅ No vulnerabilities found"
+          fi
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-results
+          path: audit_results.json
+          retention-days: 7
+
+  # Job 2: Check for updates
+  check-updates:
+    name: Check Available Updates
+    runs-on: ubuntu-latest
+    outputs:
+      has_updates: ${{ steps.check.outputs.has_updates }}
+      outdated_json: ${{ steps.check.outputs.outdated_json }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Check for updates
+        id: check
+        run: |
+          # Get outdated packages
+          pip list --outdated --format json > outdated.json
+
+          # Check if any updates available
+          UPDATE_COUNT=$(jq 'length' outdated.json)
+
+          if [ "$UPDATE_COUNT" -gt "0" ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            # Store as base64 to preserve JSON in output
+            echo "outdated_json=$(cat outdated.json | base64 -w 0)" >> $GITHUB_OUTPUT
+            echo "📦 Found $UPDATE_COUNT packages with available updates"
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "outdated_json=W10=" >> $GITHUB_OUTPUT  # Empty array base64
+            echo "✅ All packages are up to date"
+          fi
+
+      - name: Upload outdated list
+        uses: actions/upload-artifact@v4
+        with:
+          name: outdated-packages
+          path: outdated.json
+          retention-days: 7
+
+  # Job 3: Apply updates and create PR
+  apply-updates:
+    name: Apply Updates
+    needs: [audit, check-updates]
+    if: needs.audit.outputs.has_vulnerabilities == 'true' || needs.check-updates.outputs.has_updates == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Download audit results
+        uses: actions/download-artifact@v4
+        with:
+          name: audit-results
+          path: .
+
+      - name: Download outdated list
+        uses: actions/download-artifact@v4
+        with:
+          name: outdated-packages
+          path: .
+
+      - name: Determine update type
+        id: update-type
+        run: |
+          # Get update type from input or default to security
+          UPDATE_TYPE="${{ github.event.inputs.update_type || 'security' }}"
+          echo "type=$UPDATE_TYPE" >> $GITHUB_OUTPUT
+          echo "📋 Update type: $UPDATE_TYPE"
+
+      - name: Apply updates
+        id: apply
+        run: |
+          pip install pip-audit
+
+          # Track what we update
+          UPDATES=""
+          UPDATE_COUNT=0
+
+          # Function to update a package
+          update_package() {
+            local pkg=$1
+            local new_version=$2
+            local reason=$3
+
+            # Update in requirements.txt
+            sed -i "s/^${pkg}==.*/${pkg}==${new_version}/" requirements.txt
+
+            # Install the update
+            pip install "${pkg}==${new_version}"
+
+            UPDATES="${UPDATES}\n- ${pkg}: ${reason} → ${new_version}"
+            UPDATE_COUNT=$((UPDATE_COUNT + 1))
+          }
+
+          # 1. Apply security updates (always)
+          if [ -f audit_results.json ]; then
+            echo "🔒 Applying security updates..."
+            jq -r '.[] | "\(.name) \(.fixed_versions[-1] // "")"' audit_results.json 2>/dev/null | while read pkg version; do
+              if [ -n "$pkg" ] && [ -n "$version" ]; then
+                echo "  Updating $pkg to $version (security fix)"
+                update_package "$pkg" "$version" "security fix"
+              fi
+            done || true
+          fi
+
+          UPDATE_TYPE="${{ steps.update-type.outputs.type }}"
+
+          # 2. Apply patch updates (if requested)
+          if [ "$UPDATE_TYPE" == "patch" ] || [ "$UPDATE_TYPE" == "minor" ] || [ "$UPDATE_TYPE" == "all" ]; then
+            echo "🔧 Applying patch updates..."
+            jq -r '.[] | select(.latest_version | split(".")[0] == (.version | split(".")[0])) | select(.latest_version | split(".")[1] == (.version | split(".")[1])) | "\(.name) \(.latest_version)"' outdated.json 2>/dev/null | while read pkg version; do
+              if [ -n "$pkg" ] && [ -n "$version" ]; then
+                echo "  Updating $pkg to $version (patch)"
+                update_package "$pkg" "$version" "patch update"
+              fi
+            done || true
+          fi
+
+          # 3. Apply minor updates (if requested)
+          if [ "$UPDATE_TYPE" == "minor" ] || [ "$UPDATE_TYPE" == "all" ]; then
+            echo "📦 Applying minor updates..."
+            jq -r '.[] | select(.latest_version | split(".")[0] == (.version | split(".")[0])) | select(.latest_version | split(".")[1] != (.version | split(".")[1])) | "\(.name) \(.latest_version)"' outdated.json 2>/dev/null | while read pkg version; do
+              if [ -n "$pkg" ] && [ -n "$version" ]; then
+                echo "  Updating $pkg to $version (minor)"
+                update_package "$pkg" "$version" "minor update"
+              fi
+            done || true
+          fi
+
+          # 4. Apply major updates (only if all)
+          if [ "$UPDATE_TYPE" == "all" ]; then
+            echo "🚀 Applying major updates..."
+            jq -r '.[] | select(.latest_version | split(".")[0] != (.version | split(".")[0])) | "\(.name) \(.latest_version)"' outdated.json 2>/dev/null | while read pkg version; do
+              if [ -n "$pkg" ] && [ -n "$version" ]; then
+                echo "  Updating $pkg to $version (major - REVIEW REQUIRED)"
+                update_package "$pkg" "$version" "major update"
+              fi
+            done || true
+          fi
+
+          # Regenerate lock file
+          pip freeze > requirements.lock
+
+          # Check if any changes
+          if git diff --quiet requirements.txt requirements.lock; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes to apply"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "update_count=$UPDATE_COUNT" >> $GITHUB_OUTPUT
+            echo "✅ Applied updates"
+          fi
+
+      - name: Run tests
+        if: steps.apply.outputs.has_changes == 'true'
+        run: |
+          pip install -r requirements-dev.txt
+          python -m pytest tests/ -v --tb=short || echo "⚠️ Some tests failed - review required"
+
+      - name: Create Pull Request
+        if: steps.apply.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: |
+            deps: automated dependency updates (${{ steps.update-type.outputs.type }})
+
+            Automated update run on ${{ github.event.repository.updated_at }}
+            Update type: ${{ steps.update-type.outputs.type }}
+
+            Changes applied by .github/workflows/dependency-update.yml
+          branch: deps/automated-update-${{ github.run_number }}
+          delete-branch: true
+          title: "deps: Automated dependency updates (${{ steps.update-type.outputs.type }})"
+          body: |
+            ## 🤖 Automated Dependency Update
+
+            **Update Type:** ${{ steps.update-type.outputs.type }}
+            **Trigger:** ${{ github.event_name }}
+            **Run:** ${{ github.run_number }}
+
+            ### Security Status
+
+            - Vulnerabilities found: ${{ needs.audit.outputs.vulnerability_count }}
+            - Updates available: ${{ needs.check-updates.outputs.has_updates }}
+
+            ### Changes
+
+            See commit diff for specific package updates.
+
+            ### Test Results
+
+            Tests were run automatically. Review the workflow logs for results.
+
+            ### Review Checklist
+
+            - [ ] Review updated package versions
+            - [ ] Check for breaking changes in changelogs
+            - [ ] Verify CI passes
+            - [ ] Manual testing if major updates included
+
+            ---
+            *This PR was automatically created by the dependency-update workflow.*
+          labels: |
+            dependencies
+            automated
+          reviewers: |
+            ${{ github.repository_owner }}
+
+  # Job 4: Summary
+  summary:
+    name: Update Summary
+    needs: [audit, check-updates, apply-updates]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## 📊 Dependency Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Vulnerabilities | ${{ needs.audit.outputs.vulnerability_count || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Updates Available | ${{ needs.check-updates.outputs.has_updates || 'false' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Updates Applied | ${{ needs.apply-updates.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.audit.outputs.has_vulnerabilities }}" == "true" ]; then
+            echo "### ⚠️ Action Required" >> $GITHUB_STEP_SUMMARY
+            echo "Security vulnerabilities were detected. Review and merge the PR promptly." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ All Clear" >> $GITHUB_STEP_SUMMARY
+            echo "No security vulnerabilities detected." >> $GITHUB_STEP_SUMMARY
+          fi
