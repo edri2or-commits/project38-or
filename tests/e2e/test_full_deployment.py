@@ -103,8 +103,9 @@ class TestFullDeploymentFlow:
     @pytest.mark.asyncio
     async def test_deployment_decision_making(self):
         """Test orchestrator makes correct deployment decisions."""
-        from src.orchestrator import ActionType, Decision, MainOrchestrator, Observation
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
+
+        from src.orchestrator import ActionType, MainOrchestrator, Observation
 
         # Create mock clients
         railway_client = AsyncMock()
