@@ -279,11 +279,7 @@ class AutoScalingAdvisor:
 
         if cpu >= self.thresholds.cpu_scale_up:
             # High CPU - recommend scale up
-            priority = (
-                RecommendationPriority.CRITICAL
-                if cpu >= 95
-                else RecommendationPriority.HIGH
-            )
+            priority = RecommendationPriority.CRITICAL if cpu >= 95 else RecommendationPriority.HIGH
             return ScalingRecommendation(
                 resource=ResourceType.CPU,
                 direction=ScalingDirection.SCALE_UP,
@@ -332,9 +328,7 @@ class AutoScalingAdvisor:
         if mem_pct >= self.thresholds.memory_scale_up:
             # High memory - recommend scale up
             priority = (
-                RecommendationPriority.CRITICAL
-                if mem_pct >= 95
-                else RecommendationPriority.HIGH
+                RecommendationPriority.CRITICAL if mem_pct >= 95 else RecommendationPriority.HIGH
             )
             return ScalingRecommendation(
                 resource=ResourceType.MEMORY,
@@ -369,9 +363,7 @@ class AutoScalingAdvisor:
 
         return None
 
-    def analyze_response_time(
-        self, metrics: ResourceMetrics
-    ) -> ScalingRecommendation | None:
+    def analyze_response_time(self, metrics: ResourceMetrics) -> ScalingRecommendation | None:
         """Analyze response time and generate recommendation.
 
         Args:
@@ -414,9 +406,7 @@ class AutoScalingAdvisor:
 
         return None
 
-    def analyze_error_rate(
-        self, metrics: ResourceMetrics
-    ) -> ScalingRecommendation | None:
+    def analyze_error_rate(self, metrics: ResourceMetrics) -> ScalingRecommendation | None:
         """Analyze error rate and generate recommendation.
 
         Args:
@@ -459,9 +449,7 @@ class AutoScalingAdvisor:
 
         return None
 
-    async def analyze_and_recommend(
-        self, deployment_id: str
-    ) -> list[ScalingRecommendation]:
+    async def analyze_and_recommend(self, deployment_id: str) -> list[ScalingRecommendation]:
         """Analyze deployment and generate all recommendations.
 
         Args:
@@ -515,17 +503,11 @@ class AutoScalingAdvisor:
         recommendations = await self.analyze_and_recommend(deployment_id)
 
         # Calculate total potential savings
-        total_savings = sum(
-            r.estimated_savings for r in recommendations if r.estimated_savings > 0
-        )
+        total_savings = sum(r.estimated_savings for r in recommendations if r.estimated_savings > 0)
 
         # Determine overall status
-        has_critical = any(
-            r.priority == RecommendationPriority.CRITICAL for r in recommendations
-        )
-        has_high = any(
-            r.priority == RecommendationPriority.HIGH for r in recommendations
-        )
+        has_critical = any(r.priority == RecommendationPriority.CRITICAL for r in recommendations)
+        has_high = any(r.priority == RecommendationPriority.HIGH for r in recommendations)
 
         if has_critical:
             status = "critical"
@@ -545,9 +527,7 @@ class AutoScalingAdvisor:
             estimated_monthly_savings=total_savings,
         )
 
-    def get_scaling_summary(
-        self, recommendations: list[ScalingRecommendation]
-    ) -> dict[str, Any]:
+    def get_scaling_summary(self, recommendations: list[ScalingRecommendation]) -> dict[str, Any]:
         """Get summary of scaling recommendations.
 
         Args:
@@ -557,9 +537,7 @@ class AutoScalingAdvisor:
             Summary dictionary
         """
         scale_up = [r for r in recommendations if r.direction == ScalingDirection.SCALE_UP]
-        scale_down = [
-            r for r in recommendations if r.direction == ScalingDirection.SCALE_DOWN
-        ]
+        scale_down = [r for r in recommendations if r.direction == ScalingDirection.SCALE_DOWN]
 
         return {
             "total_recommendations": len(recommendations),

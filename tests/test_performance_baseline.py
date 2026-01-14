@@ -281,10 +281,10 @@ async def test_collect_metrics_success(baseline, mock_snapshot):
     mock_conn.fetchval.side_effect = [150.5, 350.2, 15, 1000, 5, 50000]
     mock_conn.execute = AsyncMock()
 
-    with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect, patch(
-        "psutil.cpu_percent", return_value=45.5
-    ), patch(
-        "psutil.virtual_memory", return_value=MagicMock(percent=62.3)
+    with (
+        patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect,
+        patch("psutil.cpu_percent", return_value=45.5),
+        patch("psutil.virtual_memory", return_value=MagicMock(percent=62.3)),
     ):
         mock_connect.return_value = mock_conn
 
@@ -310,10 +310,10 @@ async def test_collect_metrics_zero_requests(baseline):
     mock_conn.execute = AsyncMock()
     mock_conn.close = AsyncMock()
 
-    with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect, patch(
-        "psutil.cpu_percent", return_value=10.0
-    ), patch(
-        "psutil.virtual_memory", return_value=MagicMock(percent=30.0)
+    with (
+        patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect,
+        patch("psutil.cpu_percent", return_value=10.0),
+        patch("psutil.virtual_memory", return_value=MagicMock(percent=30.0)),
     ):
         mock_connect.return_value = mock_conn
 
@@ -483,10 +483,10 @@ async def test_detect_anomalies_none(baseline, mock_snapshot, mock_historical_da
     mock_conn.execute = AsyncMock()
     mock_conn.close = AsyncMock()
 
-    with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect, patch(
-        "psutil.cpu_percent", return_value=45.5
-    ), patch(
-        "psutil.virtual_memory", return_value=MagicMock(percent=62.3)
+    with (
+        patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect,
+        patch("psutil.cpu_percent", return_value=45.5),
+        patch("psutil.virtual_memory", return_value=MagicMock(percent=62.3)),
     ):
         mock_connect.return_value = mock_conn
 
@@ -607,7 +607,7 @@ async def test_analyze_trends_stable(baseline, mock_historical_data):
 
     # Mock two calls: one for baseline data, one for recent data
     async def mock_fetch_side_effect(*args, **kwargs):
-        if not hasattr(mock_fetch_side_effect, 'call_count'):
+        if not hasattr(mock_fetch_side_effect, "call_count"):
             mock_fetch_side_effect.call_count = 0
         if mock_fetch_side_effect.call_count == 0:
             result = mock_records[:18]
@@ -682,10 +682,10 @@ async def test_get_dashboard_data(baseline, mock_historical_data):
     mock_conn.execute = AsyncMock()
     mock_conn.close = AsyncMock()
 
-    with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect, patch(
-        "psutil.cpu_percent", return_value=45.5
-    ), patch(
-        "psutil.virtual_memory", return_value=MagicMock(percent=62.3)
+    with (
+        patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect,
+        patch("psutil.cpu_percent", return_value=45.5),
+        patch("psutil.virtual_memory", return_value=MagicMock(percent=62.3)),
     ):
         mock_connect.return_value = mock_conn
 

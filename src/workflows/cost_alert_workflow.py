@@ -265,9 +265,7 @@ def get_workflow_connections() -> dict[str, Any]:
             "main": [[{"node": "Merge Results", "type": "main", "index": 2}]],
         },
         "Merge Results": {
-            "main": [
-                [{"node": "Send Telegram Notification", "type": "main", "index": 0}]
-            ],
+            "main": [[{"node": "Send Telegram Notification", "type": "main", "index": 0}]],
         },
     }
 
@@ -316,9 +314,7 @@ def create_alert_payload(
         "percentage_used": round(percentage_used, 1),
         "status": status,
         "recommendations": recommendations,
-        "timestamp": __import__("datetime").datetime.now(
-            __import__("datetime").UTC
-        ).isoformat(),
+        "timestamp": __import__("datetime").datetime.now(__import__("datetime").UTC).isoformat(),
     }
 
 

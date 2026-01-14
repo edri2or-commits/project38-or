@@ -43,9 +43,9 @@ async def _graphql_request(query: str, variables: dict = None) -> dict:
             json=payload,
             headers={
                 "Authorization": f"Bearer {config.railway_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             },
-            timeout=60.0
+            timeout=60.0,
         )
         response.raise_for_status()
         return response.json()
@@ -72,7 +72,7 @@ async def trigger_deployment(service_id: str | None = None) -> dict[str, Any]:
     if not service_id:
         return {
             "status": "error",
-            "message": "No service_id configured. Set RAILWAY_SERVICE_ID environment variable."
+            "message": "No service_id configured. Set RAILWAY_SERVICE_ID environment variable.",
         }
 
     query = """
@@ -82,29 +82,22 @@ async def trigger_deployment(service_id: str | None = None) -> dict[str, Any]:
     """
 
     try:
-        data = await _graphql_request(query, {
-            "serviceId": service_id,
-            "environmentId": environment_id
-        })
+        data = await _graphql_request(
+            query, {"serviceId": service_id, "environmentId": environment_id}
+        )
 
         if "errors" in data:
-            return {
-                "status": "error",
-                "message": data["errors"][0]["message"]
-            }
+            return {"status": "error", "message": data["errors"][0]["message"]}
 
         return {
             "status": "triggered",
             "service_id": service_id,
             "environment_id": environment_id,
-            "message": "Deployment triggered successfully. Check status in ~60 seconds."
+            "message": "Deployment triggered successfully. Check status in ~60 seconds.",
         }
 
     except httpx.HTTPError as e:
-        return {
-            "status": "error",
-            "message": f"HTTP error: {str(e)}"
-        }
+        return {"status": "error", "message": f"HTTP error: {str(e)}"}
 
 
 async def get_deployment_status(service_id: str | None = None) -> dict[str, Any]:
@@ -125,10 +118,7 @@ async def get_deployment_status(service_id: str | None = None) -> dict[str, Any]
     environment_id = config.railway_environment_id
 
     if not service_id:
-        return {
-            "status": "error",
-            "message": "No service_id configured."
-        }
+        return {"status": "error", "message": "No service_id configured."}
 
     query = """
     query GetDeployments($serviceId: String!, $environmentId: String!) {
@@ -148,43 +138,25 @@ async def get_deployment_status(service_id: str | None = None) -> dict[str, Any]
     """
 
     try:
-        data = await _graphql_request(query, {
-            "serviceId": service_id,
-            "environmentId": environment_id
-        })
+        data = await _graphql_request(
+            query, {"serviceId": service_id, "environmentId": environment_id}
+        )
 
         if "errors" in data:
-            return {
-                "status": "error",
-                "message": data["errors"][0]["message"]
-            }
+            return {"status": "error", "message": data["errors"][0]["message"]}
 
         edges = data.get("data", {}).get("deployments", {}).get("edges", [])
 
         if not edges:
-            return {
-                "status": "success",
-                "current": None,
-                "message": "No deployments found"
-            }
+            return {"status": "success", "current": None, "message": "No deployments found"}
 
-        return {
-            "status": "success",
-            "current": edges[0]["node"],
-            "service_id": service_id
-        }
+        return {"status": "success", "current": edges[0]["node"], "service_id": service_id}
 
     except httpx.HTTPError as e:
-        return {
-            "status": "error",
-            "message": f"HTTP error: {str(e)}"
-        }
+        return {"status": "error", "message": f"HTTP error: {str(e)}"}
 
 
-async def get_recent_deployments(
-    count: int = 5,
-    service_id: str | None = None
-) -> dict[str, Any]:
+async def get_recent_deployments(count: int = 5, service_id: str | None = None) -> dict[str, Any]:
     """
     Get recent Railway deployments.
 
@@ -203,10 +175,7 @@ async def get_recent_deployments(
     environment_id = config.railway_environment_id
 
     if not service_id:
-        return {
-            "status": "error",
-            "message": "No service_id configured."
-        }
+        return {"status": "error", "message": "No service_id configured."}
 
     query = """
     query GetDeployments($first: Int!, $serviceId: String!, $environmentId: String!) {
@@ -226,32 +195,20 @@ async def get_recent_deployments(
     """
 
     try:
-        data = await _graphql_request(query, {
-            "first": count,
-            "serviceId": service_id,
-            "environmentId": environment_id
-        })
+        data = await _graphql_request(
+            query, {"first": count, "serviceId": service_id, "environmentId": environment_id}
+        )
 
         if "errors" in data:
-            return {
-                "status": "error",
-                "message": data["errors"][0]["message"]
-            }
+            return {"status": "error", "message": data["errors"][0]["message"]}
 
         edges = data.get("data", {}).get("deployments", {}).get("edges", [])
         deployments = [edge["node"] for edge in edges]
 
-        return {
-            "status": "success",
-            "deployments": deployments,
-            "count": len(deployments)
-        }
+        return {"status": "success", "deployments": deployments, "count": len(deployments)}
 
     except httpx.HTTPError as e:
-        return {
-            "status": "error",
-            "message": f"HTTP error: {str(e)}"
-        }
+        return {"status": "error", "message": f"HTTP error: {str(e)}"}
 
 
 async def execute_rollback(deployment_id: str | None = None) -> dict[str, Any]:
@@ -284,10 +241,7 @@ async def execute_rollback(deployment_id: str | None = None) -> dict[str, Any]:
                 break
 
         if not deployment_id:
-            return {
-                "status": "error",
-                "message": "No successful deployment found for rollback"
-            }
+            return {"status": "error", "message": "No successful deployment found for rollback"}
 
     query = """
     mutation DeploymentRollback($id: String!) {
@@ -302,10 +256,7 @@ async def execute_rollback(deployment_id: str | None = None) -> dict[str, Any]:
         data = await _graphql_request(query, {"id": deployment_id})
 
         if "errors" in data:
-            return {
-                "status": "error",
-                "message": data["errors"][0]["message"]
-            }
+            return {"status": "error", "message": data["errors"][0]["message"]}
 
         rollback_data = data.get("data", {}).get("deploymentRollback", {})
 
@@ -313,11 +264,8 @@ async def execute_rollback(deployment_id: str | None = None) -> dict[str, Any]:
             "status": "rollback_initiated",
             "deployment_id": rollback_data.get("id"),
             "target_deployment": deployment_id,
-            "message": "Rollback initiated. Check health in ~30 seconds."
+            "message": "Rollback initiated. Check health in ~30 seconds.",
         }
 
     except httpx.HTTPError as e:
-        return {
-            "status": "error",
-            "message": f"HTTP error: {str(e)}"
-        }
+        return {"status": "error", "message": f"HTTP error: {str(e)}"}

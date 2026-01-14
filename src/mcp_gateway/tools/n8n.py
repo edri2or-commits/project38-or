@@ -19,36 +19,33 @@ WORKFLOW_REGISTRY = {
     "health-monitor": {
         "path": "/webhook/health-check",
         "method": "GET",
-        "description": "Check production health status"
+        "description": "Check production health status",
     },
     "deploy-railway": {
         "path": "/webhook/deploy-railway",
         "method": "POST",
-        "description": "Trigger Railway deployment on push to main"
+        "description": "Trigger Railway deployment on push to main",
     },
     "rollback-railway": {
         "path": "/webhook/rollback-railway",
         "method": "POST",
-        "description": "Rollback to previous successful deployment"
+        "description": "Rollback to previous successful deployment",
     },
     # Week 2: Cost Monitoring Workflows
     "cost-alert": {
         "path": "/webhook/cost-alert",
         "method": "POST",
-        "description": "Send cost alert notification to Telegram (critical/warning/info)"
+        "description": "Send cost alert notification to Telegram (critical/warning/info)",
     },
     "cost-weekly-report": {
         "path": "/webhook/cost-weekly-report",
         "method": "POST",
-        "description": "Weekly cost summary report to Telegram"
-    }
+        "description": "Weekly cost summary report to Telegram",
+    },
 }
 
 
-async def trigger_workflow(
-    workflow_name: str,
-    data: dict | None = None
-) -> dict[str, Any]:
+async def trigger_workflow(workflow_name: str, data: dict | None = None) -> dict[str, Any]:
     """
     Trigger an n8n workflow via webhook.
 
@@ -67,16 +64,13 @@ async def trigger_workflow(
     config = get_config()
 
     if not config.n8n_base_url:
-        return {
-            "status": "error",
-            "message": "N8N_BASE_URL not configured"
-        }
+        return {"status": "error", "message": "N8N_BASE_URL not configured"}
 
     if workflow_name not in WORKFLOW_REGISTRY:
         return {
             "status": "error",
             "message": f"Unknown workflow: {workflow_name}",
-            "available_workflows": list(WORKFLOW_REGISTRY.keys())
+            "available_workflows": list(WORKFLOW_REGISTRY.keys()),
         }
 
     workflow = WORKFLOW_REGISTRY[workflow_name]
@@ -89,10 +83,7 @@ async def trigger_workflow(
                 response = await client.get(url, timeout=30.0)
             else:
                 response = await client.post(
-                    url,
-                    json=data or {},
-                    headers={"Content-Type": "application/json"},
-                    timeout=30.0
+                    url, json=data or {}, headers={"Content-Type": "application/json"}, timeout=30.0
                 )
 
         # Try to parse JSON response
@@ -105,21 +96,17 @@ async def trigger_workflow(
             "status": "triggered",
             "workflow": workflow_name,
             "response": response_data,
-            "http_status": response.status_code
+            "http_status": response.status_code,
         }
 
     except httpx.TimeoutException:
         return {
             "status": "error",
             "workflow": workflow_name,
-            "message": "Workflow timed out (>30s). Check n8n execution logs."
+            "message": "Workflow timed out (>30s). Check n8n execution logs.",
         }
     except httpx.HTTPError as e:
-        return {
-            "status": "error",
-            "workflow": workflow_name,
-            "message": f"HTTP error: {str(e)}"
-        }
+        return {"status": "error", "workflow": workflow_name, "message": f"HTTP error: {str(e)}"}
 
 
 async def list_workflows() -> dict[str, Any]:
@@ -137,18 +124,16 @@ async def list_workflows() -> dict[str, Any]:
 
     workflows = []
     for name, info in WORKFLOW_REGISTRY.items():
-        workflows.append({
-            "name": name,
-            "webhook_url": f"{base_url}{info['path']}",
-            "method": info.get("method", "POST"),
-            "description": info.get("description", "")
-        })
+        workflows.append(
+            {
+                "name": name,
+                "webhook_url": f"{base_url}{info['path']}",
+                "method": info.get("method", "POST"),
+                "description": info.get("description", ""),
+            }
+        )
 
-    return {
-        "status": "success",
-        "workflows": workflows,
-        "count": len(workflows)
-    }
+    return {"status": "success", "workflows": workflows, "count": len(workflows)}
 
 
 async def get_workflow_status(workflow_name: str) -> dict[str, Any]:
@@ -167,16 +152,10 @@ async def get_workflow_status(workflow_name: str) -> dict[str, Any]:
     config = get_config()
 
     if not config.n8n_base_url:
-        return {
-            "status": "error",
-            "message": "N8N_BASE_URL not configured"
-        }
+        return {"status": "error", "message": "N8N_BASE_URL not configured"}
 
     if workflow_name not in WORKFLOW_REGISTRY:
-        return {
-            "status": "error",
-            "message": f"Unknown workflow: {workflow_name}"
-        }
+        return {"status": "error", "message": f"Unknown workflow: {workflow_name}"}
 
     workflow = WORKFLOW_REGISTRY[workflow_name]
     url = f"{config.n8n_base_url}{workflow['path']}"
@@ -191,29 +170,24 @@ async def get_workflow_status(workflow_name: str) -> dict[str, Any]:
                 "status": "available",
                 "workflow": workflow_name,
                 "url": url,
-                "message": "Webhook endpoint is accessible"
+                "message": "Webhook endpoint is accessible",
             }
         else:
             return {
                 "status": "unavailable",
                 "workflow": workflow_name,
-                "message": f"Server error: {response.status_code}"
+                "message": f"Server error: {response.status_code}",
             }
 
     except httpx.HTTPError as e:
         return {
             "status": "unavailable",
             "workflow": workflow_name,
-            "message": f"Connection error: {str(e)}"
+            "message": f"Connection error: {str(e)}",
         }
 
 
-def register_workflow(
-    name: str,
-    path: str,
-    method: str = "POST",
-    description: str = ""
-) -> None:
+def register_workflow(name: str, path: str, method: str = "POST", description: str = "") -> None:
     """
     Register a new workflow in the registry.
 
@@ -223,8 +197,4 @@ def register_workflow(
         method: HTTP method (GET or POST).
         description: Human-readable description.
     """
-    WORKFLOW_REGISTRY[name] = {
-        "path": path,
-        "method": method,
-        "description": description
-    }
+    WORKFLOW_REGISTRY[name] = {"path": path, "method": method, "description": description}

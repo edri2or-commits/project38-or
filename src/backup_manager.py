@@ -313,9 +313,7 @@ class BackupManager:
         except Exception as e:
             duration = (datetime.utcnow() - start_time).total_seconds()
             logger.error(f"Backup failed: {e}", exc_info=True)
-            return BackupResult(
-                success=False, error=str(e), duration_seconds=duration
-            )
+            return BackupResult(success=False, error=str(e), duration_seconds=duration)
 
     async def _run_pg_dump(self, output_file: Path) -> None:
         """
@@ -681,10 +679,6 @@ def create_backup_manager(
     bucket = gcs_bucket or os.getenv("GCS_BACKUP_BUCKET", "project38-backups")
 
     if not db_url:
-        raise ValueError(
-            "database_url required (pass directly or set DATABASE_URL env var)"
-        )
+        raise ValueError("database_url required (pass directly or set DATABASE_URL env var)")
 
-    return BackupManager(
-        database_url=db_url, gcs_bucket=bucket, retention_days=retention_days
-    )
+    return BackupManager(database_url=db_url, gcs_bucket=bucket, retention_days=retention_days)

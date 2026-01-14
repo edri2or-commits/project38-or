@@ -148,26 +148,23 @@ def test_backup_manager_database_name_extraction(mock_database_url):
 @pytest.mark.asyncio
 async def test_create_backup_success(backup_manager):
     """Test successful backup creation."""
-    with patch.object(
-        backup_manager, "_run_pg_dump", new_callable=AsyncMock
-    ) as mock_pg_dump, patch.object(
-        backup_manager, "_compress_file", new_callable=AsyncMock
-    ) as mock_compress, patch.object(
-        backup_manager, "_calculate_checksum", new_callable=AsyncMock
-    ) as mock_checksum, patch.object(
-        backup_manager, "_get_pg_dump_version", new_callable=AsyncMock
-    ) as mock_version, patch.object(
-        backup_manager, "_upload_to_gcs", new_callable=AsyncMock
-    ) as mock_upload, patch.object(
-        backup_manager, "_verify_gcs_upload", new_callable=AsyncMock
-    ) as mock_verify, patch.object(
-        backup_manager, "_save_metadata", new_callable=AsyncMock
-    ) as mock_save_metadata, patch.object(
-        backup_manager, "_cleanup_temp_files"
-    ) as mock_cleanup, patch(
-        "src.backup_manager.Path.stat"
-    ) as mock_stat, patch(
-        "src.backup_manager.Path.mkdir"
+    with (
+        patch.object(backup_manager, "_run_pg_dump", new_callable=AsyncMock) as mock_pg_dump,
+        patch.object(backup_manager, "_compress_file", new_callable=AsyncMock) as mock_compress,
+        patch.object(
+            backup_manager, "_calculate_checksum", new_callable=AsyncMock
+        ) as mock_checksum,
+        patch.object(
+            backup_manager, "_get_pg_dump_version", new_callable=AsyncMock
+        ) as mock_version,
+        patch.object(backup_manager, "_upload_to_gcs", new_callable=AsyncMock) as mock_upload,
+        patch.object(backup_manager, "_verify_gcs_upload", new_callable=AsyncMock) as mock_verify,
+        patch.object(
+            backup_manager, "_save_metadata", new_callable=AsyncMock
+        ) as mock_save_metadata,
+        patch.object(backup_manager, "_cleanup_temp_files") as mock_cleanup,
+        patch("src.backup_manager.Path.stat") as mock_stat,
+        patch("src.backup_manager.Path.mkdir"),
     ):
         # Mock file stat
         mock_stat.return_value = Mock(st_size=1024 * 1024 * 50)  # 50MB
@@ -210,26 +207,21 @@ async def test_create_backup_success(backup_manager):
 @pytest.mark.asyncio
 async def test_create_backup_with_generated_id(backup_manager):
     """Test backup creation with auto-generated ID."""
-    with patch.object(
-        backup_manager, "_run_pg_dump", new_callable=AsyncMock
-    ), patch.object(
-        backup_manager, "_compress_file", new_callable=AsyncMock
-    ), patch.object(
-        backup_manager, "_calculate_checksum", new_callable=AsyncMock
-    ) as mock_checksum, patch.object(
-        backup_manager, "_get_pg_dump_version", new_callable=AsyncMock
-    ) as mock_version, patch.object(
-        backup_manager, "_upload_to_gcs", new_callable=AsyncMock
-    ), patch.object(
-        backup_manager, "_verify_gcs_upload", new_callable=AsyncMock
-    ) as mock_verify, patch.object(
-        backup_manager, "_save_metadata", new_callable=AsyncMock
-    ), patch.object(
-        backup_manager, "_cleanup_temp_files"
-    ), patch(
-        "src.backup_manager.Path.stat"
-    ) as mock_stat, patch(
-        "src.backup_manager.Path.mkdir"
+    with (
+        patch.object(backup_manager, "_run_pg_dump", new_callable=AsyncMock),
+        patch.object(backup_manager, "_compress_file", new_callable=AsyncMock),
+        patch.object(
+            backup_manager, "_calculate_checksum", new_callable=AsyncMock
+        ) as mock_checksum,
+        patch.object(
+            backup_manager, "_get_pg_dump_version", new_callable=AsyncMock
+        ) as mock_version,
+        patch.object(backup_manager, "_upload_to_gcs", new_callable=AsyncMock),
+        patch.object(backup_manager, "_verify_gcs_upload", new_callable=AsyncMock) as mock_verify,
+        patch.object(backup_manager, "_save_metadata", new_callable=AsyncMock),
+        patch.object(backup_manager, "_cleanup_temp_files"),
+        patch("src.backup_manager.Path.stat") as mock_stat,
+        patch("src.backup_manager.Path.mkdir"),
     ):
         mock_stat.return_value = Mock(st_size=1024 * 1024)
         mock_checksum.return_value = "b" * 64
@@ -246,9 +238,10 @@ async def test_create_backup_with_generated_id(backup_manager):
 @pytest.mark.asyncio
 async def test_create_backup_failure(backup_manager):
     """Test backup creation failure handling."""
-    with patch.object(
-        backup_manager, "_run_pg_dump", new_callable=AsyncMock
-    ) as mock_pg_dump, patch("src.backup_manager.Path.mkdir"):
+    with (
+        patch.object(backup_manager, "_run_pg_dump", new_callable=AsyncMock) as mock_pg_dump,
+        patch("src.backup_manager.Path.mkdir"),
+    ):
         # Simulate pg_dump failure
         mock_pg_dump.side_effect = RuntimeError("pg_dump not found")
 
@@ -419,9 +412,12 @@ async def test_verify_gcs_upload_failure(backup_manager):
 @pytest.mark.asyncio
 async def test_list_backups_success(backup_manager, sample_backup_metadata):
     """Test list_backups success."""
-    with patch("asyncio.create_subprocess_exec") as mock_subprocess, patch.object(
-        backup_manager, "_load_metadata", new_callable=AsyncMock
-    ) as mock_load_metadata:
+    with (
+        patch("asyncio.create_subprocess_exec") as mock_subprocess,
+        patch.object(
+            backup_manager, "_load_metadata", new_callable=AsyncMock
+        ) as mock_load_metadata,
+    ):
         # Mock gsutil ls
         mock_process = AsyncMock()
         mock_process.returncode = 0
@@ -473,9 +469,10 @@ async def test_load_metadata_success(backup_manager, tmp_path):
     with open(temp_json, "w") as f:
         json.dump(metadata_dict, f)
 
-    with patch("asyncio.create_subprocess_exec") as mock_subprocess, patch(
-        "src.backup_manager.Path"
-    ) as mock_path:
+    with (
+        patch("asyncio.create_subprocess_exec") as mock_subprocess,
+        patch("src.backup_manager.Path") as mock_path,
+    ):
         # Mock gsutil cp
         mock_process = AsyncMock()
         mock_process.returncode = 0

@@ -39,10 +39,7 @@ async def check_health() -> dict[str, Any]:
     # Check production app
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{config.production_url}/api/health",
-                timeout=10.0
-            )
+            response = await client.get(f"{config.production_url}/api/health", timeout=10.0)
 
         if response.status_code == 200:
             health_data = response.json()
@@ -50,20 +47,14 @@ async def check_health() -> dict[str, Any]:
                 "status": health_data.get("status", "unknown"),
                 "url": config.production_url,
                 "database": health_data.get("database", "unknown"),
-                "version": health_data.get("version", "unknown")
+                "version": health_data.get("version", "unknown"),
             }
         else:
-            services["production"] = {
-                "status": "unhealthy",
-                "http_status": response.status_code
-            }
+            services["production"] = {"status": "unhealthy", "http_status": response.status_code}
             overall_healthy = False
 
     except httpx.HTTPError as e:
-        services["production"] = {
-            "status": "unreachable",
-            "error": str(e)
-        }
+        services["production"] = {"status": "unreachable", "error": str(e)}
         overall_healthy = False
 
     # Check Railway (via GraphQL API accessibility)
@@ -75,33 +66,27 @@ async def check_health() -> dict[str, Any]:
                     json={"query": "{ me { name } }"},
                     headers={
                         "Authorization": f"Bearer {config.railway_token}",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
 
             if response.status_code == 200:
                 services["railway_api"] = {
                     "status": "connected",
-                    "project_id": config.railway_project_id
+                    "project_id": config.railway_project_id,
                 }
             else:
-                services["railway_api"] = {
-                    "status": "error",
-                    "http_status": response.status_code
-                }
+                services["railway_api"] = {"status": "error", "http_status": response.status_code}
                 overall_degraded = True
 
         except httpx.HTTPError as e:
-            services["railway_api"] = {
-                "status": "unreachable",
-                "error": str(e)
-            }
+            services["railway_api"] = {"status": "unreachable", "error": str(e)}
             overall_degraded = True
     else:
         services["railway_api"] = {
             "status": "not_configured",
-            "message": "RAILWAY-API token not set"
+            "message": "RAILWAY-API token not set",
         }
         overall_degraded = True
 
@@ -109,33 +94,21 @@ async def check_health() -> dict[str, Any]:
     if config.n8n_base_url:
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    config.n8n_base_url,
-                    timeout=10.0
-                )
+                response = await client.get(config.n8n_base_url, timeout=10.0)
 
             services["n8n"] = {
                 "status": "available" if response.status_code < 500 else "error",
-                "url": config.n8n_base_url
+                "url": config.n8n_base_url,
             }
 
         except httpx.HTTPError as e:
-            services["n8n"] = {
-                "status": "unreachable",
-                "error": str(e)
-            }
+            services["n8n"] = {"status": "unreachable", "error": str(e)}
             overall_degraded = True
     else:
-        services["n8n"] = {
-            "status": "not_configured",
-            "message": "N8N_BASE_URL not set"
-        }
+        services["n8n"] = {"status": "not_configured", "message": "N8N_BASE_URL not set"}
 
     # MCP Gateway is running (since we're here)
-    services["mcp_gateway"] = {
-        "status": "running",
-        "version": "0.1.0"
-    }
+    services["mcp_gateway"] = {"status": "running", "version": "0.1.0"}
 
     # Determine overall status
     if not overall_healthy:
@@ -146,10 +119,11 @@ async def check_health() -> dict[str, Any]:
         overall_status = "healthy"
 
     from datetime import datetime
+
     return {
         "status": overall_status,
         "services": services,
-        "timestamp": datetime.now(UTC).isoformat()
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -170,22 +144,15 @@ async def get_metrics() -> dict[str, Any]:
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{config.production_url}/metrics/summary",
-                timeout=10.0
-            )
+            response = await client.get(f"{config.production_url}/metrics/summary", timeout=10.0)
 
         if response.status_code == 200:
-            return {
-                "status": "success",
-                "metrics": response.json(),
-                "source": "production_app"
-            }
+            return {"status": "success", "metrics": response.json(), "source": "production_app"}
         else:
             return {
                 "status": "error",
                 "message": f"Metrics endpoint returned {response.status_code}",
-                "source": "production_app"
+                "source": "production_app",
             }
 
     except httpx.HTTPError as e:
@@ -193,13 +160,8 @@ async def get_metrics() -> dict[str, Any]:
         return {
             "status": "partial",
             "message": f"Production metrics unavailable: {str(e)}",
-            "metrics": {
-                "mcp_gateway": {
-                    "status": "running",
-                    "version": "0.1.0"
-                }
-            },
-            "source": "mcp_gateway"
+            "metrics": {"mcp_gateway": {"status": "running", "version": "0.1.0"}},
+            "source": "mcp_gateway",
         }
 
 
@@ -227,8 +189,7 @@ async def check_deployment_health() -> dict[str, Any]:
             current = deployment.get("current", {})
             if current.get("status") == "SUCCESS":
                 recommendation = (
-                    "Production unhealthy but deployment succeeded. "
-                    "Check application logs."
+                    "Production unhealthy but deployment succeeded. Check application logs."
                 )
             elif current.get("status") in ["DEPLOYING", "BUILDING"]:
                 recommendation = "Deployment in progress. Wait for completion."
@@ -247,5 +208,5 @@ async def check_deployment_health() -> dict[str, Any]:
         "health": health,
         "deployment": deployment,
         "recommendation": recommendation,
-        "action_required": health["status"] != "healthy"
+        "action_required": health["status"] != "healthy",
     }

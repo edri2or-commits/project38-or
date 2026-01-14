@@ -441,9 +441,7 @@ class PerformanceBaseline:
                     metric_name=metric,
                     mean=round(statistics.mean(values), 2),
                     median=round(statistics.median(values), 2),
-                    p95=round(
-                        statistics.quantiles(values, n=20)[18], 2
-                    ),  # 19th of 20 quantiles
+                    p95=round(statistics.quantiles(values, n=20)[18], 2),  # 19th of 20 quantiles
                     p99=(
                         round(statistics.quantiles(values, n=100)[98], 2)
                         if len(values) >= 100

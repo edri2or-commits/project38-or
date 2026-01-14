@@ -69,9 +69,7 @@ class CostReportResponse(BaseModel):
     recommendations: list[CostRecommendation] = Field(
         default=[], description="Cost optimization recommendations"
     )
-    trends: dict[str, Any] = Field(
-        default={}, description="Usage trends (cpu, memory)"
-    )
+    trends: dict[str, Any] = Field(default={}, description="Usage trends (cpu, memory)")
 
 
 # =============================================================================

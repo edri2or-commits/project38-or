@@ -43,6 +43,7 @@ def get_config() -> MCPGatewayConfig:
     # Try to load from GCP Secret Manager
     try:
         from src.secrets_manager import SecretManager
+
         manager = SecretManager()
 
         railway_token = manager.get_secret("RAILWAY-API")
@@ -56,22 +57,17 @@ def get_config() -> MCPGatewayConfig:
 
     _config = MCPGatewayConfig(
         railway_token=railway_token,
-        railway_service_id=os.environ.get(
-            "RAILWAY_SERVICE_ID",
-            ""
-        ),
+        railway_service_id=os.environ.get("RAILWAY_SERVICE_ID", ""),
         railway_environment_id=os.environ.get(
-            "RAILWAY_ENVIRONMENT_ID",
-            "99c99a18-aea2-4d01-9360-6a93705102a0"
+            "RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0"
         ),
         railway_project_id=os.environ.get(
-            "RAILWAY_PROJECT_ID",
-            "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+            "RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116"
         ),
         n8n_base_url=os.environ.get("N8N_BASE_URL", ""),
         n8n_api_key=n8n_api_key,
         gateway_token=gateway_token,
-        production_url=os.environ.get("PRODUCTION_URL", "https://or-infra.com")
+        production_url=os.environ.get("PRODUCTION_URL", "https://or-infra.com"),
     )
 
     return _config

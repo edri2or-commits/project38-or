@@ -616,9 +616,10 @@ class TestAnalyzeAndRecommend:
                 RecommendationPriority.INFO: 4,
             }
             for i in range(len(recommendations) - 1):
-                assert priority_order[recommendations[i].priority] <= priority_order[
-                    recommendations[i + 1].priority
-                ]
+                assert (
+                    priority_order[recommendations[i].priority]
+                    <= priority_order[recommendations[i + 1].priority]
+                )
 
 
 class TestGenerateReport:
@@ -847,9 +848,7 @@ class TestGetCurrentMetrics:
     async def test_metrics_fallback_on_error(self):
         """Test fallback when monitor raises error."""
         mock_monitor = MagicMock()
-        mock_monitor.get_current_usage = AsyncMock(
-            side_effect=Exception("Connection error")
-        )
+        mock_monitor.get_current_usage = AsyncMock(side_effect=Exception("Connection error"))
 
         advisor = AutoScalingAdvisor(cost_monitor=mock_monitor)
         metrics = await advisor.get_current_metrics("deploy-789")

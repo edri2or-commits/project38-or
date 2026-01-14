@@ -4,7 +4,6 @@ Authentication for MCP Gateway.
 Provides bearer token validation against GCP Secret Manager.
 """
 
-
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -15,7 +14,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def verify_token(
-    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme)
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> str:
     """
     Verify bearer token from request header.
@@ -33,23 +32,20 @@ async def verify_token(
         raise HTTPException(
             status_code=401,
             detail="Missing authorization header",
-            headers={"WWW-Authenticate": "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     config = get_config()
     expected_token = config.gateway_token
 
     if not expected_token:
-        raise HTTPException(
-            status_code=500,
-            detail="Gateway token not configured"
-        )
+        raise HTTPException(status_code=500, detail="Gateway token not configured")
 
     if credentials.credentials != expected_token:
         raise HTTPException(
             status_code=401,
             detail="Invalid authorization token",
-            headers={"WWW-Authenticate": "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     return credentials.credentials

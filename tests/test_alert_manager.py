@@ -532,6 +532,7 @@ async def test_send_alert_n8n_failure(alert_manager):
 @pytest.mark.asyncio
 async def test_send_performance_alert(alert_manager):
     """Test sending performance anomaly alert."""
+
     # Mock anomaly
     class MockAnomaly:
         def __init__(self):
