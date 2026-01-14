@@ -1,0 +1,84 @@
+"""
+Configuration management for MCP Gateway.
+
+Loads credentials from GCP Secret Manager and environment variables.
+"""
+
+import os
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class MCPGatewayConfig:
+    """MCP Gateway configuration."""
+
+    railway_token: str
+    railway_service_id: str
+    railway_environment_id: str
+    railway_project_id: str
+    n8n_base_url: str
+    n8n_api_key: str
+    gateway_token: str
+    production_url: str
+
+
+_config: Optional[MCPGatewayConfig] = None
+
+
+def get_config() -> MCPGatewayConfig:
+    """
+    Load configuration from GCP Secret Manager and environment.
+
+    Returns:
+        MCPGatewayConfig with all required credentials.
+
+    Raises:
+        RuntimeError: If required secrets cannot be loaded.
+    """
+    global _config
+
+    if _config is not None:
+        return _config
+
+    # Try to load from GCP Secret Manager
+    try:
+        from src.secrets_manager import SecretManager
+        manager = SecretManager()
+
+        railway_token = manager.get_secret("RAILWAY-API")
+        n8n_api_key = manager.get_secret("N8N-API")
+        gateway_token = manager.get_secret("MCP-GATEWAY-TOKEN")
+    except Exception:
+        # Fall back to environment variables for testing
+        railway_token = os.environ.get("RAILWAY_API_TOKEN", "")
+        n8n_api_key = os.environ.get("N8N_API_KEY", "")
+        gateway_token = os.environ.get("MCP_GATEWAY_TOKEN", "")
+
+    _config = MCPGatewayConfig(
+        railway_token=railway_token,
+        railway_service_id=os.environ.get(
+            "RAILWAY_SERVICE_ID",
+            ""
+        ),
+        railway_environment_id=os.environ.get(
+            "RAILWAY_ENVIRONMENT_ID",
+            "99c99a18-aea2-4d01-9360-6a93705102a0"
+        ),
+        railway_project_id=os.environ.get(
+            "RAILWAY_PROJECT_ID",
+            "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+        ),
+        n8n_base_url=os.environ.get("N8N_BASE_URL", ""),
+        n8n_api_key=n8n_api_key,
+        gateway_token=gateway_token,
+        production_url=os.environ.get("PRODUCTION_URL", "https://or-infra.com")
+    )
+
+    return _config
+
+
+def clear_config() -> None:
+    """Clear cached configuration (for testing)."""
+    global _config
+    _config = None
