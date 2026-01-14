@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import agents, costs, health, metrics, tasks
+from src.api.routes import agents, backups, costs, health, metrics, tasks
 from src.logging_config import setup_logging
 
 # Initialize structured logging on module import
@@ -53,6 +53,7 @@ app.add_middleware(
 app.include_router(health.router, tags=["health"])
 app.include_router(agents.router, prefix="/api", tags=["agents"])
 app.include_router(tasks.router, prefix="/api", tags=["tasks"])
+app.include_router(backups.router, prefix="/api", tags=["backups"])
 app.include_router(metrics.router, tags=["metrics"])
 app.include_router(costs.router, tags=["costs"])
 

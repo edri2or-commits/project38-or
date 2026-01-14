@@ -8,6 +8,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Week 3: Database Backup Automation** (2026-01-14) - Automated PostgreSQL backup with GCS storage
+  - `src/backup_manager.py` (800+ lines) - Complete backup orchestration module
+    - `BackupManager` class for PostgreSQL backup operations
+    - `BackupMetadata` dataclass with full backup information
+    - `BackupResult` and `RestoreResult` dataclasses
+    - Automated pg_dump execution with compression (gzip)
+    - SHA256 checksum validation for integrity
+    - Encrypted upload to GCP Cloud Storage
+    - Backup verification and metadata storage
+    - Backup lifecycle management (retention policies)
+    - List and restore backup operations
+  - `tests/test_backup_manager.py` (600+ lines) - 30+ comprehensive tests
+    - BackupManager initialization tests
+    - Backup creation workflow tests
+    - Checksum validation tests
+    - GCS upload/download mocking tests
+    - Backup listing and metadata tests
+    - Error scenario handling tests
+    - Factory function tests
+  - `src/workflows/database_backup_workflow.py` (580 lines) - n8n workflow configurations
+    - Daily automated backup workflow (midnight UTC cron)
+    - Weekly backup verification workflow (Sunday midnight)
+    - Telegram success/failure notifications
+    - Backup integrity verification with random sampling
+    - Complete n8n node definitions with connections
+  - `src/api/routes/backups.py` (480+ lines) - Backup management API endpoints
+    - `POST /api/backups/create` - Create new database backup
+    - `GET /api/backups` - List available backups
+    - `POST /api/backups/verify` - Verify backup integrity
+    - `GET /api/backups/health` - Backup system health check
+    - Full Pydantic models for request/response validation
+  - `docs/operations/disaster-recovery.md` (850+ lines) - Complete DR documentation
+    - 4 disaster scenarios with recovery procedures (DR-1 to DR-4)
+    - Database restore procedures (RTO < 15 minutes)
+    - Partial data restore for accidental deletions
+    - Complete environment rebuild procedures
+    - Secret Manager recovery procedures
+    - Monthly DR testing schedule and templates
+    - Contacts and escalation procedures
+  - **GCS Configuration**: Backups stored in `project38-backups` bucket (encrypted)
+  - **Retention Policy**: 30 days default (configurable per backup)
+  - **Schedule**: Daily at 00:00 UTC via n8n workflow
+  - **Verification**: Weekly random backup integrity checks
+  - **Implementation**: Week 3 of Post-Launch Maintenance (implementation-roadmap.md)
 - **Week 2: Railway Cost Monitoring** (2026-01-14) - Cost tracking and budget management for Railway deployments
   - `src/cost_monitor.py` (420 lines) - Complete cost monitoring module
     - `CostMonitor` class for tracking Railway resource usage
