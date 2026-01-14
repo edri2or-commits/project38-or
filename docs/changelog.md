@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Week 2: Railway Cost Monitoring** (2026-01-14) - Cost tracking and budget management for Railway deployments
+  - `src/cost_monitor.py` (420 lines) - Complete cost monitoring module
+    - `CostMonitor` class for tracking Railway resource usage
+    - `RailwayPricing` dataclass with Hobby and Pro plan rates
+    - `CostEstimate` and `UsageSnapshot` dataclasses for data modeling
+    - Cost estimation based on vCPU-minutes, memory GB-minutes, egress
+    - Budget threshold checking with alerts
+    - Cost optimization recommendations engine
+    - Usage trend analysis (increasing/stable/decreasing)
+    - Comprehensive cost report generation
+  - `src/api/routes/costs.py` (340 lines) - Cost API endpoints
+    - `GET /costs/estimate` - Get current month cost estimate
+    - `GET /costs/budget` - Check budget status (ok/warning/alert)
+    - `GET /costs/recommendations` - Get cost optimization tips
+    - `GET /costs/report` - Generate comprehensive cost report
+    - `GET /costs/health` - Health check for cost monitoring API
+    - Mock data fallback when Railway not configured
+  - `tests/test_cost_monitor.py` (320 lines) - 25 comprehensive tests
+    - Pricing configuration tests (Hobby, Pro, custom)
+    - Cost estimation tests (basic, prorated)
+    - Budget exceeded/not exceeded tests
+    - Optimization recommendation tests (low/high CPU, low memory)
+    - Usage trend analysis tests
+    - Cost report generation tests
+    - Helper function tests
+  - **Railway Pricing (2026)**:
+    - Hobby Plan: $5/month + $0.000231/vCPU-min + $0.000231/GB-min
+    - Pro Plan: $20/month + same usage rates
+    - Egress: $0.10/GB
+  - **Implementation**: Week 2 of Post-Launch Maintenance (implementation-roadmap.md)
+
 - **MCP Gateway for Full Autonomy** (2026-01-14) - Remote MCP Server enabling Claude Code to autonomously operate Railway and n8n
   - `docs/autonomous/08-mcp-gateway-architecture.md` (834 lines) - Comprehensive architecture proposal
     - Problem statement: Anthropic proxy blocks Railway/n8n direct access
