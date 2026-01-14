@@ -605,7 +605,8 @@ curl https://or-infra.com/api/backups/create \
 
 ### D. Related Documentation
 
-- [Backup System API Documentation](../api/backup_manager.md)
+- Backup System Source Code: `src/backup_manager.py`
+- Backup API Endpoints: `src/api/routes/backups.py`
 - [Railway Deployment Guide](../RAILWAY_SETUP.md)
 - [Implementation Roadmap - Week 3](../integrations/implementation-roadmap.md)
 - [Maintenance Runbook](../maintenance-runbook.md)
