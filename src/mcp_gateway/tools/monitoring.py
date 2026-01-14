@@ -226,13 +226,19 @@ async def check_deployment_health() -> dict[str, Any]:
         if deployment.get("status") == "success":
             current = deployment.get("current", {})
             if current.get("status") == "SUCCESS":
-                recommendation = "Production unhealthy but deployment succeeded. Check application logs."
+                recommendation = (
+                    "Production unhealthy but deployment succeeded. "
+                    "Check application logs."
+                )
             elif current.get("status") in ["DEPLOYING", "BUILDING"]:
                 recommendation = "Deployment in progress. Wait for completion."
             else:
                 recommendation = f"Deployment status: {current.get('status')}. Consider rollback."
         else:
-            recommendation = "Both health check and deployment status unavailable. Manual investigation required."
+            recommendation = (
+                "Both health check and deployment status unavailable. "
+                "Manual investigation required."
+            )
 
     elif health["status"] == "degraded":
         recommendation = "Some services degraded. Monitor closely."

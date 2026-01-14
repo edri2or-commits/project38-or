@@ -20,8 +20,8 @@ sys.modules["google.api_core.exceptions"] = MagicMock()
 sys.modules["google.cloud"] = MagicMock()
 sys.modules["google.cloud.secretmanager"] = MagicMock()
 
-from src.cost_alert_service import AlertResult, CostAlertService
-from src.workflows.cost_alert_workflow import (
+from src.cost_alert_service import AlertResult, CostAlertService  # noqa: E402
+from src.workflows.cost_alert_workflow import (  # noqa: E402
     COST_ALERT_REGISTRY,
     create_alert_payload,
     create_cost_alert_workflow,

@@ -206,7 +206,7 @@ async def get_cost_estimate(
             currency=data["currency"],
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/budget", response_model=BudgetStatusResponse)
@@ -260,7 +260,7 @@ async def check_budget_status(
             status=status,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/recommendations", response_model=list[CostRecommendation])
@@ -309,7 +309,7 @@ async def get_cost_recommendations(
             for r in recommendations
         ]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/report", response_model=CostReportResponse)
@@ -404,7 +404,7 @@ async def generate_cost_report(
             },
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/health")

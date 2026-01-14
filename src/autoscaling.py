@@ -290,7 +290,10 @@ class AutoScalingAdvisor:
                 priority=priority,
                 current_value=1.0,  # vCPU
                 recommended_value=2.0,
-                reason=f"CPU utilization at {cpu:.1f}% exceeds {self.thresholds.cpu_scale_up}% threshold",
+                reason=(
+                    f"CPU utilization at {cpu:.1f}% exceeds "
+                    f"{self.thresholds.cpu_scale_up}% threshold"
+                ),
                 impact="Increase capacity to handle load and prevent throttling",
                 estimated_savings=-self.vcpu_cost_per_hour * 24 * 30,  # Additional cost
             )
@@ -304,7 +307,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.MEDIUM,
                 current_value=1.0,
                 recommended_value=0.5,
-                reason=f"CPU utilization at {cpu:.1f}% is below {self.thresholds.cpu_scale_down}% threshold",
+                reason=(
+                    f"CPU utilization at {cpu:.1f}% is below "
+                    f"{self.thresholds.cpu_scale_down}% threshold"
+                ),
                 impact="Reduce costs without impacting performance",
                 estimated_savings=savings,
             )
@@ -336,7 +342,10 @@ class AutoScalingAdvisor:
                 priority=priority,
                 current_value=512,  # MB
                 recommended_value=1024,
-                reason=f"Memory utilization at {mem_pct:.1f}% exceeds {self.thresholds.memory_scale_up}% threshold",
+                reason=(
+                    f"Memory utilization at {mem_pct:.1f}% exceeds "
+                    f"{self.thresholds.memory_scale_up}% threshold"
+                ),
                 impact="Prevent OOM errors and improve stability",
                 estimated_savings=-self.memory_cost_per_gb_hour * 0.5 * 24 * 30,
             )
@@ -350,7 +359,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.LOW,
                 current_value=512,
                 recommended_value=256,
-                reason=f"Memory utilization at {mem_pct:.1f}% ({mem_mb:.0f}MB) is below {self.thresholds.memory_scale_down}% threshold",
+                reason=(
+                    f"Memory utilization at {mem_pct:.1f}% ({mem_mb:.0f}MB) is below "
+                    f"{self.thresholds.memory_scale_down}% threshold"
+                ),
                 impact="Reduce costs with minimal risk",
                 estimated_savings=savings,
             )
@@ -377,7 +389,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.CRITICAL,
                 current_value=1,
                 recommended_value=2,
-                reason=f"Response time at {rt:.0f}ms exceeds critical threshold of {self.thresholds.response_time_critical:.0f}ms",
+                reason=(
+                    f"Response time at {rt:.0f}ms exceeds critical threshold of "
+                    f"{self.thresholds.response_time_critical:.0f}ms"
+                ),
                 impact="Reduce latency and improve user experience",
                 estimated_savings=0,
             )
@@ -389,7 +404,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.MEDIUM,
                 current_value=1.0,
                 recommended_value=1.5,
-                reason=f"Response time at {rt:.0f}ms exceeds warning threshold of {self.thresholds.response_time_warning:.0f}ms",
+                reason=(
+                    f"Response time at {rt:.0f}ms exceeds warning threshold of "
+                    f"{self.thresholds.response_time_warning:.0f}ms"
+                ),
                 impact="Improve response times before they become critical",
                 estimated_savings=0,
             )
@@ -416,7 +434,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.CRITICAL,
                 current_value=1,
                 recommended_value=2,
-                reason=f"Error rate at {err:.2f}% exceeds critical threshold of {self.thresholds.error_rate_critical}%",
+                reason=(
+                    f"Error rate at {err:.2f}% exceeds critical threshold of "
+                    f"{self.thresholds.error_rate_critical}%"
+                ),
                 impact="Add redundancy to reduce errors and improve reliability",
                 estimated_savings=0,
             )
@@ -428,7 +449,10 @@ class AutoScalingAdvisor:
                 priority=RecommendationPriority.HIGH,
                 current_value=1.0,
                 recommended_value=1.5,
-                reason=f"Error rate at {err:.2f}% exceeds warning threshold of {self.thresholds.error_rate_warning}%",
+                reason=(
+                    f"Error rate at {err:.2f}% exceeds warning threshold of "
+                    f"{self.thresholds.error_rate_warning}%"
+                ),
                 impact="Increase resources to handle load better",
                 estimated_savings=0,
             )

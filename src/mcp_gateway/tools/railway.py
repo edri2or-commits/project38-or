@@ -269,8 +269,6 @@ async def execute_rollback(deployment_id: str | None = None) -> dict[str, Any]:
         - target_deployment: The deployment we rolled back to
         - message: Error message if failed
     """
-    config = get_config()
-
     # If no deployment_id specified, find last successful
     if not deployment_id:
         recent = await get_recent_deployments(count=10)

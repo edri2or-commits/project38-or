@@ -21,7 +21,7 @@ sys.modules["google.api_core.exceptions"] = MagicMock()
 sys.modules["google.cloud"] = MagicMock()
 sys.modules["google.cloud.secretmanager"] = MagicMock()
 
-from src.autoscaling import (
+from src.autoscaling import (  # noqa: E402
     AutoScalingAdvisor,
     RecommendationPriority,
     ResourceMetrics,
