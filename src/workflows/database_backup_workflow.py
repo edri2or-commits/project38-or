@@ -19,7 +19,7 @@ Example:
 """
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 # Workflow configuration
 WORKFLOW_NAME = "Database Backup - Daily Automated"
@@ -33,7 +33,7 @@ def create_backup_workflow(
     api_base_url: str = "https://or-infra.com",
     telegram_chat_id: str = "",
     backup_retention_days: int = 30,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate n8n workflow JSON for automated database backups.
 
@@ -279,7 +279,7 @@ def create_backup_workflow(
 def create_backup_verification_workflow(
     api_base_url: str = "https://or-infra.com",
     telegram_chat_id: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Generate n8n workflow JSON for backup verification.
 
@@ -344,16 +344,18 @@ def create_backup_verification_workflow(
             # Node 3: Select random backup
             {
                 "parameters": {
-                    "jsCode": "// Select random backup from list\n"
-                    + "const backups = $input.item.json.body.backups;\n"
-                    + "if (!backups || backups.length === 0) {\n"
-                    + '  throw new Error("No backups found");\n'
-                    + "}\n"
-                    + "const randomIndex = Math.floor(Math.random() * backups.length);\n"
-                    + "const selectedBackup = backups[randomIndex];\n"
-                    + "return { backup_id: selectedBackup.backup_id, "
-                    + "gcs_path: selectedBackup.gcs_path, "
-                    + "checksum_sha256: selectedBackup.checksum_sha256 };",
+                    "jsCode": (  # noqa: S608
+                        "// Select random backup from list\n"
+                        "const backups = $input.item.json.body.backups;\n"
+                        "if (!backups || backups.length === 0) {\n"
+                        '  throw new Error("No backups found");\n'
+                        "}\n"
+                        "const randomIndex = Math.floor(Math.random() * backups.length);\n"
+                        "const selectedBackup = backups[randomIndex];\n"
+                        "return { backup_id: selectedBackup.backup_id, "
+                        "gcs_path: selectedBackup.gcs_path, "
+                        "checksum_sha256: selectedBackup.checksum_sha256 };"
+                    ),
                 },
                 "name": "Select Random Backup",
                 "type": "n8n-nodes-base.code",

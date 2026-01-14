@@ -11,7 +11,6 @@ Based on Week 3 requirements from implementation-roadmap.md.
 """
 
 import logging
-from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -27,13 +26,13 @@ router = APIRouter(prefix="/backups", tags=["backups"])
 class CreateBackupRequest(BaseModel):
     """Request body for creating a backup."""
 
-    retention_days: Optional[int] = Field(
+    retention_days: int | None = Field(
         default=30, description="Number of days to retain backup", ge=1, le=365
     )
     verify: bool = Field(
         default=True, description="Whether to verify backup after creation"
     )
-    custom_backup_id: Optional[str] = Field(
+    custom_backup_id: str | None = Field(
         default=None, description="Optional custom backup ID"
     )
 
@@ -60,9 +59,9 @@ class CreateBackupResponse(BaseModel):
     """Response for backup creation."""
 
     success: bool
-    backup_id: Optional[str] = None
-    metadata: Optional[BackupMetadataResponse] = None
-    error: Optional[str] = None
+    backup_id: str | None = None
+    metadata: BackupMetadataResponse | None = None
+    error: str | None = None
     duration_seconds: float
     message: str
 
@@ -81,7 +80,7 @@ class VerifyBackupResponse(BaseModel):
     verified: bool
     checksum_valid: bool
     gcs_path: str
-    error: Optional[str] = None
+    error: str | None = None
     message: str
 
 
@@ -89,7 +88,7 @@ class ListBackupsResponse(BaseModel):
     """Response for listing backups."""
 
     count: int
-    backups: List[BackupMetadataResponse]
+    backups: list[BackupMetadataResponse]
 
 
 # Endpoints
@@ -208,7 +207,7 @@ async def create_backup(request: CreateBackupRequest) -> CreateBackupResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -218,7 +217,9 @@ async def create_backup(request: CreateBackupRequest) -> CreateBackupResponse:
     description="List available database backups from GCS",
 )
 async def list_backups(
-    limit: int = Query(default=100, description="Maximum number of backups to return", ge=1, le=1000)
+    limit: int = Query(
+        default=100, description="Maximum number of backups to return", ge=1, le=1000
+    )
 ) -> ListBackupsResponse:
     """
     List available database backups.
@@ -274,7 +275,7 @@ async def list_backups(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error listing backups: {str(e)}",
-        )
+        ) from e
 
 
 @router.post(
@@ -360,7 +361,7 @@ async def verify_backup(request: VerifyBackupRequest) -> VerifyBackupResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error verifying backup: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(

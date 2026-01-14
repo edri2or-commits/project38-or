@@ -25,12 +25,10 @@ import hashlib
 import json
 import logging
 import os
-import subprocess
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -109,9 +107,9 @@ class BackupResult:
     """
 
     success: bool
-    backup_id: Optional[str] = None
-    metadata: Optional[BackupMetadata] = None
-    error: Optional[str] = None
+    backup_id: str | None = None
+    metadata: BackupMetadata | None = None
+    error: str | None = None
     duration_seconds: float = 0.0
 
 
@@ -132,7 +130,7 @@ class RestoreResult:
     success: bool
     backup_id: str
     database_name: str
-    error: Optional[str] = None
+    error: str | None = None
     duration_seconds: float = 0.0
     verified: bool = False
 
@@ -164,7 +162,7 @@ class BackupManager:
         database_url: str,
         gcs_bucket: str,
         retention_days: int = 30,
-        temp_dir: Optional[str] = None,
+        temp_dir: str | None = None,
     ):
         """
         Initialize BackupManager.
@@ -204,8 +202,8 @@ class BackupManager:
 
     async def create_backup(
         self,
-        backup_id: Optional[str] = None,
-        custom_retention_days: Optional[int] = None,
+        backup_id: str | None = None,
+        custom_retention_days: int | None = None,
     ) -> BackupResult:
         """
         Create a new database backup.
@@ -542,7 +540,7 @@ class BackupManager:
         except Exception as e:
             logger.warning(f"Cleanup failed: {e}")
 
-    async def list_backups(self, limit: int = 100) -> List[BackupMetadata]:
+    async def list_backups(self, limit: int = 100) -> list[BackupMetadata]:
         """
         List available backups from GCS.
 
@@ -601,7 +599,7 @@ class BackupManager:
             logger.error(f"Failed to list backups: {e}")
             return []
 
-    async def _load_metadata(self, gcs_path: str) -> Optional[BackupMetadata]:
+    async def _load_metadata(self, gcs_path: str) -> BackupMetadata | None:
         """
         Load backup metadata from GCS.
 
@@ -655,8 +653,8 @@ class BackupManager:
 
 # Convenience function
 def create_backup_manager(
-    database_url: Optional[str] = None,
-    gcs_bucket: Optional[str] = None,
+    database_url: str | None = None,
+    gcs_bucket: str | None = None,
     retention_days: int = 30,
 ) -> BackupManager:
     """
