@@ -57,6 +57,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `trigger_self_healing()` method for external integrators
     - Safety guardrail checks before execution
 
+- **Continuous Monitoring Loop & API Endpoints** (2026-01-14) - Operational monitoring pipeline
+  - `src/monitoring_loop.py` (~550 lines) - Core monitoring module
+    - `MetricsCollector` class: Async HTTP client for endpoint metrics
+    - `MonitoringLoop` class: Scheduler-based continuous monitoring
+    - `CollectedMetrics` dataclass: Timestamped metric containers
+    - `MonitoringConfig` dataclass: Configurable intervals and thresholds
+    - `MetricsEndpoint` dataclass: Endpoint configuration
+    - **Features**:
+      - Configurable collection interval (default: 30s)
+      - Pause/resume monitoring capability
+      - Automatic error recovery with configurable max errors
+      - Metrics history with configurable retention
+      - Recursive JSON metric extraction
+    - `create_railway_monitoring_loop()` factory function
+  - `src/api/routes/monitoring.py` (~300 lines) - REST API for monitoring control
+    - **10 API Endpoints**:
+      - `GET /api/monitoring/status` - Current state and statistics
+      - `POST /api/monitoring/start` - Start monitoring loop
+      - `POST /api/monitoring/stop` - Stop monitoring loop
+      - `POST /api/monitoring/pause` - Pause monitoring
+      - `POST /api/monitoring/resume` - Resume monitoring
+      - `GET /api/monitoring/config` - View configuration
+      - `PUT /api/monitoring/config` - Update configuration
+      - `GET/POST/DELETE /api/monitoring/endpoints` - Manage endpoints
+      - `POST /api/monitoring/collect-now` - Trigger immediate collection
+      - `GET /api/monitoring/metrics/recent` - Recent metrics history
+  - `tests/test_monitoring_loop.py` (~700 lines) - Comprehensive tests
+    - MetricsEndpoint configuration tests
+    - CollectedMetrics representation tests
+    - MonitoringConfig validation tests
+    - MetricsCollector collection tests
+    - MonitoringLoop lifecycle tests
+    - Integration pipeline tests
+    - 45+ test scenarios
+
 ### Fixed
 - **Critical Bug Fixes from System Audit** (2026-01-14) - Resolved 7 critical and high-priority bugs
   - `src/api/main.py` - Database initialization and CORS security
