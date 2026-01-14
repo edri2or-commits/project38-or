@@ -1,18 +1,16 @@
 """End-to-end tests for complete deployment flow."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from src.state_machine import DeploymentStatus
 
 
 @pytest.mark.asyncio
 async def test_successful_deployment_flow(
-    orchestrator,
-    mock_railway_client,
-    mock_github_client,
-    mock_n8n_client
+    orchestrator, mock_railway_client, mock_github_client, mock_n8n_client
 ):
     """Test complete successful deployment: PR → Merge → Deploy → Verify → Notify."""
 
@@ -24,13 +22,13 @@ async def test_successful_deployment_flow(
         "number": pr_number,
         "state": "open",
         "mergeable": True,
-        "head": {"sha": commit_sha}
+        "head": {"sha": commit_sha},
     }
 
     mock_github_client.merge_pull_request.return_value = {
         "sha": commit_sha,
         "merged": True,
-        "message": "Pull Request successfully merged"
+        "message": "Pull Request successfully merged",
     }
 
     mock_railway_client.trigger_deployment.return_value = "deployment-123"
@@ -39,19 +37,18 @@ async def test_successful_deployment_flow(
         "id": "deployment-123",
         "status": "SUCCESS",
         "url": "https://test.railway.app",
-        "createdAt": datetime.utcnow().isoformat()
+        "createdAt": datetime.utcnow().isoformat(),
     }
 
     mock_n8n_client.execute_workflow.return_value = {
         "executionId": "exec-success",
-        "status": "success"
+        "status": "success",
     }
 
     # Execute: Deploy from PR
-    result = await orchestrator.handle_deployment_event({
-        "pr_number": pr_number,
-        "environment": "production"
-    })
+    result = await orchestrator.handle_deployment_event(
+        {"pr_number": pr_number, "environment": "production"}
+    )
 
     # Assert: Deployment succeeded
     assert result["success"] is True
@@ -71,10 +68,7 @@ async def test_successful_deployment_flow(
 
 @pytest.mark.asyncio
 async def test_deployment_failure_triggers_rollback(
-    orchestrator,
-    mock_railway_client,
-    mock_github_client,
-    mock_n8n_client
+    orchestrator, mock_railway_client, mock_github_client, mock_n8n_client
 ):
     """Test deployment failure triggers automatic rollback."""
 
@@ -83,25 +77,23 @@ async def test_deployment_failure_triggers_rollback(
         "id": "deployment-failed",
         "status": "FAILED",
         "error": "Build failed: npm install error",
-        "createdAt": datetime.utcnow().isoformat()
+        "createdAt": datetime.utcnow().isoformat(),
     }
 
     mock_railway_client.rollback_deployment.return_value = {
         "id": "deployment-rollback",
-        "status": "SUCCESS"
+        "status": "SUCCESS",
     }
 
     mock_github_client.create_issue.return_value = {
         "number": 456,
-        "html_url": "https://github.com/test/repo/issues/456"
+        "html_url": "https://github.com/test/repo/issues/456",
     }
 
     # Execute: Handle failed deployment
-    result = await orchestrator.handle_deployment_failure({
-        "deployment_id": "deployment-failed",
-        "service_id": "service-123",
-        "error": "Build failed"
-    })
+    result = await orchestrator.handle_deployment_failure(
+        {"deployment_id": "deployment-failed", "service_id": "service-123", "error": "Build failed"}
+    )
 
     # Assert: Rollback and issue creation executed
     assert result["rollback_executed"] is True
@@ -127,8 +119,7 @@ async def test_deployment_state_machine_transitions(orchestrator):
     from src.state_machine import DeploymentStateMachine
 
     state_machine = DeploymentStateMachine(
-        deployment_id="deploy-123",
-        initial_status=DeploymentStatus.PENDING
+        deployment_id="deploy-123", initial_status=DeploymentStatus.PENDING
     )
 
     # Transition 1: PENDING → BUILDING
@@ -156,8 +147,7 @@ async def test_deployment_state_machine_invalid_transition(orchestrator):
     from src.state_machine import DeploymentStateMachine
 
     state_machine = DeploymentStateMachine(
-        deployment_id="deploy-invalid",
-        initial_status=DeploymentStatus.PENDING
+        deployment_id="deploy-invalid", initial_status=DeploymentStatus.PENDING
     )
 
     # Invalid: PENDING → ACTIVE (must go through BUILDING, DEPLOYING)
@@ -174,8 +164,8 @@ async def test_parallel_deployments_managed_independently(orchestrator):
 
     # Create 3 deployments
     sm1 = manager.create_state_machine("deploy-1", DeploymentStatus.PENDING)
-    sm2 = manager.create_state_machine("deploy-2", DeploymentStatus.BUILDING)
-    sm3 = manager.create_state_machine("deploy-3", DeploymentStatus.ACTIVE)
+    manager.create_state_machine("deploy-2", DeploymentStatus.BUILDING)
+    manager.create_state_machine("deploy-3", DeploymentStatus.ACTIVE)
 
     # Verify each tracked independently
     assert manager.get("deploy-1").current_status == DeploymentStatus.PENDING
@@ -193,17 +183,14 @@ async def test_parallel_deployments_managed_independently(orchestrator):
 
 
 @pytest.mark.asyncio
-async def test_deployment_with_health_check_verification(
-    orchestrator,
-    mock_railway_client
-):
+async def test_deployment_with_health_check_verification(orchestrator, mock_railway_client):
     """Test deployment verifies health check before marking success."""
 
     # Setup: Mock successful deployment
     mock_railway_client.get_deployment_status.return_value = {
         "id": "deploy-health",
         "status": "SUCCESS",
-        "url": "https://test.railway.app"
+        "url": "https://test.railway.app",
     }
 
     # Mock health check endpoint
@@ -214,10 +201,9 @@ async def test_deployment_with_health_check_verification(
         mock_get.return_value = mock_response
 
         # Execute: Deploy with health check
-        result = await orchestrator.handle_deployment_event({
-            "deployment_id": "deploy-health",
-            "verify_health": True
-        })
+        await orchestrator.handle_deployment_event(
+            {"deployment_id": "deploy-health", "verify_health": True}
+        )
 
         # Assert: Health check called
         mock_get.assert_called_once()
@@ -225,30 +211,30 @@ async def test_deployment_with_health_check_verification(
 
 
 @pytest.mark.asyncio
-async def test_deployment_rollback_to_last_successful(
-    orchestrator,
-    mock_railway_client
-):
+async def test_deployment_rollback_to_last_successful(orchestrator, mock_railway_client):
     """Test rollback identifies and deploys last successful deployment."""
 
     # Setup: Mock deployment history
     mock_railway_client.get_deployments.return_value = [
         {"id": "deploy-1", "status": "FAILED", "createdAt": "2026-01-13T12:00:00Z"},
-        {"id": "deploy-2", "status": "SUCCESS", "createdAt": "2026-01-13T11:00:00Z"},  # Last successful
-        {"id": "deploy-3", "status": "SUCCESS", "createdAt": "2026-01-13T10:00:00Z"}
+        {
+            "id": "deploy-2",
+            "status": "SUCCESS",
+            "createdAt": "2026-01-13T11:00:00Z",
+        },  # Last successful
+        {"id": "deploy-3", "status": "SUCCESS", "createdAt": "2026-01-13T10:00:00Z"},
     ]
 
     mock_railway_client.rollback_deployment.return_value = {
         "id": "deploy-rollback",
         "status": "SUCCESS",
-        "rollback_to": "deploy-2"
+        "rollback_to": "deploy-2",
     }
 
     # Execute: Trigger rollback
-    result = await orchestrator.handle_deployment_failure({
-        "deployment_id": "deploy-1",
-        "service_id": "service-123"
-    })
+    await orchestrator.handle_deployment_failure(
+        {"deployment_id": "deploy-1", "service_id": "service-123"}
+    )
 
     # Assert: Rolled back to deploy-2 (last successful)
     mock_railway_client.rollback_deployment.assert_called_once()
@@ -257,10 +243,7 @@ async def test_deployment_rollback_to_last_successful(
 
 
 @pytest.mark.asyncio
-async def test_deployment_notification_includes_metadata(
-    orchestrator,
-    mock_n8n_client
-):
+async def test_deployment_notification_includes_metadata(orchestrator, mock_n8n_client):
     """Test deployment notifications include all relevant metadata."""
 
     # Setup: Successful deployment
@@ -270,22 +253,24 @@ async def test_deployment_notification_includes_metadata(
         "commit_sha": "abc123",
         "environment": "production",
         "url": "https://prod.railway.app",
-        "status": "SUCCESS"
+        "status": "SUCCESS",
     }
 
     # Execute: Send notification
-    await orchestrator._act_alert({
-        "type": "deployment_success",
-        "data": deployment_data,
-        "severity": "info"
-    })
+    await orchestrator._act_alert(
+        {"type": "deployment_success", "data": deployment_data, "severity": "info"}
+    )
 
     # Assert: Notification sent with metadata
     mock_n8n_client.execute_workflow.assert_called_once()
     notification_call = mock_n8n_client.execute_workflow.call_args
 
     # Verify workflow includes deployment metadata
-    workflow_data = notification_call[0][1] if len(notification_call[0]) > 1 else notification_call[1].get("data", {})
+    workflow_data = (
+        notification_call[0][1]
+        if len(notification_call[0]) > 1
+        else notification_call[1].get("data", {})
+    )
     assert "deployment_id" in str(workflow_data)
     assert "pr_number" in str(workflow_data) or 123 in str(workflow_data)
 
@@ -308,7 +293,7 @@ async def test_deployment_timeout_handling(orchestrator, mock_railway_client):
         await orchestrator._wait_for_deployment(
             deployment_id="deploy-timeout",
             timeout_seconds=2,  # Short timeout for test
-            poll_interval=0.5
+            poll_interval=0.5,
         )
 
 
@@ -318,24 +303,24 @@ async def test_deployment_creates_audit_log(orchestrator):
 
     # Setup: Track log calls
     import logging
+
     log_calls = []
 
     def capture_log(record):
-        log_calls.append({
-            "message": record.getMessage(),
-            "level": record.levelname,
-            "extra": getattr(record, "correlation_id", None)
-        })
+        log_calls.append(
+            {
+                "message": record.getMessage(),
+                "level": record.levelname,
+                "extra": getattr(record, "correlation_id", None),
+            }
+        )
 
     handler = logging.Handler()
     handler.emit = capture_log
     logging.getLogger("src.orchestrator").addHandler(handler)
 
     # Execute: Perform deployment
-    await orchestrator.handle_deployment_event({
-        "pr_number": 999,
-        "environment": "staging"
-    })
+    await orchestrator.handle_deployment_event({"pr_number": 999, "environment": "staging"})
 
     # Assert: Audit logs created
     assert len(log_calls) > 0

@@ -1,10 +1,10 @@
 """End-to-end tests for MainOrchestrator OODA loop."""
 
-import pytest
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
 
-from src.orchestrator import MainOrchestrator, WorldModel, ActionType
+import pytest
+
+from src.orchestrator import ActionType, WorldModel
 
 
 @pytest.mark.asyncio
@@ -12,28 +12,30 @@ async def test_complete_ooda_cycle(orchestrator, mock_railway_client, mock_githu
     """Test complete OODA loop cycle: Observe → Orient → Decide → Act."""
 
     # Setup: Mock observations
-    mock_railway_client.get_services.return_value = [{
-        "id": "service-123",
-        "name": "web",
-        "latestDeployment": {
-            "id": "deployment-123",
-            "status": "SUCCESS",
-            "createdAt": datetime.utcnow().isoformat()
+    mock_railway_client.get_services.return_value = [
+        {
+            "id": "service-123",
+            "name": "web",
+            "latestDeployment": {
+                "id": "deployment-123",
+                "status": "SUCCESS",
+                "createdAt": datetime.utcnow().isoformat(),
+            },
         }
-    }]
+    ]
 
-    mock_railway_client.get_deployments.return_value = [{
-        "id": "deployment-123",
-        "status": "SUCCESS",
-        "createdAt": datetime.utcnow().isoformat()
-    }]
+    mock_railway_client.get_deployments.return_value = [
+        {"id": "deployment-123", "status": "SUCCESS", "createdAt": datetime.utcnow().isoformat()}
+    ]
 
-    mock_github_client.get_workflow_runs.return_value = [{
-        "id": "run-123",
-        "status": "completed",
-        "conclusion": "success",
-        "created_at": datetime.utcnow().isoformat()
-    }]
+    mock_github_client.get_workflow_runs.return_value = [
+        {
+            "id": "run-123",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": datetime.utcnow().isoformat(),
+        }
+    ]
 
     # Execute: Run complete OODA cycle
     result = await orchestrator.run_cycle()
@@ -66,24 +68,23 @@ async def test_complete_ooda_cycle(orchestrator, mock_railway_client, mock_githu
 
 @pytest.mark.asyncio
 async def test_ooda_deployment_failure_recovery(
-    orchestrator,
-    mock_railway_client,
-    mock_github_client,
-    mock_n8n_client
+    orchestrator, mock_railway_client, mock_github_client, mock_n8n_client
 ):
     """Test OODA loop handles deployment failure autonomously."""
 
     # Setup: Mock failed deployment
-    mock_railway_client.get_deployments.return_value = [{
-        "id": "deployment-failed",
-        "status": "FAILED",
-        "createdAt": datetime.utcnow().isoformat(),
-        "error": "Build failed"
-    }]
+    mock_railway_client.get_deployments.return_value = [
+        {
+            "id": "deployment-failed",
+            "status": "FAILED",
+            "createdAt": datetime.utcnow().isoformat(),
+            "error": "Build failed",
+        }
+    ]
 
     mock_railway_client.rollback_deployment.return_value = {
         "id": "deployment-rollback",
-        "status": "SUCCESS"
+        "status": "SUCCESS",
     }
 
     # Execute: Run OODA cycle with failure
@@ -93,11 +94,17 @@ async def test_ooda_deployment_failure_recovery(
     decisions = result["decisions"]
 
     # Should have ROLLBACK decision
-    rollback_decisions = [d for d in decisions if d.get("type") == ActionType.ROLLBACK or "rollback" in str(d).lower()]
+    rollback_decisions = [
+        d for d in decisions if d.get("type") == ActionType.ROLLBACK or "rollback" in str(d).lower()
+    ]
     assert len(rollback_decisions) > 0
 
     # Should have CREATE_ISSUE decision
-    issue_decisions = [d for d in decisions if d.get("type") == ActionType.CREATE_ISSUE or "issue" in str(d).lower()]
+    issue_decisions = [
+        d
+        for d in decisions
+        if d.get("type") == ActionType.CREATE_ISSUE or "issue" in str(d).lower()
+    ]
     assert len(issue_decisions) > 0
 
     # Verify actions executed
@@ -107,33 +114,23 @@ async def test_ooda_deployment_failure_recovery(
 
 
 @pytest.mark.asyncio
-async def test_ooda_pr_ready_to_merge(
-    orchestrator,
-    mock_github_client,
-    mock_railway_client
-):
+async def test_ooda_pr_ready_to_merge(orchestrator, mock_github_client, mock_railway_client):
     """Test OODA loop detects PR ready to merge and executes deployment."""
 
     # Setup: Mock PR with all checks passed
-    mock_github_client.get_pull_requests.return_value = [{
-        "number": 123,
-        "state": "open",
-        "head": {"sha": "abc123"},
-        "mergeable": True
-    }]
+    mock_github_client.get_pull_requests.return_value = [
+        {"number": 123, "state": "open", "head": {"sha": "abc123"}, "mergeable": True}
+    ]
 
     mock_github_client.get_pr_checks.return_value = {
         "check_runs": [
             {"name": "test", "conclusion": "success"},
-            {"name": "lint", "conclusion": "success"}
+            {"name": "lint", "conclusion": "success"},
         ],
-        "all_passed": True
+        "all_passed": True,
     }
 
-    mock_github_client.merge_pull_request.return_value = {
-        "sha": "abc123",
-        "merged": True
-    }
+    mock_github_client.merge_pull_request.return_value = {"sha": "abc123", "merged": True}
 
     # Execute: Run OODA cycle
     result = await orchestrator.run_cycle()
@@ -141,10 +138,11 @@ async def test_ooda_pr_ready_to_merge(
     # Assert: Should decide to merge and deploy
     decisions = result["decisions"]
 
-    merge_decisions = [d for d in decisions if d.get("type") == ActionType.MERGE_PR or "merge" in str(d).lower()]
+    merge_decisions = [
+        d for d in decisions if d.get("type") == ActionType.MERGE_PR or "merge" in str(d).lower()
+    ]
     assert len(merge_decisions) > 0
 
-    deploy_decisions = [d for d in decisions if d.get("type") == ActionType.DEPLOY or "deploy" in str(d).lower()]
     # Note: DEPLOY might be in next cycle after merge
 
 
@@ -161,18 +159,14 @@ async def test_ooda_continuous_mode_multiple_cycles(orchestrator):
         if len(cycles_completed) >= 3:
             # Stop after 3 cycles
             orchestrator.stop()
-        return {
-            "observations": {},
-            "world_model": WorldModel(),
-            "decisions": [],
-            "actions": []
-        }
+        return {"observations": {}, "world_model": WorldModel(), "decisions": [], "actions": []}
 
     # Replace run_cycle with mock
     orchestrator.run_cycle = mock_run_cycle
 
     # Execute: Run continuous mode (async, non-blocking)
     import asyncio
+
     task = asyncio.create_task(orchestrator.run_continuous(interval_seconds=0.1))
 
     # Wait for 3 cycles
@@ -186,10 +180,7 @@ async def test_ooda_continuous_mode_multiple_cycles(orchestrator):
 
 @pytest.mark.asyncio
 async def test_ooda_observe_phase_collects_all_sources(
-    orchestrator,
-    mock_railway_client,
-    mock_github_client,
-    mock_n8n_client
+    orchestrator, mock_railway_client, mock_github_client, mock_n8n_client
 ):
     """Test Observe phase collects data from all 3 sources."""
 
@@ -234,16 +225,14 @@ async def test_ooda_orient_phase_builds_world_model(orchestrator):
             "services": [{"id": "svc-1", "name": "web"}],
             "deployments": [
                 {"id": "dep-1", "status": "SUCCESS", "createdAt": "2026-01-13T10:00:00Z"},
-                {"id": "dep-2", "status": "FAILED", "createdAt": "2026-01-13T09:00:00Z"}
-            ]
+                {"id": "dep-2", "status": "FAILED", "createdAt": "2026-01-13T09:00:00Z"},
+            ],
         },
         "github": {
             "workflow_runs": [{"id": "run-1", "conclusion": "success"}],
-            "pull_requests": []
+            "pull_requests": [],
         },
-        "n8n": {
-            "recent_executions": []
-        }
+        "n8n": {"recent_executions": []},
     }
 
     # Execute: Run orient phase
@@ -255,7 +244,10 @@ async def test_ooda_orient_phase_builds_world_model(orchestrator):
     assert world_model.observations == observations
 
     # Should detect failure pattern
-    assert "failure" in str(world_model).lower() or len(world_model.observations["railway"]["deployments"]) >= 2
+    assert (
+        "failure" in str(world_model).lower()
+        or len(world_model.observations["railway"]["deployments"]) >= 2
+    )
 
 
 @pytest.mark.asyncio
@@ -267,13 +259,9 @@ async def test_ooda_decide_phase_generates_decisions(orchestrator):
         timestamp=datetime.utcnow(),
         observations={
             "railway": {
-                "deployments": [{
-                    "id": "dep-failed",
-                    "status": "FAILED",
-                    "error": "Build failed"
-                }]
+                "deployments": [{"id": "dep-failed", "status": "FAILED", "error": "Build failed"}]
             }
-        }
+        },
     )
 
     # Execute: Run decide phase
@@ -290,27 +278,24 @@ async def test_ooda_decide_phase_generates_decisions(orchestrator):
 
 @pytest.mark.asyncio
 async def test_ooda_act_phase_executes_decisions(
-    orchestrator,
-    mock_railway_client,
-    mock_github_client,
-    mock_n8n_client
+    orchestrator, mock_railway_client, mock_github_client, mock_n8n_client
 ):
     """Test Act phase executes decisions through worker clients."""
 
     # Setup: Create decisions to execute
     decisions = [
         {
-            "type": DecisionType.ROLLBACK,
+            "type": ActionType.ROLLBACK,
             "priority": 10,
             "deployment_id": "dep-failed",
-            "reason": "Deployment failed"
+            "reason": "Deployment failed",
         },
         {
-            "type": DecisionType.ALERT,
+            "type": ActionType.ALERT,
             "priority": 8,
             "message": "Deployment failure detected",
-            "severity": "high"
-        }
+            "severity": "high",
+        },
     ]
 
     # Execute: Run act phase
@@ -328,10 +313,7 @@ async def test_ooda_act_phase_executes_decisions(
 
 
 @pytest.mark.asyncio
-async def test_ooda_graceful_degradation_on_source_failure(
-    orchestrator,
-    mock_railway_client
-):
+async def test_ooda_graceful_degradation_on_source_failure(orchestrator, mock_railway_client):
     """Test OODA loop continues if one source fails."""
 
     # Setup: Railway client fails

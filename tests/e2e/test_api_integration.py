@@ -2,7 +2,6 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
 
 from src.api.main import app
 
@@ -114,10 +113,7 @@ async def test_create_agent_endpoint(test_client):
     agent_data = {
         "name": "test-agent",
         "agent_type": "deployment",
-        "config": {
-            "environment": "staging",
-            "auto_deploy": True
-        }
+        "config": {"environment": "staging", "auto_deploy": True},
     }
 
     # Execute: POST /agents
@@ -191,7 +187,7 @@ async def test_update_agent_endpoint(test_client):
     update_data = {
         "name": "update-test-modified",
         "agent_type": "deployment",
-        "config": {"new_field": "value"}
+        "config": {"new_field": "value"},
     }
     response = test_client.put(f"/agents/{agent_id}", json=update_data)
 
@@ -235,7 +231,7 @@ async def test_create_task_endpoint(test_client):
         "task_type": "deployment",
         "priority": 8,
         "assigned_agent_id": None,
-        "metadata": {"pr_number": 123}
+        "metadata": {"pr_number": 123},
     }
 
     # Execute: POST /tasks
@@ -280,11 +276,7 @@ async def test_update_task_status_endpoint(test_client):
     """Test PUT /tasks/{id} endpoint updates task status."""
 
     # Setup: Create task
-    task_data = {
-        "title": "Status test",
-        "task_type": "monitoring",
-        "priority": 5
-    }
+    task_data = {"title": "Status test", "task_type": "monitoring", "priority": 5}
     create_response = test_client.post("/tasks", json=task_data)
     task_id = create_response.json()["id"]
 
@@ -293,7 +285,7 @@ async def test_update_task_status_endpoint(test_client):
         "title": "Status test",
         "task_type": "monitoring",
         "priority": 5,
-        "status": "in_progress"
+        "status": "in_progress",
     }
     response = test_client.put(f"/tasks/{task_id}", json=update_data)
 
@@ -369,10 +361,7 @@ async def test_api_cors_headers(test_client):
     """Test CORS headers are set correctly."""
 
     # Execute: OPTIONS request (preflight)
-    response = test_client.options(
-        "/api/health",
-        headers={"Origin": "https://example.com"}
-    )
+    response = test_client.options("/api/health", headers={"Origin": "https://example.com"})
 
     # Assert: CORS headers present (if CORS configured)
     # Note: This depends on actual CORS configuration
@@ -384,6 +373,7 @@ async def test_api_logging_integration(test_client):
     """Test API requests are logged with correlation IDs."""
 
     import logging
+
     log_calls = []
 
     def capture_log(record):
