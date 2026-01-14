@@ -1048,6 +1048,103 @@ gh auth status
 
 **Note:** Web sessions don't share local `~/.claude.json` config. Each environment needs its own GH_TOKEN.
 
+---
+
+## MCP Gateway (Full Autonomy)
+
+**Purpose**: Remote MCP Server that bypasses Anthropic proxy limitations, enabling Claude Code to autonomously operate Railway and n8n.
+
+**Production URL**: `https://or-infra.com/mcp`
+
+### Available Tools
+
+| Tool | Purpose |
+|------|---------|
+| `railway_deploy()` | Trigger new Railway deployment |
+| `railway_status()` | Get current deployment status |
+| `railway_deployments()` | List recent deployments |
+| `railway_rollback()` | Rollback to previous successful deployment |
+| `n8n_trigger()` | Trigger n8n workflow via webhook |
+| `n8n_list()` | List available workflows |
+| `n8n_status()` | Check workflow webhook accessibility |
+| `health_check()` | Check all service health |
+| `get_metrics()` | Get system metrics |
+| `deployment_health()` | Comprehensive health + deployment check |
+
+### Token Management
+
+Tokens are managed via GitHub Actions workflow (`.github/workflows/setup-mcp-gateway.yml`):
+
+```bash
+# Create new token
+gh workflow run setup-mcp-gateway.yml -f action=create
+
+# Rotate existing token
+gh workflow run setup-mcp-gateway.yml -f action=rotate
+
+# Deliver token to GitHub issue (secure transfer)
+gh workflow run setup-mcp-gateway.yml -f action=deliver -f issue_number=123
+```
+
+**Security**: Tokens are stored in GCP Secret Manager (`MCP-GATEWAY-TOKEN`), never in code.
+
+### Claude Configuration
+
+Add MCP Gateway to Claude Code (one-time setup):
+
+```bash
+# Get token from GitHub issue (see Token Management above)
+claude mcp add --transport http \
+  --header "Authorization: Bearer <token>" \
+  --scope user \
+  claude-gateway https://or-infra.com/mcp
+```
+
+Or manually edit `~/.claude.json`:
+```json
+{
+  "mcpServers": {
+    "claude-gateway": {
+      "type": "http",
+      "url": "https://or-infra.com/mcp",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}
+```
+
+### Architecture
+
+```
+Claude Code Session
+    ↓ (MCP Protocol over HTTPS)
+MCP Gateway (Railway) ← Bearer Token Auth
+    ↓
+┌─────────────────────────────────────┐
+│  Railway GraphQL API (deployments)  │
+│  n8n Webhooks (workflows)           │
+│  Production App (health/metrics)    │
+└─────────────────────────────────────┘
+```
+
+**Why this works**: Claude Code can't directly access Railway/n8n due to Anthropic proxy. The MCP Gateway runs on Railway (outside proxy) and provides authenticated MCP tools.
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `src/mcp_gateway/server.py` | FastMCP server with 10 tools |
+| `src/mcp_gateway/config.py` | Configuration from GCP secrets |
+| `src/mcp_gateway/auth.py` | Bearer token validation |
+| `src/mcp_gateway/tools/railway.py` | Railway operations |
+| `src/mcp_gateway/tools/n8n.py` | n8n workflow operations |
+| `src/mcp_gateway/tools/monitoring.py` | Health checks and metrics |
+| `docs/autonomous/08-mcp-gateway-architecture.md` | Full architecture documentation |
+
+---
+
 ### Proxy Constraints (Anthropic Environment)
 
 ⚠️ **Critical Discovery:** The Anthropic egress proxy interferes with direct GitHub API calls using curl.
