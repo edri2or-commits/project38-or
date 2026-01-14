@@ -13,20 +13,28 @@ from src.railway_client import RailwayClient
 @pytest.fixture
 def mock_railway_client():
     """Mock Railway client for E2E tests."""
-    client = AsyncMock(spec=RailwayClient)
+    client = AsyncMock()
 
     # Mock deployment trigger
     client.trigger_deployment.return_value = "deployment-123"
 
     # Mock deployment monitoring
-    client.get_deployment.return_value = {
+    client.get_deployment_status.return_value = "SUCCESS"
+    client.get_deployment_details.return_value = {
         "id": "deployment-123",
         "status": "SUCCESS",
         "staticUrl": "https://test.railway.app",
     }
 
-    # Mock service info
+    # Mock service info (list_services is the actual method name)
     client.get_services.return_value = [
+        {
+            "id": "service-123",
+            "name": "web",
+            "latestDeployment": {"id": "deployment-123", "status": "SUCCESS"},
+        }
+    ]
+    client.list_services.return_value = [
         {
             "id": "service-123",
             "name": "web",
@@ -38,6 +46,11 @@ def mock_railway_client():
     client.get_deployments.return_value = [
         {"id": "deployment-123", "status": "SUCCESS", "createdAt": "2026-01-13T12:00:00Z"}
     ]
+    client.get_last_active_deployment.return_value = {
+        "id": "deployment-123",
+        "status": "SUCCESS",
+        "createdAt": "2026-01-13T12:00:00Z",
+    }
 
     # Mock rollback
     client.rollback_deployment.return_value = {"id": "deployment-rollback", "status": "SUCCESS"}
@@ -48,7 +61,7 @@ def mock_railway_client():
 @pytest.fixture
 def mock_github_client():
     """Mock GitHub App client for E2E tests."""
-    client = AsyncMock(spec=GitHubAppClient)
+    client = AsyncMock()
 
     # Mock PR operations
     client.get_pull_request.return_value = {
@@ -72,7 +85,7 @@ def mock_github_client():
 @pytest.fixture
 def mock_n8n_client():
     """Mock n8n client for E2E tests."""
-    client = AsyncMock(spec=N8nClient)
+    client = AsyncMock()
 
     # Mock workflow execution
     client.execute_workflow.return_value = {"executionId": "exec-123", "status": "success"}
@@ -84,7 +97,9 @@ def mock_n8n_client():
 def orchestrator(mock_railway_client, mock_github_client, mock_n8n_client):
     """Create orchestrator with mocked clients."""
     return MainOrchestrator(
-        railway_client=mock_railway_client,
-        github_client=mock_github_client,
-        n8n_client=mock_n8n_client,
+        railway=mock_railway_client,
+        github=mock_github_client,
+        n8n=mock_n8n_client,
+        project_id="test-project",
+        environment_id="test-environment",
     )
