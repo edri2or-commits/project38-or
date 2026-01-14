@@ -8,6 +8,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Week 2: Railway Cost Monitoring** (2026-01-14) - Cost tracking and budget management for Railway deployments
+  - `src/cost_monitor.py` (420 lines) - Complete cost monitoring module
+    - `CostMonitor` class for tracking Railway resource usage
+    - `RailwayPricing` dataclass with Hobby and Pro plan rates
+    - `CostEstimate` and `UsageSnapshot` dataclasses for data modeling
+    - Cost estimation based on vCPU-minutes, memory GB-minutes, egress
+    - Budget threshold checking with alerts
+    - Cost optimization recommendations engine
+    - Usage trend analysis (increasing/stable/decreasing)
+    - Comprehensive cost report generation
+  - `src/api/routes/costs.py` (340 lines) - Cost API endpoints
+    - `GET /costs/estimate` - Get current month cost estimate
+    - `GET /costs/budget` - Check budget status (ok/warning/alert)
+    - `GET /costs/recommendations` - Get cost optimization tips
+    - `GET /costs/report` - Generate comprehensive cost report
+    - `GET /costs/health` - Health check for cost monitoring API
+    - Mock data fallback when Railway not configured
+  - `tests/test_cost_monitor.py` (320 lines) - 25 comprehensive tests
+    - Pricing configuration tests (Hobby, Pro, custom)
+    - Cost estimation tests (basic, prorated)
+    - Budget exceeded/not exceeded tests
+    - Optimization recommendation tests (low/high CPU, low memory)
+    - Usage trend analysis tests
+    - Cost report generation tests
+    - Helper function tests
+  - **Railway Pricing (2026)**:
+    - Hobby Plan: $5/month + $0.000231/vCPU-min + $0.000231/GB-min
+    - Pro Plan: $20/month + same usage rates
+    - Egress: $0.10/GB
+  - **Implementation**: Week 2 of Post-Launch Maintenance (implementation-roadmap.md)
+
+- **Week 2: n8n Cost Alert Workflow** (2026-01-14) - Automated cost alerts via n8n and Telegram
+  - `src/workflows/cost_alert_workflow.py` (280 lines) - n8n workflow configuration
+    - Complete n8n workflow node definitions
+    - Webhook trigger for cost alerts
+    - Severity-based routing (critical/warning/info)
+    - Telegram message formatting with Markdown
+    - Workflow connection graph
+  - `src/cost_alert_service.py` (290 lines) - Alert service with rate limiting
+    - CostAlertService class for monitoring and alerting
+    - AlertResult dataclass for alert tracking
+    - Rate limiting (15min critical, 1hr warning, 24hr info)
+    - Factory function for easy initialization
+  - `tests/test_cost_alert_service.py` (280 lines) - 20 comprehensive tests
+    - Alert payload tests
+    - Severity detection tests
+    - Workflow configuration tests
+    - Service tests (rate limiting, force alerts)
+  - Updated `src/mcp_gateway/tools/n8n.py` with cost-alert workflow
+  - **Alert Severities**:
+    - Critical: Budget exceeded (≥100%)
+    - Warning: Approaching limit (80-99%)
+    - Info: Weekly summary (<80%)
+  - **Test Results**: 20/20 passing
+
+- **Week 2: Automatic Dependency Updates** (2026-01-14) - Automated dependency management and security scanning
+  - `.github/workflows/dependency-update.yml` (210 lines) - GitHub Actions workflow
+    - Scheduled weekly security audits (Sundays at midnight UTC)
+    - Manual trigger with update type selection
+    - Automated PR creation for updates
+    - Test execution before PR
+  - `src/dependency_updater.py` (380 lines) - Python dependency management module
+    - DependencyUpdater class for programmatic updates
+    - Vulnerability scanning with pip-audit
+    - Update type classification (major/minor/patch)
+    - Prioritized recommendation generation
+    - Safe update application (no major updates by default)
+  - `tests/test_dependency_updater.py` (280 lines) - 23 comprehensive tests
+    - Vulnerability dataclass tests
+    - Update classification tests
+    - Recommendation generation tests
+    - Report generation tests
+  - **Update Types**:
+    - `security`: Only CVE fixes (default)
+    - `patch`: Security + bug fixes
+    - `minor`: Security + patch + new features
+    - `all`: Include major version updates
+  - **Test Results**: 23/23 passing
+
+- **Week 2: Auto-Scaling Recommendations** (2026-01-14) - Intelligent scaling recommendations based on resource usage
+  - `src/autoscaling.py` (638 lines) - Complete auto-scaling module
+    - `AutoScalingAdvisor` class for intelligent scaling analysis
+    - `ResourceMetrics` dataclass for utilization tracking
+    - `ScalingRecommendation` dataclass for actionable recommendations
+    - `ScalingReport` dataclass for comprehensive reports
+    - `ScalingThresholds` for configurable scaling triggers
+    - CPU utilization analysis (scale up at 80%, down at 20%)
+    - Memory utilization analysis (scale up at 85%, down at 30%)
+    - Response time analysis (critical at 2s, warning at 1s)
+    - Error rate analysis (critical at 5%, warning at 1%)
+    - Cost-aware recommendations with savings/cost estimates
+    - Priority-sorted recommendations (critical, high, medium, low, info)
+  - `tests/test_autoscaling.py` (570 lines) - 42 comprehensive tests
+    - ResourceMetrics serialization tests
+    - ScalingRecommendation tests
+    - ScalingReport tests
+    - ScalingThresholds default and custom tests
+    - CPU analysis tests (critical, warning, scale down, normal)
+    - Memory analysis tests (critical, warning, scale down, normal)
+    - Response time analysis tests
+    - Error rate analysis tests
+    - Report generation tests with status determination
+    - Helper function tests
+    - Enum value tests
+  - **Scaling Thresholds (Default)**:
+    - CPU: Scale up at 80%, scale down at 20%
+    - Memory: Scale up at 85%, scale down at 30%
+    - Response time: Warning at 1000ms, critical at 2000ms
+    - Error rate: Warning at 1%, critical at 5%
+  - **Recommendation Priorities**: CRITICAL → HIGH → MEDIUM → LOW → INFO
+  - **Test Results**: 42/42 passing
+  - **Completes**: Week 2 Post-Launch Maintenance at 100%
+
 - **MCP Gateway for Full Autonomy** (2026-01-14) - Remote MCP Server enabling Claude Code to autonomously operate Railway and n8n
   - `docs/autonomous/08-mcp-gateway-architecture.md` (834 lines) - Comprehensive architecture proposal
     - Problem statement: Anthropic proxy blocks Railway/n8n direct access

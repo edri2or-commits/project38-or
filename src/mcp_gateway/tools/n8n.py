@@ -29,6 +29,17 @@ WORKFLOW_REGISTRY = {
         "path": "/webhook/rollback-railway",
         "method": "POST",
         "description": "Rollback to previous successful deployment"
+    },
+    # Week 2: Cost Monitoring Workflows
+    "cost-alert": {
+        "path": "/webhook/cost-alert",
+        "method": "POST",
+        "description": "Send cost alert notification to Telegram (critical/warning/info)"
+    },
+    "cost-weekly-report": {
+        "path": "/webhook/cost-weekly-report",
+        "method": "POST",
+        "description": "Weekly cost summary report to Telegram"
     }
 }
 
