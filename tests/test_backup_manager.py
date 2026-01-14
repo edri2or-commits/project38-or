@@ -469,26 +469,21 @@ async def test_load_metadata_success(backup_manager, tmp_path):
     with open(temp_json, "w") as f:
         json.dump(metadata_dict, f)
 
-    with (
-        patch("asyncio.create_subprocess_exec") as mock_subprocess,
-        patch("src.backup_manager.Path") as mock_path,
-    ):
+    # Mock backup_manager.temp_dir to use our tmp_path
+    backup_manager.temp_dir = str(tmp_path)
+
+    with patch("asyncio.create_subprocess_exec") as mock_subprocess:
         # Mock gsutil cp
         mock_process = AsyncMock()
         mock_process.returncode = 0
         mock_process.communicate.return_value = (b"", b"")
         mock_subprocess.return_value = mock_process
 
-        # Mock Path to use our temp_json
-        mock_path_instance = Mock()
-        mock_path_instance.__truediv__ = Mock(return_value=temp_json)
-        mock_path.return_value = mock_path_instance
+        # Rename temp file to match expected name
+        expected_temp = tmp_path / "temp_metadata.json"
+        temp_json.rename(expected_temp)
 
-        def mock_open(path, *args, **kwargs):
-            return open(temp_json, *args, **kwargs)
-
-        with patch("builtins.open", side_effect=mock_open):
-            metadata = await backup_manager._load_metadata("gs://bucket/metadata.json")
+        metadata = await backup_manager._load_metadata("gs://bucket/metadata.json")
 
         assert metadata is not None
         assert metadata.backup_id == "backup-test-001"
