@@ -117,9 +117,10 @@ async def test_deployment_state_machine_transitions(orchestrator):
     history = state_machine.get_history()
     assert len(history) == 4  # Initial + 3 transitions
     # Note: history items are dicts with "state" or "from_state"/"to_state" keys
-    assert any(h.get("state") == DeploymentStatus.PENDING for h in history) or history[0].get(
-        "state"
-    ) == DeploymentStatus.PENDING
+    assert (
+        any(h.get("state") == DeploymentStatus.PENDING for h in history)
+        or history[0].get("state") == DeploymentStatus.PENDING
+    )
 
 
 @pytest.mark.asyncio
