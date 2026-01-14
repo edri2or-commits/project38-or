@@ -1925,6 +1925,39 @@ railway logs --service web --environment production | grep ERROR
 
 ### Week 3-4: Iteration
 
+**Focus:** Database Operations & Monitoring Refinement
+
+**Week 3 Tasks:**
+1. **Database Backup Automation**
+   - [ ] Create `src/backup_manager.py` - PostgreSQL backup orchestration
+   - [ ] Add n8n workflow for scheduled backups (daily)
+   - [ ] Implement backup verification (checksum validation)
+   - [ ] Store backups in GCP Cloud Storage (encrypted)
+
+2. **Backup Restoration Testing**
+   - [ ] Create `tests/test_backup_restore.py` - Recovery validation
+   - [ ] Document restoration procedure in `docs/operations/disaster-recovery.md`
+   - [ ] Test RTO (Recovery Time Objective) < 15 minutes
+
+**Week 4 Tasks:**
+3. **Performance Baseline**
+   - [ ] Establish baseline metrics (response time, throughput, error rate)
+   - [ ] Create performance dashboard using existing `/metrics` endpoints
+   - [ ] Set up trend analysis alerts (deviation from baseline)
+
+4. **Alerting Refinement**
+   - [ ] Review Week 2 alert thresholds based on real data
+   - [ ] Add alert suppression for maintenance windows
+   - [ ] Create runbook links in alert messages
+
+**Success Criteria:**
+- [ ] Daily automated backups running
+- [ ] Restoration tested and documented
+- [ ] Performance baseline established
+- [ ] Alert false-positive rate < 5%
+
+**Prepares for Month 2:** Database migrations, advanced backup strategies
+
 ### Monthly: Security Review
 
 **Checklist:**
