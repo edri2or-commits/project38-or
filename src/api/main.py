@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
     This context manager handles startup and shutdown events.
     Resources are initialized on startup and cleaned up on shutdown.
     """
-    from src.api.database import create_db_and_tables, close_db_connection
+    from src.api.database import close_db_connection, create_db_and_tables
 
     # Startup: Initialize database tables
     try:
