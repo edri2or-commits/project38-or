@@ -8,6 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Week 4: Performance Baseline & Alerting Refinement** (2026-01-14) - Performance monitoring and enhanced alerting
+  - `src/performance_baseline.py` (700+ lines) - Performance baseline establishment module
+    - `PerformanceBaseline` class for metrics collection and analysis
+    - `MetricSnapshot` dataclass for point-in-time metrics
+    - `BaselineStats` dataclass with P50/P95/P99 percentiles
+    - `Anomaly` dataclass for anomaly detection results
+    - `TrendAnalysis` dataclass for trend identification
+    - Automatic baseline calculation from historical data
+    - Anomaly detection with Z-score thresholds (configurable sensitivity)
+    - Trend analysis (improving/degrading/stable classification)
+    - Dashboard data aggregation for visualization
+    - PostgreSQL integration for metrics storage
+  - `tests/test_performance_baseline.py` (500+ lines) - 30+ comprehensive tests
+    - MetricSnapshot creation and serialization tests
+    - BaselineStats calculation tests with mock data
+    - Anomaly detection tests (none/present/critical scenarios)
+    - Trend analysis tests (stable/improving/degrading)
+    - Dashboard data generation tests
+    - Database integration mocking tests
+    - Edge cases (no data, zero requests, invalid metrics)
+  - `src/alert_manager.py` (600+ lines) - Centralized alert management with suppression
+    - `AlertManager` class for multi-channel alerting
+    - `MaintenanceWindow` dataclass for scheduled suppression
+    - `Alert` dataclass with runbook link support
+    - `AlertResult` dataclass for send status tracking
+    - Alert suppression during maintenance windows
+    - Rate limiting per severity level (critical: 15min, warning: 60min, info: 1440min)
+    - Alert deduplication by dedupe_key
+    - n8n webhook integration for notifications
+    - Telegram integration for direct messages
+    - Runbook URL mapping for common issues
+    - Performance anomaly alert integration
+  - `tests/test_alert_manager.py` (450+ lines) - 25+ comprehensive tests
+    - MaintenanceWindow creation and active check tests
+    - Alert suppression logic tests (all/info-only modes)
+    - Rate limiting tests (within/after cooldown)
+    - Alert sending tests (success/suppressed/rate-limited)
+    - Forced alert sending (bypass suppression) tests
+    - Performance alert integration tests
+    - Status and utility function tests
+    - Factory function configuration tests
+  - **Performance Metrics**: Baseline tracking for latency, error rate, throughput, CPU, memory
+  - **Anomaly Detection**: Configurable Z-score thresholds (default: 3.0σ)
+  - **Trend Analysis**: 6-hour recent window vs 24-hour baseline
+  - **Alert Suppression**: Maintenance windows with full/info-only suppression modes
+  - **Runbook Integration**: Automatic runbook URL mapping for common performance issues
+
 - **Week 3: Database Backup Automation** (2026-01-14) - Automated PostgreSQL backup with GCS storage
   - `src/backup_manager.py` (800+ lines) - Complete backup orchestration module
     - `BackupManager` class for PostgreSQL backup operations
