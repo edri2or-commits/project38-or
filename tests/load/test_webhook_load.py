@@ -340,9 +340,11 @@ class TestOrchestratorLoad:
             n8n_client.get_recent_executions.return_value = []
 
             orchestrator = MainOrchestrator(
-                railway_client=railway_client,
-                github_client=github_client,
-                n8n_client=n8n_client,
+                railway=railway_client,
+                github=github_client,
+                n8n=n8n_client,
+                project_id="test-project-id",
+                environment_id="test-env-id",
             )
 
             results = []
