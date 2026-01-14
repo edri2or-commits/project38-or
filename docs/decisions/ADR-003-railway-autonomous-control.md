@@ -233,12 +233,14 @@ Two research efforts provided foundation:
 
 ⚠️ **Implementation Not Started**: Documentation exists, code doesn't
 ⚠️ **Single Point of Failure**: Railway project tied to one GCP project
-⚠️ **Cost Uncertainty**: Railway charges per resource usage (TBD under load)
+~~⚠️ **Cost Uncertainty**: Railway charges per resource usage (TBD under load)~~ ✅ **Mitigated** (2026-01-14)
 
 ### Mitigation
 
 - Begin Day 1 implementation following roadmap (docs../integrations/implementation-roadmap.md)
-- Railway costs monitored via dashboard, alerts at $20/month threshold
+- ~~Railway costs monitored via dashboard, alerts at $20/month threshold~~ → Now programmatic via `src/cost_monitor.py`
+- Cost monitoring API endpoints: `/costs/estimate`, `/costs/budget`, `/costs/recommendations`
+- Auto-scaling recommendations via `src/autoscaling.py` for resource optimization
 - Multi-region failover documented in docs../autonomous/05-resilience-patterns-hybrid.md
 
 ---
@@ -634,7 +636,7 @@ This section tracks implementation progress against the decision:
 
 **ADR Status Updated:** ☑️ **Phase 4 Complete (Days 6-7)** - 7-Day Roadmap Fully Implemented ✅
 
-**Next Phase:** Post-Launch Maintenance (Week 1: Monitor, adjust, optimize)
+**Next Phase:** ~~Post-Launch Maintenance (Week 1: Monitor, adjust, optimize)~~ → Week 2 Complete (2026-01-14)
 
 ---
 
@@ -679,6 +681,28 @@ This section tracks implementation progress against the decision:
 - Claude configuration: `~/.claude.json` includes `claude-gateway` MCP server
 
 **ADR Status Updated:** ☑️ **Tier 3 (Full Autonomy) Achieved** via MCP Gateway
+
+---
+
+### 2026-01-14: Week 2 Post-Launch Maintenance - Cost Monitoring & Auto-Scaling
+
+**Risk Mitigated:**
+- "Cost Uncertainty" (line 236) - Railway usage costs now monitored programmatically
+
+**Features Implemented:**
+- ✅ `src/cost_monitor.py` (543 lines) - Railway cost tracking and budget alerts
+- ✅ `src/cost_alert_service.py` (381 lines) - n8n/Telegram notifications with rate limiting
+- ✅ `src/autoscaling.py` (638 lines) - Intelligent scaling recommendations
+- ✅ `src/dependency_updater.py` (611 lines) - Automated security updates
+- ✅ `.github/workflows/dependency-update.yml` (323 lines) - Weekly automation
+
+**Test Coverage:**
+- 110 tests across 4 test files (all passing)
+
+**Pull Request:**
+- PR #105: Week 2 Post-Launch Maintenance - 100% Complete (merged 2026-01-14)
+
+**ADR Impact:** Risk mitigation only - core architecture unchanged
 
 ---
 
