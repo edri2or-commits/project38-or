@@ -1010,7 +1010,7 @@ curl https://or-infra.com/metrics/system
 
 ### Additional Documentation
 
-- [CLAUDE.md](../CLAUDE.md) - Project guide for AI agents
+- CLAUDE.md (root of repository) - Project guide for AI agents
 - [SECURITY.md](SECURITY.md) - Security policy
 - [RAILWAY_SETUP.md](RAILWAY_SETUP.md) - Railway configuration details
 - [ADR-003](decisions/ADR-003-railway-autonomous-control.md) - Railway autonomous control decision record

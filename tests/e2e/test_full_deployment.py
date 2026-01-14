@@ -36,15 +36,17 @@ class TestFullDeploymentFlow:
 
         # Initialize orchestrator
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         # Verify initialization
-        assert orchestrator.railway_client is railway_client
-        assert orchestrator.github_client is github_client
-        assert orchestrator.n8n_client is n8n_client
+        assert orchestrator.railway is railway_client
+        assert orchestrator.github is github_client
+        assert orchestrator.n8n is n8n_client
         assert orchestrator.world_model is not None
 
     @pytest.mark.asyncio
@@ -62,19 +64,17 @@ class TestFullDeploymentFlow:
             {"id": "service-1", "name": "web", "deployments": []}
         ]
         github_client.get_workflow_runs.return_value = {
-            "workflow_runs": [
-                {"id": 123, "status": "completed", "conclusion": "success"}
-            ]
+            "workflow_runs": [{"id": 123, "status": "completed", "conclusion": "success"}]
         }
-        n8n_client.get_recent_executions.return_value = [
-            {"id": "exec-1", "status": "success"}
-        ]
+        n8n_client.get_recent_executions.return_value = [{"id": "exec-1", "status": "success"}]
 
         # Initialize orchestrator
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         # Run observe phase
@@ -99,9 +99,11 @@ class TestFullDeploymentFlow:
         n8n_client = AsyncMock()
 
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         # Mock observations showing PR ready to merge
@@ -125,9 +127,7 @@ class TestFullDeploymentFlow:
         decisions = await orchestrator.decide()
 
         # Should create MERGE_PR decision
-        merge_decisions = [
-            d for d in decisions if d.action_type == ActionType.MERGE_PR
-        ]
+        merge_decisions = [d for d in decisions if d.action_type == ActionType.MERGE_PR]
         assert len(merge_decisions) > 0
         assert merge_decisions[0].data["pr_number"] == 100
 
@@ -146,15 +146,15 @@ class TestFullDeploymentFlow:
             "status": "FAILED",
             "error": "Build failed",
         }
-        railway_client.get_previous_successful_deployment.return_value = (
-            "prev-deploy-123"
-        )
+        railway_client.get_previous_successful_deployment.return_value = "prev-deploy-123"
         railway_client.rollback_deployment.return_value = "rollback-deploy-456"
 
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         # Trigger failure handler
@@ -192,9 +192,11 @@ class TestFullDeploymentFlow:
         n8n_client.get_recent_executions.return_value = []
 
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         # Run complete cycle
@@ -221,17 +223,13 @@ class TestFullDeploymentFlow:
         # Test valid transitions
         assert state_machine.current_state == DeploymentStatus.PENDING
 
-        state_machine.transition_to(DeploymentStatus.BUILDING, reason="Build started")
+        state_machine.transition(DeploymentStatus.BUILDING, reason="Build started")
         assert state_machine.current_state == DeploymentStatus.BUILDING
 
-        state_machine.transition_to(
-            DeploymentStatus.DEPLOYING, reason="Deploy started"
-        )
+        state_machine.transition(DeploymentStatus.DEPLOYING, reason="Deploy started")
         assert state_machine.current_state == DeploymentStatus.DEPLOYING
 
-        state_machine.transition_to(
-            DeploymentStatus.ACTIVE, reason="Deploy succeeded"
-        )
+        state_machine.transition(DeploymentStatus.ACTIVE, reason="Deploy succeeded")
         assert state_machine.current_state == DeploymentStatus.ACTIVE
 
         # Verify history tracking
@@ -243,32 +241,25 @@ class TestFullDeploymentFlow:
         from src.state_machine import (
             DeploymentStateMachine,
             DeploymentStatus,
-            InvalidTransitionError,
         )
 
         state_machine = DeploymentStateMachine(deployment_id="failed-deploy-456")
 
         # Simulate deployment failure
-        state_machine.transition_to(DeploymentStatus.BUILDING)
-        state_machine.transition_to(DeploymentStatus.DEPLOYING)
-        state_machine.transition_to(DeploymentStatus.FAILED, reason="Health check failed")
+        state_machine.transition(DeploymentStatus.BUILDING)
+        state_machine.transition(DeploymentStatus.DEPLOYING)
+        state_machine.transition(DeploymentStatus.FAILED, reason="Health check failed")
 
         # Transition to rollback
-        state_machine.transition_to(
-            DeploymentStatus.ROLLING_BACK, reason="Initiating rollback"
-        )
+        state_machine.transition(DeploymentStatus.ROLLING_BACK, reason="Initiating rollback")
         assert state_machine.current_state == DeploymentStatus.ROLLING_BACK
 
-        state_machine.transition_to(
-            DeploymentStatus.ROLLED_BACK, reason="Rollback complete"
-        )
+        state_machine.transition(DeploymentStatus.ROLLED_BACK, reason="Rollback complete")
         assert state_machine.current_state == DeploymentStatus.ROLLED_BACK
 
         # Verify terminal state
-        with pytest.raises(InvalidTransitionError):
-            state_machine.transition_to(
-                DeploymentStatus.ACTIVE, reason="Should not be allowed"
-            )
+        with pytest.raises(ValueError):
+            state_machine.transition(DeploymentStatus.ACTIVE, reason="Should not be allowed")
 
     @pytest.mark.asyncio
     async def test_client_integration_railway(self):
@@ -287,9 +278,11 @@ class TestFullDeploymentFlow:
         }
 
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         # Trigger deployment action
@@ -317,9 +310,11 @@ class TestFullDeploymentFlow:
         n8n_client = AsyncMock()
 
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         # Trigger success notification
@@ -372,9 +367,11 @@ class TestMultiServiceOrchestration:
         ]
 
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         observations = await orchestrator.observe()
@@ -392,9 +389,11 @@ class TestMultiServiceOrchestration:
         n8n_client = AsyncMock()
 
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         # Create multiple deployment decisions

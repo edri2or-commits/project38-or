@@ -148,10 +148,7 @@ class TestWebhookLoad:
         metrics.start_time = datetime.utcnow()
 
         # Create concurrent requests
-        tasks = [
-            simulate_webhook_request(metrics)
-            for _ in range(num_requests)
-        ]
+        tasks = [simulate_webhook_request(metrics) for _ in range(num_requests)]
 
         await asyncio.gather(*tasks)
 
@@ -229,10 +226,7 @@ class TestWebhookLoad:
             print(f"\nExecuting burst {burst_num + 1}/{num_bursts}...")
 
             # Execute burst
-            tasks = [
-                simulate_webhook_request(metrics)
-                for _ in range(burst_size)
-            ]
+            tasks = [simulate_webhook_request(metrics) for _ in range(burst_size)]
             await asyncio.gather(*tasks)
 
             # Cooldown between bursts (except after last burst)
@@ -282,9 +276,11 @@ class TestOrchestratorLoad:
         n8n_client.get_recent_executions.return_value = []
 
         orchestrator = MainOrchestrator(
-            railway_client=railway_client,
-            github_client=github_client,
-            n8n_client=n8n_client,
+            railway=railway_client,
+            github=github_client,
+            n8n=n8n_client,
+            project_id="test-project-id",
+            environment_id="test-env-id",
         )
 
         cycle_times = []
@@ -361,10 +357,7 @@ class TestOrchestratorLoad:
 
         # Run orchestrators concurrently
         start = time.time()
-        tasks = [
-            run_orchestrator_cycles(i)
-            for i in range(num_orchestrators)
-        ]
+        tasks = [run_orchestrator_cycles(i) for i in range(num_orchestrators)]
         all_results = await asyncio.gather(*tasks)
         duration = time.time() - start
 
