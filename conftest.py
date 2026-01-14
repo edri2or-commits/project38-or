@@ -35,16 +35,28 @@ def pytest_ignore_collect(collection_path, config):
         content = collection_path.read_text()
 
         # Check for imports of known problematic modules
+        # Format: (import_pattern_in_file, required_module_to_check)
         problematic_imports = [
+            # Core orchestration - needs tenacity and jwt
             ("from src.orchestrator import", "tenacity"),
-            ("from src.github_app_client import", "tenacity"),
+            ("from src.github_app_client import", "jwt"),
             ("from src.railway_client import", "tenacity"),
             ("from src.n8n_client import", "tenacity"),
+            # Agent factory - needs anthropic
             ("from src.factory", "anthropic"),
+            # Agent harness - needs sqlalchemy
             ("from src.harness", "sqlalchemy"),
+            # Observability - needs opentelemetry
             ("from src.observability", "opentelemetry"),
+            # FastAPI - needs fastapi and async db
             ("from fastapi import", "fastapi"),
             ("from src.api", "fastapi"),
+            # Autonomous controller chain (imports orchestrator -> github_app_client -> jwt)
+            ("from src.autonomous_controller import", "jwt"),
+            # Anomaly integrator (imports autonomous_controller)
+            ("from src.anomaly_response_integrator import", "jwt"),
+            # Monitoring loop (imports anomaly integrator and ml detector)
+            ("from src.monitoring_loop import", "httpx"),
         ]
 
         for import_pattern, required_module in problematic_imports:
