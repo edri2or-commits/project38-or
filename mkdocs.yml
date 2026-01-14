@@ -73,6 +73,7 @@ nav:
           - מעבר ל-WIF: wif-migration-plan.md
           - פריסה ל-Railway: RAILWAY_SETUP.md
           - מדריך Deployment: deployment.md
+          - Maintenance Runbook: maintenance-runbook.md
       - אינטגרציות:
           - תוכנית 7 ימים: integrations/implementation-roadmap.md
           - ארכיטקטורה אוטונומית: integrations/autonomous-architecture.md
