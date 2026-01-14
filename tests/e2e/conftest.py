@@ -15,8 +15,12 @@ def mock_railway_client():
     """Mock Railway client for E2E tests."""
     client = AsyncMock()
 
-    # Mock deployment trigger
-    client.trigger_deployment.return_value = "deployment-123"
+    # Mock deployment trigger (returns dict with deployment details)
+    client.trigger_deployment.return_value = {
+        "id": "deployment-123",
+        "status": "BUILDING",
+        "createdAt": "2026-01-13T12:00:00Z",
+    }
 
     # Mock deployment monitoring
     client.get_deployment_status.return_value = "SUCCESS"
@@ -78,6 +82,16 @@ def mock_github_client():
 
     # Mock workflow operations
     client.trigger_workflow.return_value = {"id": "run-123"}
+    client.get_workflow_runs.return_value = {
+        "data": [
+            {
+                "id": "run-123",
+                "status": "completed",
+                "conclusion": "success",
+                "created_at": "2026-01-13T12:00:00Z",
+            }
+        ]
+    }
 
     return client
 
