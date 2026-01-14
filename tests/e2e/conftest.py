@@ -4,10 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.github_app_client import GitHubAppClient
-from src.n8n_client import N8nClient
 from src.orchestrator import MainOrchestrator
-from src.railway_client import RailwayClient
 
 
 @pytest.fixture

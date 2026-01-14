@@ -121,7 +121,10 @@ async def test_create_agent_endpoint(test_client):
 
     # Setup: Agent data (natural language description)
     agent_data = {
-        "description": "Create an agent that monitors system health and sends alerts when CPU usage exceeds 80%",
+        "description": (
+            "Create an agent that monitors system health and "
+            "sends alerts when CPU usage exceeds 80%"
+        ),
         "name": "health-monitor",
         "created_by": "test-user",
         "strict_validation": False,  # Disable strict validation for test
