@@ -607,7 +607,10 @@ def create_railway_monitoring_loop(
         # Lazy import to avoid circular dependency issues
         from src.anomaly_response_integrator import AnomalyResponseIntegrator
 
-        integrator = AnomalyResponseIntegrator(controller=controller)
+        integrator = AnomalyResponseIntegrator(
+            detector=detector,
+            controller=controller,
+        )
         loop.set_integrator(integrator)
 
     return loop
