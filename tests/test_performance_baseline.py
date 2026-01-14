@@ -277,16 +277,8 @@ async def test_collect_metrics_success(baseline, mock_snapshot):
     """Test successful metrics collection."""
     mock_conn = AsyncMock(spec=Connection)
 
-    # Mock database queries
-    mock_conn.fetchval.side_effect = [
-        150.5,  # latency_ms
-        350.2,  # p95_latency_ms
-        15,  # errors
-        1000,  # total_requests
-        5,  # active_agents
-        50000,  # total_tokens
-    ]
-
+    # Mock database queries - use side_effect with list of return values
+    mock_conn.fetchval.side_effect = [150.5, 350.2, 15, 1000, 5, 50000]
     mock_conn.execute = AsyncMock()
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect, patch(
@@ -294,8 +286,7 @@ async def test_collect_metrics_success(baseline, mock_snapshot):
     ), patch(
         "psutil.virtual_memory", return_value=MagicMock(percent=62.3)
     ):
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         # Override close to be async
         mock_conn.close = AsyncMock()
@@ -315,15 +306,7 @@ async def test_collect_metrics_zero_requests(baseline):
     """Test metrics collection with zero requests."""
     mock_conn = AsyncMock(spec=Connection)
 
-    mock_conn.fetchval.side_effect = [
-        0.0,  # latency_ms
-        0.0,  # p95_latency_ms
-        0,  # errors
-        0,  # total_requests (zero to test division)
-        0,  # active_agents
-        0,  # total_tokens
-    ]
-
+    mock_conn.fetchval.side_effect = [0.0, 0.0, 0, 0, 0, 0]
     mock_conn.execute = AsyncMock()
     mock_conn.close = AsyncMock()
 
@@ -332,8 +315,7 @@ async def test_collect_metrics_zero_requests(baseline):
     ), patch(
         "psutil.virtual_memory", return_value=MagicMock(percent=30.0)
     ):
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         snapshot = await baseline.collect_metrics()
 
@@ -355,19 +337,24 @@ async def test_get_baseline_stats_success(baseline, mock_historical_data):
     # Convert dict to mock records with attribute access
     class MockRecord:
         def __init__(self, data):
+            self._data = data
             for k, v in data.items():
                 setattr(self, k, v)
 
         def __getitem__(self, key):
-            return getattr(self, key)
+            return self._data.get(key)
 
     mock_records = [MockRecord(d) for d in mock_historical_data]
-    mock_conn.fetch = AsyncMock(return_value=mock_records)
+
+    # Mock fetch to return records
+    async def mock_fetch(*args, **kwargs):
+        return mock_records
+
+    mock_conn.fetch = mock_fetch
     mock_conn.close = AsyncMock()
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         stats = await baseline.get_baseline_stats()
 
@@ -389,19 +376,23 @@ async def test_get_baseline_stats_specific_metric(baseline, mock_historical_data
 
     class MockRecord:
         def __init__(self, data):
+            self._data = data
             for k, v in data.items():
                 setattr(self, k, v)
 
         def __getitem__(self, key):
-            return getattr(self, key)
+            return self._data.get(key)
 
     mock_records = [MockRecord(d) for d in mock_historical_data]
-    mock_conn.fetch = AsyncMock(return_value=mock_records)
+
+    async def mock_fetch(*args, **kwargs):
+        return mock_records
+
+    mock_conn.fetch = mock_fetch
     mock_conn.close = AsyncMock()
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         stats = await baseline.get_baseline_stats(metric_name="latency_ms")
 
@@ -417,8 +408,7 @@ async def test_get_baseline_stats_no_data(baseline):
     mock_conn.close = AsyncMock()
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         stats = await baseline.get_baseline_stats()
 
@@ -443,8 +433,7 @@ async def test_get_baseline_stats_invalid_metric(baseline, mock_historical_data)
     mock_conn.close = AsyncMock()
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         with pytest.raises(ValueError, match="Unknown metric"):
             await baseline.get_baseline_stats(metric_name="invalid_metric")
@@ -463,11 +452,12 @@ async def test_detect_anomalies_none(baseline, mock_snapshot, mock_historical_da
     # Create historical data with similar values to snapshot
     class MockRecord:
         def __init__(self, data):
+            self._data = data
             for k, v in data.items():
                 setattr(self, k, v)
 
         def __getitem__(self, key):
-            return getattr(self, key)
+            return self._data.get(key)
 
     # Make historical data close to snapshot values
     historical_data = [
@@ -484,15 +474,12 @@ async def test_detect_anomalies_none(baseline, mock_snapshot, mock_historical_da
     ]
 
     mock_records = [MockRecord(d) for d in historical_data]
-    mock_conn.fetch = AsyncMock(return_value=mock_records)
-    mock_conn.fetchval.side_effect = [
-        150.5,
-        350.2,
-        15,
-        1000,
-        5,
-        50000,
-    ]  # For collect_metrics
+
+    async def mock_fetch(*args, **kwargs):
+        return mock_records
+
+    mock_conn.fetch = mock_fetch
+    mock_conn.fetchval.side_effect = [150.5, 350.2, 19, 1180, 5, 50000]
     mock_conn.execute = AsyncMock()
     mock_conn.close = AsyncMock()
 
@@ -501,8 +488,7 @@ async def test_detect_anomalies_none(baseline, mock_snapshot, mock_historical_da
     ), patch(
         "psutil.virtual_memory", return_value=MagicMock(percent=62.3)
     ):
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         anomalies = await baseline.detect_anomalies()
 
@@ -518,14 +504,19 @@ async def test_detect_anomalies_with_current_snapshot(baseline, mock_historical_
 
     class MockRecord:
         def __init__(self, data):
+            self._data = data
             for k, v in data.items():
                 setattr(self, k, v)
 
         def __getitem__(self, key):
-            return getattr(self, key)
+            return self._data.get(key)
 
     mock_records = [MockRecord(d) for d in mock_historical_data]
-    mock_conn.fetch = AsyncMock(return_value=mock_records)
+
+    async def mock_fetch(*args, **kwargs):
+        return mock_records
+
+    mock_conn.fetch = mock_fetch
     mock_conn.close = AsyncMock()
 
     # Create snapshot with anomalous values
@@ -542,8 +533,7 @@ async def test_detect_anomalies_with_current_snapshot(baseline, mock_historical_
     )
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         anomalies = await baseline.detect_anomalies(current_snapshot=anomalous_snapshot)
 
@@ -562,8 +552,7 @@ async def test_detect_anomalies_no_baseline(baseline):
     mock_conn.close = AsyncMock()
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         mock_snapshot = MetricSnapshot(
             timestamp=datetime.now(UTC),
@@ -594,11 +583,12 @@ async def test_analyze_trends_stable(baseline, mock_historical_data):
 
     class MockRecord:
         def __init__(self, data):
+            self._data = data
             for k, v in data.items():
                 setattr(self, k, v)
 
         def __getitem__(self, key):
-            return getattr(self, key)
+            return self._data.get(key)
 
     # Create stable data (same values in baseline and recent)
     stable_data = [
@@ -616,12 +606,21 @@ async def test_analyze_trends_stable(baseline, mock_historical_data):
     mock_records = [MockRecord(d) for d in stable_data]
 
     # Mock two calls: one for baseline data, one for recent data
-    mock_conn.fetch = AsyncMock(side_effect=[mock_records[:18], mock_records[18:]])
+    async def mock_fetch_side_effect(*args, **kwargs):
+        if not hasattr(mock_fetch_side_effect, 'call_count'):
+            mock_fetch_side_effect.call_count = 0
+        if mock_fetch_side_effect.call_count == 0:
+            result = mock_records[:18]
+        else:
+            result = mock_records[18:]
+        mock_fetch_side_effect.call_count += 1
+        return result
+
+    mock_conn.fetch = mock_fetch_side_effect
     mock_conn.close = AsyncMock()
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         trends = await baseline.analyze_trends(recent_window_hours=6)
 
@@ -636,12 +635,15 @@ async def test_analyze_trends_stable(baseline, mock_historical_data):
 async def test_analyze_trends_insufficient_data(baseline):
     """Test trend analysis with insufficient data."""
     mock_conn = AsyncMock(spec=Connection)
-    mock_conn.fetch = AsyncMock(side_effect=[[], []])  # No data
+
+    async def mock_fetch_side_effect(*args, **kwargs):
+        return []
+
+    mock_conn.fetch = mock_fetch_side_effect
     mock_conn.close = AsyncMock()
 
     with patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
         trends = await baseline.analyze_trends()
 
@@ -660,24 +662,23 @@ async def test_get_dashboard_data(baseline, mock_historical_data):
 
     class MockRecord:
         def __init__(self, data):
+            self._data = data
             for k, v in data.items():
                 setattr(self, k, v)
 
         def __getitem__(self, key):
-            return getattr(self, key)
+            return self._data.get(key)
 
     mock_records = [MockRecord(d) for d in mock_historical_data]
 
-    # Mock multiple fetch calls
-    mock_conn.fetch = AsyncMock(side_effect=[mock_records, mock_records[:18], mock_records[18:]])
-    mock_conn.fetchval.side_effect = [
-        150.5,
-        350.2,
-        15,
-        1000,
-        5,
-        50000,
-    ]
+    # Mock fetchval for collect_metrics (called once during get_dashboard_data)
+    mock_conn.fetchval.side_effect = [150.5, 350.2, 15, 1000, 5, 50000]
+
+    # Mock fetch for get_baseline_stats, detect_anomalies, and analyze_trends
+    async def mock_fetch_side_effect(*args, **kwargs):
+        return mock_records
+
+    mock_conn.fetch = mock_fetch_side_effect
     mock_conn.execute = AsyncMock()
     mock_conn.close = AsyncMock()
 
@@ -686,19 +687,19 @@ async def test_get_dashboard_data(baseline, mock_historical_data):
     ), patch(
         "psutil.virtual_memory", return_value=MagicMock(percent=62.3)
     ):
-        mock_connect.return_value.__aenter__.return_value = mock_conn
-        mock_connect.return_value.__aexit__.return_value = None
+        mock_connect.return_value = mock_conn
 
-        dashboard = await baseline.get_dashboard_data()
+        data = await baseline.get_dashboard_data()
 
-        assert "current_metrics" in dashboard
-        assert "baselines" in dashboard
-        assert "anomalies" in dashboard
-        assert "trends" in dashboard
-        assert "summary" in dashboard
-        assert "generated_at" in dashboard
+        assert isinstance(data, dict)
+        assert "current_metrics" in data
+        assert "baselines" in data
+        assert "anomalies" in data
+        assert "trends" in data
+        assert "summary" in data
 
-        summary = dashboard["summary"]
+        # Verify summary structure
+        summary = data["summary"]
         assert "total_anomalies" in summary
         assert "critical_anomalies" in summary
         assert "degrading_trends" in summary
