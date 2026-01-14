@@ -26,6 +26,11 @@ def mock_railway_client():
         "status": "SUCCESS",
         "staticUrl": "https://test.railway.app",
     }
+    client.wait_for_deployment.return_value = {
+        "id": "deployment-123",
+        "status": "SUCCESS",
+        "url": "https://test.railway.app",
+    }
 
     # Mock service info (list_services is the actual method name)
     client.get_services.return_value = [
@@ -98,8 +103,8 @@ def mock_n8n_client():
     """Mock n8n client for E2E tests."""
     client = AsyncMock()
 
-    # Mock workflow execution
-    client.execute_workflow.return_value = {"executionId": "exec-123", "status": "success"}
+    # Mock workflow execution (returns execution ID string)
+    client.execute_workflow.return_value = "exec-123"
 
     return client
 

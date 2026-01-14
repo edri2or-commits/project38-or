@@ -38,10 +38,7 @@ async def test_successful_deployment_flow(
 
     mock_railway_client.get_deployment_status.return_value = "SUCCESS"
 
-    mock_n8n_client.execute_workflow.return_value = {
-        "executionId": "exec-success",
-        "status": "success",
-    }
+    mock_n8n_client.execute_workflow.return_value = "exec-success"
 
     # Execute: Deploy from PR event
     event = {
@@ -248,7 +245,7 @@ async def test_deployment_notification_includes_metadata(orchestrator, mock_n8n_
         priority=5,
     )
 
-    mock_n8n_client.execute_workflow.return_value = {"executionId": "exec-123", "status": "success"}
+    mock_n8n_client.execute_workflow.return_value = "exec-123"
 
     # Execute: Send notification via act()
     result = await orchestrator.act(decision)

@@ -242,7 +242,7 @@ async def test_ooda_act_phase_executes_decisions(
         priority=5,
     )
 
-    mock_n8n_client.execute_workflow.return_value = {"executionId": "exec-123", "status": "success"}
+    mock_n8n_client.execute_workflow.return_value = "exec-123"
 
     # Execute: Run act phase
     result = await orchestrator.act(decision)
