@@ -63,9 +63,11 @@ class TestSecretManager:
         with patch("src.secrets_manager.secretmanager.SecretManagerServiceClient") as mock_client:
             from google.api_core import exceptions
 
-            mock_client.return_value.access_secret_version.side_effect = exceptions.NotFound(
-                "Secret not found"
-            )
+            # Use callable to raise exception instead of side_effect
+            def raise_not_found(*args, **kwargs):
+                raise exceptions.NotFound("Secret not found")
+
+            mock_client.return_value.access_secret_version.side_effect = raise_not_found
 
             manager = SecretManager()
             result = manager.get_secret("nonexistent")
@@ -77,9 +79,11 @@ class TestSecretManager:
         with patch("src.secrets_manager.secretmanager.SecretManagerServiceClient") as mock_client:
             from google.api_core import exceptions
 
-            mock_client.return_value.access_secret_version.side_effect = (
-                exceptions.PermissionDenied("Access denied")
-            )
+            # Use callable to raise exception
+            def raise_permission_denied(*args, **kwargs):
+                raise exceptions.PermissionDenied("Access denied")
+
+            mock_client.return_value.access_secret_version.side_effect = raise_permission_denied
 
             manager = SecretManager()
             result = manager.get_secret("forbidden")
@@ -143,9 +147,11 @@ class TestSecretManager:
         with patch("src.secrets_manager.secretmanager.SecretManagerServiceClient") as mock_client:
             from google.api_core import exceptions
 
-            mock_client.return_value.access_secret_version.side_effect = exceptions.NotFound(
-                "Not found"
-            )
+            # Use callable to raise exception
+            def raise_not_found(*args, **kwargs):
+                raise exceptions.NotFound("Not found")
+
+            mock_client.return_value.access_secret_version.side_effect = raise_not_found
 
             manager = SecretManager()
             result = manager.verify_access("inaccessible-secret")
@@ -172,9 +178,11 @@ class TestSecretManager:
         with patch("src.secrets_manager.secretmanager.SecretManagerServiceClient") as mock_client:
             from google.api_core import exceptions
 
-            mock_client.return_value.access_secret_version.side_effect = exceptions.NotFound(
-                "Secret not found"
-            )
+            # Use callable to raise exception
+            def raise_not_found(*args, **kwargs):
+                raise exceptions.NotFound("Secret not found")
+
+            mock_client.return_value.access_secret_version.side_effect = raise_not_found
 
             manager = SecretManager()
             loaded = manager.load_secrets_to_env({"FAILED_VAR": "nonexistent-secret"})

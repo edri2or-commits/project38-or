@@ -3,6 +3,7 @@
 This module initializes the FastAPI application and registers all route handlers.
 """
 
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -14,6 +15,7 @@ from src.logging_config import setup_logging
 
 # Initialize structured logging on module import
 setup_logging(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -23,11 +25,24 @@ async def lifespan(app: FastAPI):
     This context manager handles startup and shutdown events.
     Resources are initialized on startup and cleaned up on shutdown.
     """
-    # Startup: Initialize database connection
-    # TODO: Initialize database connection pool
+    from src.api.database import create_db_and_tables, close_db_connection
+
+    # Startup: Initialize database tables
+    try:
+        await create_db_and_tables()
+        logger.info("Database tables initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+
     yield
-    # Shutdown: Cleanup resources
-    # TODO: Close database connection pool
+
+    # Shutdown: Close database connection pool
+    try:
+        await close_db_connection()
+        logger.info("Database connections closed")
+    except Exception as e:
+        logger.error(f"Failed to close database connections: {e}")
 
 
 # Create FastAPI app instance
@@ -41,12 +56,33 @@ app = FastAPI(
 )
 
 # Configure CORS middleware
+# Restrict origins based on environment
+ENVIRONMENT = os.getenv("RAILWAY_ENVIRONMENT", "development")
+ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS = ALLOWED_ORIGINS_ENV.split(",") if ALLOWED_ORIGINS_ENV else []
+
+if ENVIRONMENT == "production":
+    # Production: whitelist only
+    if not ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS = ["https://or-infra.com"]
+        logger.warning("Using default production origin: https://or-infra.com")
+else:
+    # Development: allow localhost
+    if not ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS = [
+            "http://localhost:3000",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+        ]
+
+logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Restrict in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
 )
 
 # Register route handlers

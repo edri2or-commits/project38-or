@@ -56,10 +56,8 @@ jobs:
       - name: Run tests with coverage
         id: pytest
         run: |
-          # conftest.py now auto-skips tests with missing dependencies
-          python -m pytest --cov=src --cov-report=term-missing -v --cov-fail-under=0 \
-            --ignore=tests/test_backup_manager.py \
-            --ignore=tests/test_secrets_manager.py \
+          # All tests enabled after fixing mocking issues (BUG-005A/B)
+          python -m pytest --cov=src --cov-report=term-missing -v --cov-fail-under=80 \
             2>&1 | tee pytest-output.txt
           exit ${PIPESTATUS[0]}
 
