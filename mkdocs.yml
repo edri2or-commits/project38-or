@@ -89,6 +89,7 @@ nav:
           - Resilience Patterns: autonomous/05-resilience-patterns-hybrid.md
           - Security Architecture: autonomous/06-security-architecture-hybrid.md
           - Operational Scenarios: autonomous/07-operational-scenarios-hybrid.md
+          - MCP Gateway Architecture: autonomous/08-mcp-gateway-architecture.md
       - מחקר:
           - סקירה: research/index.md
           - תשתית תיעוד: research/01_documentation_infrastructure_zero_tolerance.summary.md
@@ -106,6 +107,7 @@ nav:
       - Agent Factory: api/factory.md
       - Agent Harness: api/harness.md
       - MCP Tools: api/mcp.md
+      - MCP Gateway: api/mcp_gateway.md
       - Observability: api/observability.md
       - Railway Client: api/railway.md
       - GitHub App Client: api/github_app_client.md

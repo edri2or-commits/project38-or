@@ -8,6 +8,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **MCP Gateway for Full Autonomy** (2026-01-14) - Remote MCP Server enabling Claude Code to autonomously operate Railway and n8n
+  - `docs/autonomous/08-mcp-gateway-architecture.md` (450+ lines) - Comprehensive architecture proposal
+    - Problem statement: Anthropic proxy blocks Railway/n8n direct access
+    - Solution: Remote MCP Server deployed on Railway bypasses proxy limitations
+    - Component diagram with data flow (Claude → MCP Gateway → Railway/n8n)
+    - Security architecture (Bearer token auth, GCP Secret Manager, HTTPS)
+    - Integration with existing FastAPI app
+    - OODA Loop integration for true autonomous operations
+  - `src/mcp_gateway/` - Complete MCP Gateway implementation
+    - `server.py` (180 lines) - FastMCP server with 10 autonomous tools
+    - `config.py` (65 lines) - Configuration from GCP Secret Manager
+    - `auth.py` (55 lines) - Bearer token authentication
+    - `tools/railway.py` (180 lines) - Railway operations (deploy, status, rollback)
+    - `tools/n8n.py` (130 lines) - n8n workflow operations (trigger, list, status)
+    - `tools/monitoring.py` (170 lines) - Health checks and metrics
+  - `docs/api/mcp_gateway.md` - Complete API reference documentation
+  - **Available MCP Tools**:
+    - `railway_deploy()` - Trigger new Railway deployment
+    - `railway_status()` - Get current deployment status
+    - `railway_deployments()` - List recent deployments
+    - `railway_rollback()` - Rollback to previous successful deployment
+    - `n8n_trigger()` - Trigger n8n workflow via webhook
+    - `n8n_list()` - List available workflows
+    - `n8n_status()` - Check workflow webhook accessibility
+    - `health_check()` - Check all service health
+    - `get_metrics()` - Get system metrics
+    - `deployment_health()` - Comprehensive health + deployment check with recommendations
+  - **User Setup (One-time)**:
+    1. Create MCP-GATEWAY-TOKEN in GCP Secret Manager
+    2. Set MCP_GATEWAY_ENABLED=true in Railway
+    3. Run: `claude mcp add --transport http --header "Authorization: Bearer <token>" claude-gateway https://or-infra.com/mcp`
+  - **Claude Autonomy Enabled**:
+    - Deploy on demand without manual intervention
+    - Monitor production health directly
+    - Execute rollbacks autonomously
+    - Trigger n8n workflows for complex automation
+  - Added `fastmcp>=2.0.0` to requirements.txt
+  - Updated mkdocs.yml navigation with MCP Gateway documentation
+  - **References**: [FastMCP](https://github.com/jlowin/fastmcp), [Railway MCP Server](https://docs.railway.com/reference/mcp-server), [Claude Code MCP Docs](https://code.claude.com/docs/en/mcp)
+
 - **Post-Launch Maintenance: Operational Runbook** (2026-01-14) - Comprehensive maintenance documentation and automation
   - `docs/maintenance-runbook.md` (350+ lines) - Complete operational runbook
     - Daily operations: Health check verification, metrics review, log analysis
