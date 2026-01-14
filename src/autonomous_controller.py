@@ -511,6 +511,49 @@ class AutonomousController:
             self.logger.warning(f"Unhandled healing action: {action}")
             return {"status": "not_implemented", "action": action.value}
 
+    async def trigger_self_healing(
+        self,
+        action: SelfHealingAction,
+        target: str = "default",
+        reason: str = "",
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Public method to trigger self-healing action.
+
+        This method is designed to be called by external integrators like
+        AnomalyResponseIntegrator to trigger healing based on detected anomalies.
+
+        Args:
+            action: Self-healing action to execute
+            target: Target service/resource identifier (default: "default")
+            reason: Human-readable reason for triggering
+            params: Additional parameters for the action
+
+        Returns:
+            Result dictionary with status and details
+
+        Example:
+            >>> result = await controller.trigger_self_healing(
+            ...     action=SelfHealingAction.RESTART_SERVICE,
+            ...     reason="High latency detected by ML anomaly detector",
+            ... )
+        """
+        # Check safety guardrails
+        if self.safety_metrics.kill_switch_triggered:
+            return {"status": "blocked", "reason": "Kill switch is active"}
+
+        if not self._check_rate_limit():
+            return {"status": "blocked", "reason": "Rate limit exceeded"}
+
+        self.logger.info(f"Self-healing triggered: {action.value} - {reason}")
+
+        # Execute the healing action
+        result = await self._execute_self_healing(action, target, params)
+        result["triggered_by"] = "external"
+        result["reason"] = reason
+
+        return result
+
     # ========================================================================
     # PREDICTIVE ANALYSIS
     # ========================================================================
