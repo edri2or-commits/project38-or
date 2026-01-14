@@ -10,9 +10,10 @@ Phase 2: Add Server-Sent Events (SSE) for real-time updates.
 
 from datetime import UTC, datetime
 
-import asyncpg
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.database import get_session
 
@@ -73,93 +74,114 @@ class SystemMetrics(BaseModel):
 # =============================================================================
 
 
-async def get_active_agent_count(conn: asyncpg.Connection) -> int:
+async def get_active_agent_count(conn: AsyncSession) -> int:
     """Count agents active in last hour."""
-    result = await conn.fetchval(
-        """
+    result = await conn.execute(
+        text(
+            """
         SELECT COUNT(DISTINCT agent_id)
         FROM agent_metrics
         WHERE time >= NOW() - INTERVAL '1 hour'
         """
+        )
     )
-    return result or 0
+    value = result.scalar_one_or_none()
+    return value or 0
 
 
-async def get_total_requests(conn: asyncpg.Connection, interval: str = "1 hour") -> int:
+async def get_total_requests(conn: AsyncSession, interval: str = "1 hour") -> int:
     """Count total requests (successes + errors)."""
-    result = await conn.fetchval(
-        f"""
+    result = await conn.execute(
+        text(
+            f"""
         SELECT COALESCE(SUM(value), 0)::INT
         FROM agent_metrics
         WHERE metric_name IN ('success_count', 'error_count')
           AND time >= NOW() - INTERVAL '{interval}'
         """
+        )
     )
-    return result or 0
+    value = result.scalar_one_or_none()
+    return value or 0
 
 
-async def get_error_rate(conn: asyncpg.Connection, interval: str = "1 hour") -> float:
+async def get_error_rate(conn: AsyncSession, interval: str = "1 hour") -> float:
     """Calculate global error rate."""
-    errors = await conn.fetchval(
-        f"""
+    result = await conn.execute(
+        text(
+            f"""
         SELECT COALESCE(SUM(value), 0)
         FROM agent_metrics
         WHERE metric_name = 'error_count'
           AND time >= NOW() - INTERVAL '{interval}'
         """
+        )
     )
+    errors = result.scalar_one_or_none() or 0
 
-    total = await conn.fetchval(  # noqa: S608
-        f"""
+    result = await conn.execute(
+        text(
+            f"""
         SELECT COALESCE(SUM(value), 0)
         FROM agent_metrics
         WHERE metric_name IN ('success_count', 'error_count')
           AND time >= NOW() - INTERVAL '{interval}'
         """
+        )
     )
+    total = result.scalar_one_or_none() or 0
 
     if total == 0:
         return 0.0
     return round((errors / total) * 100, 2)
 
 
-async def get_avg_latency(conn: asyncpg.Connection, interval: str = "1 hour") -> float:
+async def get_avg_latency(conn: AsyncSession, interval: str = "1 hour") -> float:
     """Calculate average latency."""
-    result = await conn.fetchval(  # noqa: S608
-        f"""
+    result = await conn.execute(
+        text(
+            f"""
         SELECT COALESCE(AVG(value), 0)
         FROM agent_metrics
         WHERE metric_name = 'latency_ms'
           AND time >= NOW() - INTERVAL '{interval}'
         """
+        )
     )
-    return round(result or 0, 2)
+    value = result.scalar_one_or_none()
+    return round(value or 0, 2)
 
 
-async def get_p95_latency(conn: asyncpg.Connection, interval: str = "1 hour") -> float:
+async def get_p95_latency(conn: AsyncSession, interval: str = "1 hour") -> float:
     """Calculate P95 latency."""
-    result = await conn.fetchval(  # noqa: S608
-        f"""
+    result = await conn.execute(
+        text(
+            f"""
         SELECT COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY value), 0)
         FROM agent_metrics
         WHERE metric_name = 'latency_ms'
           AND time >= NOW() - INTERVAL '{interval}'
         """
+        )
     )
-    return round(result or 0, 2)
+    value = result.scalar_one_or_none()
+    return round(value or 0, 2)
 
 
-async def get_total_tokens(conn: asyncpg.Connection, interval: str = "1 hour") -> int:
+async def get_total_tokens(conn: AsyncSession, interval: str = "1 hour") -> int:
     """Calculate total token usage."""
-    result = await conn.fetchval(  # noqa: S608
-        f"""
+    result = await conn.execute(
+        text(
+            f"""
         SELECT COALESCE(SUM(value), 0)::INT
         FROM agent_metrics
         WHERE metric_name IN ('tokens_input', 'tokens_output', 'tokens_reasoning')
           AND time >= NOW() - INTERVAL '{interval}'
         """
+        )
     )
-    return result or 0
+    value = result.scalar_one_or_none()
+    return value or 0
 
 
 def estimate_cost(total_tokens: int, model_id: str = "claude-sonnet-4.5") -> float:
@@ -182,7 +204,7 @@ def estimate_cost(total_tokens: int, model_id: str = "claude-sonnet-4.5") -> flo
 
 
 @router.get("/summary", response_model=MetricSummary)
-async def get_metrics_summary(conn: asyncpg.Connection = Depends(get_session)) -> MetricSummary:
+async def get_metrics_summary(conn: AsyncSession = Depends(get_session)) -> MetricSummary:
     """
     Get summary metrics for the dashboard.
 
@@ -220,7 +242,7 @@ async def get_metrics_summary(conn: asyncpg.Connection = Depends(get_session)) -
 
 @router.get("/agents", response_model=list[AgentStatus])
 async def get_agent_statuses(
-    conn: asyncpg.Connection = Depends(get_session),
+    conn: AsyncSession = Depends(get_session),
     limit: int = Query(10, ge=1, le=100, description="Max agents to return"),
 ) -> list[AgentStatus]:
     """
@@ -240,17 +262,20 @@ async def get_agent_statuses(
         List of AgentStatus objects
     """
     # Get list of active agents
-    agent_ids = await conn.fetch(
-        """
+    result = await conn.execute(
+        text(
+            """
         SELECT DISTINCT agent_id, MAX(time) as last_seen
         FROM agent_metrics
         WHERE time >= NOW() - INTERVAL '1 hour'
         GROUP BY agent_id
         ORDER BY last_seen DESC
-        LIMIT $1
-        """,
-        limit,
+        LIMIT :limit
+        """
+        ),
+        {"limit": limit},
     )
+    agent_ids = result.mappings().all()
 
     statuses = []
     for row in agent_ids:
@@ -258,45 +283,57 @@ async def get_agent_statuses(
         last_seen = row["last_seen"]
 
         # Get agent-specific metrics
-        error_rate = await conn.fetchval(
+        result = await conn.execute(
+            text(
+                """
+            SELECT get_agent_error_rate(:agent_id, '1 hour')
             """
-            SELECT get_agent_error_rate($1, '1 hour')
-            """,
-            agent_id,
+            ),
+            {"agent_id": agent_id},
         )
+        error_rate = result.scalar_one_or_none()
 
-        total_requests = await conn.fetchval(
-            """
+        result = await conn.execute(
+            text(
+                """
             SELECT COALESCE(SUM(value), 0)::INT
             FROM agent_metrics
-            WHERE agent_id = $1
+            WHERE agent_id = :agent_id
               AND metric_name IN ('success_count', 'error_count')
               AND time >= NOW() - INTERVAL '1 hour'
-            """,
-            agent_id,
-        )
-
-        avg_latency = await conn.fetchval(
             """
+            ),
+            {"agent_id": agent_id},
+        )
+        total_requests = result.scalar_one_or_none()
+
+        result = await conn.execute(
+            text(
+                """
             SELECT COALESCE(AVG(value), 0)
             FROM agent_metrics
-            WHERE agent_id = $1
+            WHERE agent_id = :agent_id
               AND metric_name = 'latency_ms'
               AND time >= NOW() - INTERVAL '1 hour'
-            """,
-            agent_id,
-        )
-
-        total_tokens = await conn.fetchval(
             """
+            ),
+            {"agent_id": agent_id},
+        )
+        avg_latency = result.scalar_one_or_none()
+
+        result = await conn.execute(
+            text(
+                """
             SELECT COALESCE(SUM(value), 0)::INT
             FROM agent_metrics
-            WHERE agent_id = $1
+            WHERE agent_id = :agent_id
               AND metric_name IN ('tokens_input', 'tokens_output', 'tokens_reasoning')
               AND time >= NOW() - INTERVAL '1 hour'
-            """,
-            agent_id,
+            """
+            ),
+            {"agent_id": agent_id},
         )
+        total_tokens = result.scalar_one_or_none()
 
         statuses.append(
             AgentStatus(
@@ -318,7 +355,7 @@ async def get_metric_timeseries(
     agent_id: str | None = Query(None, description="Filter by agent ID"),
     interval: str = Query("1 hour", description="Time interval (e.g., '1 hour', '24 hours')"),
     bucket_size: str = Query("5 minutes", description="Bucket size for aggregation"),
-    conn: asyncpg.Connection = Depends(get_session),
+    conn: AsyncSession = Depends(get_session),
 ) -> list[AgentMetricPoint]:
     """
     Get time-series data for a specific metric.
@@ -333,20 +370,24 @@ async def get_metric_timeseries(
     """
     query = """
     SELECT
-        time_bucket($1::INTERVAL, time) AS bucket,
+        time_bucket(:bucket_size::INTERVAL, time) AS bucket,
         agent_id,
-        $2 AS metric_name,
+        :metric_name AS metric_name,
         AVG(value) AS value
     FROM agent_metrics
-    WHERE metric_name = $2
-      AND time >= NOW() - $3::INTERVAL
+    WHERE metric_name = :metric_name
+      AND time >= NOW() - :interval::INTERVAL
     """
 
-    params = [bucket_size, metric_name, interval]
+    params = {
+        "bucket_size": bucket_size,
+        "metric_name": metric_name,
+        "interval": interval,
+    }
 
     if agent_id:
-        query += " AND agent_id = $4"
-        params.append(agent_id)
+        query += " AND agent_id = :agent_id"
+        params["agent_id"] = agent_id
 
     query += """
     GROUP BY bucket, agent_id
@@ -354,7 +395,8 @@ async def get_metric_timeseries(
     LIMIT 288
     """  # Max 288 points (24 hours at 5-min buckets)
 
-    rows = await conn.fetch(query, *params)
+    result = await conn.execute(text(query), params)
+    rows = result.mappings().all()
 
     return [
         AgentMetricPoint(
