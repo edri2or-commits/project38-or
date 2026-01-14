@@ -383,9 +383,7 @@ class AnomalyResponseIntegrator:
         """
         cutoff = datetime.now(UTC) - self.config.confirmation_window
         recent = [
-            a
-            for a in self._anomaly_history
-            if a.metric == anomaly.metric and a.timestamp > cutoff
+            a for a in self._anomaly_history if a.metric == anomaly.metric and a.timestamp > cutoff
         ]
 
         return len(recent) >= self.config.min_anomalies_for_pattern
@@ -475,9 +473,7 @@ class AnomalyResponseIntegrator:
         Returns:
             Result dictionary
         """
-        self.logger.info(
-            f"Executing {action.value} for anomaly in {anomaly.metric}"
-        )
+        self.logger.info(f"Executing {action.value} for anomaly in {anomaly.metric}")
 
         # Use controller's healing mechanism
         try:
@@ -538,9 +534,7 @@ class AnomalyResponseIntegrator:
                 "confirmation_window_minutes": (
                     self.config.confirmation_window.total_seconds() / 60
                 ),
-                "action_cooldown_minutes": (
-                    self.config.action_cooldown.total_seconds() / 60
-                ),
+                "action_cooldown_minutes": (self.config.action_cooldown.total_seconds() / 60),
             },
         }
 
@@ -578,15 +572,11 @@ class AnomalyResponseIntegrator:
 
         # Keep only anomalies from last hour
         hour_ago = datetime.now(UTC) - timedelta(hours=1)
-        self._anomaly_history = [
-            a for a in self._anomaly_history if a.timestamp > hour_ago
-        ]
+        self._anomaly_history = [a for a in self._anomaly_history if a.timestamp > hour_ago]
 
         # Trim action history
         for key in list(self._action_history.keys()):
-            self._action_history[key] = [
-                t for t in self._action_history[key] if t > hour_ago
-            ]
+            self._action_history[key] = [t for t in self._action_history[key] if t > hour_ago]
             if not self._action_history[key]:
                 del self._action_history[key]
 

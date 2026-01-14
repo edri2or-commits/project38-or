@@ -130,9 +130,7 @@ class MetricsCollector:
             self._client = httpx.AsyncClient(timeout=30.0)
         return self._client
 
-    async def collect_from_endpoint(
-        self, endpoint: MetricsEndpoint
-    ) -> CollectedMetrics:
+    async def collect_from_endpoint(self, endpoint: MetricsEndpoint) -> CollectedMetrics:
         """
         Collect metrics from a single endpoint.
 
@@ -219,9 +217,7 @@ class MetricsCollector:
             metrics["health_status"] = 1.0 if data["status"] == "healthy" else 0.0
 
         if "database" in data:
-            metrics["database_connected"] = (
-                1.0 if data["database"] == "connected" else 0.0
-            )
+            metrics["database_connected"] = 1.0 if data["database"] == "connected" else 0.0
 
         # Extract any numeric values recursively
         self._extract_numeric_values(data, "", metrics)
@@ -347,9 +343,7 @@ class MonitoringLoop:
         self.state = MonitoringState.STARTING
         self._stop_event.clear()
 
-        self.logger.info(
-            f"Starting monitoring loop (interval: {self.config.collection_interval}s)"
-        )
+        self.logger.info(f"Starting monitoring loop (interval: {self.config.collection_interval}s)")
 
         self._task = asyncio.create_task(self._run_loop())
         self.state = MonitoringState.RUNNING
@@ -523,8 +517,7 @@ class MonitoringLoop:
             if response.action_taken:
                 self.stats["healing_actions_triggered"] += 1
                 self.logger.info(
-                    f"Self-healing action executed for {metric_name}: "
-                    f"{response.action_taken}"
+                    f"Self-healing action executed for {metric_name}: {response.action_taken}"
                 )
 
         except Exception as e:
@@ -536,9 +529,7 @@ class MonitoringLoop:
             **self.stats,
             "state": self.state.value,
             "endpoints_count": len(self.collector.endpoints),
-            "enabled_endpoints": sum(
-                1 for ep in self.collector.endpoints if ep.enabled
-            ),
+            "enabled_endpoints": sum(1 for ep in self.collector.endpoints if ep.enabled),
             "history_size": len(self._metrics_history),
             "detector_algorithms": len(self.detector.algorithms),
         }

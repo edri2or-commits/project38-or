@@ -242,9 +242,7 @@ class TestResponseStrategy:
         should_act, _ = integrator._should_take_action(sample_anomaly)
         assert should_act is True
 
-    def test_escalate_only_never_acts(
-        self, mock_detector, mock_controller, critical_anomaly
-    ):
+    def test_escalate_only_never_acts(self, mock_detector, mock_controller, critical_anomaly):
         """Test ESCALATE_ONLY strategy never auto-acts."""
         integrator = AnomalyResponseIntegrator(
             detector=mock_detector,
@@ -255,9 +253,7 @@ class TestResponseStrategy:
         assert should_act is False
         assert "escalate-only" in reason.lower()
 
-    def test_learning_mode_never_acts(
-        self, mock_detector, mock_controller, critical_anomaly
-    ):
+    def test_learning_mode_never_acts(self, mock_detector, mock_controller, critical_anomaly):
         """Test LEARNING strategy never auto-acts."""
         integrator = AnomalyResponseIntegrator(
             detector=mock_detector,
@@ -350,9 +346,7 @@ class TestCooldown:
         integrator._record_action("latency", SelfHealingAction.RESTART_SERVICE)
 
         # Check cooldown
-        in_cooldown = integrator._is_in_cooldown(
-            "latency", SelfHealingAction.RESTART_SERVICE
-        )
+        in_cooldown = integrator._is_in_cooldown("latency", SelfHealingAction.RESTART_SERVICE)
         assert in_cooldown is True
 
     def test_cooldown_expires(self, integrator):
@@ -363,9 +357,7 @@ class TestCooldown:
         integrator._action_history[key] = [old_time]
 
         # Should not be in cooldown (default 10 min)
-        in_cooldown = integrator._is_in_cooldown(
-            "latency", SelfHealingAction.RESTART_SERVICE
-        )
+        in_cooldown = integrator._is_in_cooldown("latency", SelfHealingAction.RESTART_SERVICE)
         assert in_cooldown is False
 
     def test_max_actions_per_hour(self, integrator):
@@ -378,9 +370,7 @@ class TestCooldown:
         ]
 
         # Default max is 3, so should be in cooldown
-        in_cooldown = integrator._is_in_cooldown(
-            "latency", SelfHealingAction.RESTART_SERVICE
-        )
+        in_cooldown = integrator._is_in_cooldown("latency", SelfHealingAction.RESTART_SERVICE)
         assert in_cooldown is True
 
 
@@ -410,9 +400,7 @@ class TestDetectionCycle:
         """Test detection cycle with provided metrics."""
         mock_detector.detect_anomaly = MagicMock(return_value=None)
 
-        await integrator.run_detection_cycle(
-            metrics={"latency": 100.0, "memory_usage": 70.0}
-        )
+        await integrator.run_detection_cycle(metrics={"latency": 100.0, "memory_usage": 70.0})
 
         # Should have called add_data_point for each metric
         assert mock_detector.add_data_point.call_count == 2
@@ -422,9 +410,7 @@ class TestDetectionCycle:
         """Test detection cycle processes detected anomaly."""
         mock_detector.detect_anomaly = MagicMock(return_value=sample_anomaly)
 
-        responses = await integrator.run_detection_cycle(
-            metrics={"latency": 150.0}
-        )
+        responses = await integrator.run_detection_cycle(metrics={"latency": 150.0})
 
         assert len(responses) == 1
         assert responses[0].anomaly == sample_anomaly
@@ -436,9 +422,7 @@ class TestDetectionCycle:
         """Test detection cycle triggers healing action."""
         mock_detector.detect_anomaly = MagicMock(return_value=sample_anomaly)
 
-        responses = await integrator.run_detection_cycle(
-            metrics={"latency": 150.0}
-        )
+        responses = await integrator.run_detection_cycle(metrics={"latency": 150.0})
 
         assert len(responses) == 1
         assert responses[0].executed is True
@@ -467,6 +451,7 @@ class TestStatus:
 
         # Run a cycle
         import asyncio
+
         asyncio.get_event_loop().run_until_complete(
             integrator.run_detection_cycle(metrics={"latency": 150.0})
         )

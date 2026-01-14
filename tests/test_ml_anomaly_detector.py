@@ -54,6 +54,7 @@ def detector_low_sensitivity():
 def normal_data():
     """Generate normal distribution data."""
     import random
+
     random.seed(42)
     return [100 + random.gauss(0, 10) for _ in range(50)]
 
@@ -62,6 +63,7 @@ def normal_data():
 def normal_data_with_outlier():
     """Generate normal data with one clear outlier."""
     import random
+
     random.seed(42)
     data = [100 + random.gauss(0, 10) for _ in range(49)]
     data.append(200)  # Clear outlier
@@ -642,9 +644,7 @@ class TestIntegration:
         assert len(status["metrics_tracked"]) == 2
 
         # Detect anomalies
-        anomalies = detector.detect_all_anomalies(
-            {"latency": 100.0, "errors": 100.0}
-        )
+        anomalies = detector.detect_all_anomalies({"latency": 100.0, "errors": 100.0})
 
         # Report on results
         for anomaly in anomalies:
@@ -658,6 +658,7 @@ class TestIntegration:
     def test_continuous_monitoring_simulation(self, detector):
         """Test simulating continuous monitoring."""
         import random
+
         random.seed(42)
 
         # Simulate 1 hour of monitoring (60 data points, 1 per minute)
