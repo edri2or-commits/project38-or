@@ -57,8 +57,8 @@ jobs:
         id: pytest
         run: |
           # conftest.py now auto-skips tests with missing dependencies
+          # test_secrets_manager has test isolation issues (passes individually)
           python -m pytest --cov=src --cov-report=term-missing -v --cov-fail-under=0 \
-            --ignore=tests/test_backup_manager.py \
             --ignore=tests/test_secrets_manager.py \
             2>&1 | tee pytest-output.txt
           exit ${PIPESTATUS[0]}
