@@ -23,13 +23,15 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from src.anomaly_response_integrator import AnomalyResponseIntegrator
-from src.autonomous_controller import AutonomousController
 from src.ml_anomaly_detector import MLAnomalyDetector
+
+if TYPE_CHECKING:
+    from src.anomaly_response_integrator import AnomalyResponseIntegrator
+    from src.autonomous_controller import AutonomousController
 
 logger = logging.getLogger(__name__)
 
@@ -602,6 +604,9 @@ def create_railway_monitoring_loop(
 
     # If controller provided, create and set integrator
     if controller:
+        # Lazy import to avoid circular dependency issues
+        from src.anomaly_response_integrator import AnomalyResponseIntegrator
+
         integrator = AnomalyResponseIntegrator(controller=controller)
         loop.set_integrator(integrator)
 
