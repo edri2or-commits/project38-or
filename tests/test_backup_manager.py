@@ -13,23 +13,18 @@ Tests:
 Uses mocking to avoid real PostgreSQL and GCS calls.
 """
 
-import asyncio
 import hashlib
 import json
-import tempfile
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from src.backup_manager import (
     BackupManager,
     BackupMetadata,
-    BackupResult,
     create_backup_manager,
 )
-
 
 # Fixtures
 
@@ -492,7 +487,10 @@ async def test_load_metadata_success(backup_manager, tmp_path):
         mock_path_instance.__truediv__ = Mock(return_value=temp_json)
         mock_path.return_value = mock_path_instance
 
-        with patch("builtins.open", side_effect=lambda path, *args, **kwargs: open(temp_json, *args, **kwargs)):
+        def mock_open(path, *args, **kwargs):
+            return open(temp_json, *args, **kwargs)
+
+        with patch("builtins.open", side_effect=mock_open):
             metadata = await backup_manager._load_metadata("gs://bucket/metadata.json")
 
         assert metadata is not None

@@ -10,7 +10,6 @@ Tests cover:
 
 import sys
 from datetime import UTC, datetime
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -32,7 +31,6 @@ from src.dependency_updater import (
     get_update_summary,
     quick_security_check,
 )
-
 
 # =============================================================================
 # VULNERABILITY TESTS

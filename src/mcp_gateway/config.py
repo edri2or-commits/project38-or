@@ -6,7 +6,6 @@ Loads credentials from GCP Secret Manager and environment variables.
 
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -23,7 +22,7 @@ class MCPGatewayConfig:
     production_url: str
 
 
-_config: Optional[MCPGatewayConfig] = None
+_config: MCPGatewayConfig | None = None
 
 
 def get_config() -> MCPGatewayConfig:

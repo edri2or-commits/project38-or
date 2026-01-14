@@ -200,7 +200,7 @@ class CostAlertService:
             alert_sent = await self._send_alert(payload)
             if alert_sent:
                 self._last_alert[severity] = now
-                message = f"Alert sent to Telegram via n8n"
+                message = "Alert sent to Telegram via n8n"
             else:
                 message = "Failed to send alert"
         except Exception as e:
@@ -258,7 +258,7 @@ class CostAlertService:
 
                 if response.status_code < 300:
                     logger.info(
-                        f"Cost alert sent successfully",
+                        "Cost alert sent successfully",
                         extra={
                             "severity": payload.get("severity"),
                             "projected_cost": payload.get("projected_cost"),

@@ -8,7 +8,8 @@ Provides autonomous Railway operations:
 - Fetch deployment history
 """
 
-from typing import Any, Optional
+from typing import Any
+
 import httpx
 
 from ..config import get_config
@@ -50,7 +51,7 @@ async def _graphql_request(query: str, variables: dict = None) -> dict:
         return response.json()
 
 
-async def trigger_deployment(service_id: Optional[str] = None) -> dict[str, Any]:
+async def trigger_deployment(service_id: str | None = None) -> dict[str, Any]:
     """
     Trigger a new Railway deployment.
 
@@ -106,7 +107,7 @@ async def trigger_deployment(service_id: Optional[str] = None) -> dict[str, Any]
         }
 
 
-async def get_deployment_status(service_id: Optional[str] = None) -> dict[str, Any]:
+async def get_deployment_status(service_id: str | None = None) -> dict[str, Any]:
     """
     Get current Railway deployment status.
 
@@ -182,7 +183,7 @@ async def get_deployment_status(service_id: Optional[str] = None) -> dict[str, A
 
 async def get_recent_deployments(
     count: int = 5,
-    service_id: Optional[str] = None
+    service_id: str | None = None
 ) -> dict[str, Any]:
     """
     Get recent Railway deployments.
@@ -253,7 +254,7 @@ async def get_recent_deployments(
         }
 
 
-async def execute_rollback(deployment_id: Optional[str] = None) -> dict[str, Any]:
+async def execute_rollback(deployment_id: str | None = None) -> dict[str, Any]:
     """
     Execute rollback to a previous successful deployment.
 
