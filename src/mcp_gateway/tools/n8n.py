@@ -7,7 +7,8 @@ Provides autonomous n8n workflow operations:
 - Check workflow status
 """
 
-from typing import Any, Optional
+from typing import Any
+
 import httpx
 
 from ..config import get_config
@@ -46,7 +47,7 @@ WORKFLOW_REGISTRY = {
 
 async def trigger_workflow(
     workflow_name: str,
-    data: Optional[dict] = None
+    data: dict | None = None
 ) -> dict[str, Any]:
     """
     Trigger an n8n workflow via webhook.

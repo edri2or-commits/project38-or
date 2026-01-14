@@ -14,7 +14,7 @@ Usage:
 """
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 # Check if fastmcp is available
 try:
@@ -24,10 +24,9 @@ except ImportError:
     FASTMCP_AVAILABLE = False
     FastMCP = None
 
-from .config import get_config
 
 
-def create_mcp_server() -> Optional[Any]:
+def create_mcp_server() -> Any | None:
     """
     Create and configure the FastMCP server.
 
@@ -110,6 +109,7 @@ def create_mcp_server() -> Optional[Any]:
             Workflow execution result
         """
         import json
+
         from .tools.n8n import trigger_workflow
 
         try:

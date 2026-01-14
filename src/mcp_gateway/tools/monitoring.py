@@ -6,7 +6,9 @@ Provides health checks and metrics:
 - Get system metrics
 """
 
+from datetime import UTC
 from typing import Any
+
 import httpx
 
 from ..config import get_config
@@ -143,11 +145,11 @@ async def check_health() -> dict[str, Any]:
     else:
         overall_status = "healthy"
 
-    from datetime import datetime, timezone
+    from datetime import datetime
     return {
         "status": overall_status,
         "services": services,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
 
 
