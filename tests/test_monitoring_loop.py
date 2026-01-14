@@ -680,7 +680,7 @@ class TestIntegration:
 
         # Train detector with normal values first
         for i in range(50):
-            loop.detector.detect_anomaly("latency", 50.0 + i)
+            loop.detector.add_data_point("latency", 50.0 + i)
 
         # Mock collection returning anomalous value
         now = datetime.now(UTC)
