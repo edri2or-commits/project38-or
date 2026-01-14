@@ -5,10 +5,7 @@ tests when their required dependencies are missing, preventing CI failures
 due to optional or in-development modules.
 """
 
-import sys
-from pathlib import Path
-
-import pytest
+import pytest  # noqa: F401 - Required by pytest hooks
 
 
 def pytest_ignore_collect(collection_path, config):
@@ -81,7 +78,7 @@ def pytest_collection_modifyitems(config, items):
 
     for item in items:
         # Check if item was marked for skipping
-        skip_markers = [m for m in item.iter_markers(name="skip")]
+        skip_markers = list(item.iter_markers(name="skip"))
         if skip_markers:
             reason = skip_markers[0].kwargs.get("reason", "Unknown")
             skipped_counts[reason] = skipped_counts.get(reason, 0) + 1
