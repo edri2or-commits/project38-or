@@ -9,6 +9,7 @@ on:
       - 'tests/**'
       - 'pyproject.toml'
       - 'requirements*.txt'
+      - 'conftest.py'  # Test configuration
       - 'docs/**'  # Run on docs changes to satisfy branch protection
 
 permissions:
