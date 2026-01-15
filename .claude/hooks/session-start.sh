@@ -80,6 +80,13 @@ else
     echo "   ✅ MCP Bridge token already in environment" >&2
 fi
 
+# Load Workspace MCP Bridge token (for Google Workspace)
+if [ -z "$WORKSPACE_MCP_BRIDGE_TOKEN" ]; then
+    load_gcp_secret "WORKSPACE-MCP-BRIDGE-TOKEN" "WORKSPACE_MCP_BRIDGE_TOKEN" || true
+else
+    echo "   ✅ Workspace MCP Bridge token already in environment" >&2
+fi
+
 # Get GCP access token for Google Cloud MCP servers
 GCP_TOKEN_AVAILABLE=false
 if [ -z "$GCP_ACCESS_TOKEN" ]; then
@@ -111,6 +118,13 @@ if [ "$GCP_TOKEN_AVAILABLE" = true ]; then
     CONTEXT+="- GCP Project: project38-483612\\n"
 else
     CONTEXT+="- GCP MCP Servers: ⚠️ Not authenticated\\n"
+fi
+
+# Google Workspace MCP
+if [ -n "$WORKSPACE_MCP_BRIDGE_TOKEN" ]; then
+    CONTEXT+="- Google Workspace: Gmail, Calendar, Drive, Sheets, Docs (28 tools)\\n"
+else
+    CONTEXT+="- Google Workspace: ⚠️ Token not loaded\\n"
 fi
 
 # Check token status

@@ -186,6 +186,37 @@ def create_mcp_server() -> Any | None:
 
         return await check_deployment_health()
 
+    # Register OAuth tools
+    @mcp.tool
+    async def workspace_oauth_exchange(auth_code: str) -> dict:
+        """
+        Exchange OAuth authorization code for refresh token.
+
+        Gets Client ID and Secret from GCP Secret Manager,
+        exchanges the code, and stores the refresh token.
+
+        Args:
+            auth_code: The authorization code from Google OAuth
+
+        Returns:
+            Success status and any error messages
+        """
+        from .tools.oauth import exchange_oauth_code
+
+        return await exchange_oauth_code(auth_code)
+
+    @mcp.tool
+    async def workspace_oauth_status() -> dict:
+        """
+        Check Google Workspace OAuth configuration status.
+
+        Returns:
+            Which OAuth secrets are configured in Secret Manager
+        """
+        from .tools.oauth import check_oauth_status
+
+        return await check_oauth_status()
+
     return mcp
 
 

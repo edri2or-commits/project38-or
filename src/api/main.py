@@ -111,6 +111,23 @@ if MCP_GATEWAY_ENABLED:
 else:
     logger.info("MCP Gateway disabled (set MCP_GATEWAY_ENABLED=true to enable)")
 
+# Mount Google Workspace MCP Bridge for Gmail, Calendar, Drive, Sheets, Docs
+WORKSPACE_MCP_ENABLED = os.getenv("WORKSPACE_MCP_ENABLED", "false").lower() == "true"
+if WORKSPACE_MCP_ENABLED:
+    try:
+        from src.workspace_mcp_bridge.server import create_app as create_workspace_app
+
+        workspace_app = create_workspace_app()
+        if workspace_app:
+            app.mount("/workspace", workspace_app)
+            logger.info("Google Workspace MCP Bridge mounted at /workspace")
+        else:
+            logger.warning("Workspace MCP Bridge not available")
+    except ImportError as e:
+        logger.warning(f"Workspace MCP Bridge import failed: {e}")
+else:
+    logger.info("Workspace MCP disabled (set WORKSPACE_MCP_ENABLED=true to enable)")
+
 
 # Debug endpoint to verify routes are registered
 @app.get("/debug/routes")
