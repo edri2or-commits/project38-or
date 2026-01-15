@@ -13,6 +13,9 @@ import pytest  # noqa: F401 - Required by pytest hooks
 # Cache for module availability checks (avoid repeated subprocess calls)
 _module_check_cache: dict[str, bool] = {}
 
+# Cache for PostgreSQL availability check
+_postgres_available: bool | None = None
+
 
 def _check_module_importable(module_name: str) -> bool:
     """
@@ -43,6 +46,57 @@ def _check_module_importable(module_name: str) -> bool:
 
     _module_check_cache[module_name] = is_importable
     return is_importable
+
+
+def _check_postgres_available() -> bool:
+    """
+    Check if PostgreSQL is accessible.
+
+    Uses a subprocess to try connecting to the database URL.
+
+    Returns:
+        True if PostgreSQL is accessible, False otherwise
+    """
+    global _postgres_available
+    if _postgres_available is not None:
+        return _postgres_available
+
+    import os
+
+    db_url = os.environ.get("DATABASE_URL", "postgresql://localhost:5432/test")
+
+    # Quick check - if no asyncpg installed, definitely can't connect
+    if not _check_module_importable("asyncpg"):
+        _postgres_available = False
+        return False
+
+    # Try to connect using a simple socket check (faster than full connection)
+    import socket
+
+    try:
+        # Parse host and port from DATABASE_URL
+        # Format: postgresql://user:pass@host:port/db or postgresql://host:port/db
+        if "@" in db_url:
+            host_port = db_url.split("@")[1].split("/")[0]
+        else:
+            host_port = db_url.replace("postgresql://", "").split("/")[0]
+
+        if ":" in host_port:
+            host, port = host_port.rsplit(":", 1)
+            port = int(port)
+        else:
+            host = host_port
+            port = 5432
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        _postgres_available = result == 0
+    except Exception:
+        _postgres_available = False
+
+    return _postgres_available
 
 
 def pytest_ignore_collect(collection_path, config):
@@ -101,9 +155,16 @@ def pytest_ignore_collect(collection_path, config):
             ("from src.monitoring_loop import", "jwt"),
             # Performance baseline - needs psutil
             ("from src.performance_baseline import", "psutil"),
-            # Secrets manager - needs google.api_core.exceptions working properly
-            ("from src.secrets_manager import", "google.api_core.exceptions"),
+            # Secrets manager - needs google.cloud.secretmanager (includes cryptography chain)
+            ("from src.secrets_manager import", "google.cloud.secretmanager"),
         ]
+
+        # Special check for API agent tests - need PostgreSQL running
+        # These tests use TestClient which triggers app lifespan that connects to DB
+        if "test_api_agents" in str(collection_path):
+            # Check if PostgreSQL is accessible
+            if not _check_postgres_available():
+                return True
 
         for import_pattern, required_module in problematic_imports:
             if import_pattern in content:
