@@ -42,6 +42,7 @@ secrets/
 !.claude/settings.json
 !pyproject.toml
 !mkdocs.yml
+!services/**/package.json
 
 # IDE
 .vscode/
