@@ -249,14 +249,12 @@ class MLAnomalyDetector:
 
         # Trim to window size
         if len(self.data[metric]) > self.window_size * 2:
-            self.data[metric] = self.data[metric][-self.window_size:]
+            self.data[metric] = self.data[metric][-self.window_size :]
 
         # Update statistics incrementally
         self._update_stats(metric)
 
-    def add_batch(
-        self, metric: str, values: list[tuple[float, datetime]]
-    ) -> None:
+    def add_batch(self, metric: str, values: list[tuple[float, datetime]]) -> None:
         """Add multiple data points at once.
 
         Args:
@@ -286,7 +284,7 @@ class MLAnomalyDetector:
         if len(points) < 2:
             return
 
-        values = [p.value for p in points[-self.window_size:]]
+        values = [p.value for p in points[-self.window_size :]]
 
         # Basic statistics
         mean = sum(values) / len(values)
@@ -337,9 +335,7 @@ class MLAnomalyDetector:
     # DETECTION ALGORITHMS
     # ========================================================================
 
-    def _detect_adaptive_zscore(
-        self, metric: str, value: float
-    ) -> tuple[bool, float, str]:
+    def _detect_adaptive_zscore(self, metric: str, value: float) -> tuple[bool, float, str]:
         """Detect anomaly using adaptive Z-score.
 
         Adapts threshold based on recent data stability.
@@ -375,9 +371,7 @@ class MLAnomalyDetector:
 
         return is_anomaly, zscore, reason
 
-    def _detect_ema_deviation(
-        self, metric: str, value: float
-    ) -> tuple[bool, float, str]:
+    def _detect_ema_deviation(self, metric: str, value: float) -> tuple[bool, float, str]:
         """Detect anomaly using EMA deviation.
 
         Compares current value to exponential moving average.
@@ -407,9 +401,7 @@ class MLAnomalyDetector:
 
         return is_anomaly, deviation, reason
 
-    def _detect_iqr_outlier(
-        self, metric: str, value: float
-    ) -> tuple[bool, float, str]:
+    def _detect_iqr_outlier(self, metric: str, value: float) -> tuple[bool, float, str]:
         """Detect outlier using Interquartile Range method.
 
         More robust to existing outliers in the data.
@@ -494,9 +486,7 @@ class MLAnomalyDetector:
 
         return is_anomaly, deviation, reason
 
-    def _detect_rolling_stats(
-        self, metric: str, value: float
-    ) -> tuple[bool, float, str]:
+    def _detect_rolling_stats(self, metric: str, value: float) -> tuple[bool, float, str]:
         """Detect anomaly using rolling window statistics.
 
         Focuses on recent data trends rather than full history.
@@ -617,9 +607,7 @@ class MLAnomalyDetector:
         expected = self.stats[metric].mean if metric in self.stats else value
 
         # Create message
-        message = self._create_anomaly_message(
-            metric, value, expected, methods_triggered, reasons
-        )
+        message = self._create_anomaly_message(metric, value, expected, methods_triggered, reasons)
 
         return MLAnomaly(
             metric=metric,
@@ -755,9 +743,7 @@ class MLAnomalyDetector:
         variance = sum((x - mean) ** 2 for x in values) / len(values)
         return math.sqrt(variance)
 
-    def _determine_severity(
-        self, deviation: float, confidence: float
-    ) -> AnomalySeverity:
+    def _determine_severity(self, deviation: float, confidence: float) -> AnomalySeverity:
         """Determine anomaly severity based on deviation and confidence."""
         score = deviation * confidence
 

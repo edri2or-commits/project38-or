@@ -611,9 +611,7 @@ class TestCreateRailwayMonitoringLoop:
 
     def test_create_with_custom_url(self) -> None:
         """Test creating loop with custom URL."""
-        loop = create_railway_monitoring_loop(
-            railway_url="https://custom.example.com"
-        )
+        loop = create_railway_monitoring_loop(railway_url="https://custom.example.com")
 
         endpoints = loop.collector.endpoints
         assert endpoints[0].url == "https://custom.example.com/api/health"

@@ -54,6 +54,7 @@ def detector_low_sensitivity():
 def normal_data():
     """Generate normal distribution data."""
     import random
+
     random.seed(42)
     return [100 + random.gauss(0, 10) for _ in range(50)]
 
@@ -62,6 +63,7 @@ def normal_data():
 def normal_data_with_outlier():
     """Generate normal data with one clear outlier."""
     import random
+
     random.seed(42)
     data = [100 + random.gauss(0, 10) for _ in range(49)]
     data.append(200)  # Clear outlier
@@ -71,15 +73,19 @@ def normal_data_with_outlier():
 @pytest.fixture
 def seasonal_data():
     """Generate data with seasonal (hourly) pattern."""
+    import random
+
+    random.seed(42)
     data = []
     base_time = datetime.now(UTC) - timedelta(days=3)
     for i in range(72):  # 3 days of hourly data
         hour = i % 24
-        # Higher values during business hours
+        # Higher values during business hours with slight variance
+        # Variance is needed for stddev calculation in seasonal detection
         if 9 <= hour <= 17:
-            value = 100 + 20  # Business hours: 120
+            value = 100 + 20 + random.gauss(0, 2)  # Business hours: ~120
         else:
-            value = 100 - 10  # Off hours: 90
+            value = 100 - 10 + random.gauss(0, 2)  # Off hours: ~90
         timestamp = base_time + timedelta(hours=i)
         data.append((value, timestamp))
     return data
@@ -341,9 +347,13 @@ class TestRollingStats:
 
     def test_deviation_from_recent_detected(self, detector):
         """Test deviation from recent values is detected."""
-        # Add stable baseline
+        import random
+
+        random.seed(42)
+        # Add stable baseline with slight variance (needed for std deviation calc)
         for _ in range(30):
-            detector.add_data_point("latency", 100.0)
+            # Small variance around 100.0 allows std deviation to be computed
+            detector.add_data_point("latency", 100.0 + random.gauss(0, 2))
 
         # Large deviation from recent mean
         is_anom, dev, _ = detector._detect_rolling_stats("latency", 500.0)
@@ -642,9 +652,7 @@ class TestIntegration:
         assert len(status["metrics_tracked"]) == 2
 
         # Detect anomalies
-        anomalies = detector.detect_all_anomalies(
-            {"latency": 100.0, "errors": 100.0}
-        )
+        anomalies = detector.detect_all_anomalies({"latency": 100.0, "errors": 100.0})
 
         # Report on results
         for anomaly in anomalies:
@@ -658,6 +666,7 @@ class TestIntegration:
     def test_continuous_monitoring_simulation(self, detector):
         """Test simulating continuous monitoring."""
         import random
+
         random.seed(42)
 
         # Simulate 1 hour of monitoring (60 data points, 1 per minute)

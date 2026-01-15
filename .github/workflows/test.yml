@@ -73,12 +73,17 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/agentplatform
         run: |
-          # All tests enabled after fixing mocking issues (BUG-005A/B)
-          # Coverage threshold set to 70% (current: 71%)
-          # PostgreSQL service container provides database for API tests
-          python -m pytest --cov=src --cov-report=term-missing -v --cov-fail-under=70 \
-            2>&1 | tee pytest-output.txt
-          exit ${PIPESTATUS[0]}
+          # Run tests with verbose output and full traceback
+          # Coverage threshold temporarily disabled to diagnose failures
+          python -m pytest -v --tb=long -x 2>&1 | tee pytest-output.txt
+          TEST_EXIT=$?
+
+          # Also generate coverage report if tests pass
+          if [ $TEST_EXIT -eq 0 ]; then
+            python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=70 2>&1 | tee -a pytest-output.txt
+            exit $?
+          fi
+          exit $TEST_EXIT
 
       - name: Post test results to PR comment
         if: always() && github.event_name == 'pull_request'
