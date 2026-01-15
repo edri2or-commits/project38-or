@@ -1,0 +1,239 @@
+name: Setup Google Workspace OAuth
+# Cache refresh trigger - 2026-01-15T18:37:25
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - create-oauth-client
+          - generate-auth-url
+          - exchange-code
+          - check-status
+      auth_code:
+        description: 'Authorization code (for exchange-code action)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+  GCP_PROJECT_NUMBER: '979429709900'
+
+jobs:
+  setup-oauth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Check OAuth Status
+        if: inputs.action == 'check-status'
+        run: |
+          echo "🔍 Checking OAuth configuration status..."
+
+          # Check if secrets exist
+          echo ""
+          echo "📦 Secret Manager status:"
+          for secret in GOOGLE-OAUTH-CLIENT-ID GOOGLE-OAUTH-CLIENT-SECRET GOOGLE-OAUTH-REFRESH-TOKEN WORKSPACE-MCP-BRIDGE-TOKEN; do
+            if gcloud secrets describe "$secret" --project=$GCP_PROJECT_ID 2>/dev/null; then
+              echo "  ✅ $secret exists"
+            else
+              echo "  ❌ $secret not found"
+            fi
+          done
+
+          echo ""
+          echo "🔐 OAuth consent screen:"
+          # Check OAuth consent screen (requires OAuth Config API)
+          gcloud services list --enabled --project=$GCP_PROJECT_ID | grep -E "(oauth|identity)" || echo "  OAuth APIs status unknown"
+
+      - name: Create OAuth Client ID
+        if: inputs.action == 'create-oauth-client'
+        run: |
+          echo "🔧 Creating OAuth 2.0 Client ID..."
+
+          # Enable required APIs
+          echo "Enabling required APIs..."
+          gcloud services enable iamcredentials.googleapis.com --project=$GCP_PROJECT_ID
+          gcloud services enable secretmanager.googleapis.com --project=$GCP_PROJECT_ID
+
+          # Note: Creating OAuth credentials via gcloud is limited
+          # We'll create the client via the Cloud Console API
+
+          # Generate a secure bridge token
+          BRIDGE_TOKEN=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+
+          # Store bridge token in Secret Manager
+          echo "Storing bridge token..."
+          if ! gcloud secrets describe WORKSPACE-MCP-BRIDGE-TOKEN --project=$GCP_PROJECT_ID 2>/dev/null; then
+            gcloud secrets create WORKSPACE-MCP-BRIDGE-TOKEN --project=$GCP_PROJECT_ID --replication-policy=automatic
+          fi
+          echo -n "$BRIDGE_TOKEN" | gcloud secrets versions add WORKSPACE-MCP-BRIDGE-TOKEN --data-file=- --project=$GCP_PROJECT_ID
+
+          echo ""
+          echo "✅ Bridge token created and stored!"
+          echo ""
+          echo "⚠️ IMPORTANT: OAuth Client ID must be created manually in Google Cloud Console:"
+          echo "   1. Go to: https://console.cloud.google.com/apis/credentials?project=$GCP_PROJECT_ID"
+          echo "   2. Click 'Create Credentials' → 'OAuth client ID'"
+          echo "   3. Select 'Desktop app' as application type"
+          echo "   4. Name it 'Claude Workspace MCP'"
+          echo "   5. Copy the Client ID and Client Secret"
+          echo "   6. Run this workflow again with 'generate-auth-url' action"
+          echo ""
+          echo "Required OAuth Scopes to enable in OAuth consent screen:"
+          echo "   - https://www.googleapis.com/auth/gmail.modify"
+          echo "   - https://www.googleapis.com/auth/gmail.send"
+          echo "   - https://www.googleapis.com/auth/calendar"
+          echo "   - https://www.googleapis.com/auth/drive"
+          echo "   - https://www.googleapis.com/auth/spreadsheets"
+          echo "   - https://www.googleapis.com/auth/documents"
+
+      - name: Generate Authorization URL
+        if: inputs.action == 'generate-auth-url'
+        run: |
+          echo "🔗 Generating OAuth authorization URL..."
+
+          # Get client ID from Secret Manager
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID 2>/dev/null || echo "")
+
+          if [ -z "$CLIENT_ID" ]; then
+            echo "❌ Client ID not found in Secret Manager!"
+            echo ""
+            echo "Please first:"
+            echo "1. Create OAuth Client ID in Cloud Console"
+            echo "2. Store it: gcloud secrets create GOOGLE-OAUTH-CLIENT-ID --data-file=<(echo -n 'your-client-id')"
+            exit 1
+          fi
+
+          SCOPES="https://www.googleapis.com/auth/gmail.modify"
+          SCOPES="$SCOPES https://www.googleapis.com/auth/gmail.send"
+          SCOPES="$SCOPES https://www.googleapis.com/auth/calendar"
+          SCOPES="$SCOPES https://www.googleapis.com/auth/drive"
+          SCOPES="$SCOPES https://www.googleapis.com/auth/spreadsheets"
+          SCOPES="$SCOPES https://www.googleapis.com/auth/documents"
+
+          ENCODED_SCOPES=$(echo "$SCOPES" | sed 's/ /%20/g')
+          REDIRECT_URI="urn:ietf:wg:oauth:2.0:oob"
+
+          AUTH_URL="https://accounts.google.com/o/oauth2/v2/auth"
+          AUTH_URL="$AUTH_URL?client_id=$CLIENT_ID"
+          AUTH_URL="$AUTH_URL&redirect_uri=$REDIRECT_URI"
+          AUTH_URL="$AUTH_URL&response_type=code"
+          AUTH_URL="$AUTH_URL&scope=$ENCODED_SCOPES"
+          AUTH_URL="$AUTH_URL&access_type=offline"
+          AUTH_URL="$AUTH_URL&prompt=consent"
+
+          echo ""
+          echo "📋 Authorization URL generated!"
+          echo ""
+          echo "1. Open this URL in your browser:"
+          echo ""
+          echo "$AUTH_URL"
+          echo ""
+          echo "2. Sign in with your Google account"
+          echo "3. Grant all requested permissions"
+          echo "4. Copy the authorization code shown"
+          echo "5. Run this workflow again with:"
+          echo "   - Action: exchange-code"
+          echo "   - Auth code: <paste the code here>"
+
+      - name: Exchange Code for Refresh Token
+        if: inputs.action == 'exchange-code'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "🔄 Exchanging authorization code for refresh token..."
+
+          if [ -z "${{ inputs.auth_code }}" ]; then
+            echo "❌ Authorization code is required!"
+            exit 1
+          fi
+
+          # Get credentials from Secret Manager
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID)
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID)
+
+          if [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ]; then
+            echo "❌ OAuth credentials not found in Secret Manager!"
+            exit 1
+          fi
+
+          # Exchange code for tokens
+          RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=$CLIENT_ID" \
+            -d "client_secret=$CLIENT_SECRET" \
+            -d "code=${{ inputs.auth_code }}" \
+            -d "grant_type=authorization_code" \
+            -d "redirect_uri=urn:ietf:wg:oauth:2.0:oob")
+
+          # Check for errors
+          if echo "$RESPONSE" | grep -q "error"; then
+            echo "❌ Token exchange failed!"
+            ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error_description // .error')
+            echo "$ERROR_MSG"
+
+            # Post error to issue #149 for debugging
+            gh issue comment 149 --body "## OAuth Exchange Error
+
+**Error:** $ERROR_MSG
+
+**Full Response:**
+\`\`\`json
+$RESPONSE
+\`\`\`
+
+**Timestamp:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            exit 1
+          fi
+
+          # Extract refresh token
+          REFRESH_TOKEN=$(echo "$RESPONSE" | jq -r '.refresh_token')
+
+          if [ -z "$REFRESH_TOKEN" ] || [ "$REFRESH_TOKEN" = "null" ]; then
+            echo "❌ No refresh token in response!"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+
+          # Store refresh token in Secret Manager
+          echo "Storing refresh token..."
+          if ! gcloud secrets describe GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID 2>/dev/null; then
+            gcloud secrets create GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID --replication-policy=automatic
+          fi
+          echo -n "$REFRESH_TOKEN" | gcloud secrets versions add GOOGLE-OAUTH-REFRESH-TOKEN --data-file=- --project=$GCP_PROJECT_ID
+
+          echo ""
+          echo "✅ SUCCESS! OAuth setup complete!"
+          echo ""
+          echo "All credentials are now stored in GCP Secret Manager:"
+          echo "  - GOOGLE-OAUTH-CLIENT-ID"
+          echo "  - GOOGLE-OAUTH-CLIENT-SECRET"
+          echo "  - GOOGLE-OAUTH-REFRESH-TOKEN"
+          echo "  - WORKSPACE-MCP-BRIDGE-TOKEN"
+          echo ""
+          echo "Next steps:"
+          echo "1. Set WORKSPACE_MCP_ENABLED=true in Railway"
+          echo "2. Deploy to Railway"
+          echo "3. Test the /workspace/mcp endpoint"
