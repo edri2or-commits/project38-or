@@ -58,9 +58,9 @@ jobs:
       - name: Run unit tests
         id: tests
         run: |
-          # Run only unit tests (skip integration tests that require database)
+          # Run only unit tests (skip integration, e2e, and load tests)
           # Integration tests are validated by the dedicated test.yml workflow
-          if python -m pytest tests/ -v --tb=short --ignore=tests/integration/; then
+          if python -m pytest tests/ -v --tb=short --ignore=tests/integration --ignore=tests/e2e --ignore=tests/load; then
             echo "passed=true" >> $GITHUB_OUTPUT
           else
             echo "passed=false" >> $GITHUB_OUTPUT
