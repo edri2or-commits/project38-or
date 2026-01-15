@@ -20,6 +20,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  issues: write
 
 env:
   GCP_PROJECT_ID: project38-483612
@@ -158,6 +159,8 @@ jobs:
 
       - name: Exchange Code for Refresh Token
         if: inputs.action == 'exchange-code'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "🔄 Exchanging authorization code for refresh token..."
 
@@ -187,7 +190,20 @@ jobs:
           # Check for errors
           if echo "$RESPONSE" | grep -q "error"; then
             echo "❌ Token exchange failed!"
-            echo "$RESPONSE" | jq -r '.error_description // .error'
+            ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error_description // .error')
+            echo "$ERROR_MSG"
+
+            # Post error to issue #149 for debugging
+            gh issue comment 149 --body "## OAuth Exchange Error
+
+**Error:** $ERROR_MSG
+
+**Full Response:**
+\`\`\`json
+$RESPONSE
+\`\`\`
+
+**Timestamp:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
             exit 1
           fi
 
