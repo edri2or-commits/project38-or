@@ -120,15 +120,18 @@ class TestWIFHealthMonitor:
         assert monitor.metrics.consecutive_failures == 1
         assert monitor.metrics.last_failure_reason == "PermissionDenied"
 
-    def test_consecutive_failures_reset(self):
+    @pytest.mark.asyncio
+    async def test_consecutive_failures_reset(self):
         """Test that success resets consecutive failures."""
         monitor = WIFHealthMonitor()
-        monitor.record_failure("test-secret", "Error1")
-        monitor.record_failure("test-secret", "Error2")
-        assert monitor.metrics.consecutive_failures == 2
+        # Mock _send_alert to avoid actual alert sending
+        with patch.object(monitor, "_send_alert", return_value=None):
+            monitor.record_failure("test-secret", "Error1")
+            monitor.record_failure("test-secret", "Error2")
+            assert monitor.metrics.consecutive_failures == 2
 
-        monitor.record_success("test-secret")
-        assert monitor.metrics.consecutive_failures == 0
+            monitor.record_success("test-secret")
+            assert monitor.metrics.consecutive_failures == 0
 
     def test_get_health_report(self):
         """Test health report generation."""
@@ -148,7 +151,7 @@ class TestWIFHealthMonitor:
         """Test WIF health check with successful GCP access."""
         monitor = WIFHealthMonitor()
 
-        with patch("src.secrets_health.SecretManager") as mock_manager:
+        with patch("src.secrets_manager.SecretManager") as mock_manager:
             mock_instance = MagicMock()
             mock_instance.list_secrets.return_value = ["secret1", "secret2"]
             mock_manager.return_value = mock_instance
@@ -164,7 +167,7 @@ class TestWIFHealthMonitor:
         """Test WIF health check with GCP access failure."""
         monitor = WIFHealthMonitor()
 
-        with patch("src.secrets_health.SecretManager") as mock_manager:
+        with patch("src.secrets_manager.SecretManager") as mock_manager:
             mock_manager.side_effect = Exception("Auth failed")
 
             result = await monitor.check_wif_health()

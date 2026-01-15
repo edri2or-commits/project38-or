@@ -452,9 +452,7 @@ class TestStatus:
         # Run a cycle
         import asyncio
 
-        asyncio.get_event_loop().run_until_complete(
-            integrator.run_detection_cycle(metrics={"latency": 150.0})
-        )
+        asyncio.run(integrator.run_detection_cycle(metrics={"latency": 150.0}))
 
         status = integrator.get_status()
         assert status["anomalies_detected"] >= 1
