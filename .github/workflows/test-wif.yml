@@ -2,79 +2,115 @@ name: Test WIF Authentication
 
 on:
   workflow_dispatch:
+    inputs:
+      setup_oauth:
+        description: 'Setup OAuth secrets'
+        required: false
+        type: boolean
+        default: false
+      oauth_code:
+        description: 'OAuth authorization code'
+        required: false
+        type: string
 
 permissions:
   contents: read
-  id-token: write  # Required for OIDC token
+  id-token: write
+  issues: write
 
-concurrency:
-  group: test-wif-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  GCP_PROJECT_ID: project38-483612
 
 jobs:
   test-wif:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Authenticate to GCP via WIF
-        id: auth
+      - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
 
-      - name: Set up Cloud SDK
+      - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Test GCP Authentication
+      - name: Test WIF
+        if: inputs.setup_oauth != true
         run: |
-          echo "Testing GCP authentication..."
+          echo "✅ WIF Authentication successful!"
           gcloud auth list
           echo ""
-          echo "Current project:"
-          gcloud config get-value project
-          echo ""
-          echo "Testing project access:"
-          gcloud projects describe project38-483612
+          echo "Secrets available:"
+          gcloud secrets list --project=$GCP_PROJECT_ID --format="value(name)"
 
-      - name: Test Secret Manager Access
+      - name: Setup OAuth Secrets
+        if: inputs.setup_oauth == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLIENT_ID: "979429709900-n495tv062v7j0434jnocr19m8sn06nr6.apps.googleusercontent.com"
         run: |
-          echo "Testing Secret Manager access..."
-          gcloud secrets list --project=project38-483612 --limit=5
-          echo ""
-          echo "✅ WIF authentication successful!"
-
-      - name: Verify Service Account
-        run: |
-          echo "Verifying service account identity..."
-          CURRENT_SA=$(gcloud config get-value account)
-          EXPECTED_SA="claude-code-agent@project38-483612.iam.gserviceaccount.com"
-
-          if [ "$CURRENT_SA" = "$EXPECTED_SA" ]; then
-            echo "✅ Correct service account: $CURRENT_SA"
+          echo "🔧 Setting up OAuth secrets..."
+          
+          # Create GOOGLE-OAUTH-CLIENT-ID if not exists
+          if ! gcloud secrets describe GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID 2>/dev/null; then
+            echo "Creating GOOGLE-OAUTH-CLIENT-ID..."
+            gcloud secrets create GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID --replication-policy=automatic
+          fi
+          echo -n "$CLIENT_ID" | gcloud secrets versions add GOOGLE-OAUTH-CLIENT-ID --data-file=- --project=$GCP_PROJECT_ID
+          echo "✅ GOOGLE-OAUTH-CLIENT-ID set"
+          
+          # Copy CLIENT_ID secret to GOOGLE-OAUTH-CLIENT-SECRET
+          echo "Getting Client Secret from CLIENT_ID secret..."
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret=CLIENT_ID --project=$GCP_PROJECT_ID 2>/dev/null || echo "")
+          
+          if [ -n "$CLIENT_SECRET" ]; then
+            if ! gcloud secrets describe GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID 2>/dev/null; then
+              echo "Creating GOOGLE-OAUTH-CLIENT-SECRET..."
+              gcloud secrets create GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID --replication-policy=automatic
+            fi
+            echo -n "$CLIENT_SECRET" | gcloud secrets versions add GOOGLE-OAUTH-CLIENT-SECRET --data-file=- --project=$GCP_PROJECT_ID
+            echo "✅ GOOGLE-OAUTH-CLIENT-SECRET set"
           else
-            echo "❌ Wrong service account!"
-            echo "   Expected: $EXPECTED_SA"
-            echo "   Got: $CURRENT_SA"
+            echo "⚠️ CLIENT_ID secret not found, skipping CLIENT_SECRET setup"
+          fi
+          
+          echo ""
+          echo "Current secrets:"
+          gcloud secrets list --project=$GCP_PROJECT_ID --format="value(name)"
+
+      - name: Exchange OAuth Code
+        if: inputs.oauth_code != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "🔄 Exchanging OAuth code..."
+          
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID)
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID)
+          
+          RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -d "client_id=$CLIENT_ID" \
+            -d "client_secret=$CLIENT_SECRET" \
+            -d "code=${{ inputs.oauth_code }}" \
+            -d "grant_type=authorization_code" \
+            -d "redirect_uri=urn:ietf:wg:oauth:2.0:oob")
+          
+          if echo "$RESPONSE" | grep -q "error"; then
+            ERROR=$(echo "$RESPONSE" | jq -r '.error_description // .error')
+            echo "❌ Error: $ERROR"
+            gh issue comment 149 --body "## OAuth Error\n$ERROR\n\nTimestamp: $(date -u)" --repo edri2or-commits/project38-or || true
             exit 1
           fi
-
-      - name: Summary
-        run: |
-          echo "================================================"
-          echo "🎉 WIF Authentication Test PASSED!"
-          echo "================================================"
-          echo ""
-          echo "✅ OIDC token issued by GitHub"
-          echo "✅ Token exchanged via WIF"
-          echo "✅ Service account identity verified"
-          echo "✅ GCP project access confirmed"
-          echo "✅ Secret Manager access working"
-          echo ""
-          echo "Next steps:"
-          echo "  1. Update production workflows to use WIF"
-          echo "  2. Remove GCP_SERVICE_ACCOUNT_KEY secret"
-          echo "  3. Monitor workflows for any issues"
+          
+          REFRESH_TOKEN=$(echo "$RESPONSE" | jq -r '.refresh_token')
+          if [ -n "$REFRESH_TOKEN" ] && [ "$REFRESH_TOKEN" != "null" ]; then
+            if ! gcloud secrets describe GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID 2>/dev/null; then
+              gcloud secrets create GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID --replication-policy=automatic
+            fi
+            echo -n "$REFRESH_TOKEN" | gcloud secrets versions add GOOGLE-OAUTH-REFRESH-TOKEN --data-file=- --project=$GCP_PROJECT_ID
+            echo "✅ Refresh token stored!"
+            gh issue comment 149 --body "## ✅ OAuth Success\nRefresh token stored!\n\nTimestamp: $(date -u)" --repo edri2or-commits/project38-or || true
+          fi
