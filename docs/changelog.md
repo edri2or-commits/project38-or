@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Preview Deployments for PRs** (2026-01-15) - Advanced CI/CD enhancement
+  - `.github/workflows/preview-deploy.yml` - Automated preview environment workflow
+  - Creates temporary Railway environment for each PR (`pr-{number}`)
+  - Runs validation (lint, tests, docs) before deployment
+  - Comments on PR with preview URL and quick links
+  - Auto-cleanup when PR is merged/closed
+  - Uses WIF authentication for secure GCP access
+
+- **Integration Tests with PostgreSQL** (2026-01-15) - Database integration testing
+  - `tests/conftest.py` - Pytest configuration with database fixtures
+  - `tests/integration/test_database_integration.py` - 25+ database CRUD tests
+  - `tests/integration/test_api_integration.py` - 20+ API endpoint tests
+  - Tests run against real PostgreSQL in CI (GitHub Actions service)
+  - Markers for skipping tests when dependencies unavailable
+  - Updated `.github/workflows/test.yml` with separate unit/integration test phases
+
+- **Production Monitoring & Alerting** (2026-01-15) - Automated uptime monitoring
+  - `.github/workflows/uptime-monitor.yml` - Health check every 5 minutes
+  - Auto-creates GitHub issues on outages with `production` and `outage` labels
+  - Auto-closes issues when service recovers
+  - Response time tracking for performance metrics
+  - `docs/operations/monitoring-setup.md` - Complete monitoring documentation
+  - Telegram/n8n alert integration instructions
+  - Incident response procedures and escalation path
+
 - **MCP Gateway Configuration** (2026-01-15)
   - Configured MCP Gateway for Claude Code autonomy
   - Token generated via `setup-mcp-gateway.yml` workflow
