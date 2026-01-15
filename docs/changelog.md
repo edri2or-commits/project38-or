@@ -7,12 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MCP Gateway Configuration** (2026-01-15)
+  - Configured MCP Gateway for Claude Code autonomy
+  - Token generated via `setup-mcp-gateway.yml` workflow
+  - Gateway URL: `https://or-infra.com/mcp`
+  - Available tools: `railway_deploy()`, `railway_status()`, `railway_rollback()`, `n8n_trigger()`, `health_check()`, `get_metrics()`
+
 ### Changed
 - **Updated BOOTSTRAP_PLAN.md** (2026-01-15)
   - Marked Skills System as COMPLETED (performance-monitor + cost-optimizer)
   - Updated Autonomous Skills count from 8 to 10 (233% of target)
 
 ### Fixed
+- **Production DATABASE_URL** (2026-01-15)
+  - Added missing DATABASE_URL environment variable to Railway web service
+  - Configured as Variable Reference from PostgreSQL service
+  - Production health check now passes (status: healthy, database: connected)
+
 - **Re-enabled monitoring routes** (2026-01-15)
   - `src/api/main.py`: Re-enabled monitoring router that was temporarily disabled
   - Monitoring API endpoints now available at `/api/monitoring/*`
