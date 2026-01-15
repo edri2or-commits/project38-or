@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Unbreakable Autonomy Architecture** (2026-01-15) - Self-healing credential management
+  - `src/credential_lifecycle.py` (~400 lines) - Credential lifecycle manager with health monitoring
+  - `docs/autonomous/09-unbreakable-autonomy-architecture.md` - Complete architecture documentation
+  - `.github/workflows/credential-operations.yml` - Bridge workflow for credential operations
+  - **Trust Hierarchy**:
+    - Tier 0 (Root Trust): WIF, GitHub App registration - never expires
+    - Tier 1 (Long-lived): Refresh tokens, API keys - quarterly rotation
+    - Tier 2 (Short-lived): Access tokens - auto-refresh
+  - **Self-Healing Features**:
+    - Credential health monitoring for all credential types
+    - Automatic recovery triggers on authentication failure
+    - GitHub Actions bridge for Claude Code → GCP operations
+    - Expiration warnings before credentials expire
+  - **Credential Types Managed**:
+    - GCP WIF, GitHub App, Google OAuth, Railway, n8n, MCP Gateway
+
 - **Google Workspace MCP Bridge** (2026-01-15) - Full autonomy to Google Workspace services
   - `src/workspace_mcp_bridge/` - Complete MCP bridge for Google Workspace (~1,500 lines)
   - **28 MCP Tools** across 5 Google Workspace services:
