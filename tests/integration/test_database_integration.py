@@ -8,6 +8,7 @@ Run with: DATABASE_URL=postgresql+asyncpg://user:pass@localhost/test pytest test
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from src.models.agent import Agent
@@ -41,9 +42,7 @@ class TestAgentDatabaseOperations:
         await db_session.commit()
         await db_session.refresh(agent)
 
-        result = await db_session.execute(
-            select(Agent).where(Agent.id == agent.id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.id == agent.id))
         fetched_agent = result.scalar_one()
 
         assert fetched_agent.id == agent.id
@@ -62,9 +61,7 @@ class TestAgentDatabaseOperations:
         await db_session.commit()
         await db_session.refresh(agent)
 
-        result = await db_session.execute(
-            select(Agent).where(Agent.id == agent.id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.id == agent.id))
         updated_agent = result.scalar_one()
 
         assert updated_agent.name == "Updated Agent Name"
@@ -82,9 +79,7 @@ class TestAgentDatabaseOperations:
         await db_session.delete(agent)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Agent).where(Agent.id == agent_id)
-        )
+        result = await db_session.execute(select(Agent).where(Agent.id == agent_id))
         deleted_agent = result.scalar_one_or_none()
 
         assert deleted_agent is None
@@ -103,9 +98,7 @@ class TestAgentDatabaseOperations:
             db_session.add(agent)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Agent).where(Agent.status == "active")
-        )
+        result = await db_session.execute(select(Agent).where(Agent.status == "active"))
         active_agents = result.scalars().all()
 
         assert len(active_agents) == 2
@@ -125,9 +118,7 @@ class TestAgentDatabaseOperations:
             db_session.add(agent)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Agent).where(Agent.created_by == "user1")
-        )
+        result = await db_session.execute(select(Agent).where(Agent.created_by == "user1"))
         user1_agents = result.scalars().all()
 
         assert len(user1_agents) == 2
@@ -234,18 +225,13 @@ class TestTaskDatabaseOperations:
             db_session.add(task)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Task).where(Task.agent_id == agent.id)
-        )
+        result = await db_session.execute(select(Task).where(Task.agent_id == agent.id))
         agent_tasks = result.scalars().all()
 
         assert len(agent_tasks) == 4
 
         result = await db_session.execute(
-            select(Task).where(
-                Task.agent_id == agent.id,
-                Task.status == "completed"
-            )
+            select(Task).where(Task.agent_id == agent.id, Task.status == "completed")
         )
         completed_tasks = result.scalars().all()
 
@@ -270,18 +256,14 @@ class TestAgentTaskRelationship:
             db_session.add(task)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Task).where(Task.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Task).where(Task.agent_id == agent_id))
         tasks_before = result.scalars().all()
         assert len(tasks_before) == 3
 
         await db_session.delete(agent)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Task).where(Task.agent_id == agent_id)
-        )
+        result = await db_session.execute(select(Task).where(Task.agent_id == agent_id))
         tasks_after = result.scalars().all()
 
         assert len(tasks_after) == 0
@@ -309,9 +291,7 @@ class TestAgentTaskRelationship:
         assert len(all_tasks) == 6
 
         for agent in agents:
-            result = await db_session.execute(
-                select(Task).where(Task.agent_id == agent.id)
-            )
+            result = await db_session.execute(select(Task).where(Task.agent_id == agent.id))
             agent_tasks = result.scalars().all()
             assert len(agent_tasks) == 2
 
@@ -325,7 +305,7 @@ class TestDatabaseConstraints:
         agent = Agent(name=None, status="active")  # type: ignore
         db_session.add(agent)
 
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             await db_session.commit()
 
     @pytest.mark.asyncio
@@ -334,7 +314,7 @@ class TestDatabaseConstraints:
         task = Task(agent_id=99999, status="pending")
         db_session.add(task)
 
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             await db_session.commit()
 
     @pytest.mark.asyncio
@@ -360,10 +340,7 @@ class TestDatabasePerformance:
     @pytest.mark.asyncio
     async def test_bulk_insert_agents(self, db_session):
         """Test bulk inserting many agents."""
-        agents = [
-            Agent(name=f"Bulk Agent {i}", status="active")
-            for i in range(100)
-        ]
+        agents = [Agent(name=f"Bulk Agent {i}", status="active") for i in range(100)]
 
         for agent in agents:
             db_session.add(agent)
@@ -382,18 +359,13 @@ class TestDatabasePerformance:
         await db_session.commit()
         await db_session.refresh(agent)
 
-        tasks = [
-            Task(agent_id=agent.id, status="completed")
-            for _ in range(100)
-        ]
+        tasks = [Task(agent_id=agent.id, status="completed") for _ in range(100)]
 
         for task in tasks:
             db_session.add(task)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Task).where(Task.agent_id == agent.id)
-        )
+        result = await db_session.execute(select(Task).where(Task.agent_id == agent.id))
         all_tasks = result.scalars().all()
 
         assert len(all_tasks) == 100

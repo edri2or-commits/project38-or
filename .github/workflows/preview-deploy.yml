@@ -21,23 +21,10 @@ jobs:
     name: Validate Changes
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: agentplatform_preview
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    # Note: PostgreSQL service removed - full tests are handled by test.yml workflow
+    # This job focuses on quick validation (lint + docs) for preview deployments
 
     outputs:
-      tests_passed: ${{ steps.tests.outputs.passed }}
       lint_passed: ${{ steps.lint.outputs.passed }}
 
     steps:
@@ -67,17 +54,8 @@ jobs:
             exit 1
           fi
 
-      - name: Run tests
-        id: tests
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/agentplatform_preview
-        run: |
-          if python -m pytest tests/ -v --tb=short; then
-            echo "passed=true" >> $GITHUB_OUTPUT
-          else
-            echo "passed=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
+      # Note: Full test suite is handled by the dedicated test.yml workflow
+      # This workflow focuses on quick validation (lint + docs) for preview deployments
 
       - name: Build documentation
         run: |
@@ -241,8 +219,8 @@ jobs:
 
             ### Validation Results
             - ✅ Lint passed
-            - ✅ Tests passed (308 tests)
             - ✅ Documentation built
+            - 🧪 Tests validated by separate workflow
 
             ### Quick Links
             - 🔍 [Health Check](${previewUrl}/api/health)
