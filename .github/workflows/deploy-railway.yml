@@ -187,7 +187,7 @@ jobs:
             exit 0
           fi
 
-          echo "Checking: $RAILWAY_URL/health"
+          echo "Checking: $RAILWAY_URL/api/health"
 
           # Health check with retries
           MAX_RETRIES=5
@@ -196,13 +196,13 @@ jobs:
           for i in $(seq 1 $MAX_RETRIES); do
             echo "Attempt $i/$MAX_RETRIES..."
 
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$RAILWAY_URL/health" || echo "000")
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$RAILWAY_URL/api/health" || echo "000")
 
             if [ "$HTTP_CODE" = "200" ]; then
               echo "✅ Health check passed (HTTP $HTTP_CODE)"
 
               # Get health check details
-              curl -s "$RAILWAY_URL/health" | jq '.' || echo "Response received"
+              curl -s "$RAILWAY_URL/api/health" | jq '.' || echo "Response received"
               exit 0
             fi
 
