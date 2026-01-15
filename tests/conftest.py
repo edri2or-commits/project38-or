@@ -56,7 +56,8 @@ def _check_database_available() -> bool:
             except Exception:
                 return False
 
-        return asyncio.get_event_loop().run_until_complete(check_connection())
+        # Use asyncio.run() for Python 3.10+ compatibility
+        return asyncio.run(check_connection())
     except Exception:
         return False
 
