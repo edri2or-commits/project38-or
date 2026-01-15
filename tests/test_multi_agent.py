@@ -613,10 +613,12 @@ class TestInterAgentCommunication:
         integration_agent = IntegrationAgent(github_client=mock_github, config=config)
 
         # Simulate deployment failure notification
-        response = await integration_agent._handle_deployment_failure({
-            "deployment_id": "deploy-fail-123",
-            "error": "Health check failed",
-        })
+        response = await integration_agent._handle_deployment_failure(
+            {
+                "deployment_id": "deploy-fail-123",
+                "error": "Health check failed",
+            }
+        )
 
         assert "number" in response
         mock_github.create_issue.assert_called_once()

@@ -87,11 +87,7 @@ class CredentialHealth:
     def expiring_soon(self) -> list[CredentialType]:
         """Get credentials expiring within 24 hours."""
         threshold = datetime.now(UTC) + timedelta(hours=24)
-        return [
-            ct
-            for ct, s in self.statuses.items()
-            if s.expires_at and s.expires_at < threshold
-        ]
+        return [ct for ct, s in self.statuses.items() if s.expires_at and s.expires_at < threshold]
 
 
 class CredentialLifecycleManager:
@@ -488,9 +484,7 @@ class CredentialLifecycleManager:
 
         return results
 
-    async def _trigger_workflow_recovery(
-        self, cred_type: CredentialType, workflow: str
-    ) -> str:
+    async def _trigger_workflow_recovery(self, cred_type: CredentialType, workflow: str) -> str:
         """Trigger a GitHub Actions workflow for recovery.
 
         Args:
@@ -549,9 +543,7 @@ Please follow the recovery procedure for this credential type.
         except Exception as e:
             return f"Failed to create alert: {e}"
 
-    def get_expiration_report(
-        self, health: CredentialHealth
-    ) -> dict[str, list[dict[str, Any]]]:
+    def get_expiration_report(self, health: CredentialHealth) -> dict[str, list[dict[str, Any]]]:
         """Generate an expiration report.
 
         Args:

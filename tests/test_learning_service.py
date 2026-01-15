@@ -8,7 +8,6 @@ Comprehensive tests for the learning and adaptation system:
 - Integration with controllers
 """
 
-
 import pytest
 
 from src.learning_service import (

@@ -124,14 +124,12 @@ def register_calendar_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None
                         "id": event["id"],
                         "summary": event.get("summary", ""),
                         "start": event.get("start", {}).get("dateTime")
-                            or event.get("start", {}).get("date"),
+                        or event.get("start", {}).get("date"),
                         "end": event.get("end", {}).get("dateTime")
-                            or event.get("end", {}).get("date"),
+                        or event.get("end", {}).get("date"),
                         "location": event.get("location", ""),
                         "description": event.get("description", ""),
-                        "attendees": [
-                            a.get("email") for a in event.get("attendees", [])
-                        ],
+                        "attendees": [a.get("email") for a in event.get("attendees", [])],
                         "html_link": event.get("htmlLink", ""),
                     }
                     for event in data.get("items", [])
@@ -189,8 +187,7 @@ def register_calendar_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None
                 event_body["location"] = location
             if attendees:
                 event_body["attendees"] = [
-                    {"email": email.strip()}
-                    for email in attendees.split(",")
+                    {"email": email.strip()} for email in attendees.split(",")
                 ]
 
             async with httpx.AsyncClient() as client:

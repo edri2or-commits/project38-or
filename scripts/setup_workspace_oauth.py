@@ -68,9 +68,7 @@ def generate_auth_url(client_id: str) -> str:
     return f"{AUTH_ENDPOINT}?{urllib.parse.urlencode(params)}"
 
 
-def exchange_code(
-    client_id: str, client_secret: str, code: str
-) -> dict:
+def exchange_code(client_id: str, client_secret: str, code: str) -> dict:
     """Exchange authorization code for tokens."""
     data = {
         "client_id": client_id,
@@ -160,7 +158,9 @@ def main():
         print("2. Sign in with your Google account")
         print("3. Grant all requested permissions")
         print("4. Copy the authorization code shown")
-        print("5. Run: python scripts/setup_workspace_oauth.py --action exchange-code --code YOUR_CODE")
+        print(
+            "5. Run: python scripts/setup_workspace_oauth.py --action exchange-code --code YOUR_CODE"
+        )
 
     elif args.action == "exchange-code":
         if not args.code:

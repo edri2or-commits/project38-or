@@ -248,30 +248,32 @@ class MonitoringAgent(SpecializedAgent):
                 recent = self._recent_metrics.get(metric_name, [])
                 if len(recent) >= 10:
                     avg = sum(m["value"] for m in recent[-10:]) / 10
-                    std_dev = (
-                        sum((m["value"] - avg) ** 2 for m in recent[-10:]) / 10
-                    ) ** 0.5
+                    std_dev = (sum((m["value"] - avg) ** 2 for m in recent[-10:]) / 10) ** 0.5
                     if std_dev > 0 and abs(value - avg) > 3 * std_dev:
-                        anomalies = [{
-                            "metric": metric_name,
-                            "value": value,
-                            "confidence": 0.8,
-                            "severity": "WARNING",
-                            "algorithms": ["z_score"],
-                        }]
+                        anomalies = [
+                            {
+                                "metric": metric_name,
+                                "value": value,
+                                "confidence": 0.8,
+                                "severity": "WARNING",
+                                "algorithms": ["z_score"],
+                            }
+                        ]
                         confidence = 0.8
                         severity = "WARNING"
 
             is_anomaly = len(anomalies) > 0 and confidence >= self.config.anomaly_threshold
 
             if is_anomaly:
-                self._anomaly_history.append({
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "metric": metric_name,
-                    "value": value,
-                    "confidence": confidence,
-                    "severity": severity,
-                })
+                self._anomaly_history.append(
+                    {
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "metric": metric_name,
+                        "value": value,
+                        "confidence": confidence,
+                        "severity": severity,
+                    }
+                )
 
             return AgentResult(
                 task_id=task.task_id,
@@ -343,11 +345,13 @@ class MonitoringAgent(SpecializedAgent):
                     severity=severity_map.get(severity, AlertSeverity.INFO),
                 )
                 result = await self.alert_manager.send(alert)
-                results.append({
-                    "channel": "alert_manager",
-                    "success": result.success,
-                    "suppressed": result.suppressed,
-                })
+                results.append(
+                    {
+                        "channel": "alert_manager",
+                        "success": result.success,
+                        "suppressed": result.suppressed,
+                    }
+                )
             else:
                 # Direct HTTP notification if no alert manager
                 import httpx
@@ -364,11 +368,13 @@ class MonitoringAgent(SpecializedAgent):
                             },
                             timeout=10,
                         )
-                        results.append({
-                            "channel": "n8n",
-                            "success": response.status_code < 400,
-                            "status_code": response.status_code,
-                        })
+                        results.append(
+                            {
+                                "channel": "n8n",
+                                "success": response.status_code < 400,
+                                "status_code": response.status_code,
+                            }
+                        )
 
             return AgentResult(
                 task_id=task.task_id,
@@ -502,9 +508,7 @@ class MonitoringAgent(SpecializedAgent):
 
                 values = [m["value"] for m in recent]
                 first_half = sum(values[: len(values) // 2]) / (len(values) // 2)
-                second_half = sum(values[len(values) // 2 :]) / (
-                    len(values) - len(values) // 2
-                )
+                second_half = sum(values[len(values) // 2 :]) / (len(values) - len(values) // 2)
 
                 if second_half > first_half * 1.1:
                     trend = "increasing"
@@ -557,9 +561,7 @@ class MonitoringAgent(SpecializedAgent):
 
             if report_type in ("summary", "detailed"):
                 report["metrics_tracked"] = list(self._recent_metrics.keys())
-                report["total_data_points"] = sum(
-                    len(v) for v in self._recent_metrics.values()
-                )
+                report["total_data_points"] = sum(len(v) for v in self._recent_metrics.values())
 
             if report_type in ("anomalies", "detailed"):
                 report["anomaly_count"] = len(self._anomaly_history)
@@ -621,18 +623,22 @@ class MonitoringAgent(SpecializedAgent):
                 for endpoint in endpoints:
                     try:
                         response = await client.get(endpoint, timeout=5)
-                        results.append({
-                            "endpoint": endpoint,
-                            "status": "healthy" if response.status_code == 200 else "unhealthy",
-                            "status_code": response.status_code,
-                            "response_time_ms": int(response.elapsed.total_seconds() * 1000),
-                        })
+                        results.append(
+                            {
+                                "endpoint": endpoint,
+                                "status": "healthy" if response.status_code == 200 else "unhealthy",
+                                "status_code": response.status_code,
+                                "response_time_ms": int(response.elapsed.total_seconds() * 1000),
+                            }
+                        )
                     except Exception as e:
-                        results.append({
-                            "endpoint": endpoint,
-                            "status": "unreachable",
-                            "error": str(e),
-                        })
+                        results.append(
+                            {
+                                "endpoint": endpoint,
+                                "status": "unreachable",
+                                "error": str(e),
+                            }
+                        )
 
             healthy_count = sum(1 for r in results if r.get("status") == "healthy")
             overall_status = (
@@ -672,18 +678,18 @@ class MonitoringAgent(SpecializedAgent):
         if name not in self._recent_metrics:
             self._recent_metrics[name] = []
 
-        self._recent_metrics[name].append({
-            "value": float(value) if isinstance(value, (int, float)) else value,
-            "timestamp": datetime.now(UTC).isoformat(),
-        })
+        self._recent_metrics[name].append(
+            {
+                "value": float(value) if isinstance(value, (int, float)) else value,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
 
         # Keep only last 1000 values per metric
         if len(self._recent_metrics[name]) > 1000:
             self._recent_metrics[name] = self._recent_metrics[name][-1000:]
 
-    async def _handle_anomaly_notification(
-        self, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_anomaly_notification(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle anomaly notification from other agents.
 
         Args:
@@ -692,18 +698,18 @@ class MonitoringAgent(SpecializedAgent):
         Returns:
             Acknowledgment
         """
-        self._anomaly_history.append({
-            "timestamp": datetime.now(UTC).isoformat(),
-            "source": payload.get("source", "unknown"),
-            "metric": payload.get("metric"),
-            "value": payload.get("value"),
-            "severity": payload.get("severity"),
-        })
+        self._anomaly_history.append(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "source": payload.get("source", "unknown"),
+                "metric": payload.get("metric"),
+                "value": payload.get("value"),
+                "severity": payload.get("severity"),
+            }
+        )
         return {"acknowledged": True}
 
-    async def _handle_metric_request(
-        self, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_metric_request(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle metric request from other agents.
 
         Args:

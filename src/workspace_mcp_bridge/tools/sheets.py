@@ -90,6 +90,7 @@ def register_sheets_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
         """
         try:
             import json
+
             token = await oauth_manager.get_access_token()
 
             # Parse values from JSON string
@@ -146,10 +147,7 @@ def register_sheets_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
         try:
             token = await oauth_manager.get_access_token()
 
-            sheets = [
-                {"properties": {"title": name.strip()}}
-                for name in sheet_names.split(",")
-            ]
+            sheets = [{"properties": {"title": name.strip()}} for name in sheet_names.split(",")]
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -174,8 +172,7 @@ def register_sheets_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
                     "title": data.get("properties", {}).get("title"),
                     "url": data.get("spreadsheetUrl"),
                     "sheets": [
-                        s.get("properties", {}).get("title")
-                        for s in data.get("sheets", [])
+                        s.get("properties", {}).get("title") for s in data.get("sheets", [])
                     ],
                 }
 
@@ -201,6 +198,7 @@ def register_sheets_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
         """
         try:
             import json
+
             token = await oauth_manager.get_access_token()
 
             try:
@@ -323,9 +321,7 @@ def register_sheets_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
                         "column_count": grid.get("columnCount"),
                     }
 
-                sheets_info = [
-                    extract_sheet_info(s) for s in data.get("sheets", [])
-                ]
+                sheets_info = [extract_sheet_info(s) for s in data.get("sheets", [])]
 
                 return {
                     "success": True,

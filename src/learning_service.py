@@ -610,9 +610,7 @@ class LearningService:
         # Cross-agent analysis
         if len(all_stats) > 1:
             success_rates = [
-                (s.action_type, s.success_rate)
-                for s in all_stats
-                if s.total_count >= 5
+                (s.action_type, s.success_rate) for s in all_stats if s.total_count >= 5
             ]
             if success_rates:
                 best = max(success_rates, key=lambda x: x[1])

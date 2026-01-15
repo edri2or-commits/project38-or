@@ -151,6 +151,7 @@ def verify_bridge_token(config: WorkspaceConfig) -> Callable:
     Returns:
         FastAPI dependency function
     """
+
     def verify(request: Request) -> bool:
         """Verify the Authorization header contains valid bridge token.
 
@@ -197,9 +198,11 @@ def require_oauth(func: Callable) -> Callable:
     Returns:
         Wrapped function that ensures token is valid
     """
+
     @wraps(func)
     async def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         if hasattr(self, "oauth_manager"):
             await self.oauth_manager.get_access_token()
         return await func(self, *args, **kwargs)
+
     return wrapper

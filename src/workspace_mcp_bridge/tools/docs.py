@@ -331,9 +331,7 @@ def register_docs_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
                 replies = data.get("replies", [])
                 occurrences = 0
                 if replies:
-                    occurrences = replies[0].get("replaceAllText", {}).get(
-                        "occurrencesChanged", 0
-                    )
+                    occurrences = replies[0].get("replaceAllText", {}).get("occurrencesChanged", 0)
 
                 return {
                     "success": True,

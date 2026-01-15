@@ -395,7 +395,7 @@ class AgentOrchestrator:
 
         # Trim history if needed
         if len(self._message_history) > self.config.message_retention_count:
-            self._message_history = self._message_history[-self.config.message_retention_count:]
+            self._message_history = self._message_history[-self.config.message_retention_count :]
 
         if message.to_agent:
             # Direct message to specific agent
@@ -433,9 +433,7 @@ class AgentOrchestrator:
             try:
                 await agent.receive_message(message)
             except Exception as e:
-                self.logger.error(
-                    f"Error broadcasting to {agent.agent_id}: {e}"
-                )
+                self.logger.error(f"Error broadcasting to {agent.agent_id}: {e}")
 
     async def start(self) -> None:
         """Start the orchestrator and all agents."""
@@ -492,13 +490,9 @@ class AgentOrchestrator:
         return {
             "is_running": self.is_running,
             "agents_registered": len(self._agents),
-            "agents": {
-                aid: agent.get_status()
-                for aid, agent in self._agents.items()
-            },
+            "agents": {aid: agent.get_status() for aid, agent in self._agents.items()},
             "domains": {
-                domain.value: len(agent_ids)
-                for domain, agent_ids in self._domain_agents.items()
+                domain.value: len(agent_ids) for domain, agent_ids in self._domain_agents.items()
             },
             "queue_size": self._task_queue.qsize(),
             "active_tasks": len(self._active_tasks),

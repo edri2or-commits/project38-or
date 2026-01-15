@@ -128,9 +128,15 @@ def register_gmail_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
                     msg_response = await client.get(
                         f"{GMAIL_API_BASE}/users/me/messages/{msg['id']}",
                         headers={"Authorization": f"Bearer {token}"},
-                        params={"format": "metadata", "metadataHeaders": [
-                            "Subject", "From", "To", "Date",
-                        ]},
+                        params={
+                            "format": "metadata",
+                            "metadataHeaders": [
+                                "Subject",
+                                "From",
+                                "To",
+                                "Date",
+                            ],
+                        },
                     )
                     if msg_response.status_code == 200:
                         msg_data = msg_response.json()
@@ -138,15 +144,17 @@ def register_gmail_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
                             h["name"]: h["value"]
                             for h in msg_data.get("payload", {}).get("headers", [])
                         }
-                        results.append({
-                            "id": msg["id"],
-                            "thread_id": msg_data.get("threadId"),
-                            "subject": headers.get("Subject", ""),
-                            "from": headers.get("From", ""),
-                            "to": headers.get("To", ""),
-                            "date": headers.get("Date", ""),
-                            "snippet": msg_data.get("snippet", ""),
-                        })
+                        results.append(
+                            {
+                                "id": msg["id"],
+                                "thread_id": msg_data.get("threadId"),
+                                "subject": headers.get("Subject", ""),
+                                "from": headers.get("From", ""),
+                                "to": headers.get("To", ""),
+                                "date": headers.get("Date", ""),
+                                "snippet": msg_data.get("snippet", ""),
+                            }
+                        )
 
                 return {
                     "success": True,
@@ -186,8 +194,7 @@ def register_gmail_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
 
                 data = response.json()
                 headers = {
-                    h["name"]: h["value"]
-                    for h in data.get("payload", {}).get("headers", [])
+                    h["name"]: h["value"] for h in data.get("payload", {}).get("headers", [])
                 }
 
                 # Extract body
@@ -209,9 +216,7 @@ def register_gmail_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
 
                 body = extract_body(payload)
                 if not body and payload.get("body", {}).get("data"):
-                    body = base64.urlsafe_b64decode(
-                        payload["body"]["data"]
-                    ).decode()
+                    body = base64.urlsafe_b64decode(payload["body"]["data"]).decode()
 
                 return {
                     "success": True,
@@ -268,9 +273,14 @@ def register_gmail_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
                     msg_response = await client.get(
                         f"{GMAIL_API_BASE}/users/me/messages/{msg['id']}",
                         headers={"Authorization": f"Bearer {token}"},
-                        params={"format": "metadata", "metadataHeaders": [
-                            "Subject", "From", "Date",
-                        ]},
+                        params={
+                            "format": "metadata",
+                            "metadataHeaders": [
+                                "Subject",
+                                "From",
+                                "Date",
+                            ],
+                        },
                     )
                     if msg_response.status_code == 200:
                         msg_data = msg_response.json()
@@ -278,13 +288,15 @@ def register_gmail_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
                             h["name"]: h["value"]
                             for h in msg_data.get("payload", {}).get("headers", [])
                         }
-                        results.append({
-                            "id": msg["id"],
-                            "subject": headers.get("Subject", ""),
-                            "from": headers.get("From", ""),
-                            "date": headers.get("Date", ""),
-                            "snippet": msg_data.get("snippet", ""),
-                        })
+                        results.append(
+                            {
+                                "id": msg["id"],
+                                "subject": headers.get("Subject", ""),
+                                "from": headers.get("From", ""),
+                                "date": headers.get("Date", ""),
+                                "snippet": msg_data.get("snippet", ""),
+                            }
+                        )
 
                 return {
                     "success": True,
