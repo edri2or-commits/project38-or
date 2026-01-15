@@ -4,6 +4,7 @@ Pytest configuration and shared fixtures.
 This module provides fixtures for testing with PostgreSQL database.
 """
 
+import asyncio
 import os
 from collections.abc import AsyncGenerator, Generator
 from unittest.mock import MagicMock
@@ -38,6 +39,31 @@ HAS_ASYNCPG = _check_module_available("asyncpg")
 HAS_GCP_SECRETMANAGER = _check_module_available("google.cloud.secretmanager")
 
 
+def _check_database_available() -> bool:
+    """Check if the database is actually reachable."""
+    if not HAS_ASYNCPG:
+        return False
+    try:
+        import asyncpg  # noqa: PLC0415
+
+        async def check_connection():
+            # Parse the DATABASE_URL to get connection parameters
+            url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+            try:
+                conn = await asyncio.wait_for(asyncpg.connect(url), timeout=5.0)
+                await conn.close()
+                return True
+            except Exception:
+                return False
+
+        return asyncio.get_event_loop().run_until_complete(check_connection())
+    except Exception:
+        return False
+
+
+DATABASE_AVAILABLE = _check_database_available()
+
+
 def pytest_configure(config):
     """Register custom markers."""
     config.addinivalue_line(
@@ -48,11 +74,13 @@ def pytest_configure(config):
 
 def pytest_collection_modifyitems(config, items):
     """Skip tests based on available dependencies."""
-    skip_integration = pytest.mark.skip(reason="PostgreSQL not available (asyncpg not installed)")
+    skip_integration = pytest.mark.skip(
+        reason="PostgreSQL not available (database unreachable or asyncpg not installed)"
+    )
     skip_gcp = pytest.mark.skip(reason="GCP Secret Manager not available")
 
     for item in items:
-        if "integration" in item.keywords and not HAS_ASYNCPG:
+        if "integration" in item.keywords and not DATABASE_AVAILABLE:
             item.add_marker(skip_integration)
         if "requires_gcp" in item.keywords and not HAS_GCP_SECRETMANAGER:
             item.add_marker(skip_gcp)
@@ -67,8 +95,8 @@ def database_url() -> str:
 @pytest.fixture(scope="session")
 def test_engine():
     """Create a test database engine."""
-    if not HAS_ASYNCPG:
-        pytest.skip("asyncpg not available")
+    if not DATABASE_AVAILABLE:
+        pytest.skip("PostgreSQL database not available")
 
     engine = create_async_engine(
         DATABASE_URL,
