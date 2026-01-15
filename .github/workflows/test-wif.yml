@@ -3,11 +3,6 @@ name: Test WIF Authentication
 on:
   workflow_dispatch:
     inputs:
-      setup_oauth:
-        description: 'Setup OAuth secrets'
-        required: false
-        type: boolean
-        default: false
       oauth_code:
         description: 'OAuth authorization code'
         required: false
@@ -20,6 +15,7 @@ permissions:
 
 env:
   GCP_PROJECT_ID: project38-483612
+  OAUTH_CLIENT_ID: "979429709900-n495tv062v7j0434jnocr19m8sn06nr6.apps.googleusercontent.com"
 
 jobs:
   test-wif:
@@ -38,79 +34,58 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Test WIF
-        if: inputs.setup_oauth != true
+        if: inputs.oauth_code == ''
         run: |
           echo "✅ WIF Authentication successful!"
           gcloud auth list
-          echo ""
-          echo "Secrets available:"
-          gcloud secrets list --project=$GCP_PROJECT_ID --format="value(name)"
-
-      - name: Setup OAuth Secrets
-        if: inputs.setup_oauth == true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CLIENT_ID: "979429709900-n495tv062v7j0434jnocr19m8sn06nr6.apps.googleusercontent.com"
-        run: |
-          echo "🔧 Setting up OAuth secrets..."
-          
-          # Create GOOGLE-OAUTH-CLIENT-ID if not exists
-          if ! gcloud secrets describe GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID 2>/dev/null; then
-            echo "Creating GOOGLE-OAUTH-CLIENT-ID..."
-            gcloud secrets create GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID --replication-policy=automatic
-          fi
-          echo -n "$CLIENT_ID" | gcloud secrets versions add GOOGLE-OAUTH-CLIENT-ID --data-file=- --project=$GCP_PROJECT_ID
-          echo "✅ GOOGLE-OAUTH-CLIENT-ID set"
-          
-          # Copy CLIENT_ID secret to GOOGLE-OAUTH-CLIENT-SECRET
-          echo "Getting Client Secret from CLIENT_ID secret..."
-          CLIENT_SECRET=$(gcloud secrets versions access latest --secret=CLIENT_ID --project=$GCP_PROJECT_ID 2>/dev/null || echo "")
-          
-          if [ -n "$CLIENT_SECRET" ]; then
-            if ! gcloud secrets describe GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID 2>/dev/null; then
-              echo "Creating GOOGLE-OAUTH-CLIENT-SECRET..."
-              gcloud secrets create GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID --replication-policy=automatic
-            fi
-            echo -n "$CLIENT_SECRET" | gcloud secrets versions add GOOGLE-OAUTH-CLIENT-SECRET --data-file=- --project=$GCP_PROJECT_ID
-            echo "✅ GOOGLE-OAUTH-CLIENT-SECRET set"
-          else
-            echo "⚠️ CLIENT_ID secret not found, skipping CLIENT_SECRET setup"
-          fi
-          
-          echo ""
-          echo "Current secrets:"
-          gcloud secrets list --project=$GCP_PROJECT_ID --format="value(name)"
 
       - name: Exchange OAuth Code
         if: inputs.oauth_code != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_ID }}
         run: |
           echo "🔄 Exchanging OAuth code..."
           
-          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID)
-          CLIENT_SECRET=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID)
-          
           RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
-            -d "client_id=$CLIENT_ID" \
+            -d "client_id=$OAUTH_CLIENT_ID" \
             -d "client_secret=$CLIENT_SECRET" \
             -d "code=${{ inputs.oauth_code }}" \
             -d "grant_type=authorization_code" \
             -d "redirect_uri=urn:ietf:wg:oauth:2.0:oob")
           
+          echo "Response received"
+          
           if echo "$RESPONSE" | grep -q "error"; then
             ERROR=$(echo "$RESPONSE" | jq -r '.error_description // .error')
             echo "❌ Error: $ERROR"
-            gh issue comment 149 --body "## OAuth Error\n$ERROR\n\nTimestamp: $(date -u)" --repo edri2or-commits/project38-or || true
+            gh issue comment 149 --body "## OAuth Error
+$ERROR
+
+Timestamp: $(date -u)" --repo edri2or-commits/project38-or || true
             exit 1
           fi
           
           REFRESH_TOKEN=$(echo "$RESPONSE" | jq -r '.refresh_token')
+          ACCESS_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
+          
           if [ -n "$REFRESH_TOKEN" ] && [ "$REFRESH_TOKEN" != "null" ]; then
+            echo "✅ Got refresh token!"
+            
+            # Store in GCP Secret Manager
             if ! gcloud secrets describe GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID 2>/dev/null; then
               gcloud secrets create GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID --replication-policy=automatic
             fi
             echo -n "$REFRESH_TOKEN" | gcloud secrets versions add GOOGLE-OAUTH-REFRESH-TOKEN --data-file=- --project=$GCP_PROJECT_ID
-            echo "✅ Refresh token stored!"
-            gh issue comment 149 --body "## ✅ OAuth Success\nRefresh token stored!\n\nTimestamp: $(date -u)" --repo edri2or-commits/project38-or || true
+            
+            echo "✅ Refresh token stored in GCP Secret Manager!"
+            gh issue comment 149 --body "## ✅ OAuth Success!
+            
+Refresh token has been stored in GCP Secret Manager.
+
+Timestamp: $(date -u)" --repo edri2or-commits/project38-or || true
+          else
+            echo "❌ No refresh token in response"
+            echo "Response: $RESPONSE"
+            exit 1
           fi
