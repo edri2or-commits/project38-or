@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Google Cloud MCP Integration** (2026-01-15) - Full autonomy to Google Cloud services
+  - Added 6 Google Cloud MCP servers to `.mcp.json`:
+    - `gcp-bigquery` - BigQuery queries, schema interpretation, forecasting
+    - `gcp-compute` - GCE instance provisioning, resizing, management
+    - `gcp-gke` - GKE cluster operations, Kubernetes API access
+    - `gcp-storage` - Cloud Storage bucket/object management
+    - `gcp-maps` - Maps data, routing, weather, places
+    - `gcloud` - General gcloud CLI access via npx
+  - Updated `.claude/hooks/session-start.sh` with GCP access token retrieval
+  - Endpoints: `*.googleapis.com/mcp` (Google managed)
+  - Authentication: OAuth via `gcloud auth print-access-token`
+  - Reference: [Google Cloud MCP Docs](https://cloud.google.com/blog/products/ai-machine-learning/announcing-official-mcp-support-for-google-services)
+
 - **Multi-Agent Orchestration System** (2026-01-15) - Advanced autonomous agent coordination
   - `src/multi_agent/` - Complete multi-agent orchestration framework (~1,800 lines)
   - `src/multi_agent/base.py` (400 lines) - Core classes: `SpecializedAgent`, `AgentTask`, `AgentResult`, `AgentMessage`

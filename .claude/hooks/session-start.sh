@@ -43,6 +43,29 @@ load_gcp_secret() {
     return 1
 }
 
+# Get GCP access token for Google Cloud MCP servers
+get_gcp_access_token() {
+    # Check if gcloud is available
+    if ! command -v gcloud &> /dev/null; then
+        echo "   ⚠️ gcloud not available - GCP MCP servers disabled" >&2
+        return 1
+    fi
+
+    # Get access token
+    local token
+    token=$(gcloud auth print-access-token 2>/dev/null) || return 1
+
+    if [ -n "$token" ]; then
+        echo "   ✅ GCP access token obtained" >&2
+        if [ -n "$CLAUDE_ENV_FILE" ]; then
+            echo "export GCP_ACCESS_TOKEN='$token'" >> "$CLAUDE_ENV_FILE"
+        fi
+        return 0
+    fi
+
+    return 1
+}
+
 # Load MCP Gateway token
 if [ -z "$MCP_GATEWAY_TOKEN" ]; then
     load_gcp_secret "MCP-GATEWAY-TOKEN" "MCP_GATEWAY_TOKEN" || true
@@ -57,12 +80,22 @@ else
     echo "   ✅ MCP Bridge token already in environment" >&2
 fi
 
+# Get GCP access token for Google Cloud MCP servers
+GCP_TOKEN_AVAILABLE=false
+if [ -z "$GCP_ACCESS_TOKEN" ]; then
+    get_gcp_access_token && GCP_TOKEN_AVAILABLE=true
+else
+    echo "   ✅ GCP access token already in environment" >&2
+    GCP_TOKEN_AVAILABLE=true
+fi
+
 # Set up additional environment variables
 if [ -n "$CLAUDE_ENV_FILE" ]; then
     echo "export PROJECT38_AUTONOMY_ENABLED=true" >> "$CLAUDE_ENV_FILE"
     echo "export RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116" >> "$CLAUDE_ENV_FILE"
     echo "export PRODUCTION_URL=https://or-infra.com" >> "$CLAUDE_ENV_FILE"
     echo "export RAILWAY_MCP_BRIDGE_URL=https://railway-mcp-bridge.up.railway.app" >> "$CLAUDE_ENV_FILE"
+    echo "export GCP_PROJECT_ID=project38-483612" >> "$CLAUDE_ENV_FILE"
 fi
 
 # Build context for Claude
@@ -71,6 +104,14 @@ CONTEXT+="- MCP Gateway: https://or-infra.com/mcp\\n"
 CONTEXT+="- Railway MCP Bridge: https://railway-mcp-bridge.up.railway.app\\n"
 CONTEXT+="- Railway Project: delightful-cat\\n"
 CONTEXT+="- Available MCP Tools: railway_deploy, railway_rollback, n8n_trigger, health_check\\n"
+
+# Google Cloud MCP servers
+if [ "$GCP_TOKEN_AVAILABLE" = true ]; then
+    CONTEXT+="- GCP MCP Servers: BigQuery, Compute, GKE, Storage, Maps\\n"
+    CONTEXT+="- GCP Project: project38-483612\\n"
+else
+    CONTEXT+="- GCP MCP Servers: ⚠️ Not authenticated\\n"
+fi
 
 # Check token status
 TOKENS_AVAILABLE=false
