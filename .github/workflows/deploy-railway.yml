@@ -63,10 +63,22 @@ jobs:
       - name: Run linter
         run: ruff check src/ tests/
 
+      - name: Debug environment
+        run: |
+          echo "=== Python Version ==="
+          python --version
+          echo "=== Installed Packages ==="
+          pip list | grep -E "(pytest|coverage|google|jwt)" || true
+          echo "=== Test Import Check ==="
+          python -c "from src.secrets_manager import SecretManager; print('✅ Imports OK')" || echo "❌ Import failed"
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/agentplatform
-        run: python -m pytest tests/ -v --tb=short
+        run: |
+          # Run tests with same options as test.yml
+          python -m pytest -v --tb=long -x 2>&1 | tee pytest-output.txt
+          exit $?
 
       - name: Check documentation
         run: |
