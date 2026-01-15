@@ -1,4 +1,5 @@
 name: Setup Google Workspace OAuth
+# Cache refresh trigger - 2026-01-15
 
 on:
   workflow_dispatch:
