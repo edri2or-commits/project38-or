@@ -10,7 +10,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import agents, backups, costs, health, learning, metrics, monitoring, tasks
+from src.api.routes import (
+    agents,
+    backups,
+    costs,
+    health,
+    learning,
+    metrics,
+    monitoring,
+    secrets_health,
+    tasks,
+)
 from src.logging_config import setup_logging
 
 # Initialize structured logging on module import
@@ -94,6 +104,7 @@ app.include_router(metrics.router, tags=["metrics"])
 app.include_router(costs.router, tags=["costs"])
 app.include_router(monitoring.router, tags=["monitoring"])
 app.include_router(learning.router, prefix="/api", tags=["learning"])
+app.include_router(secrets_health.router, tags=["secrets"])
 
 # Mount MCP Gateway for autonomous Railway/n8n operations
 MCP_GATEWAY_ENABLED = os.getenv("MCP_GATEWAY_ENABLED", "false").lower() == "true"

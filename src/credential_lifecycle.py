@@ -7,6 +7,12 @@ triggers automatic recovery when credentials fail.
 Architecture:
     Tier 0 (Root Trust) → Tier 1 (Long-lived) → Tier 2 (Short-lived)
 
+Features:
+    - Health checks for all credential types
+    - Automatic token refresh for short-lived tokens
+    - Expiration monitoring and alerts
+    - Self-healing recovery triggers
+
 Usage:
     from src.credential_lifecycle import CredentialLifecycleManager
 
@@ -14,14 +20,21 @@ Usage:
     health = await manager.check_all_credentials()
     if not health.all_healthy:
         await manager.trigger_recovery(health.failed_credentials)
+
+    # Enable auto-refresh
+    await manager.start_auto_refresh()
 """
 
+import asyncio
+import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class CredentialTier(str, Enum):
@@ -582,3 +595,146 @@ Please follow the recovery procedure for this credential type.
                 report["healthy"].append(entry)
 
         return report
+
+    # Auto-refresh functionality
+    _auto_refresh_task: asyncio.Task | None = None
+    _auto_refresh_interval: int = 300  # 5 minutes
+    _auto_refresh_running: bool = False
+
+    async def start_auto_refresh(self, interval_seconds: int = 300) -> None:
+        """Start automatic credential refresh monitoring.
+
+        Args:
+            interval_seconds: How often to check and refresh credentials.
+        """
+        if self._auto_refresh_running:
+            logger.warning("Auto-refresh already running")
+            return
+
+        self._auto_refresh_interval = interval_seconds
+        self._auto_refresh_running = True
+        self._auto_refresh_task = asyncio.create_task(self._auto_refresh_loop())
+        logger.info(f"Auto-refresh started with {interval_seconds}s interval")
+
+    async def stop_auto_refresh(self) -> None:
+        """Stop automatic credential refresh monitoring."""
+        self._auto_refresh_running = False
+        if self._auto_refresh_task:
+            self._auto_refresh_task.cancel()
+            try:
+                await self._auto_refresh_task
+            except asyncio.CancelledError:
+                pass
+            self._auto_refresh_task = None
+        logger.info("Auto-refresh stopped")
+
+    async def _auto_refresh_loop(self) -> None:
+        """Main loop for automatic credential refresh."""
+        while self._auto_refresh_running:
+            try:
+                await self._perform_auto_refresh()
+            except Exception as e:
+                logger.error(f"Auto-refresh error: {type(e).__name__}: {e}")
+
+            await asyncio.sleep(self._auto_refresh_interval)
+
+    async def _perform_auto_refresh(self) -> None:
+        """Perform credential checks and trigger refreshes as needed."""
+        health = await self.check_all_credentials()
+
+        # Log overall health
+        if health.all_healthy:
+            logger.debug("All credentials healthy")
+        else:
+            logger.warning(f"Unhealthy credentials: {health.failed_credentials}")
+
+        # Check for expiring credentials
+        expiring = health.expiring_soon
+        if expiring:
+            logger.info(f"Credentials expiring soon: {expiring}")
+            for cred_type in expiring:
+                await self._refresh_credential(cred_type)
+
+        # Attempt recovery for failed credentials
+        if health.failed_credentials:
+            results = await self.trigger_recovery(health.failed_credentials)
+            for cred_type, result in results.items():
+                logger.info(f"Recovery for {cred_type.value}: {result}")
+
+    async def _refresh_credential(self, cred_type: CredentialType) -> bool:
+        """Attempt to refresh a specific credential.
+
+        Args:
+            cred_type: The credential type to refresh.
+
+        Returns:
+            True if refresh was successful.
+        """
+        logger.info(f"Attempting to refresh {cred_type.value}")
+
+        if cred_type == CredentialType.GOOGLE_OAUTH:
+            return await self._refresh_google_oauth()
+        elif cred_type == CredentialType.GITHUB_APP:
+            return await self._refresh_github_app()
+        else:
+            logger.debug(f"No auto-refresh available for {cred_type.value}")
+            return False
+
+    async def _refresh_google_oauth(self) -> bool:
+        """Refresh Google OAuth access token.
+
+        Returns:
+            True if refresh successful.
+        """
+        try:
+            from src.secrets_manager import SecretManager
+
+            manager = SecretManager()
+            client_id = manager.get_secret("GOOGLE-OAUTH-CLIENT-ID")
+            client_secret = manager.get_secret("GOOGLE-OAUTH-CLIENT-SECRET")
+            refresh_token = manager.get_secret("GOOGLE-OAUTH-REFRESH-TOKEN")
+
+            if not all([client_id, client_secret, refresh_token]):
+                logger.error("Missing OAuth secrets for refresh")
+                return False
+
+            client = await self._get_client()
+            response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "refresh_token": refresh_token,
+                    "grant_type": "refresh_token",
+                },
+            )
+
+            if response.status_code == 200:
+                logger.info("Google OAuth token refreshed successfully")
+                return True
+            else:
+                logger.error(f"Google OAuth refresh failed: {response.status_code}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Google OAuth refresh error: {type(e).__name__}")
+            return False
+
+    async def _refresh_github_app(self) -> bool:
+        """Refresh GitHub App installation token.
+
+        Returns:
+            True if refresh successful.
+        """
+        try:
+            from src.github_app_client import GitHubAppClient
+
+            client = GitHubAppClient()
+            token = await client._get_installation_token()
+            if token:
+                logger.info("GitHub App token refreshed successfully")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"GitHub App refresh error: {type(e).__name__}")
+            return False
