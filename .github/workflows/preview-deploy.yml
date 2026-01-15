@@ -57,6 +57,9 @@ jobs:
 
       - name: Run unit tests
         id: tests
+        env:
+          # Set dummy DATABASE_URL to prevent import-time connection errors
+          DATABASE_URL: postgresql+asyncpg://user:pass@localhost:5432/dummy
         run: |
           # Run only unit tests (skip integration, e2e, and load tests)
           # Integration tests are validated by the dedicated test.yml workflow
