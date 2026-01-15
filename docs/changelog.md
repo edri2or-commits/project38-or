@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Re-enabled monitoring routes** (2026-01-15)
+  - `src/api/main.py`: Re-enabled monitoring router that was temporarily disabled
+  - Monitoring API endpoints now available at `/api/monitoring/*`
+
+- **Improved test robustness** (2026-01-15)
+  - `conftest.py`: Fixed secrets_manager test skip to check `google.cloud.secretmanager` instead of `google.api_core.exceptions`
+  - `conftest.py`: Added PostgreSQL availability check to skip database-dependent tests when no database is available
+  - Tests now gracefully skip in environments without PostgreSQL or GCP libraries
+
 ### Added
 - **ML-Based Anomaly Detection - Month 3 Goal** (2026-01-14) - Intelligent anomaly detection with ensemble algorithms
   - `src/ml_anomaly_detector.py` (700+ lines) - ML-based anomaly detection module

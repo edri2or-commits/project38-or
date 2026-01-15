@@ -10,10 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import agents, backups, costs, health, metrics, tasks
-
-# TODO: Re-enable monitoring routes after fixing import issues
-# from src.api.routes import monitoring
+from src.api.routes import agents, backups, costs, health, metrics, monitoring, tasks
 from src.logging_config import setup_logging
 
 # Initialize structured logging on module import
@@ -95,8 +92,7 @@ app.include_router(tasks.router, prefix="/api", tags=["tasks"])
 app.include_router(backups.router, prefix="/api", tags=["backups"])
 app.include_router(metrics.router, tags=["metrics"])
 app.include_router(costs.router, tags=["costs"])
-# TODO: Re-enable after fixing import issues
-# app.include_router(monitoring.router, tags=["monitoring"])
+app.include_router(monitoring.router, tags=["monitoring"])
 
 
 # Debug endpoint to verify routes are registered
