@@ -10,13 +10,11 @@ Tests cover:
 """
 
 import asyncio
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.multi_agent import (
-    AgentCapability,
     AgentDomain,
     AgentMessage,
     AgentOrchestrator,
@@ -27,7 +25,6 @@ from src.multi_agent import (
     IntegrationAgent,
     IntegrationConfig,
     MonitoringAgent,
-    MonitoringConfig,
     OrchestratorConfig,
     TaskPriority,
     TaskStatus,

@@ -8,7 +8,7 @@ import httpx
 from google.cloud import secretmanager
 
 GCP_PROJECT_ID = "project38-483612"
-OAUTH_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105
 OAUTH_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
 
 
@@ -53,8 +53,8 @@ def set_secret(secret_name: str, value: str) -> bool:
                     "secret": {"replication": {"automatic": {}}},
                 }
             )
-        except Exception:
-            pass  # Secret already exists
+        except Exception:  # noqa: S110
+            pass  # Secret already exists, this is expected
 
         # Add new version
         secret_path = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}"
@@ -97,7 +97,7 @@ async def exchange_oauth_code(auth_code: str) -> dict:
     # Exchange code for tokens
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            OAUTH_TOKEN_ENDPOINT,
+            OAUTH_TOKEN_URL,
             data={
                 "client_id": client_id,
                 "client_secret": client_secret,
