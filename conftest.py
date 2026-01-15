@@ -5,7 +5,44 @@ tests when their required dependencies are missing, preventing CI failures
 due to optional or in-development modules.
 """
 
+import subprocess
+import sys
+
 import pytest  # noqa: F401 - Required by pytest hooks
+
+# Cache for module availability checks (avoid repeated subprocess calls)
+_module_check_cache: dict[str, bool] = {}
+
+
+def _check_module_importable(module_name: str) -> bool:
+    """
+    Check if a module can be imported successfully.
+
+    Uses subprocess to avoid crashing the test process if the module
+    has import-time errors (e.g., pyo3_runtime.PanicException from broken
+    cryptography/jwt).
+
+    Args:
+        module_name: Name of the module to check
+
+    Returns:
+        True if module can be imported, False otherwise
+    """
+    if module_name in _module_check_cache:
+        return _module_check_cache[module_name]
+
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", f"import {module_name}"],
+            capture_output=True,
+            timeout=10,
+        )
+        is_importable = result.returncode == 0
+    except Exception:
+        is_importable = False
+
+    _module_check_cache[module_name] = is_importable
+    return is_importable
 
 
 def pytest_ignore_collect(collection_path, config):
@@ -36,10 +73,15 @@ def pytest_ignore_collect(collection_path, config):
 
         # Check for imports of known problematic modules
         # Format: (import_pattern_in_file, required_module_to_check)
+        # Note: Patterns check transitive dependencies, e.g., orchestrator -> jwt
         problematic_imports = [
-            # Core orchestration - needs tenacity and jwt
-            ("from src.orchestrator import", "tenacity"),
+            # Core orchestration - needs jwt (via github_app_client)
+            ("from src.orchestrator import", "jwt"),
             ("from src.github_app_client import", "jwt"),
+            # GitHub auth - needs jwt directly
+            ("from src.github_auth import", "jwt"),
+            ("from src import github_auth", "jwt"),
+            # Railway/n8n clients - need tenacity
             ("from src.railway_client import", "tenacity"),
             ("from src.n8n_client import", "tenacity"),
             # Agent factory - needs anthropic
@@ -56,16 +98,19 @@ def pytest_ignore_collect(collection_path, config):
             # Anomaly integrator (imports autonomous_controller)
             ("from src.anomaly_response_integrator import", "jwt"),
             # Monitoring loop (imports anomaly integrator and ml detector)
-            ("from src.monitoring_loop import", "httpx"),
+            ("from src.monitoring_loop import", "jwt"),
+            # Performance baseline - needs psutil
+            ("from src.performance_baseline import", "psutil"),
+            # Secrets manager - needs google.api_core.exceptions working properly
+            ("from src.secrets_manager import", "google.api_core.exceptions"),
         ]
 
         for import_pattern, required_module in problematic_imports:
             if import_pattern in content:
-                # Check if module is available
-                try:
-                    __import__(required_module)
-                except ModuleNotFoundError:
-                    # Module not available - skip this test file
+                # Check if module can be imported successfully using subprocess
+                # This avoids crashing the test process if the module has
+                # import-time errors (e.g., pyo3 panic from broken jwt/cryptography)
+                if not _check_module_importable(required_module):
                     return True
 
         return None
