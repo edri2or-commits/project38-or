@@ -8,10 +8,14 @@ from typing import Any
 
 import httpx
 from fastapi import HTTPException, Request
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.workspace_mcp_bridge.config import WorkspaceConfig
 
 logger = logging.getLogger(__name__)
+
+# OAuth token refresh timeout in seconds
+OAUTH_REFRESH_TIMEOUT = 30.0
 
 
 class GoogleOAuthManager:
@@ -57,14 +61,19 @@ class GoogleOAuthManager:
         # Add 5 minute buffer before expiry
         return datetime.now(UTC) < (self._token_expiry - timedelta(minutes=5))
 
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        stop=stop_after_attempt(3),
+        reraise=True,
+    )
     async def _refresh_token(self) -> str:
-        """Refresh the OAuth access token.
+        """Refresh the OAuth access token with retry logic.
 
         Returns:
             New access token
 
         Raises:
-            HTTPException: If refresh fails
+            HTTPException: If refresh fails after 3 retries
         """
         if not self.config.oauth_refresh_token:
             raise HTTPException(
@@ -72,31 +81,48 @@ class GoogleOAuthManager:
                 detail="No OAuth refresh token configured",
             )
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self.OAUTH_ENDPOINT,
-                data={
-                    "client_id": self.config.oauth_client_id,
-                    "client_secret": self.config.oauth_client_secret,
-                    "refresh_token": self.config.oauth_refresh_token,
-                    "grant_type": "refresh_token",
-                },
-            )
-
-            if response.status_code != 200:
-                logger.error(f"Token refresh failed: {response.text}")
-                raise HTTPException(
-                    status_code=401,
-                    detail="Failed to refresh OAuth token",
+        try:
+            async with httpx.AsyncClient(timeout=OAUTH_REFRESH_TIMEOUT) as client:
+                response = await client.post(
+                    self.OAUTH_ENDPOINT,
+                    data={
+                        "client_id": self.config.oauth_client_id,
+                        "client_secret": self.config.oauth_client_secret,
+                        "refresh_token": self.config.oauth_refresh_token,
+                        "grant_type": "refresh_token",
+                    },
                 )
 
-            data = response.json()
-            self._access_token = data["access_token"]
-            expires_in = data.get("expires_in", 3600)
-            self._token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
+                if response.status_code == 429:
+                    logger.warning("OAuth rate limit hit, will retry")
+                    raise httpx.HTTPStatusError(
+                        "Rate limited",
+                        request=response.request,
+                        response=response,
+                    )
 
-            logger.info("OAuth token refreshed successfully")
-            return self._access_token
+                if response.status_code != 200:
+                    # Don't log full response text - may contain sensitive info
+                    logger.error(f"Token refresh failed: HTTP {response.status_code}")
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Failed to refresh OAuth token",
+                    )
+
+                data = response.json()
+                self._access_token = data["access_token"]
+                expires_in = data.get("expires_in", 3600)
+                self._token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
+
+                logger.info("OAuth token refreshed successfully")
+                return self._access_token
+
+        except httpx.TimeoutException as e:
+            logger.error(f"OAuth token refresh timeout after {OAUTH_REFRESH_TIMEOUT}s")
+            raise HTTPException(
+                status_code=504,
+                detail="OAuth token refresh timed out",
+            ) from e
 
     def get_auth_headers(self) -> dict[str, str]:
         """Get authorization headers for API requests.
