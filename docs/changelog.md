@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Persistent MCP Autonomy** (2026-01-15) - Full autonomy from any session
+  - `.mcp.json` - Project-scoped MCP Gateway configuration
+  - `.claude/settings.json` - SessionStart hook registration
+  - `.claude/hooks/session-start.sh` - Auto-loads MCP token from GCP
+  - Works in both local CLI and web sessions
+  - Enables autonomous Railway/n8n operations without manual setup
+
 - **Preview Deployments for PRs** (2026-01-15) - Advanced CI/CD enhancement
   - `.github/workflows/preview-deploy.yml` - Automated preview environment workflow
   - Creates temporary Railway environment for each PR (`pr-{number}`)
