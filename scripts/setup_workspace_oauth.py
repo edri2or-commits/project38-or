@@ -34,7 +34,7 @@ SCOPES = [
 ]
 
 REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
-TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 
 
@@ -80,7 +80,7 @@ def exchange_code(
         "redirect_uri": REDIRECT_URI,
     }
 
-    response = httpx.post(TOKEN_ENDPOINT, data=data)
+    response = httpx.post(TOKEN_URL, data=data)
     return response.json()
 
 
@@ -93,7 +93,7 @@ def test_token(refresh_token: str, client_id: str, client_secret: str) -> bool:
         "grant_type": "refresh_token",
     }
 
-    response = httpx.post(TOKEN_ENDPOINT, data=data)
+    response = httpx.post(TOKEN_URL, data=data)
     result = response.json()
 
     if "access_token" in result:
