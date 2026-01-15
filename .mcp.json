@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "railway": {
+      "type": "http",
+      "url": "${RAILWAY_MCP_BRIDGE_URL:-https://railway-mcp-bridge.up.railway.app}",
+      "headers": {
+        "Authorization": "Bearer ${MCP_BRIDGE_TOKEN}"
+      }
+    },
+    "claude-gateway": {
+      "type": "http",
+      "url": "https://or-infra.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${MCP_GATEWAY_TOKEN}"
+      }
+    }
+  }
+}

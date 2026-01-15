@@ -1,0 +1,220 @@
+name: Deploy Railway MCP Bridge
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - create-service
+          - status
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Get/Create MCP Bridge Token
+        id: bridge-token
+        run: |
+          if gcloud secrets describe MCP-BRIDGE-TOKEN --project=project38-483612 2>/dev/null; then
+            TOKEN=$(gcloud secrets versions access latest --secret="MCP-BRIDGE-TOKEN" --project=project38-483612)
+          else
+            TOKEN=$(openssl rand -hex 32)
+            echo -n "$TOKEN" | gcloud secrets create MCP-BRIDGE-TOKEN --data-file=- --project=project38-483612
+          fi
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check Railway Status
+        if: inputs.action == 'status'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+        run: |
+          echo "Checking Railway MCP Bridge status..."
+
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }')
+
+          echo "Services in project:"
+          echo "$RESPONSE" | jq '.data.project.services.edges[].node'
+
+      - name: Create MCP Bridge Service
+        if: inputs.action == 'create-service'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          MCP_BRIDGE_TOKEN: ${{ steps.bridge-token.outputs.token }}
+        run: |
+          echo "Creating Railway MCP Bridge service via GraphQL API..."
+
+          # Create service
+          echo "Step 1: Creating service..."
+          CREATE_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceCreate(input: { name: \"railway-mcp-bridge\", projectId: \"'$RAILWAY_PROJECT_ID'\" }) { id name } }"
+            }')
+
+          echo "Create response: $CREATE_RESPONSE"
+
+          SERVICE_ID=$(echo "$CREATE_RESPONSE" | jq -r '.data.serviceCreate.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "Service may already exist, searching..."
+            SERVICES_RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+              }')
+
+            SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "railway-mcp-bridge") | .node.id')
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Failed to create or find service"
+            exit 1
+          fi
+
+          # Set environment variables
+          echo "Step 2: Setting environment variables..."
+
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"MCP_BRIDGE_TOKEN\", value: \"'$MCP_BRIDGE_TOKEN'\" }) }"
+            }'
+
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"RAILWAY_API_TOKEN\", value: \"'$RAILWAY_TOKEN'\" }) }"
+            }'
+
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"PORT\", value: \"3001\" }) }"
+            }'
+
+          echo "✅ Environment variables set"
+          echo ""
+          echo "✅ MCP Bridge service created!"
+          echo "Service ID: $SERVICE_ID"
+          echo ""
+          echo "Next: Go to Railway dashboard and connect this service to GitHub repo"
+          echo "Or run this workflow again with action: deploy"
+
+      - name: Deploy MCP Bridge
+        if: inputs.action == 'deploy'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "Triggering deployment for Railway MCP Bridge..."
+
+          SERVICES_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }')
+
+          SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "railway-mcp-bridge") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Service not found. Run with action: create-service first."
+            exit 1
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { deploymentTrigger(input: { serviceId: \"'$SERVICE_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\" }) { id status } }"
+            }')
+
+          echo "Deploy response: $DEPLOY_RESPONSE"
+          echo "✅ Deployment triggered"
+
+      - name: Get Service URL
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "Getting service URL..."
+
+          DOMAIN=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { name serviceInstances(environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }"
+            }' | jq -r '.data.project.services.edges[] | select(.node.name == "railway-mcp-bridge") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain' 2>/dev/null || echo "")
+
+          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
+            echo "🌐 MCP Bridge URL: https://$DOMAIN"
+          else
+            echo "Service domain not available yet. Add domain in Railway dashboard."
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Railway MCP Bridge"
+          echo "| Item | Status |"
+          echo "|------|--------|"
+          echo "| Action | ${{ inputs.action }} |"
+          echo "| Railway Token | ✅ |"
+          echo "| Bridge Token | ✅ |"

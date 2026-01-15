@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Railway MCP HTTP Bridge** (2026-01-15) - Professional Railway integration
+  - `services/railway-mcp-bridge/` - HTTP bridge for official @railway/mcp-server
+  - Exposes Railway MCP tools over HTTP for web sessions
+  - `.github/workflows/deploy-mcp-bridge.yml` - Deployment workflow
+  - Updated `.mcp.json` with Railway MCP configuration
+  - Updated session-start hook to load MCP_BRIDGE_TOKEN
+  - Based on [Official Railway MCP Server](https://github.com/railwayapp/railway-mcp-server)
+
+- **Persistent MCP Autonomy** (2026-01-15) - Full autonomy from any session
+  - `.mcp.json` - Project-scoped MCP Gateway configuration
+  - `.claude/settings.json` - SessionStart hook registration
+  - `.claude/hooks/session-start.sh` - Auto-loads MCP token from GCP
+  - Works in both local CLI and web sessions
+  - Enables autonomous Railway/n8n operations without manual setup
+
 - **Preview Deployments for PRs** (2026-01-15) - Advanced CI/CD enhancement
   - `.github/workflows/preview-deploy.yml` - Automated preview environment workflow
   - Creates temporary Railway environment for each PR (`pr-{number}`)

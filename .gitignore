@@ -37,6 +37,13 @@ service-account*.json
 secrets/
 .secrets/
 
+# Exceptions - safe JSON files that SHOULD be committed
+!.mcp.json
+!.claude/settings.json
+!pyproject.toml
+!mkdocs.yml
+!services/**/package.json
+
 # IDE
 .vscode/
 .idea/

@@ -94,6 +94,23 @@ app.include_router(metrics.router, tags=["metrics"])
 app.include_router(costs.router, tags=["costs"])
 app.include_router(monitoring.router, tags=["monitoring"])
 
+# Mount MCP Gateway for autonomous Railway/n8n operations
+MCP_GATEWAY_ENABLED = os.getenv("MCP_GATEWAY_ENABLED", "false").lower() == "true"
+if MCP_GATEWAY_ENABLED:
+    try:
+        from src.mcp_gateway.server import create_mcp_app
+
+        mcp_app = create_mcp_app()
+        if mcp_app:
+            app.mount("/mcp", mcp_app)
+            logger.info("MCP Gateway mounted at /mcp")
+        else:
+            logger.warning("MCP Gateway not available (fastmcp not installed)")
+    except ImportError as e:
+        logger.warning(f"MCP Gateway import failed: {e}")
+else:
+    logger.info("MCP Gateway disabled (set MCP_GATEWAY_ENABLED=true to enable)")
+
 
 # Debug endpoint to verify routes are registered
 @app.get("/debug/routes")
