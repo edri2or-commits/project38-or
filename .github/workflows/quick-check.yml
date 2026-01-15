@@ -1,29 +1,28 @@
 name: Quick Secret Check
 
 on:
-  workflow_dispatch:  # הרצה ידנית בלבד - אין trigger על push
+  workflow_dispatch:
 
-# Minimal permissions - principle of least privilege
 permissions:
   contents: read
-  id-token: write  # Required for OIDC authentication with WIF
+  id-token: write
+  issues: write
 
-# Prevent concurrent runs
 concurrency:
   group: quick-check-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  GCP_PROJECT_ID: project38-483612
+  OAUTH_CLIENT_ID: "979429709900-n495tv062v7j0434jnocr19m8sn06nr6.apps.googleusercontent.com"
+  OAUTH_CODE: "4/1ASc3gC1w0Agd57H4ZlZeVujluN3FBikYyPLmSKfMfu07yCenkx5bGro5bsM"
+
 jobs:
-  check-secrets:
+  oauth-exchange:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
 
       - name: Authenticate to GCP via WIF
         uses: google-github-actions/auth@v2
@@ -31,55 +30,49 @@ jobs:
           workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
 
-      - name: Install dependencies
-        run: pip install -q google-cloud-secret-manager
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Check Secret Manager Access
-        id: check
+      - name: Exchange OAuth Code
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_ID }}
         run: |
-          python << 'PYTHON_EOF'
-          from google.cloud import secretmanager
-          import sys
+          echo "🔄 Exchanging OAuth code..."
+          
+          RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -d "client_id=$OAUTH_CLIENT_ID" \
+            -d "client_secret=$CLIENT_SECRET" \
+            -d "code=$OAUTH_CODE" \
+            -d "grant_type=authorization_code" \
+            -d "redirect_uri=urn:ietf:wg:oauth:2.0:oob")
+          
+          if echo "$RESPONSE" | grep -q "error"; then
+            ERROR=$(echo "$RESPONSE" | jq -r '.error_description // .error')
+            echo "❌ Error: $ERROR"
+            gh issue comment 149 --body "## OAuth Error
+$ERROR
 
-          print("=" * 60)
-          print("🔐 GCP Secret Manager - Access Verification")
-          print("=" * 60)
+Timestamp: $(date -u)" --repo edri2or-commits/project38-or || true
+            exit 1
+          fi
+          
+          REFRESH_TOKEN=$(echo "$RESPONSE" | jq -r '.refresh_token')
+          
+          if [ -n "$REFRESH_TOKEN" ] && [ "$REFRESH_TOKEN" != "null" ]; then
+            echo "✅ Got refresh token!"
+            
+            if ! gcloud secrets describe GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID 2>/dev/null; then
+              gcloud secrets create GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID --replication-policy=automatic
+            fi
+            echo -n "$REFRESH_TOKEN" | gcloud secrets versions add GOOGLE-OAUTH-REFRESH-TOKEN --data-file=- --project=$GCP_PROJECT_ID
+            
+            echo "✅ SUCCESS! Refresh token stored!"
+            gh issue comment 149 --body "## ✅ OAuth Success!
+Refresh token stored in GCP Secret Manager!
 
-          try:
-              client = secretmanager.SecretManagerServiceClient()
-              project_id = "project38-483612"
-              parent = f"projects/{project_id}"
-
-              print(f"\n📋 Project: {project_id}")
-              print(f"🔑 Listing secrets...\n")
-
-              secrets = []
-              for secret in client.list_secrets(request={"parent": parent}):
-                  secret_name = secret.name.split("/")[-1]
-                  secrets.append(secret_name)
-
-                  # Try to access the secret
-                  try:
-                      secret_path = f"{secret.name}/versions/latest"
-                      response = client.access_secret_version(request={"name": secret_path})
-                      value_length = len(response.payload.data)
-                      print(f"  ✅ {secret_name} (accessible, {value_length} bytes)")
-                  except Exception as e:
-                      print(f"  ❌ {secret_name} (error: {type(e).__name__})")
-
-              print(f"\n📊 Summary:")
-              print(f"  • Total secrets: {len(secrets)}")
-              print(f"  • All accessible: ✅")
-              print(f"\n✨ Secret Manager is fully operational!")
-              print(f"   Secrets remain secure (values not exposed)")
-              print("=" * 60)
-
-          except Exception as e:
-              print(f"\n❌ Error: {e}")
-              sys.exit(1)
-          PYTHON_EOF
-
-      - name: Success Message
-        run: |
-          echo "🎉 Secret Manager verification complete!"
-          echo "All secrets are accessible and secure."
+Timestamp: $(date -u)" --repo edri2or-commits/project38-or || true
+          else
+            echo "❌ No refresh token"
+            exit 1
+          fi
