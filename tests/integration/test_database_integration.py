@@ -8,6 +8,7 @@ Run with: DATABASE_URL=postgresql+asyncpg://user:pass@localhost/test pytest test
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
 from src.models.agent import Agent
@@ -325,7 +326,7 @@ class TestDatabaseConstraints:
         agent = Agent(name=None, status="active")  # type: ignore
         db_session.add(agent)
 
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             await db_session.commit()
 
     @pytest.mark.asyncio
@@ -334,7 +335,7 @@ class TestDatabaseConstraints:
         task = Task(agent_id=99999, status="pending")
         db_session.add(task)
 
-        with pytest.raises(Exception):
+        with pytest.raises(IntegrityError):
             await db_session.commit()
 
     @pytest.mark.asyncio
