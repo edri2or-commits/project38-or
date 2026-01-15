@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Autonomy Security Audit Fixes** (2026-01-15) - Critical fixes from comprehensive security audit
+  - **CRITICAL-1**: Removed refresh token exposure in `scripts/setup_workspace_oauth.py`
+    - Token now saved to secure file with 0600 permissions instead of stdout
+    - Added clear instructions for GCP Secret Manager storage
+  - **CRITICAL-2**: Added retry logic to MCP Gateway tools (`src/mcp_gateway/tools/railway.py`)
+    - Exponential backoff (2-30s) with 3 retry attempts using tenacity
+    - Better error messages after retry exhaustion
+  - **CRITICAL-3**: Added timeout + retry to OAuth token refresh (`src/workspace_mcp_bridge/auth.py`)
+    - 30-second timeout on token refresh requests
+    - Rate limit (429) detection with automatic retry
+    - Removed sensitive error logging (response.text)
+  - **HIGH-8**: Added logging for silent fallback (`src/mcp_gateway/config.py`)
+    - Warning when GCP Secret Manager access fails
+    - Explicit logging of which secrets are missing
+    - Error log when environment fallback also fails
+  - **Sources**: OWASP OAuth2 Cheat Sheet, GCP Secret Manager Best Practices
+
 ### Added
 - **Learning & Adaptation System** (2026-01-15) - Cross-agent learning with confidence improvement
   - `src/models/action_record.py` (154 lines) - SQLModel for persistent action history
