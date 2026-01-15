@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "claude-gateway": {
+      "type": "http",
+      "url": "https://or-infra.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${MCP_GATEWAY_TOKEN}"
+      }
+    }
+  }
+}
