@@ -60,6 +60,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated Autonomous Skills count from 8 to 10 (233% of target)
 
 ### Fixed
+- **CI/CD Workflow Fixes** (2026-01-15)
+  - `deploy-mcp-bridge.yml` - Use GraphQL API instead of Railway CLI for service creation
+  - `preview-deploy.yml` - Remove duplicate test step (handled by test.yml)
+  - `tests/conftest.py` - Use `asyncio.run()` for Python 3.10+ compatibility
+  - `tests/integration/` - Use specific `IntegrityError` instead of generic `Exception`
+
+### Fixed
 - **Production DATABASE_URL** (2026-01-15)
   - Added missing DATABASE_URL environment variable to Railway web service
   - Configured as Variable Reference from PostgreSQL service
