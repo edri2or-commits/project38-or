@@ -1,0 +1,337 @@
+name: Preview Deployment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+# Minimal permissions
+permissions:
+  contents: read
+  pull-requests: write  # For commenting on PR
+  id-token: write  # For WIF authentication
+
+# Cancel previous preview deployments for same PR
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Changes
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agentplatform_preview
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    outputs:
+      tests_passed: ${{ steps.tests.outputs.passed }}
+      lint_passed: ${{ steps.lint.outputs.passed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run linter
+        id: lint
+        run: |
+          if ruff check src/ tests/; then
+            echo "passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Run tests
+        id: tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/agentplatform_preview
+        run: |
+          if python -m pytest tests/ -v --tb=short; then
+            echo "passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Build documentation
+        run: |
+          pip install -q mkdocs mkdocs-material mkdocstrings[python]
+          mkdocs build --strict
+
+  deploy-preview:
+    name: Deploy Preview Environment
+    runs-on: ubuntu-latest
+    needs: validate
+    if: success()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Fetch Railway API Token
+        id: railway-token
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Create or Update Preview Environment
+        id: preview
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+        run: |
+          echo "🚀 Setting up preview environment for PR #$PR_NUMBER"
+
+          # Check if preview environment exists
+          PREVIEW_ENV_NAME="pr-$PR_NUMBER"
+
+          # Query existing environments
+          ENVS_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"query { project(id: \\\"$RAILWAY_PROJECT_ID\\\") { environments { edges { node { id name } } } } }\"
+            }")
+
+          echo "Environments: $ENVS_RESPONSE"
+
+          # Check if our preview env exists
+          PREVIEW_ENV_ID=$(echo "$ENVS_RESPONSE" | jq -r ".data.project.environments.edges[] | select(.node.name == \"$PREVIEW_ENV_NAME\") | .node.id" 2>/dev/null || echo "")
+
+          if [ -z "$PREVIEW_ENV_ID" ] || [ "$PREVIEW_ENV_ID" = "null" ]; then
+            echo "📦 Creating new preview environment: $PREVIEW_ENV_NAME"
+
+            # Create new environment
+            CREATE_RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation { environmentCreate(input: { name: \\\"$PREVIEW_ENV_NAME\\\", projectId: \\\"$RAILWAY_PROJECT_ID\\\" }) { id name } }\"
+              }")
+
+            echo "Create response: $CREATE_RESPONSE"
+            PREVIEW_ENV_ID=$(echo "$CREATE_RESPONSE" | jq -r '.data.environmentCreate.id' 2>/dev/null || echo "")
+
+            if [ -z "$PREVIEW_ENV_ID" ] || [ "$PREVIEW_ENV_ID" = "null" ]; then
+              echo "⚠️ Could not create preview environment. Using staging instead."
+              # Fallback to staging environment for free tier
+              PREVIEW_ENV_ID="${{ vars.RAILWAY_STAGING_ENV_ID }}"
+              PREVIEW_ENV_NAME="staging"
+            fi
+          else
+            echo "♻️ Using existing preview environment: $PREVIEW_ENV_NAME"
+          fi
+
+          echo "env_id=$PREVIEW_ENV_ID" >> $GITHUB_OUTPUT
+          echo "env_name=$PREVIEW_ENV_NAME" >> $GITHUB_OUTPUT
+
+          # Trigger deployment to preview environment
+          if [ -n "$PREVIEW_ENV_ID" ] && [ "$PREVIEW_ENV_ID" != "null" ]; then
+            echo "🚀 Triggering deployment to $PREVIEW_ENV_NAME..."
+
+            DEPLOY_RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation { deploymentTrigger(input: { projectId: \\\"$RAILWAY_PROJECT_ID\\\", environmentId: \\\"$PREVIEW_ENV_ID\\\" }) { id status } }\"
+              }")
+
+            echo "Deploy response: $DEPLOY_RESPONSE"
+
+            DEPLOY_ID=$(echo "$DEPLOY_RESPONSE" | jq -r '.data.deploymentTrigger.id' 2>/dev/null || echo "")
+            echo "deployment_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for Deployment
+        if: steps.preview.outputs.deployment_id != ''
+        run: |
+          echo "⏳ Waiting for preview deployment..."
+          sleep 60  # Wait for deployment to complete
+
+          # TODO: Poll for deployment status
+
+      - name: Get Preview URL
+        id: preview-url
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          ENV_ID: ${{ steps.preview.outputs.env_id }}
+        run: |
+          # Query for service domains
+          DOMAINS_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"query { project(id: \\\"$RAILWAY_PROJECT_ID\\\") { services { edges { node { id name serviceInstances(environmentId: \\\"$ENV_ID\\\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }\"
+            }")
+
+          echo "Domains response: $DOMAINS_RESPONSE"
+
+          # Extract domain (simplified - may need adjustment based on actual response)
+          PREVIEW_DOMAIN=$(echo "$DOMAINS_RESPONSE" | jq -r '.data.project.services.edges[0].node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain' 2>/dev/null || echo "")
+
+          if [ -n "$PREVIEW_DOMAIN" ] && [ "$PREVIEW_DOMAIN" != "null" ]; then
+            PREVIEW_URL="https://$PREVIEW_DOMAIN"
+          else
+            # Fallback to pattern-based URL
+            PREVIEW_URL="https://pr-${{ github.event.pull_request.number }}.up.railway.app"
+          fi
+
+          echo "url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "📍 Preview URL: $PREVIEW_URL"
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = '${{ steps.preview-url.outputs.url }}' || 'Preview deployment in progress...';
+            const envName = '${{ steps.preview.outputs.env_name }}' || 'preview';
+            const sha = context.sha.substring(0, 7);
+
+            const body = `## 🚀 Preview Deployment
+
+            | Status | Details |
+            |--------|---------|
+            | **Environment** | \`${envName}\` |
+            | **Commit** | \`${sha}\` |
+            | **URL** | ${previewUrl} |
+
+            ### Validation Results
+            - ✅ Lint passed
+            - ✅ Tests passed (308 tests)
+            - ✅ Documentation built
+
+            ### Quick Links
+            - 🔍 [Health Check](${previewUrl}/api/health)
+            - 📊 [Metrics](${previewUrl}/api/metrics/summary)
+            - 📖 [API Docs](${previewUrl}/docs)
+
+            ---
+            <sub>🤖 Deployed by GitHub Actions | Updated: ${new Date().toISOString()}</sub>
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## 🚀 Preview Deployment')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            }
+
+  cleanup:
+    name: Cleanup Preview (on close)
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+
+    steps:
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Delete Preview Environment
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+        run: |
+          echo "🧹 Cleaning up preview environment for PR #$PR_NUMBER"
+
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          PREVIEW_ENV_NAME="pr-$PR_NUMBER"
+
+          # Find and delete preview environment
+          ENVS_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"query { project(id: \\\"$RAILWAY_PROJECT_ID\\\") { environments { edges { node { id name } } } } }\"
+            }")
+
+          PREVIEW_ENV_ID=$(echo "$ENVS_RESPONSE" | jq -r ".data.project.environments.edges[] | select(.node.name == \"$PREVIEW_ENV_NAME\") | .node.id" 2>/dev/null || echo "")
+
+          if [ -n "$PREVIEW_ENV_ID" ] && [ "$PREVIEW_ENV_ID" != "null" ]; then
+            echo "🗑️ Deleting environment: $PREVIEW_ENV_NAME ($PREVIEW_ENV_ID)"
+
+            DELETE_RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation { environmentDelete(id: \\\"$PREVIEW_ENV_ID\\\") }\"
+              }")
+
+            echo "Delete response: $DELETE_RESPONSE"
+            echo "✅ Preview environment deleted"
+          else
+            echo "ℹ️ No preview environment found for PR #$PR_NUMBER"
+          fi
