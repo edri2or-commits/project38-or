@@ -21,20 +21,8 @@ jobs:
     name: Validate Changes
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: agentplatform_preview
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+    # Note: PostgreSQL service removed - integration tests are handled by test.yml workflow
+    # This job focuses on quick validation (lint, unit tests, docs) for preview deployments
 
     outputs:
       tests_passed: ${{ steps.tests.outputs.passed }}
@@ -67,12 +55,12 @@ jobs:
             exit 1
           fi
 
-      - name: Run tests
+      - name: Run unit tests
         id: tests
-        env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/agentplatform_preview
         run: |
-          if python -m pytest tests/ -v --tb=short; then
+          # Run only unit tests (skip integration tests that require database)
+          # Integration tests are validated by the dedicated test.yml workflow
+          if python -m pytest tests/ -v --tb=short --ignore=tests/integration/; then
             echo "passed=true" >> $GITHUB_OUTPUT
           else
             echo "passed=false" >> $GITHUB_OUTPUT
