@@ -13,6 +13,45 @@
       "headers": {
         "Authorization": "Bearer ${MCP_GATEWAY_TOKEN}"
       }
+    },
+    "gcp-bigquery": {
+      "type": "http",
+      "url": "https://bigquery.googleapis.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GCP_ACCESS_TOKEN}"
+      }
+    },
+    "gcp-compute": {
+      "type": "http",
+      "url": "https://compute.googleapis.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GCP_ACCESS_TOKEN}"
+      }
+    },
+    "gcp-gke": {
+      "type": "http",
+      "url": "https://container.googleapis.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GCP_ACCESS_TOKEN}"
+      }
+    },
+    "gcp-storage": {
+      "type": "http",
+      "url": "https://storage.googleapis.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GCP_ACCESS_TOKEN}"
+      }
+    },
+    "gcp-maps": {
+      "type": "http",
+      "url": "https://mapstools.googleapis.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GCP_ACCESS_TOKEN}"
+      }
+    },
+    "gcloud": {
+      "command": "npx",
+      "args": ["-y", "@google-cloud/gcloud-mcp"]
     }
   }
 }
