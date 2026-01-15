@@ -14,6 +14,13 @@
         "Authorization": "Bearer ${MCP_GATEWAY_TOKEN}"
       }
     },
+    "google-workspace": {
+      "type": "http",
+      "url": "https://or-infra.com/workspace/mcp",
+      "headers": {
+        "Authorization": "Bearer ${WORKSPACE_MCP_BRIDGE_TOKEN}"
+      }
+    },
     "gcp-bigquery": {
       "type": "http",
       "url": "https://bigquery.googleapis.com/mcp",

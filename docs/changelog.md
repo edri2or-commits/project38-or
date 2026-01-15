@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Google Workspace MCP Bridge** (2026-01-15) - Full autonomy to Google Workspace services
+  - `src/workspace_mcp_bridge/` - Complete MCP bridge for Google Workspace (~1,500 lines)
+  - **28 MCP Tools** across 5 Google Workspace services:
+    - Gmail (5 tools): send, search, read, list, labels
+    - Calendar (5 tools): list, events, create_event, update_event, delete_event
+    - Drive (7 tools): list, search, read, create_folder, upload, delete, share
+    - Sheets (6 tools): read, write, create, append, clear, get_metadata
+    - Docs (5 tools): read, create, append, insert, replace
+  - OAuth 2.0 authentication with automatic token refresh
+  - Bearer token authentication for MCP requests
+  - Mounted at `/workspace/mcp` endpoint on or-infra.com
+  - Updated `.mcp.json` with `google-workspace` server configuration
+  - Updated `.claude/hooks/session-start.sh` for token loading
+  - Reference: [taylorwilsdon/google_workspace_mcp](https://github.com/taylorwilsdon/google_workspace_mcp)
+
 - **Google Cloud MCP Integration** (2026-01-15) - Full autonomy to Google Cloud services
   - Added 6 Google Cloud MCP servers to `.mcp.json`:
     - `gcp-bigquery` - BigQuery queries, schema interpretation, forecasting
