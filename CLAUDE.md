@@ -295,6 +295,13 @@ project38-or/
 │   │   ├── scheduler.py      # APScheduler + PostgreSQL locks
 │   │   ├── resources.py      # Resource monitoring & limits
 │   │   └── handoff.py        # State persistence between runs
+│   ├── multi_agent/          # Multi-Agent Orchestration (Phase 4)
+│   │   ├── __init__.py       # Module exports
+│   │   ├── base.py           # SpecializedAgent, AgentTask, AgentResult
+│   │   ├── orchestrator.py   # AgentOrchestrator task routing
+│   │   ├── deploy_agent.py   # DeployAgent for Railway operations
+│   │   ├── monitoring_agent.py # MonitoringAgent for observability
+│   │   └── integration_agent.py # IntegrationAgent for GitHub/n8n
 │   └── mcp/                  # MCP Tools (Phase 3.4)
 │       ├── __init__.py
 │       ├── browser.py        # Playwright browser automation
@@ -320,7 +327,8 @@ project38-or/
 │   ├── test_github_app_client.py  # GitHub App client tests (30+ tests, Phase 2)
 │   ├── test_n8n_client.py        # n8n client tests (30+ tests, Phase 2)
 │   ├── test_orchestrator.py      # MainOrchestrator tests (25+ tests, Phase 3)
-│   └── test_state_machine.py     # State machine tests (25+ tests, Phase 3)
+│   ├── test_state_machine.py     # State machine tests (25+ tests, Phase 3)
+│   └── test_multi_agent.py       # Multi-agent orchestration tests (45 tests, Phase 4)
 ├── research/                  # Research documents (read-only)
 ├── docs/                      # MkDocs source
 │   ├── index.md              # Home page

@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Multi-Agent Orchestration System** (2026-01-15) - Advanced autonomous agent coordination
+  - `src/multi_agent/` - Complete multi-agent orchestration framework (~1,800 lines)
+  - `src/multi_agent/base.py` (400 lines) - Core classes: `SpecializedAgent`, `AgentTask`, `AgentResult`, `AgentMessage`
+  - `src/multi_agent/orchestrator.py` (450 lines) - `AgentOrchestrator` for task routing and coordination
+  - `src/multi_agent/deploy_agent.py` (350 lines) - `DeployAgent` for Railway deployment operations
+  - `src/multi_agent/monitoring_agent.py` (400 lines) - `MonitoringAgent` for observability operations
+  - `src/multi_agent/integration_agent.py` (400 lines) - `IntegrationAgent` for GitHub/n8n operations
+  - `tests/test_multi_agent.py` (750 lines) - 45 comprehensive tests (100% passing)
+  - **Specialized Agents**:
+    - `DeployAgent`: 6 capabilities (deploy, rollback, status, scale, health_check, set_env)
+    - `MonitoringAgent`: 6 capabilities (check_anomalies, send_alert, collect_metrics, analyze_performance, generate_report, check_health)
+    - `IntegrationAgent`: 8 capabilities (create_issue, close_issue, add_comment, create_pr, merge_pr, trigger_workflow, check_ci_status, trigger_n8n)
+  - **Orchestrator Features**:
+    - Domain-based task routing to specialized agents
+    - Priority-based task queue (CRITICAL → LOW)
+    - Inter-agent message passing and broadcasts
+    - Load-balanced agent selection
+    - Task timeout and error handling
+    - Factory function `create_orchestrator()` for easy setup
+  - **Integration**: Works with existing RailwayClient, GitHubAppClient, N8nClient, and AutonomousController
+  - **Next Phase**: Learning & Adaptation, Secret Rotation Automation
+
 - **Railway MCP HTTP Bridge** (2026-01-15) - Professional Railway integration
   - `services/railway-mcp-bridge/` - HTTP bridge for official @railway/mcp-server
   - Exposes Railway MCP tools over HTTP for web sessions

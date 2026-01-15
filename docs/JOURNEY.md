@@ -1930,6 +1930,69 @@ Deployed an HTTP bridge wrapping the official `@railway/mcp-server`:
 
 ---
 
+## 2026-01-15: Multi-Agent Orchestration System
+
+### Context
+
+With full autonomy achieved, the next step was to scale the system's capabilities through specialized agents that can work together on complex tasks. A single monolithic controller has limitations in handling diverse domains (deployments, monitoring, integrations).
+
+### Solution: Multi-Agent Architecture
+
+Created a framework where specialized agents handle domain-specific tasks while an orchestrator coordinates them:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              AgentOrchestrator (Coordinator)            │
+│  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ │
+│  │  DeployAgent  │ │MonitoringAgent│ │IntegrationAgent│ │
+│  │  (Railway)    │ │ (Observability)│ │ (GitHub+n8n)  │ │
+│  └───────────────┘ └───────────────┘ └───────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+| Component | Lines | Capabilities |
+|-----------|-------|--------------|
+| `base.py` | 400 | `SpecializedAgent`, `AgentTask`, `AgentResult`, `AgentMessage` |
+| `orchestrator.py` | 450 | Task routing, priority queue, inter-agent messaging |
+| `deploy_agent.py` | 350 | deploy, rollback, status, scale, health_check, set_env |
+| `monitoring_agent.py` | 400 | check_anomalies, send_alert, collect_metrics, analyze_performance |
+| `integration_agent.py` | 400 | create_issue, create_pr, merge_pr, trigger_workflow |
+
+### Features
+
+- **Domain-Based Routing**: Tasks automatically routed to appropriate agent
+- **Priority Queue**: CRITICAL → HIGH → MEDIUM → LOW → INFO
+- **Load Balancing**: Tasks assigned to agent with lowest active count
+- **Inter-Agent Communication**: Message passing and broadcasts
+- **Error Handling**: Timeouts, retries, graceful degradation
+- **Safety Integration**: Works with `AutonomousController` guardrails
+
+### Testing
+
+- 45 comprehensive tests covering all agents and orchestrator
+- Tests for priority routing, error handling, inter-agent communication
+- 100% pass rate
+
+### Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Files Created** | 6 (in src/multi_agent/) |
+| **Lines Added** | ~2,550 lines |
+| **Test Cases** | 45 |
+| **Specialized Agents** | 3 |
+| **Total Capabilities** | 20 |
+
+### Next Steps
+
+- **Learning & Adaptation**: Track action success rates, improve confidence scores
+- **Secret Rotation**: Automate rotation of Railway API, GitHub tokens
+- **Operational Excellence**: Runbook generation, incident automation
+
+---
+
 *Last Updated: 2026-01-15*
-*Status: **Full Autonomy - OPERATIONAL***
-*Current Milestone: Railway MCP Bridge Deployment*
+*Status: **Multi-Agent System - OPERATIONAL***
+*Current Milestone: Multi-Agent Orchestration Framework*
