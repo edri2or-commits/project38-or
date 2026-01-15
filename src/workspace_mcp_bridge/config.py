@@ -23,14 +23,16 @@ class WorkspaceConfig:
     oauth_refresh_token: str = ""
     bridge_token: str = ""
     gcp_project_id: str = "project38-483612"
-    scopes: list[str] = field(default_factory=lambda: [
-        "https://www.googleapis.com/auth/gmail.modify",
-        "https://www.googleapis.com/auth/gmail.send",
-        "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/drive",
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/documents",
-    ])
+    scopes: list[str] = field(
+        default_factory=lambda: [
+            "https://www.googleapis.com/auth/gmail.modify",
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/documents",
+        ]
+    )
 
     @classmethod
     def from_env(cls) -> "WorkspaceConfig":

@@ -8,18 +8,27 @@ Provides autonomous Railway operations:
 - Fetch deployment history
 """
 
+import logging
 from typing import Any
 
 import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..config import get_config
+
+logger = logging.getLogger(__name__)
 
 RAILWAY_GRAPHQL_API = "https://backboard.railway.app/graphql/v2"
 
 
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
 async def _graphql_request(query: str, variables: dict = None) -> dict:
     """
-    Execute a GraphQL request to Railway API.
+    Execute a GraphQL request to Railway API with retry logic.
 
     Args:
         query: GraphQL query or mutation string.
@@ -29,7 +38,7 @@ async def _graphql_request(query: str, variables: dict = None) -> dict:
         Response data dictionary.
 
     Raises:
-        httpx.HTTPError: If request fails.
+        httpx.HTTPError: If request fails after 3 retries.
     """
     config = get_config()
 
@@ -48,6 +57,7 @@ async def _graphql_request(query: str, variables: dict = None) -> dict:
             timeout=60.0,
         )
         response.raise_for_status()
+        logger.debug("Railway API request successful")
         return response.json()
 
 
@@ -97,7 +107,8 @@ async def trigger_deployment(service_id: str | None = None) -> dict[str, Any]:
         }
 
     except httpx.HTTPError as e:
-        return {"status": "error", "message": f"HTTP error: {str(e)}"}
+        logger.error(f"Railway API error after retries: {e}")
+        return {"status": "error", "message": f"HTTP error after 3 retries: {str(e)}"}
 
 
 async def get_deployment_status(service_id: str | None = None) -> dict[str, Any]:
@@ -153,7 +164,8 @@ async def get_deployment_status(service_id: str | None = None) -> dict[str, Any]
         return {"status": "success", "current": edges[0]["node"], "service_id": service_id}
 
     except httpx.HTTPError as e:
-        return {"status": "error", "message": f"HTTP error: {str(e)}"}
+        logger.error(f"Railway API error after retries: {e}")
+        return {"status": "error", "message": f"HTTP error after 3 retries: {str(e)}"}
 
 
 async def get_recent_deployments(count: int = 5, service_id: str | None = None) -> dict[str, Any]:
@@ -208,7 +220,8 @@ async def get_recent_deployments(count: int = 5, service_id: str | None = None) 
         return {"status": "success", "deployments": deployments, "count": len(deployments)}
 
     except httpx.HTTPError as e:
-        return {"status": "error", "message": f"HTTP error: {str(e)}"}
+        logger.error(f"Railway API error after retries: {e}")
+        return {"status": "error", "message": f"HTTP error after 3 retries: {str(e)}"}
 
 
 async def execute_rollback(deployment_id: str | None = None) -> dict[str, Any]:
@@ -268,4 +281,5 @@ async def execute_rollback(deployment_id: str | None = None) -> dict[str, Any]:
         }
 
     except httpx.HTTPError as e:
-        return {"status": "error", "message": f"HTTP error: {str(e)}"}
+        logger.error(f"Railway API error after retries: {e}")
+        return {"status": "error", "message": f"HTTP error after 3 retries: {str(e)}"}

@@ -68,6 +68,7 @@ def register_drive_tools(mcp: Any, oauth_manager: GoogleOAuthManager) -> None:
                     }
 
                 data = response.json()
+
                 def get_file_type(mime: str) -> str:
                     return "folder" if mime == "application/vnd.google-apps.folder" else "file"
 

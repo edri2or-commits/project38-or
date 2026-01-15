@@ -296,9 +296,7 @@ class SpecializedAgent(ABC):
         capability = self.get_capability(task.task_type)
         if capability:
             active_count = sum(
-                1
-                for t in self._active_tasks.values()
-                if t.task_type == task.task_type
+                1 for t in self._active_tasks.values() if t.task_type == task.task_type
             )
             if active_count >= capability.max_concurrent:
                 return AgentResult(

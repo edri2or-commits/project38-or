@@ -343,8 +343,14 @@ class IntegrationAgent(SpecializedAgent):
 
                 if comment:
                     cmd = [
-                        "gh", "issue", "comment", str(issue_number),
-                        "--repo", repo, "--body", comment,
+                        "gh",
+                        "issue",
+                        "comment",
+                        str(issue_number),
+                        "--repo",
+                        repo,
+                        "--body",
+                        comment,
                     ]
                     subprocess.run(cmd, capture_output=True, check=True)
                 subprocess.run(
@@ -407,8 +413,14 @@ class IntegrationAgent(SpecializedAgent):
                 import subprocess
 
                 cmd = [
-                    "gh", "issue", "comment", str(issue_number),
-                    "--repo", repo, "--body", comment,
+                    "gh",
+                    "issue",
+                    "comment",
+                    str(issue_number),
+                    "--repo",
+                    repo,
+                    "--body",
+                    comment,
                 ]
                 subprocess.run(cmd, capture_output=True, check=True)
                 return AgentResult(
@@ -486,12 +498,19 @@ class IntegrationAgent(SpecializedAgent):
                 import subprocess
 
                 cmd = [
-                    "gh", "pr", "create",
-                    "--repo", repo,
-                    "--title", title,
-                    "--body", body,
-                    "--head", head,
-                    "--base", base,
+                    "gh",
+                    "pr",
+                    "create",
+                    "--repo",
+                    repo,
+                    "--title",
+                    title,
+                    "--body",
+                    body,
+                    "--head",
+                    head,
+                    "--base",
+                    base,
                 ]
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
                 url = result.stdout.strip()
@@ -675,8 +694,14 @@ class IntegrationAgent(SpecializedAgent):
 
             if pr_number:
                 cmd = [
-                    "gh", "pr", "checks", str(pr_number),
-                    "--repo", repo, "--json", "name,status,conclusion",
+                    "gh",
+                    "pr",
+                    "checks",
+                    str(pr_number),
+                    "--repo",
+                    repo,
+                    "--json",
+                    "name,status,conclusion",
                 ]
                 result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             else:
@@ -771,9 +796,7 @@ class IntegrationAgent(SpecializedAgent):
                 error=str(e),
             )
 
-    async def _handle_deployment_failure(
-        self, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_deployment_failure(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle deployment failure notification from DeployAgent.
 
         Creates a GitHub issue for tracking.
@@ -816,9 +839,7 @@ class IntegrationAgent(SpecializedAgent):
         result = await self._handle_create_issue(task)
         return result.data
 
-    async def _handle_anomaly_event(
-        self, payload: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_anomaly_event(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle anomaly detection notification from MonitoringAgent.
 
         Triggers n8n workflow for alerting.

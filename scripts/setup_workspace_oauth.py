@@ -34,7 +34,7 @@ SCOPES = [
 ]
 
 REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
-TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 
 
@@ -68,9 +68,7 @@ def generate_auth_url(client_id: str) -> str:
     return f"{AUTH_ENDPOINT}?{urllib.parse.urlencode(params)}"
 
 
-def exchange_code(
-    client_id: str, client_secret: str, code: str
-) -> dict:
+def exchange_code(client_id: str, client_secret: str, code: str) -> dict:
     """Exchange authorization code for tokens."""
     data = {
         "client_id": client_id,
@@ -80,7 +78,7 @@ def exchange_code(
         "redirect_uri": REDIRECT_URI,
     }
 
-    response = httpx.post(TOKEN_ENDPOINT, data=data)
+    response = httpx.post(TOKEN_URL, data=data)
     return response.json()
 
 
@@ -93,7 +91,7 @@ def test_token(refresh_token: str, client_id: str, client_secret: str) -> bool:
         "grant_type": "refresh_token",
     }
 
-    response = httpx.post(TOKEN_ENDPOINT, data=data)
+    response = httpx.post(TOKEN_URL, data=data)
     result = response.json()
 
     if "access_token" in result:
@@ -160,7 +158,9 @@ def main():
         print("2. Sign in with your Google account")
         print("3. Grant all requested permissions")
         print("4. Copy the authorization code shown")
-        print("5. Run: python scripts/setup_workspace_oauth.py --action exchange-code --code YOUR_CODE")
+        print(
+            "5. Run: python scripts/setup_workspace_oauth.py --action exchange-code --code YOUR_CODE"
+        )
 
     elif args.action == "exchange-code":
         if not args.code:
@@ -183,20 +183,26 @@ def main():
             sys.exit(1)
 
         print("\n✅ SUCCESS! Refresh token obtained!")
-        print(f"\n🔑 Refresh Token:\n{refresh_token}")
+
+        # SECURITY: Never print tokens to stdout - save to secure file instead
+        token_file = Path.home() / ".oauth_refresh_token.txt"
+        token_file.write_text(refresh_token)
+        token_file.chmod(0o600)  # Owner read/write only
+        print(f"\n🔑 Refresh Token saved to: {token_file}")
+        print("   ⚠️  DELETE THIS FILE after storing in GCP Secret Manager!")
 
         if args.save:
             save_credentials(client_id, client_secret, refresh_token)
 
         print("\nNext steps:")
-        print("Store these in GCP Secret Manager:")
+        print("1. Store refresh token in GCP Secret Manager:")
+        print(f"   gcloud secrets create GOOGLE-OAUTH-REFRESH-TOKEN --data-file={token_file}")
+        print("2. Delete the token file:")
+        print(f"   rm {token_file}")
+        print("\nRequired secrets in GCP Secret Manager:")
         print("  - GOOGLE-OAUTH-CLIENT-ID")
         print("  - GOOGLE-OAUTH-CLIENT-SECRET")
         print("  - GOOGLE-OAUTH-REFRESH-TOKEN")
-        print("\nOr set as environment variables:")
-        print(f"  export GOOGLE_OAUTH_CLIENT_ID='{client_id}'")
-        print(f"  export GOOGLE_OAUTH_CLIENT_SECRET='{client_secret}'")
-        print(f"  export GOOGLE_OAUTH_REFRESH_TOKEN='{refresh_token}'")
 
     elif args.action == "test-token":
         client_id, client_secret = get_credentials()

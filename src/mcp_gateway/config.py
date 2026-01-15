@@ -4,8 +4,11 @@ Configuration management for MCP Gateway.
 Loads credentials from GCP Secret Manager and environment variables.
 """
 
+import logging
 import os
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -49,11 +52,35 @@ def get_config() -> MCPGatewayConfig:
         railway_token = manager.get_secret("RAILWAY-API")
         n8n_api_key = manager.get_secret("N8N-API")
         gateway_token = manager.get_secret("MCP-GATEWAY-TOKEN")
-    except Exception:
-        # Fall back to environment variables for testing
+
+        if railway_token and n8n_api_key and gateway_token:
+            logger.info("Successfully loaded secrets from GCP Secret Manager")
+        else:
+            missing = []
+            if not railway_token:
+                missing.append("RAILWAY-API")
+            if not n8n_api_key:
+                missing.append("N8N-API")
+            if not gateway_token:
+                missing.append("MCP-GATEWAY-TOKEN")
+            logger.warning(f"Missing secrets in GCP: {', '.join(missing)}")
+
+    except Exception as e:
+        # Log the actual error to help debug GCP authentication issues
+        logger.warning(
+            f"GCP Secret Manager access failed: {type(e).__name__}. "
+            "Falling back to environment variables. "
+            "This may indicate WIF authentication issues."
+        )
         railway_token = os.environ.get("RAILWAY_API_TOKEN", "")
         n8n_api_key = os.environ.get("N8N_API_KEY", "")
         gateway_token = os.environ.get("MCP_GATEWAY_TOKEN", "")
+
+        if not railway_token or not n8n_api_key or not gateway_token:
+            logger.error(
+                "Environment variable fallback also missing secrets. "
+                "MCP Gateway tools may not function correctly."
+            )
 
     _config = MCPGatewayConfig(
         railway_token=railway_token,

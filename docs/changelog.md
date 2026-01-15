@@ -7,7 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Autonomy Security Audit Fixes** (2026-01-15) - Critical fixes from comprehensive security audit
+  - **CRITICAL-1**: Removed refresh token exposure in `scripts/setup_workspace_oauth.py`
+    - Token now saved to secure file with 0600 permissions instead of stdout
+    - Added clear instructions for GCP Secret Manager storage
+  - **CRITICAL-2**: Added retry logic to MCP Gateway tools (`src/mcp_gateway/tools/railway.py`)
+    - Exponential backoff (2-30s) with 3 retry attempts using tenacity
+    - Better error messages after retry exhaustion
+  - **CRITICAL-3**: Added timeout + retry to OAuth token refresh (`src/workspace_mcp_bridge/auth.py`)
+    - 30-second timeout on token refresh requests
+    - Rate limit (429) detection with automatic retry
+    - Removed sensitive error logging (response.text)
+  - **HIGH-8**: Added logging for silent fallback (`src/mcp_gateway/config.py`)
+    - Warning when GCP Secret Manager access fails
+    - Explicit logging of which secrets are missing
+    - Error log when environment fallback also fails
+  - **Sources**: OWASP OAuth2 Cheat Sheet, GCP Secret Manager Best Practices
+
 ### Added
+- **Learning & Adaptation System** (2026-01-15) - Cross-agent learning with confidence improvement
+  - `src/models/action_record.py` (154 lines) - SQLModel for persistent action history
+    - `ActionRecord` database model for recording autonomous action outcomes
+    - `ActionStats` for aggregated statistics per action type
+    - `LearningInsight` for actionable recommendations
+    - `ConfidenceAdjustment` for confidence score recommendations
+  - `src/learning_service.py` (708 lines) - Comprehensive learning service
+    - Action recording with full context (agent, domain, confidence, execution time)
+    - Success rate calculation per action type and agent
+    - Trend analysis (improving/stable/declining)
+    - Confidence adjustment recommendations based on historical performance
+    - Learning insights generation (low success rate, declining trends, performance gaps)
+    - Statistics caching for performance
+  - `src/api/routes/learning.py` (394 lines) - REST API endpoints
+    - `POST /api/learning/actions` - Record action outcomes
+    - `GET /api/learning/actions/recent` - Get recent action history
+    - `GET /api/learning/stats` - Get statistics for action type
+    - `GET /api/learning/stats/all` - Get all action statistics
+    - `GET /api/learning/adjustments` - Get confidence adjustment recommendations
+    - `GET /api/learning/confidence/{action_type}` - Get recommended confidence
+    - `GET /api/learning/insights` - Get learning insights
+    - `GET /api/learning/summary` - Get comprehensive learning summary
+  - `tests/test_learning_service.py` (620 lines) - Comprehensive test suite
+    - 40+ tests covering all functionality
+    - Action recording, statistics, trends, adjustments, insights
+    - Edge cases and integration tests
+  - **Key Features**:
+    - Persistent storage in PostgreSQL for learning across sessions
+    - Base confidence scores for 11 action types (DEPLOY=0.60, ALERT=0.95, etc.)
+    - Minimum sample size (10 actions) before making recommendations
+    - Warning threshold for low success rates (<70%)
+    - Cross-agent analysis for identifying performance gaps
+
 - **Unbreakable Autonomy Architecture** (2026-01-15) - Self-healing credential management
   - `src/credential_lifecycle.py` (~400 lines) - Credential lifecycle manager with health monitoring
   - `docs/autonomous/09-unbreakable-autonomy-architecture.md` - Complete architecture documentation

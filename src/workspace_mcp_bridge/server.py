@@ -140,9 +140,7 @@ def create_app() -> FastAPI:
 
     # Configuration endpoint (requires auth)
     @app.get("/config")
-    async def get_config(
-        _: bool = Depends(verify_bridge_token(config))
-    ):
+    async def get_config(_: bool = Depends(verify_bridge_token(config))):
         return config.to_dict()
 
     # Mount MCP server with authentication
@@ -160,6 +158,7 @@ def create_app() -> FastAPI:
             auth_header = request.headers.get("Authorization", "")
             if not auth_header.startswith("Bearer "):
                 from fastapi.responses import JSONResponse
+
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Missing Authorization header"},
@@ -167,6 +166,7 @@ def create_app() -> FastAPI:
             token = auth_header[7:]
             if config.bridge_token and token != config.bridge_token:
                 from fastapi.responses import JSONResponse
+
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Invalid bridge token"},
