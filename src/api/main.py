@@ -55,6 +55,16 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Failed to start GCS relay: {e}")
 
+    # Start GitHub relay polling if enabled
+    if os.getenv("GITHUB_RELAY_ENABLED", "true").lower() == "true":
+        try:
+            from src.mcp_gateway.github_relay import start_relay
+
+            await start_relay()
+            logger.info("GitHub MCP Relay started")
+        except Exception as e:
+            logger.warning(f"Failed to start GitHub relay: {e}")
+
     yield
 
     # Shutdown: Close database connection pool

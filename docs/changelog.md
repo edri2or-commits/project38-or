@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Expected RTT: 4-6 seconds (suitable for tool calls, not streaming)
   - Solves: Claude Code sessions cannot reach `or-infra.com` due to proxy
   - Architecture: Claude Code → GitHub Issue → Railway Relay → MCP Gateway
+  - Auto-starts on Railway via `GITHUB_RELAY_ENABLED=true` (default: enabled)
 
 - **MCP Gateway Cloud Run Deployment** (2026-01-16) - Solution for Anthropic proxy limitation
   - Created `services/mcp-gateway-cloudrun/` - Standalone MCP Gateway for Cloud Run
