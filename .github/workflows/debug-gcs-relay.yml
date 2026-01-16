@@ -1,0 +1,99 @@
+name: Debug GCS Relay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  BUCKET_NAME: project38-mcp-relay
+  PREFIX: mcp-relay
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Check bucket contents before
+        run: |
+          echo "=== Bucket contents BEFORE upload ===" 
+          gsutil ls -r "gs://${{ env.BUCKET_NAME }}/${{ env.PREFIX }}/" 2>/dev/null || echo "Empty or not accessible"
+
+      - name: Upload simple test request
+        run: |
+          SESSION_ID="debug-$(date +%s)"
+          REQUEST_ID="req-$(cat /proc/sys/kernel/random/uuid | cut -c1-8)"
+          RESPONSE_PATH="${{ env.PREFIX }}/responses/$SESSION_ID/$REQUEST_ID.json"
+          REQUEST_PATH="${{ env.PREFIX }}/requests/$SESSION_ID/$REQUEST_ID.json"
+          
+          echo "Session: $SESSION_ID"
+          echo "Request: $REQUEST_PATH"
+          echo "Response: $RESPONSE_PATH"
+          
+          # Save paths for later
+          echo "REQUEST_PATH=$REQUEST_PATH" >> $GITHUB_ENV
+          echo "RESPONSE_PATH=$RESPONSE_PATH" >> $GITHUB_ENV
+          
+          # Create and upload request
+          cat > /tmp/request.json << EOFJ
+          {
+            "jsonrpc": "2.0",
+            "id": "$REQUEST_ID",
+            "method": "initialize",
+            "params": {},
+            "_bridge": {
+              "sessionId": "$SESSION_ID",
+              "requestId": "$REQUEST_ID",
+              "responsePath": "$RESPONSE_PATH"
+            }
+          }
+          EOFJ
+          
+          gsutil cp /tmp/request.json "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH"
+          echo "Uploaded request"
+
+      - name: Wait and check
+        run: |
+          echo "Waiting 30 seconds..."
+          for i in $(seq 1 6); do
+            sleep 5
+            echo "=== Check $i (after $((i*5))s) ==="
+            
+            # Check if request still exists
+            if gsutil -q stat "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH" 2>/dev/null; then
+              echo "Request file: STILL EXISTS"
+            else
+              echo "Request file: DELETED (relay processed it!)"
+            fi
+            
+            # Check if response exists
+            if gsutil -q stat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" 2>/dev/null; then
+              echo "Response file: EXISTS"
+              gsutil cat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH"
+              exit 0
+            else
+              echo "Response file: NOT YET"
+            fi
+          done
+          
+          echo "=== Final bucket contents ==="
+          gsutil ls -r "gs://${{ env.BUCKET_NAME }}/${{ env.PREFIX }}/" 2>/dev/null || echo "Empty"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          gsutil rm "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH" 2>/dev/null || true
+          gsutil rm "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" 2>/dev/null || true
