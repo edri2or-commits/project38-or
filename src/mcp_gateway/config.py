@@ -23,6 +23,12 @@ class MCPGatewayConfig:
     n8n_api_key: str
     gateway_token: str
     production_url: str
+    # GitHub Relay configuration
+    github_app_id: str = ""
+    github_installation_id: str = ""
+    github_private_key: str = ""
+    github_relay_repo: str = "edri2or-commits/project38-or"
+    github_relay_issue: int = 183
 
 
 _config: MCPGatewayConfig | None = None
@@ -52,6 +58,7 @@ def get_config() -> MCPGatewayConfig:
         railway_token = manager.get_secret("RAILWAY-API")
         n8n_api_key = manager.get_secret("N8N-API")
         gateway_token = manager.get_secret("MCP-GATEWAY-TOKEN")
+        github_private_key = manager.get_secret("github-app-private-key")
 
         if railway_token and n8n_api_key and gateway_token:
             logger.info("Successfully loaded secrets from GCP Secret Manager")
@@ -75,6 +82,7 @@ def get_config() -> MCPGatewayConfig:
         railway_token = os.environ.get("RAILWAY_API_TOKEN", "")
         n8n_api_key = os.environ.get("N8N_API_KEY", "")
         gateway_token = os.environ.get("MCP_GATEWAY_TOKEN", "")
+        github_private_key = os.environ.get("GITHUB_APP_PRIVATE_KEY", "")
 
         if not railway_token or not n8n_api_key or not gateway_token:
             logger.error(
@@ -95,6 +103,14 @@ def get_config() -> MCPGatewayConfig:
         n8n_api_key=n8n_api_key,
         gateway_token=gateway_token,
         production_url=os.environ.get("PRODUCTION_URL", "https://or-infra.com"),
+        # GitHub Relay configuration
+        github_app_id=os.environ.get("GITHUB_APP_ID", "2497877"),
+        github_installation_id=os.environ.get("GITHUB_INSTALLATION_ID", "100231961"),
+        github_private_key=github_private_key,
+        github_relay_repo=os.environ.get(
+            "GITHUB_RELAY_REPO", "edri2or-commits/project38-or"
+        ),
+        github_relay_issue=int(os.environ.get("GITHUB_RELAY_ISSUE", "183")),
     )
 
     return _config
