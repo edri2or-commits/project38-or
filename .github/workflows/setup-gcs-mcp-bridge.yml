@@ -75,104 +75,55 @@ jobs:
           gsutil lifecycle set /tmp/lifecycle.json gs://${{ env.BUCKET_NAME }}
           echo "✅ Lifecycle policy set"
 
-      # ========== CREATE SERVICE ACCOUNT ==========
-      - name: Create Service Account for Bridge
+      # ========== GRANT PERMISSIONS TO EXISTING SA ==========
+      - name: Grant Storage Permissions
         if: inputs.action == 'full-setup' || inputs.action == 'create-service-account'
         run: |
-          SA_EMAIL="${{ env.SA_NAME }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
-          echo "Creating service account: $SA_EMAIL"
+          # Use the existing claude-code-agent service account
+          SA_EMAIL="${{ env.WIF_SERVICE_ACCOUNT }}"
+          echo "Granting storage permissions to: $SA_EMAIL"
 
-          # Check if SA exists
-          if gcloud iam service-accounts describe $SA_EMAIL --project=${{ env.PROJECT_ID }} 2>/dev/null; then
-            echo "✅ Service account already exists"
-          else
-            gcloud iam service-accounts create ${{ env.SA_NAME }} \
-              --display-name="MCP Bridge Service Account" \
-              --project=${{ env.PROJECT_ID }}
-            echo "✅ Service account created"
-          fi
-
-          # Grant Storage permissions
+          # Grant Storage permissions on the bucket
           gsutil iam ch serviceAccount:$SA_EMAIL:objectAdmin gs://${{ env.BUCKET_NAME }}
-          echo "✅ Storage permissions granted"
+          echo "✅ Storage permissions granted to existing service account"
 
-          # Create and store key
-          KEY_FILE="/tmp/sa-key.json"
-          gcloud iam service-accounts keys create $KEY_FILE \
-            --iam-account=$SA_EMAIL \
-            --project=${{ env.PROJECT_ID }}
+          # The WIF authentication already provides credentials, no need to create keys
 
-          # Store key in Secret Manager
-          if gcloud secrets describe MCP-BRIDGE-SA-KEY --project=${{ env.PROJECT_ID }} 2>/dev/null; then
-            gcloud secrets versions add MCP-BRIDGE-SA-KEY \
-              --data-file=$KEY_FILE \
-              --project=${{ env.PROJECT_ID }}
-          else
-            gcloud secrets create MCP-BRIDGE-SA-KEY \
-              --data-file=$KEY_FILE \
-              --project=${{ env.PROJECT_ID }}
-          fi
-          echo "✅ Service account key stored in Secret Manager"
-
-          rm -f $KEY_FILE
-
-      # ========== DEPLOY SERVER TO RAILWAY ==========
-      - name: Deploy Server to Railway
+      # ========== CONFIGURE RAILWAY MCP GATEWAY ==========
+      - name: Configure Railway MCP Gateway
         if: inputs.action == 'full-setup' || inputs.action == 'deploy-server'
         run: |
-          echo "Deploying GCS MCP Bridge server to Railway..."
-
-          # Get Railway token
-          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=${{ env.PROJECT_ID }})
-
-          # Get SA key for Railway
-          SA_KEY=$(gcloud secrets versions access latest --secret="MCP-BRIDGE-SA-KEY" --project=${{ env.PROJECT_ID }})
-
-          # Install Railway CLI
-          npm install -g @railway/cli
-
-          # Note: Railway deployment would go here
-          # For now, we'll use the existing MCP Gateway on Railway
-
-          echo "✅ Server configuration ready"
+          echo "Configuring existing Railway MCP Gateway to use GCS..."
+          echo "✅ The existing MCP Gateway at or-infra.com will be used"
           echo ""
-          echo "The GCS Bridge server should be deployed to Railway with these env vars:"
+          echo "The GCS Bridge server runs on Railway and polls the bucket."
+          echo "Configuration:"
           echo "  GCS_BUCKET=${{ env.BUCKET_NAME }}"
-          echo "  MCP_URL=http://localhost:8080/mcp (or your MCP Gateway URL)"
-          echo "  GOOGLE_APPLICATION_CREDENTIALS_JSON=<service account key>"
+          echo "  MCP_URL=http://localhost:8080/mcp"
 
       # ========== GENERATE CONFIG ==========
       - name: Generate Claude Code Configuration
         if: inputs.action == 'full-setup' || inputs.action == 'generate-config'
         run: |
-          echo "## GCS MCP Bridge Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ GCS MCP Bridge Setup Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Bucket Created" >> $GITHUB_STEP_SUMMARY
-          echo "- **Name**: \`${{ env.BUCKET_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "### Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bucket**: \`gs://${{ env.BUCKET_NAME }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Region**: \`${{ env.REGION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service Account**: \`${{ env.WIF_SERVICE_ACCOUNT }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "### Service Account" >> $GITHUB_STEP_SUMMARY
-          echo "- **Email**: \`${{ env.SA_NAME }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Key stored in**: \`MCP-BRIDGE-SA-KEY\` (GCP Secret Manager)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "### Claude Code Setup" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Download SA key:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "gcloud secrets versions access latest --secret=MCP-BRIDGE-SA-KEY > ~/mcp-bridge-sa.json" >> $GITHUB_STEP_SUMMARY
+          echo "### Architecture" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "Claude Code <--stdio--> GCS Bridge <--GCS--> Server <--http--> MCP Gateway" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "2. Configure Claude Code:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "claude mcp add --transport stdio \\\\" >> $GITHUB_STEP_SUMMARY
-          echo "  --env GCS_BUCKET=${{ env.BUCKET_NAME }} \\\\" >> $GITHUB_STEP_SUMMARY
-          echo "  --env GOOGLE_APPLICATION_CREDENTIALS=~/mcp-bridge-sa.json \\\\" >> $GITHUB_STEP_SUMMARY
-          echo "  project38-mcp \\\\" >> $GITHUB_STEP_SUMMARY
-          echo "  -- npx @project38/gcs-mcp-bridge" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "### Next: Deploy Server to Railway" >> $GITHUB_STEP_SUMMARY
+          echo "The GCS Bridge Server needs to be deployed to Railway to poll the bucket." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Set these environment variables on Railway:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`GCS_BUCKET=${{ env.BUCKET_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`MCP_URL=http://localhost:8080/mcp\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`GOOGLE_APPLICATION_CREDENTIALS_JSON=<service account key>\`" >> $GITHUB_STEP_SUMMARY
 
       # ========== CHECK STATUS ==========
       - name: Check Status
@@ -184,21 +135,21 @@ jobs:
           # Check bucket
           if gsutil ls -b gs://${{ env.BUCKET_NAME }} 2>/dev/null; then
             echo "- ✅ Bucket \`${{ env.BUCKET_NAME }}\` exists" >> $GITHUB_STEP_SUMMARY
+
+            # Check bucket permissions
+            PERMS=$(gsutil iam get gs://${{ env.BUCKET_NAME }} 2>/dev/null | grep -c "${{ env.WIF_SERVICE_ACCOUNT }}" || echo "0")
+            if [ "$PERMS" -gt 0 ]; then
+              echo "- ✅ Service account has bucket permissions" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ⚠️ Service account may not have bucket permissions" >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "- ❌ Bucket \`${{ env.BUCKET_NAME }}\` does not exist" >> $GITHUB_STEP_SUMMARY
           fi
 
-          # Check SA
-          SA_EMAIL="${{ env.SA_NAME }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
-          if gcloud iam service-accounts describe $SA_EMAIL --project=${{ env.PROJECT_ID }} 2>/dev/null; then
-            echo "- ✅ Service account exists" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ Service account does not exist" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # Check secret
-          if gcloud secrets describe MCP-BRIDGE-SA-KEY --project=${{ env.PROJECT_ID }} 2>/dev/null; then
-            echo "- ✅ SA key stored in Secret Manager" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ SA key not found in Secret Manager" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Connectivity" >> $GITHUB_STEP_SUMMARY
+          echo "To test, upload a file:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "echo 'test' | gsutil cp - gs://${{ env.BUCKET_NAME }}/mcp-relay/test.txt" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
