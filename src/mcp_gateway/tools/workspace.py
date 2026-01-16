@@ -25,7 +25,7 @@ CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 DRIVE_API = "https://www.googleapis.com/drive/v3"
 SHEETS_API = "https://sheets.googleapis.com/v4"
 DOCS_API = "https://docs.googleapis.com/v1"
-OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
+OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105
 
 
 class WorkspaceAuth:
@@ -305,12 +305,12 @@ async def calendar_list_events(
         List of upcoming events
     """
     try:
-        from datetime import datetime, timezone
+        from datetime import UTC, datetime
 
         headers = await _get_headers()
 
         if not time_min:
-            time_min = datetime.now(timezone.utc).isoformat()
+            time_min = datetime.now(UTC).isoformat()
 
         async with httpx.AsyncClient() as client:
             response = await client.get(
