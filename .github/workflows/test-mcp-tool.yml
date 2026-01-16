@@ -1,0 +1,90 @@
+name: Test MCP Tool Call
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  BUCKET_NAME: project38-mcp-relay
+  PREFIX: mcp-relay
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Test health_check tool
+        run: |
+          echo "## MCP Tool Call Test: health_check" >> $GITHUB_STEP_SUMMARY
+          
+          SESSION_ID="tool-test-$(date +%s)"
+          REQUEST_ID="req-$(cat /proc/sys/kernel/random/uuid | cut -c1-8)"
+          RESPONSE_PATH="${{ env.PREFIX }}/responses/$SESSION_ID/$REQUEST_ID.json"
+          REQUEST_PATH="${{ env.PREFIX }}/requests/$SESSION_ID/$REQUEST_ID.json"
+          
+          # Create tools/call request for health_check
+          cat > /tmp/request.json << EOFJ
+          {
+            "jsonrpc": "2.0",
+            "id": "$REQUEST_ID",
+            "method": "tools/call",
+            "params": {
+              "name": "health_check",
+              "arguments": {}
+            },
+            "_bridge": {
+              "sessionId": "$SESSION_ID",
+              "requestId": "$REQUEST_ID",
+              "responsePath": "$RESPONSE_PATH"
+            }
+          }
+          EOFJ
+          
+          gsutil cp /tmp/request.json "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH"
+          echo "Request uploaded"
+          
+          # Wait for response
+          for i in $(seq 1 30); do
+            sleep 2
+            if gsutil -q stat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" 2>/dev/null; then
+              echo "Response received after $((i*2))s"
+              RESPONSE=$(gsutil cat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH")
+              echo "$RESPONSE" | jq .
+              
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+              echo "$RESPONSE" | jq . >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              
+              # Check if error or result
+              if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+                echo "Tool returned error" >> $GITHUB_STEP_SUMMARY
+                ERROR=$(echo "$RESPONSE" | jq -r '.error.message')
+                echo "Error: $ERROR"
+              else
+                echo "**health_check succeeded!**" >> $GITHUB_STEP_SUMMARY
+              fi
+              
+              gsutil rm "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" 2>/dev/null || true
+              exit 0
+            fi
+            echo "[$i/30] waiting..."
+          done
+          
+          echo "No response after 60s" >> $GITHUB_STEP_SUMMARY
+          gsutil rm "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH" 2>/dev/null || true
+          exit 1
