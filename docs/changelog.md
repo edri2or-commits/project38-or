@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Cloud-Based Google Workspace MCP Gateway** (2026-01-16) - Machine-independent autonomy
+  - `src/mcp_gateway/tools/workspace.py` - 13 Google Workspace tools integrated into MCP Gateway
+  - Gmail tools: `gmail_send`, `gmail_search`, `gmail_list`
+  - Calendar tools: `calendar_list_events`, `calendar_create_event`
+  - Drive tools: `drive_list_files`, `drive_create_folder`
+  - Sheets tools: `sheets_read`, `sheets_write`, `sheets_create`
+  - Docs tools: `docs_create`, `docs_read`, `docs_append`
+  - Runs on Railway at `or-infra.com/mcp` - works from ANY Claude Code session
+  - No local setup required - credentials from GCP Secret Manager
+  - True machine-independent autonomy: works in cloud, web, or CLI sessions
+
 - **Google Workspace Persistent MCP Setup** (2026-01-16) - TRUE persistent autonomy for Google services
   - `docs/google-workspace-mcp-setup.md` - Complete setup guide for persistent MCP server
   - `.github/workflows/setup-workspace-mcp.yml` - Workflow to manage OAuth credentials in GCP
