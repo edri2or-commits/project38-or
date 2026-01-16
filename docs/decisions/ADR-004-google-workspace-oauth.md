@@ -111,7 +111,7 @@ All tests performed on 2026-01-16 and verified via GitHub Actions:
 | Docs | ✅ Verified | Doc ID: `1OwArBwC...` (inserted text) |
 
 ## Related Documents
-- [CLAUDE.md](../../CLAUDE.md) - Project context with Workspace status
+- `CLAUDE.md` (root) - Project context with Workspace status
 - [docs/changelog.md](../changelog.md) - Version history
 - [Issue #149](https://github.com/edri2or-commits/project38-or/issues/149) - OAuth setup tracking
 
