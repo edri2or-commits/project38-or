@@ -45,6 +45,17 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize database: {e}")
         raise
 
+    # Start GCS relay polling if enabled
+    gcs_relay_thread = None
+    if os.getenv("GCS_RELAY_ENABLED", "false").lower() == "true":
+        try:
+            from src.mcp_gateway.gcs_relay import start_background_polling
+
+            gcs_relay_thread = start_background_polling()
+            logger.info("GCS MCP Relay started")
+        except Exception as e:
+            logger.warning(f"Failed to start GCS relay: {e}")
+
     yield
 
     # Shutdown: Close database connection pool
