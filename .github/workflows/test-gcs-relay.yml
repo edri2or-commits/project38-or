@@ -1,0 +1,100 @@
+name: Test GCS MCP Relay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  BUCKET_NAME: project38-mcp-relay
+  PREFIX: mcp-relay
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Test GCS Relay
+        run: |
+          echo "## GCS MCP Relay Test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          SESSION_ID="test-$(date +%s)"
+          REQUEST_ID="req-$(uuidgen | cut -c1-8)"
+          RESPONSE_PATH="${{ env.PREFIX }}/responses/$SESSION_ID/$REQUEST_ID.json"
+          REQUEST_PATH="${{ env.PREFIX }}/requests/$SESSION_ID/$REQUEST_ID.json"
+
+          echo "Session: $SESSION_ID"
+          echo "Request ID: $REQUEST_ID"
+
+          # Create test request
+          cat > /tmp/request.json << EOFJ
+          {
+            "jsonrpc": "2.0",
+            "id": "$REQUEST_ID",
+            "method": "health_check",
+            "params": {},
+            "_bridge": {
+              "sessionId": "$SESSION_ID",
+              "requestId": "$REQUEST_ID",
+              "responsePath": "$RESPONSE_PATH"
+            }
+          }
+          EOFJ
+
+          # Upload request
+          gsutil cp /tmp/request.json "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH"
+          echo "✅ Request uploaded to gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH"
+          echo "- Request uploaded: \`$REQUEST_PATH\`" >> $GITHUB_STEP_SUMMARY
+
+          # Wait for response (up to 60 seconds)
+          echo "Waiting for response..."
+          for i in $(seq 1 30); do
+            sleep 2
+            if gsutil -q stat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" 2>/dev/null; then
+              echo "✅ Response received after $((i*2)) seconds!"
+              echo "- **Response received** after $((i*2))s ✅" >> $GITHUB_STEP_SUMMARY
+
+              # Download and display response
+              gsutil cat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH"
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+              gsutil cat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+              # Clean up
+              gsutil rm "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" || true
+              exit 0
+            fi
+            echo "  [$i/30] Waiting..."
+          done
+
+          echo "❌ No response after 60 seconds"
+          echo "- **No response** after 60s ❌" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Possible issues:" >> $GITHUB_STEP_SUMMARY
+          echo "- GCS_RELAY_ENABLED not set to 'true' on Railway" >> $GITHUB_STEP_SUMMARY
+          echo "- GOOGLE_APPLICATION_CREDENTIALS_JSON not configured" >> $GITHUB_STEP_SUMMARY
+          echo "- Railway service not running" >> $GITHUB_STEP_SUMMARY
+
+          # Check if request is still there (means relay didn't pick it up)
+          if gsutil -q stat "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH" 2>/dev/null; then
+            echo "Request still exists - relay didn't process it"
+            gsutil rm "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH" || true
+          fi
+
+          exit 1
