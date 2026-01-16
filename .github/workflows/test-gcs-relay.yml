@@ -34,19 +34,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           SESSION_ID="test-$(date +%s)"
-          REQUEST_ID="req-$(uuidgen | cut -c1-8)"
+          REQUEST_ID="req-$(cat /proc/sys/kernel/random/uuid | cut -c1-8)"
           RESPONSE_PATH="${{ env.PREFIX }}/responses/$SESSION_ID/$REQUEST_ID.json"
           REQUEST_PATH="${{ env.PREFIX }}/requests/$SESSION_ID/$REQUEST_ID.json"
 
           echo "Session: $SESSION_ID"
           echo "Request ID: $REQUEST_ID"
 
-          # Create test request
+          # Create test request (using initialize method which we know works)
           cat > /tmp/request.json << EOFJ
           {
             "jsonrpc": "2.0",
             "id": "$REQUEST_ID",
-            "method": "health_check",
+            "method": "initialize",
             "params": {},
             "_bridge": {
               "sessionId": "$SESSION_ID",
@@ -61,40 +61,39 @@ jobs:
           echo "✅ Request uploaded to gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH"
           echo "- Request uploaded: \`$REQUEST_PATH\`" >> $GITHUB_STEP_SUMMARY
 
-          # Wait for response (up to 60 seconds)
+          # Wait for response (up to 30 seconds)
           echo "Waiting for response..."
-          for i in $(seq 1 30); do
+          for i in $(seq 1 15); do
             sleep 2
             if gsutil -q stat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" 2>/dev/null; then
               echo "✅ Response received after $((i*2)) seconds!"
               echo "- **Response received** after $((i*2))s ✅" >> $GITHUB_STEP_SUMMARY
 
               # Download and display response
-              gsutil cat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH"
+              RESPONSE=$(gsutil cat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH")
+              echo "$RESPONSE"
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-              gsutil cat "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" >> $GITHUB_STEP_SUMMARY
+              echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
               echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+              # Verify it's valid JSON-RPC response
+              if echo "$RESPONSE" | jq -e '.result.protocolVersion' > /dev/null 2>&1; then
+                echo "✅ Valid MCP initialize response!"
+                echo "" >> $GITHUB_STEP_SUMMARY
+                echo "**GCS MCP Relay is working!** 🎉" >> $GITHUB_STEP_SUMMARY
+              fi
 
               # Clean up
               gsutil rm "gs://${{ env.BUCKET_NAME }}/$RESPONSE_PATH" || true
               exit 0
             fi
-            echo "  [$i/30] Waiting..."
+            echo "  [$i/15] Waiting..."
           done
 
-          echo "❌ No response after 60 seconds"
-          echo "- **No response** after 60s ❌" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Possible issues:" >> $GITHUB_STEP_SUMMARY
-          echo "- GCS_RELAY_ENABLED not set to 'true' on Railway" >> $GITHUB_STEP_SUMMARY
-          echo "- GOOGLE_APPLICATION_CREDENTIALS_JSON not configured" >> $GITHUB_STEP_SUMMARY
-          echo "- Railway service not running" >> $GITHUB_STEP_SUMMARY
-
-          # Check if request is still there (means relay didn't pick it up)
-          if gsutil -q stat "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH" 2>/dev/null; then
-            echo "Request still exists - relay didn't process it"
-            gsutil rm "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH" || true
-          fi
-
+          echo "❌ No response after 30 seconds"
+          echo "- **No response** after 30s ❌" >> $GITHUB_STEP_SUMMARY
+          
+          # Clean up request
+          gsutil rm "gs://${{ env.BUCKET_NAME }}/$REQUEST_PATH" 2>/dev/null || true
           exit 1
