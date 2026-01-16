@@ -223,7 +223,7 @@ class GitHubMCPClient:
                         if ":" in encoded:
                             _, payload = encoded.split(":", 1)
                             return _decode_message(payload)
-                except Exception:
+                except Exception:  # noqa: S112
                     continue
 
         return None
@@ -263,7 +263,10 @@ class GitHubMCPClient:
 
         # Encode and post request
         encoded = _encode_message(request)
-        comment_body = f"{REQUEST_MARKER}{request_id}:{encoded}{END_MARKER}\n\n**MCP Request** `{tool_name}` from session `{self.session_id}`"
+        comment_body = (
+            f"{REQUEST_MARKER}{request_id}:{encoded}{END_MARKER}\n\n"
+            f"**MCP Request** `{tool_name}` from session `{self.session_id}`"
+        )
 
         posted = self._post_comment(comment_body)
         since_id = posted["id"]
@@ -278,9 +281,9 @@ class GitHubMCPClient:
                 # Check for errors
                 if "error" in response:
                     error = response["error"]
-                    raise RuntimeError(
-                        f"MCP Error {error.get('code', 'unknown')}: {error.get('message', 'Unknown error')}"
-                    )
+                    error_code = error.get("code", "unknown")
+                    error_msg = error.get("message", "Unknown error")
+                    raise RuntimeError(f"MCP Error {error_code}: {error_msg}")
 
                 return response.get("result", response)
 
@@ -306,7 +309,10 @@ class GitHubMCPClient:
         }
 
         encoded = _encode_message(request)
-        comment_body = f"{REQUEST_MARKER}{request_id}:{encoded}{END_MARKER}\n\n**MCP Initialize** from session `{self.session_id}`"
+        comment_body = (
+            f"{REQUEST_MARKER}{request_id}:{encoded}{END_MARKER}\n\n"
+            f"**MCP Initialize** from session `{self.session_id}`"
+        )
 
         posted = self._post_comment(comment_body)
         since_id = posted["id"]
@@ -337,7 +343,10 @@ class GitHubMCPClient:
         }
 
         encoded = _encode_message(request)
-        comment_body = f"{REQUEST_MARKER}{request_id}:{encoded}{END_MARKER}\n\n**MCP List Tools** from session `{self.session_id}`"
+        comment_body = (
+            f"{REQUEST_MARKER}{request_id}:{encoded}{END_MARKER}\n\n"
+            f"**MCP List Tools** from session `{self.session_id}`"
+        )
 
         posted = self._post_comment(comment_body)
         since_id = posted["id"]

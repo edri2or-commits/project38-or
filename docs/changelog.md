@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **GitHub Issue-Based MCP Relay** (2026-01-16) - Bypass Anthropic egress proxy
+  - `src/mcp_gateway/github_mcp_client.py` - Client for Claude Code sessions (422 lines)
+  - `src/mcp_gateway/github_relay.py` - Server-side relay for Railway (398 lines)
+  - `.github/workflows/test-github-relay.yml` - Test workflow for relay verification
+  - Uses GitHub Issue #183 as message queue for MCP JSON-RPC transport
+  - Rate limits enforced: 5,000 reads/hour (ETag optimized), 500 writes/hour
+  - Expected RTT: 4-6 seconds (suitable for tool calls, not streaming)
+  - Solves: Claude Code sessions cannot reach `or-infra.com` due to proxy
+  - Architecture: Claude Code → GitHub Issue → Railway Relay → MCP Gateway
+
 - **MCP Gateway Cloud Run Deployment** (2026-01-16) - Solution for Anthropic proxy limitation
   - Created `services/mcp-gateway-cloudrun/` - Standalone MCP Gateway for Cloud Run
   - `Dockerfile` - Python 3.11-slim container for Cloud Run

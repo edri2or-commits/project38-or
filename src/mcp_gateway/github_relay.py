@@ -207,7 +207,7 @@ class GitHubMCPRelay:
         body = (
             f"{RESPONSE_MARKER}{request_id}:{encoded}{END_MARKER}\n\n"
             f"**MCP Response** for `{request_id}`\n\n"
-            f"```json\n{json.dumps(response_data.get('result', response_data), indent=2)[:500]}...\n```"
+            f"```json\n{json.dumps(response_data.get('result', {}), indent=2)[:400]}\n```"
         )
 
         async with httpx.AsyncClient() as client:
