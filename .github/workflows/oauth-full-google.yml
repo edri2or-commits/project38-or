@@ -1,0 +1,230 @@
+name: OAuth Full Google Access
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action'
+        required: true
+        type: choice
+        options:
+          - generate-url
+          - exchange-code
+      auth_code:
+        description: 'Auth code (for exchange-code)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+
+jobs:
+  oauth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Generate Full Access URL
+        if: inputs.action == 'generate-url'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID)
+
+          # ALL Google API Scopes
+          SCOPES=""
+
+          # Gmail
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/gmail.modify "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/gmail.send "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/gmail.readonly "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/gmail.labels "
+
+          # Calendar
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/calendar "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/calendar.events "
+
+          # Drive
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/drive "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/drive.file "
+
+          # Sheets
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/spreadsheets "
+
+          # Docs
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/documents "
+
+          # YouTube
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/youtube "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/youtube.readonly "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/youtube.upload "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/youtube.force-ssl "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/youtubepartner "
+
+          # Photos (Library API)
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/photoslibrary "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/photoslibrary.readonly "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/photoslibrary.appendonly "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/photoslibrary.sharing "
+
+          # Tasks
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/tasks "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/tasks.readonly "
+
+          # Contacts (People API)
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/contacts "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/contacts.readonly "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/directory.readonly "
+
+          # Keep
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/keep "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/keep.readonly "
+
+          # Blogger
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/blogger "
+
+          # Google Fit
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/fitness.activity.read "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/fitness.activity.write "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/fitness.body.read "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/fitness.body.write "
+
+          # Google Chat
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/chat.messages "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/chat.spaces "
+
+          # Forms
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/forms.body "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/forms.responses.readonly "
+
+          # Slides
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/presentations "
+
+          # Apps Script
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/script.projects "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/script.deployments "
+
+          # Cloud Platform (for AI/ML)
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/cloud-platform "
+
+          # User Info
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/userinfo.email "
+          SCOPES="${SCOPES}https://www.googleapis.com/auth/userinfo.profile "
+
+          # URL encode spaces
+          ENCODED_SCOPES=$(echo "$SCOPES" | sed 's/ /%20/g' | sed 's/%20$//')
+
+          AUTH_URL="https://accounts.google.com/o/oauth2/v2/auth"
+          AUTH_URL="${AUTH_URL}?client_id=${CLIENT_ID}"
+          AUTH_URL="${AUTH_URL}&redirect_uri=urn:ietf:wg:oauth:2.0:oob"
+          AUTH_URL="${AUTH_URL}&response_type=code"
+          AUTH_URL="${AUTH_URL}&scope=${ENCODED_SCOPES}"
+          AUTH_URL="${AUTH_URL}&access_type=offline"
+          AUTH_URL="${AUTH_URL}&prompt=consent"
+
+          # Count scopes
+          SCOPE_COUNT=$(echo "$SCOPES" | tr ' ' '\n' | grep -c "googleapis")
+
+          gh issue comment 149 --body "## 🌐 Full Google Access OAuth URL
+
+          **Total Scopes:** ${SCOPE_COUNT}
+
+          ### Services Included:
+          | Category | Services |
+          |----------|----------|
+          | Productivity | Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms |
+          | Media | YouTube, Photos |
+          | Tasks | Tasks, Keep |
+          | Social | Contacts, Chat, Blogger |
+          | Health | Google Fit |
+          | Dev | Apps Script, Cloud Platform |
+
+          ---
+
+          **פתח את הקישור הזה בדפדפן:**
+
+          \`\`\`
+          ${AUTH_URL}
+          \`\`\`
+
+          ⚠️ **שים לב:**
+          - תראה רשימה ארוכה של הרשאות
+          - אשר את כל מה שמופיע
+          - חלק מהשירותים ידרשו הפעלת API נפרדת
+
+          ---
+          Generated: $(date -u +'%Y-%m-%d %H:%M UTC')" --repo edri2or-commits/project38-or
+
+      - name: Exchange Code
+        if: inputs.action == 'exchange-code'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "${{ inputs.auth_code }}" ]; then
+            echo "❌ No auth code provided"
+            exit 1
+          fi
+
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID)
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID)
+
+          RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=$CLIENT_ID" \
+            -d "client_secret=$CLIENT_SECRET" \
+            -d "code=${{ inputs.auth_code }}" \
+            -d "grant_type=authorization_code" \
+            -d "redirect_uri=urn:ietf:wg:oauth:2.0:oob")
+
+          if echo "$RESPONSE" | grep -q "error"; then
+            ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error_description // .error')
+            gh issue comment 149 --body "## ❌ OAuth Exchange Failed
+
+            **Error:** $ERROR_MSG
+
+            ---
+            Timestamp: $(date -u +'%Y-%m-%d %H:%M UTC')" --repo edri2or-commits/project38-or
+            exit 1
+          fi
+
+          REFRESH_TOKEN=$(echo "$RESPONSE" | jq -r '.refresh_token')
+          SCOPE=$(echo "$RESPONSE" | jq -r '.scope')
+
+          if [ -z "$REFRESH_TOKEN" ] || [ "$REFRESH_TOKEN" = "null" ]; then
+            echo "❌ No refresh token"
+            exit 1
+          fi
+
+          # Update the refresh token with full scopes
+          echo -n "$REFRESH_TOKEN" | gcloud secrets versions add GOOGLE-OAUTH-REFRESH-TOKEN --data-file=- --project=$GCP_PROJECT_ID
+
+          # Count granted scopes
+          SCOPE_COUNT=$(echo "$SCOPE" | tr ' ' '\n' | wc -l)
+
+          gh issue comment 149 --body "## ✅ Full Google Access Granted!
+
+          **Scopes Granted:** ${SCOPE_COUNT}
+
+          \`\`\`
+          $(echo "$SCOPE" | tr ' ' '\n' | head -20)
+          ... (and more)
+          \`\`\`
+
+          **Next Steps:**
+          1. Enable required APIs in GCP Console
+          2. Run test workflows to verify
+
+          ---
+          Completed: $(date -u +'%Y-%m-%d %H:%M UTC')" --repo edri2or-commits/project38-or
