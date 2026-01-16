@@ -1,0 +1,30 @@
+{
+  "name": "@project38/s3-mcp-bridge",
+  "version": "1.0.0",
+  "description": "MCP Bridge that tunnels JSON-RPC messages through S3 for environments with restricted egress",
+  "main": "src/index.js",
+  "bin": {
+    "s3-mcp-bridge": "./src/cli.js",
+    "s3-mcp-bridge-server": "./src/server-cli.js"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test src/*.test.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "s3",
+    "bridge",
+    "relay"
+  ],
+  "author": "project38",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.500.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
