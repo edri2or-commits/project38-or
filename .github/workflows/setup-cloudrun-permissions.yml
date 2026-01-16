@@ -1,0 +1,130 @@
+name: Setup Cloud Run Permissions
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'check'
+        type: choice
+        options:
+          - check
+          - enable-apis
+          - grant-roles
+          - full-setup
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  PROJECT_NUMBER: "979429709900"
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Check Current State
+        if: inputs.action == 'check' || inputs.action == 'full-setup'
+        run: |
+          echo "## Current State" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Enabled APIs" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          gcloud services list --enabled --filter="name:(run OR cloudbuild OR artifactregistry OR storage)" --format="value(name)" >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Could not list services"
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Service Account IAM Roles" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          gcloud projects get-iam-policy ${{ env.PROJECT_ID }} \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:${{ env.SERVICE_ACCOUNT }}" \
+            --format="table(bindings.role)" 2>&1 >> $GITHUB_STEP_SUMMARY || echo "Could not list IAM roles"
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Required APIs:" >> $GITHUB_STEP_SUMMARY
+          echo "- cloudbuild.googleapis.com" >> $GITHUB_STEP_SUMMARY
+          echo "- run.googleapis.com" >> $GITHUB_STEP_SUMMARY
+          echo "- artifactregistry.googleapis.com" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Required Roles:" >> $GITHUB_STEP_SUMMARY
+          echo "- roles/run.admin" >> $GITHUB_STEP_SUMMARY
+          echo "- roles/cloudbuild.builds.editor" >> $GITHUB_STEP_SUMMARY
+          echo "- roles/storage.admin" >> $GITHUB_STEP_SUMMARY
+          echo "- roles/iam.serviceAccountUser" >> $GITHUB_STEP_SUMMARY
+
+      - name: Enable APIs
+        if: inputs.action == 'enable-apis' || inputs.action == 'full-setup'
+        run: |
+          echo "Enabling required APIs..."
+
+          gcloud services enable cloudbuild.googleapis.com --quiet && echo "✅ Cloud Build API enabled" || echo "❌ Failed to enable Cloud Build API"
+          gcloud services enable run.googleapis.com --quiet && echo "✅ Cloud Run API enabled" || echo "❌ Failed to enable Cloud Run API"
+          gcloud services enable artifactregistry.googleapis.com --quiet && echo "✅ Artifact Registry API enabled" || echo "❌ Failed to enable Artifact Registry API"
+
+      - name: Grant IAM Roles
+        if: inputs.action == 'grant-roles' || inputs.action == 'full-setup'
+        run: |
+          echo "Granting IAM roles to service account..."
+
+          # Cloud Run Admin
+          gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \
+            --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
+            --role="roles/run.admin" \
+            --quiet && echo "✅ roles/run.admin granted" || echo "❌ Failed to grant roles/run.admin"
+
+          # Cloud Build Editor
+          gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \
+            --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
+            --role="roles/cloudbuild.builds.editor" \
+            --quiet && echo "✅ roles/cloudbuild.builds.editor granted" || echo "❌ Failed to grant roles/cloudbuild.builds.editor"
+
+          # Storage Admin (for Cloud Build artifacts)
+          gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \
+            --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
+            --role="roles/storage.admin" \
+            --quiet && echo "✅ roles/storage.admin granted" || echo "❌ Failed to grant roles/storage.admin"
+
+          # Service Account User (to act as other SAs)
+          gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \
+            --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
+            --role="roles/iam.serviceAccountUser" \
+            --quiet && echo "✅ roles/iam.serviceAccountUser granted" || echo "❌ Failed to grant roles/iam.serviceAccountUser"
+
+      - name: Verify Setup
+        if: inputs.action == 'full-setup'
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Setup Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Enabled APIs (After)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          gcloud services list --enabled --filter="name:(run OR cloudbuild OR artifactregistry)" --format="value(name)" >> $GITHUB_STEP_SUMMARY 2>&1
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### IAM Roles (After)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          gcloud projects get-iam-policy ${{ env.PROJECT_ID }} \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:${{ env.SERVICE_ACCOUNT }}" \
+            --format="table(bindings.role)" >> $GITHUB_STEP_SUMMARY 2>&1
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Next step: Re-run the \`deploy-mcp-cloudrun.yml\` workflow" >> $GITHUB_STEP_SUMMARY
