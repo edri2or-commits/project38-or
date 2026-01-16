@@ -42,4 +42,4 @@ opentelemetry-exporter-otlp>=1.22.0
 
 # Fix for cryptography/_cffi_backend import issue
 cffi>=2.0.0
-google-cloud-storage>=7.0.0
+google-cloud-storage>=2.14.0
