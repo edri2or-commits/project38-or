@@ -1,0 +1,107 @@
+name: Exchange OAuth Code
+
+on:
+  workflow_dispatch:
+    inputs:
+      auth_code:
+        description: 'Authorization code from Google'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+
+jobs:
+  exchange:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Exchange Code for Refresh Token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "🔄 Exchanging authorization code..."
+
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID)
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID)
+
+          RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=$CLIENT_ID" \
+            -d "client_secret=$CLIENT_SECRET" \
+            -d "code=${{ inputs.auth_code }}" \
+            -d "grant_type=authorization_code" \
+            -d "redirect_uri=urn:ietf:wg:oauth:2.0:oob")
+
+          if echo "$RESPONSE" | grep -q "error"; then
+            ERROR_MSG=$(echo "$RESPONSE" | jq -r '.error_description // .error')
+            echo "❌ Error: $ERROR_MSG"
+            gh issue comment 149 --body "## ❌ OAuth Exchange Failed
+
+            **Error:** $ERROR_MSG
+
+            This could mean:
+            - The code expired (they expire in ~10 minutes)
+            - The code was already used
+            - There's a configuration issue
+
+            Please try generating a new URL and getting a fresh code.
+
+            ---
+            Timestamp: $(date -u +'%Y-%m-%d %H:%M UTC')" --repo edri2or-commits/project38-or
+            exit 1
+          fi
+
+          REFRESH_TOKEN=$(echo "$RESPONSE" | jq -r '.refresh_token')
+
+          if [ -z "$REFRESH_TOKEN" ] || [ "$REFRESH_TOKEN" = "null" ]; then
+            echo "❌ No refresh token in response"
+            gh issue comment 149 --body "## ❌ No Refresh Token
+
+            The exchange succeeded but no refresh token was returned.
+            This usually means the consent screen didn't request offline access.
+
+            Please try again with a fresh authorization URL.
+
+            ---
+            Timestamp: $(date -u +'%Y-%m-%d %H:%M UTC')" --repo edri2or-commits/project38-or
+            exit 1
+          fi
+
+          # Store refresh token
+          if ! gcloud secrets describe GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID 2>/dev/null; then
+            gcloud secrets create GOOGLE-OAUTH-REFRESH-TOKEN --project=$GCP_PROJECT_ID --replication-policy=automatic
+          fi
+          echo -n "$REFRESH_TOKEN" | gcloud secrets versions add GOOGLE-OAUTH-REFRESH-TOKEN --data-file=- --project=$GCP_PROJECT_ID
+
+          gh issue comment 149 --body "## ✅ OAuth Setup Complete!
+
+          🎉 **הצלחה!** ה-Refresh Token נשמר ב-GCP Secret Manager.
+
+          **מה עכשיו:**
+          - Claude יכול עכשיו לגשת ל-Google Workspace
+          - Gmail, Calendar, Drive, Sheets, Docs - הכל זמין
+          - האוטונומיה המלאה מופעלת!
+
+          **סודות זמינים:**
+          - ✅ GOOGLE-OAUTH-CLIENT-ID
+          - ✅ GOOGLE-OAUTH-CLIENT-SECRET
+          - ✅ GOOGLE-OAUTH-REFRESH-TOKEN (חדש!)
+
+          ---
+          Completed: $(date -u +'%Y-%m-%d %H:%M UTC')" --repo edri2or-commits/project38-or
+
+          echo "✅ SUCCESS!"
