@@ -205,15 +205,17 @@ async def gmail_search(query: str, max_results: int = 10) -> dict[str, Any]:
                         h["name"]: h["value"]
                         for h in msg_data.get("payload", {}).get("headers", [])
                     }
-                    results.append({
-                        "id": msg["id"],
-                        "thread_id": msg_data.get("threadId"),
-                        "subject": hdrs.get("Subject", ""),
-                        "from": hdrs.get("From", ""),
-                        "to": hdrs.get("To", ""),
-                        "date": hdrs.get("Date", ""),
-                        "snippet": msg_data.get("snippet", ""),
-                    })
+                    results.append(
+                        {
+                            "id": msg["id"],
+                            "thread_id": msg_data.get("threadId"),
+                            "subject": hdrs.get("Subject", ""),
+                            "from": hdrs.get("From", ""),
+                            "to": hdrs.get("To", ""),
+                            "date": hdrs.get("Date", ""),
+                            "snippet": msg_data.get("snippet", ""),
+                        }
+                    )
 
             return {"success": True, "count": len(results), "messages": results}
 
@@ -264,13 +266,15 @@ async def gmail_list(label: str = "INBOX", max_results: int = 10) -> dict[str, A
                         h["name"]: h["value"]
                         for h in msg_data.get("payload", {}).get("headers", [])
                     }
-                    results.append({
-                        "id": msg["id"],
-                        "subject": hdrs.get("Subject", ""),
-                        "from": hdrs.get("From", ""),
-                        "date": hdrs.get("Date", ""),
-                        "snippet": msg_data.get("snippet", ""),
-                    })
+                    results.append(
+                        {
+                            "id": msg["id"],
+                            "subject": hdrs.get("Subject", ""),
+                            "from": hdrs.get("From", ""),
+                            "date": hdrs.get("Date", ""),
+                            "snippet": msg_data.get("snippet", ""),
+                        }
+                    )
 
             return {
                 "success": True,
@@ -330,16 +334,18 @@ async def calendar_list_events(
             data = response.json()
             events = []
             for item in data.get("items", []):
-                events.append({
-                    "id": item.get("id"),
-                    "summary": item.get("summary", ""),
-                    "start": item.get("start", {}).get("dateTime")
-                    or item.get("start", {}).get("date"),
-                    "end": item.get("end", {}).get("dateTime")
-                    or item.get("end", {}).get("date"),
-                    "location": item.get("location", ""),
-                    "description": item.get("description", ""),
-                })
+                events.append(
+                    {
+                        "id": item.get("id"),
+                        "summary": item.get("summary", ""),
+                        "start": item.get("start", {}).get("dateTime")
+                        or item.get("start", {}).get("date"),
+                        "end": item.get("end", {}).get("dateTime")
+                        or item.get("end", {}).get("date"),
+                        "location": item.get("location", ""),
+                        "description": item.get("description", ""),
+                    }
+                )
 
             return {"success": True, "count": len(events), "events": events}
 
