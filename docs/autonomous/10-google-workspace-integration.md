@@ -312,5 +312,5 @@ Refresh tokens expire after 6 months of inactivity. Re-authorize with a new cons
 ## Related Documents
 
 - [ADR-004: Google Workspace OAuth](../decisions/ADR-004-google-workspace-oauth.md)
-- [CLAUDE.md](../../CLAUDE.md) - Project context
+- `CLAUDE.md` (root) - Project context
 - [06-security-architecture-hybrid.md](06-security-architecture-hybrid.md) - Security patterns

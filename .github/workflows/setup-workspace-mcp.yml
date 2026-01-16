@@ -1,0 +1,152 @@
+name: Setup Workspace MCP Credentials
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - store_credentials
+          - verify_credentials
+          - generate_config
+      client_id:
+        description: 'Google OAuth Client ID (for store_credentials)'
+        required: false
+        type: string
+      client_secret:
+        description: 'Google OAuth Client Secret (for store_credentials)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: workspace-mcp-setup
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Store Credentials
+        if: inputs.action == 'store_credentials'
+        run: |
+          echo "📦 Storing Workspace MCP credentials in GCP Secret Manager..."
+
+          # Store Client ID
+          if [ -n "${{ inputs.client_id }}" ]; then
+            echo -n "${{ inputs.client_id }}" | gcloud secrets versions add WORKSPACE-MCP-CLIENT-ID --data-file=- 2>/dev/null || \
+            echo -n "${{ inputs.client_id }}" | gcloud secrets create WORKSPACE-MCP-CLIENT-ID --data-file=- --replication-policy="automatic"
+            echo "✅ WORKSPACE-MCP-CLIENT-ID stored"
+          else
+            echo "❌ Client ID not provided"
+            exit 1
+          fi
+
+          # Store Client Secret
+          if [ -n "${{ inputs.client_secret }}" ]; then
+            echo -n "${{ inputs.client_secret }}" | gcloud secrets versions add WORKSPACE-MCP-CLIENT-SECRET --data-file=- 2>/dev/null || \
+            echo -n "${{ inputs.client_secret }}" | gcloud secrets create WORKSPACE-MCP-CLIENT-SECRET --data-file=- --replication-policy="automatic"
+            echo "✅ WORKSPACE-MCP-CLIENT-SECRET stored"
+          else
+            echo "❌ Client Secret not provided"
+            exit 1
+          fi
+
+          echo ""
+          echo "🎉 Credentials stored successfully!"
+          echo ""
+          echo "Next steps:"
+          echo "1. Run this workflow with action='verify_credentials' to confirm"
+          echo "2. Run with action='generate_config' to get your ~/.claude.json config"
+
+      - name: Verify Credentials
+        if: inputs.action == 'verify_credentials'
+        run: |
+          echo "🔍 Verifying Workspace MCP credentials..."
+          echo ""
+
+          # Check Client ID
+          if gcloud secrets versions access latest --secret="WORKSPACE-MCP-CLIENT-ID" > /dev/null 2>&1; then
+            CLIENT_ID=$(gcloud secrets versions access latest --secret="WORKSPACE-MCP-CLIENT-ID")
+            # Mask the actual value, show only format validation
+            if [[ "$CLIENT_ID" == *".apps.googleusercontent.com" ]]; then
+              echo "✅ WORKSPACE-MCP-CLIENT-ID: Valid format (ends with .apps.googleusercontent.com)"
+            else
+              echo "⚠️ WORKSPACE-MCP-CLIENT-ID: Exists but unusual format"
+            fi
+          else
+            echo "❌ WORKSPACE-MCP-CLIENT-ID: Not found"
+          fi
+
+          # Check Client Secret
+          if gcloud secrets versions access latest --secret="WORKSPACE-MCP-CLIENT-SECRET" > /dev/null 2>&1; then
+            SECRET=$(gcloud secrets versions access latest --secret="WORKSPACE-MCP-CLIENT-SECRET")
+            SECRET_LEN=${#SECRET}
+            echo "✅ WORKSPACE-MCP-CLIENT-SECRET: Exists (${SECRET_LEN} characters)"
+          else
+            echo "❌ WORKSPACE-MCP-CLIENT-SECRET: Not found"
+          fi
+
+          echo ""
+          echo "📋 All Workspace MCP secrets status:"
+          gcloud secrets list --filter="name:WORKSPACE-MCP" --format="table(name,createTime)"
+
+      - name: Generate Config
+        if: inputs.action == 'generate_config'
+        run: |
+          echo "📄 Generating Claude Code MCP configuration..."
+          echo ""
+
+          # Fetch credentials
+          CLIENT_ID=$(gcloud secrets versions access latest --secret="WORKSPACE-MCP-CLIENT-ID" 2>/dev/null || echo "NOT_SET")
+
+          if [ "$CLIENT_ID" == "NOT_SET" ]; then
+            echo "❌ Credentials not found. Run with action='store_credentials' first."
+            exit 1
+          fi
+
+          echo "Add this to your ~/.claude.json (mcpServers section):"
+          echo ""
+          echo '```json'
+          cat << 'EOF'
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tool-tier", "complete"],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "YOUR_CLIENT_ID_HERE",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "YOUR_CLIENT_SECRET_HERE"
+      }
+    }
+  }
+}
+EOF
+          echo '```'
+          echo ""
+          echo "⚠️ Replace YOUR_CLIENT_ID_HERE and YOUR_CLIENT_SECRET_HERE with actual values"
+          echo ""
+          echo "Or use environment variables in your shell:"
+          echo ""
+          echo "export GOOGLE_OAUTH_CLIENT_ID=\$(gcloud secrets versions access latest --secret=WORKSPACE-MCP-CLIENT-ID)"
+          echo "export GOOGLE_OAUTH_CLIENT_SECRET=\$(gcloud secrets versions access latest --secret=WORKSPACE-MCP-CLIENT-SECRET)"
+          echo ""
+          echo "Then run: claude mcp add --scope user google-workspace -- uvx workspace-mcp --tool-tier complete"

@@ -8,6 +8,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Cloud-Based Google Workspace MCP Gateway** (2026-01-16) - Machine-independent autonomy
+  - `src/mcp_gateway/tools/workspace.py` - 13 Google Workspace tools integrated into MCP Gateway
+  - Gmail tools: `gmail_send`, `gmail_search`, `gmail_list`
+  - Calendar tools: `calendar_list_events`, `calendar_create_event`
+  - Drive tools: `drive_list_files`, `drive_create_folder`
+  - Sheets tools: `sheets_read`, `sheets_write`, `sheets_create`
+  - Docs tools: `docs_create`, `docs_read`, `docs_append`
+  - Runs on Railway at `or-infra.com/mcp` - works from ANY Claude Code session
+  - No local setup required - credentials from GCP Secret Manager
+  - True machine-independent autonomy: works in cloud, web, or CLI sessions
+
+- **Google Workspace Persistent MCP Setup** (2026-01-16) - TRUE persistent autonomy for Google services
+  - `docs/google-workspace-mcp-setup.md` - Complete setup guide for persistent MCP server
+  - `.github/workflows/setup-workspace-mcp.yml` - Workflow to manage OAuth credentials in GCP
+  - Supports 100+ tools across 10 Google services: Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Tasks, Chat, Search
+  - Uses standard MCP protocol with `claude mcp add --scope user` for persistence
+  - Replaces session-dependent token loading with automatic authentication
+  - Recommended MCP server: [taylorwilsdon/google_workspace_mcp](https://github.com/taylorwilsdon/google_workspace_mcp)
+
+### Changed
+- **CLAUDE.md Major Update** (2026-01-16) - Documentation now reflects actual system state
+  - Updated Overview: FastAPI/PostgreSQL marked as "deployed" (not "planned")
+  - Added ADR-004 (Google Workspace OAuth) to ADRs list
+  - Updated Documentation Statistics (566KB total, 4 ADRs)
+  - **Complete File Structure rewrite**: Now shows all 87 modules with 29,200+ lines
+    - Core Infrastructure (5 modules, ~700 lines)
+    - External Service Clients (3 modules, ~2,000 lines)
+    - Core Orchestration (5 modules, ~3,300 lines)
+    - ML & Analytics (3 modules, ~2,300 lines)
+    - Operations & Maintenance (9 modules, ~4,800 lines)
+    - API Layer (12 modules, ~3,000 lines)
+    - Multi-Agent System (5 modules, ~3,200 lines)
+    - Agent Factory & Harness (7 modules, ~2,100 lines)
+    - MCP Gateway (7 modules, ~1,300 lines)
+    - MCP Tools (4 modules, ~1,800 lines)
+    - Google Workspace MCP Bridge (8 modules, ~2,100 lines)
+    - Data Models (3 modules, ~265 lines)
+    - Observability (2 modules, ~500 lines)
+    - Workflows (2 modules, ~850 lines)
+  - **New System Capabilities section**: Documents all 17+ phases implemented
+    - Core Autonomous Capabilities table
+    - Multi-Agent System table
+    - External Integrations table
+    - Operations & Maintenance table
+    - API Endpoints summary (40+ endpoints)
+    - Safety Features list
+
+### Added
 - **Google Workspace Full Autonomy** (2026-01-16) - Complete OAuth integration with all 5 services
   - **Gmail**: Send, read, search emails autonomously
   - **Calendar**: Create, edit, delete events

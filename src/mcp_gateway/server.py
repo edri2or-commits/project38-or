@@ -217,6 +217,264 @@ def create_mcp_server() -> Any | None:
 
         return await check_oauth_status()
 
+    # =========================================================================
+    # Google Workspace Tools (Gmail, Calendar, Drive, Sheets, Docs)
+    # =========================================================================
+
+    @mcp.tool
+    async def gmail_send(
+        to: str,
+        subject: str,
+        body: str,
+        cc: str = "",
+        bcc: str = "",
+    ) -> dict:
+        """
+        Send an email via Gmail.
+
+        Args:
+            to: Recipient email address(es), comma-separated
+            subject: Email subject
+            body: Email body (plain text)
+            cc: CC recipients, comma-separated (optional)
+            bcc: BCC recipients, comma-separated (optional)
+
+        Returns:
+            Result with message ID and thread ID
+        """
+        from .tools.workspace import gmail_send
+
+        return await gmail_send(to, subject, body, cc, bcc)
+
+    @mcp.tool
+    async def gmail_search(query: str, max_results: int = 10) -> dict:
+        """
+        Search emails in Gmail.
+
+        Args:
+            query: Gmail search query (e.g., "from:user@example.com is:unread")
+            max_results: Maximum number of results (default: 10)
+
+        Returns:
+            List of matching email summaries
+        """
+        from .tools.workspace import gmail_search
+
+        return await gmail_search(query, max_results)
+
+    @mcp.tool
+    async def gmail_list(label: str = "INBOX", max_results: int = 10) -> dict:
+        """
+        List recent emails in a label.
+
+        Args:
+            label: Gmail label (default: INBOX)
+            max_results: Maximum number of results (default: 10)
+
+        Returns:
+            List of recent email summaries
+        """
+        from .tools.workspace import gmail_list
+
+        return await gmail_list(label, max_results)
+
+    @mcp.tool
+    async def calendar_list_events(
+        calendar_id: str = "primary",
+        max_results: int = 10,
+        time_min: str = "",
+    ) -> dict:
+        """
+        List upcoming calendar events.
+
+        Args:
+            calendar_id: Calendar ID (default: primary)
+            max_results: Maximum number of events (default: 10)
+            time_min: Start time in ISO format (default: now)
+
+        Returns:
+            List of upcoming events
+        """
+        from .tools.workspace import calendar_list_events
+
+        return await calendar_list_events(calendar_id, max_results, time_min)
+
+    @mcp.tool
+    async def calendar_create_event(
+        summary: str,
+        start_time: str,
+        end_time: str,
+        calendar_id: str = "primary",
+        description: str = "",
+        location: str = "",
+        attendees: str = "",
+    ) -> dict:
+        """
+        Create a calendar event.
+
+        Args:
+            summary: Event title
+            start_time: Start time in ISO format (e.g., 2026-01-20T10:00:00Z)
+            end_time: End time in ISO format
+            calendar_id: Calendar ID (default: primary)
+            description: Event description (optional)
+            location: Event location (optional)
+            attendees: Comma-separated email addresses (optional)
+
+        Returns:
+            Created event details with event ID and link
+        """
+        from .tools.workspace import calendar_create_event
+
+        return await calendar_create_event(
+            summary, start_time, end_time, calendar_id, description, location, attendees
+        )
+
+    @mcp.tool
+    async def drive_list_files(
+        query: str = "",
+        max_results: int = 10,
+        folder_id: str = "",
+    ) -> dict:
+        """
+        List files in Google Drive.
+
+        Args:
+            query: Search query (e.g., "name contains 'report'")
+            max_results: Maximum number of results (default: 10)
+            folder_id: Specific folder ID to search in (optional)
+
+        Returns:
+            List of files with ID, name, type, and link
+        """
+        from .tools.workspace import drive_list_files
+
+        return await drive_list_files(query, max_results, folder_id)
+
+    @mcp.tool
+    async def drive_create_folder(name: str, parent_id: str = "") -> dict:
+        """
+        Create a folder in Google Drive.
+
+        Args:
+            name: Folder name
+            parent_id: Parent folder ID (optional)
+
+        Returns:
+            Created folder ID and name
+        """
+        from .tools.workspace import drive_create_folder
+
+        return await drive_create_folder(name, parent_id)
+
+    @mcp.tool
+    async def sheets_read(
+        spreadsheet_id: str,
+        range_notation: str = "Sheet1!A1:Z100",
+    ) -> dict:
+        """
+        Read data from a Google Sheet.
+
+        Args:
+            spreadsheet_id: Spreadsheet ID from URL
+            range_notation: A1 notation range (e.g., "Sheet1!A1:B10")
+
+        Returns:
+            Cell values as 2D array
+        """
+        from .tools.workspace import sheets_read
+
+        return await sheets_read(spreadsheet_id, range_notation)
+
+    @mcp.tool
+    async def sheets_write(
+        spreadsheet_id: str,
+        range_notation: str,
+        values: str,
+    ) -> dict:
+        """
+        Write data to a Google Sheet.
+
+        Args:
+            spreadsheet_id: Spreadsheet ID from URL
+            range_notation: A1 notation range (e.g., "Sheet1!A1:B2")
+            values: JSON string of 2D array (e.g., '[["A1","B1"],["A2","B2"]]')
+
+        Returns:
+            Update result with cell count
+        """
+        import json
+
+        from .tools.workspace import sheets_write
+
+        try:
+            parsed_values = json.loads(values)
+        except json.JSONDecodeError:
+            return {"success": False, "error": f"Invalid JSON: {values}"}
+
+        return await sheets_write(spreadsheet_id, range_notation, parsed_values)
+
+    @mcp.tool
+    async def sheets_create(title: str) -> dict:
+        """
+        Create a new Google Sheet.
+
+        Args:
+            title: Spreadsheet title
+
+        Returns:
+            Spreadsheet ID and URL
+        """
+        from .tools.workspace import sheets_create
+
+        return await sheets_create(title)
+
+    @mcp.tool
+    async def docs_create(title: str) -> dict:
+        """
+        Create a new Google Doc.
+
+        Args:
+            title: Document title
+
+        Returns:
+            Document ID and title
+        """
+        from .tools.workspace import docs_create
+
+        return await docs_create(title)
+
+    @mcp.tool
+    async def docs_read(document_id: str) -> dict:
+        """
+        Read content from a Google Doc.
+
+        Args:
+            document_id: Document ID from URL
+
+        Returns:
+            Document title and text content
+        """
+        from .tools.workspace import docs_read
+
+        return await docs_read(document_id)
+
+    @mcp.tool
+    async def docs_append(document_id: str, text: str) -> dict:
+        """
+        Append text to a Google Doc.
+
+        Args:
+            document_id: Document ID from URL
+            text: Text to append
+
+        Returns:
+            Update result
+        """
+        from .tools.workspace import docs_append
+
+        return await docs_append(document_id, text)
+
     return mcp
 
 
@@ -256,12 +514,21 @@ if __name__ == "__main__":
 
     print(f"Starting MCP Gateway on {host}:{port}")
     print("Available tools:")
-    print("  - railway_deploy: Trigger deployment")
-    print("  - railway_status: Get deployment status")
-    print("  - railway_rollback: Rollback deployment")
-    print("  - n8n_trigger: Trigger workflow")
-    print("  - n8n_list: List workflows")
-    print("  - health_check: Check all services")
-    print("  - get_metrics: Get system metrics")
+    print("  Railway:")
+    print("    - railway_deploy: Trigger deployment")
+    print("    - railway_status: Get deployment status")
+    print("    - railway_rollback: Rollback deployment")
+    print("  n8n:")
+    print("    - n8n_trigger: Trigger workflow")
+    print("    - n8n_list: List workflows")
+    print("  Monitoring:")
+    print("    - health_check: Check all services")
+    print("    - get_metrics: Get system metrics")
+    print("  Google Workspace:")
+    print("    - gmail_send, gmail_search, gmail_list")
+    print("    - calendar_list_events, calendar_create_event")
+    print("    - drive_list_files, drive_create_folder")
+    print("    - sheets_read, sheets_write, sheets_create")
+    print("    - docs_create, docs_read, docs_append")
 
     mcp.run(transport="streamable-http", host=host, port=port)
