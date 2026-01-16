@@ -1,4 +1,4 @@
-name: Test GCS MCP Relay
+name: Test GCS MCP Relay (health_check)
 
 on:
   workflow_dispatch:
@@ -47,13 +47,16 @@ jobs:
           echo "REQUEST_PATH=$REQUEST_PATH" >> $GITHUB_ENV
           echo "RESPONSE_PATH=$RESPONSE_PATH" >> $GITHUB_ENV
           
-          # Create and upload request
+          # Create and upload request - test tools/call with health_check
           cat > /tmp/request.json << EOFJ
           {
             "jsonrpc": "2.0",
             "id": "$REQUEST_ID",
-            "method": "initialize",
-            "params": {},
+            "method": "tools/call",
+            "params": {
+              "name": "health_check",
+              "arguments": {}
+            },
             "_bridge": {
               "sessionId": "$SESSION_ID",
               "requestId": "$REQUEST_ID",
