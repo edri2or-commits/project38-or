@@ -271,11 +271,42 @@ Every PR adds entry to `docs/changelog.md`:
 
 ## Google Workspace Autonomy
 
-**Status**: ✅ **Full Autonomy** (verified 2026-01-16)
+**Status**: ✅ **Full Cloud Autonomy** (verified 2026-01-16)
 
-### Recommended: Persistent MCP Server
+### Cloud-Based (Recommended) - No Local Setup
 
-For TRUE persistent autonomy (works in EVERY session automatically), use the standard MCP server:
+The MCP Gateway at `https://or-infra.com/mcp` includes Google Workspace tools.
+This works from ANY Claude Code session without any local configuration.
+
+**Available Cloud Tools:**
+| Tool | Description |
+|------|-------------|
+| `gmail_send` | Send emails |
+| `gmail_search` | Search emails |
+| `gmail_list` | List recent emails |
+| `calendar_list_events` | List upcoming events |
+| `calendar_create_event` | Create calendar events |
+| `drive_list_files` | List Drive files |
+| `drive_create_folder` | Create folders |
+| `sheets_read` | Read spreadsheet data |
+| `sheets_write` | Write to spreadsheets |
+| `sheets_create` | Create new spreadsheets |
+| `docs_create` | Create documents |
+| `docs_read` | Read document content |
+| `docs_append` | Append text to documents |
+
+**How it works:**
+```
+Claude Code Session (any machine/cloud)
+    ↓ (MCP Protocol over HTTPS)
+MCP Gateway (Railway @ or-infra.com/mcp)
+    ↓ (OAuth via GCP Secret Manager)
+Google Workspace APIs
+```
+
+### Local MCP Server (Alternative)
+
+For local development or additional tools, use the standard MCP server:
 
 ```bash
 # One-time setup
@@ -428,17 +459,18 @@ project38-or/
 │   │   └── handoff.py             # State persistence (345 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
-│   │   # MCP GATEWAY (7 modules, ~1,300 lines)
+│   │   # MCP GATEWAY (8 modules, ~1,850 lines)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── mcp_gateway/
-│   │   ├── server.py              # FastMCP HTTP gateway (267 lines)
+│   │   ├── server.py              # FastMCP HTTP gateway (535 lines)
 │   │   ├── auth.py                # Bearer token validation (70 lines)
 │   │   ├── config.py              # GCP configuration (106 lines)
 │   │   └── tools/
 │   │       ├── railway.py         # Railway operations (285 lines)
 │   │       ├── n8n.py             # n8n operations (200 lines)
 │   │       ├── monitoring.py      # Health/metrics (212 lines)
-│   │       └── oauth.py           # Google OAuth (170 lines)
+│   │       ├── oauth.py           # Google OAuth (170 lines)
+│   │       └── workspace.py       # Google Workspace tools (550 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # MCP TOOLS (4 modules, ~1,800 lines)
