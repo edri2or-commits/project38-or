@@ -1,0 +1,136 @@
+name: Deploy S3 MCP Bridge Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - check-status
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'deploy'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: services/s3-mcp-bridge
+        run: npm install
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Get AWS credentials from GCP Secret Manager
+        id: secrets
+        run: |
+          # Get AWS credentials stored in GCP Secret Manager
+          AWS_ACCESS_KEY=$(gcloud secrets versions access latest --secret="AWS-ACCESS-KEY-ID" --project=${{ env.PROJECT_ID }} 2>/dev/null || echo "")
+          AWS_SECRET_KEY=$(gcloud secrets versions access latest --secret="AWS-SECRET-ACCESS-KEY" --project=${{ env.PROJECT_ID }} 2>/dev/null || echo "")
+          MCP_BUCKET=$(gcloud secrets versions access latest --secret="MCP-S3-BUCKET" --project=${{ env.PROJECT_ID }} 2>/dev/null || echo "project38-mcp-relay")
+
+          if [ -z "$AWS_ACCESS_KEY" ]; then
+            echo "⚠️ AWS credentials not found in GCP Secret Manager"
+            echo "Please create secrets: AWS-ACCESS-KEY-ID, AWS-SECRET-ACCESS-KEY, MCP-S3-BUCKET"
+            exit 1
+          fi
+
+          echo "aws_configured=true" >> $GITHUB_OUTPUT
+          echo "::add-mask::$AWS_ACCESS_KEY"
+          echo "::add-mask::$AWS_SECRET_KEY"
+          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY" >> $GITHUB_ENV
+          echo "MCP_BUCKET=$MCP_BUCKET" >> $GITHUB_ENV
+
+      - name: Get Railway token
+        id: railway
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=${{ env.PROJECT_ID }})
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "RAILWAY_TOKEN=$RAILWAY_TOKEN" >> $GITHUB_ENV
+
+      - name: Deploy to Railway
+        working-directory: services/s3-mcp-bridge
+        run: |
+          # Install Railway CLI
+          npm install -g @railway/cli
+
+          # Deploy
+          railway login --browserless <<< "$RAILWAY_TOKEN"
+          railway link project38-or  # Link to existing project
+
+          # Set environment variables
+          railway variables set AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+          railway variables set AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+          railway variables set MCP_BUCKET="$MCP_BUCKET"
+          railway variables set MCP_URL="http://localhost:8080/mcp"  # Internal MCP Gateway
+
+          # Deploy
+          railway up --detach
+
+          echo "## S3 MCP Bridge Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The S3 MCP Bridge server is now polling for requests." >> $GITHUB_STEP_SUMMARY
+
+  check-status:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'check-status'
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Check configuration
+        run: |
+          echo "## S3 MCP Bridge Configuration Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check for AWS credentials
+          AWS_KEY=$(gcloud secrets versions access latest --secret="AWS-ACCESS-KEY-ID" --project=${{ env.PROJECT_ID }} 2>/dev/null || echo "")
+          if [ -n "$AWS_KEY" ]; then
+            echo "- ✅ AWS-ACCESS-KEY-ID: Configured" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ AWS-ACCESS-KEY-ID: Not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          AWS_SECRET=$(gcloud secrets versions access latest --secret="AWS-SECRET-ACCESS-KEY" --project=${{ env.PROJECT_ID }} 2>/dev/null || echo "")
+          if [ -n "$AWS_SECRET" ]; then
+            echo "- ✅ AWS-SECRET-ACCESS-KEY: Configured" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ AWS-SECRET-ACCESS-KEY: Not found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          BUCKET=$(gcloud secrets versions access latest --secret="MCP-S3-BUCKET" --project=${{ env.PROJECT_ID }} 2>/dev/null || echo "")
+          if [ -n "$BUCKET" ]; then
+            echo "- ✅ MCP-S3-BUCKET: $BUCKET" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ MCP-S3-BUCKET: Not set (will use default: project38-mcp-relay)" >> $GITHUB_STEP_SUMMARY
+          fi

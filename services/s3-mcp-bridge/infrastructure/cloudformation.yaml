@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: S3 MCP Bridge Infrastructure - Creates S3 bucket and IAM user for MCP relay
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Name of the S3 bucket for MCP relay
+    Default: project38-mcp-relay
+
+Resources:
+  # S3 Bucket for MCP message relay
+  McpRelayBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldMessages
+            Status: Enabled
+            ExpirationInDays: 1
+            Prefix: mcp-relay/
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Purpose
+          Value: MCP-Relay
+        - Key: Project
+          Value: project38
+
+  # IAM User for S3 access
+  McpRelayUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: mcp-relay-user
+      Tags:
+        - Key: Purpose
+          Value: MCP-Relay
+        - Key: Project
+          Value: project38
+
+  # IAM Policy for S3 access
+  McpRelayPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: McpRelayS3Access
+      Users:
+        - !Ref McpRelayUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ListBucket
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !GetAtt McpRelayBucket.Arn
+          - Sid: ObjectOperations
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+            Resource:
+              - !Sub '${McpRelayBucket.Arn}/*'
+
+  # Access Key for the user
+  McpRelayAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref McpRelayUser
+
+Outputs:
+  BucketName:
+    Description: S3 Bucket name for MCP relay
+    Value: !Ref McpRelayBucket
+    Export:
+      Name: McpRelayBucketName
+
+  BucketArn:
+    Description: S3 Bucket ARN
+    Value: !GetAtt McpRelayBucket.Arn
+    Export:
+      Name: McpRelayBucketArn
+
+  UserArn:
+    Description: IAM User ARN
+    Value: !GetAtt McpRelayUser.Arn
+    Export:
+      Name: McpRelayUserArn
+
+  AccessKeyId:
+    Description: Access Key ID (store securely!)
+    Value: !Ref McpRelayAccessKey
+
+  SecretAccessKey:
+    Description: Secret Access Key (store securely!)
+    Value: !GetAtt McpRelayAccessKey.SecretAccessKey
