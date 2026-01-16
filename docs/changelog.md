@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Google Workspace Persistent MCP Setup** (2026-01-16) - TRUE persistent autonomy for Google services
+  - `docs/google-workspace-mcp-setup.md` - Complete setup guide for persistent MCP server
+  - `.github/workflows/setup-workspace-mcp.yml` - Workflow to manage OAuth credentials in GCP
+  - Supports 100+ tools across 10 Google services: Gmail, Calendar, Drive, Docs, Sheets, Slides, Forms, Tasks, Chat, Search
+  - Uses standard MCP protocol with `claude mcp add --scope user` for persistence
+  - Replaces session-dependent token loading with automatic authentication
+  - Recommended MCP server: [taylorwilsdon/google_workspace_mcp](https://github.com/taylorwilsdon/google_workspace_mcp)
+
 ### Changed
 - **CLAUDE.md Major Update** (2026-01-16) - Documentation now reflects actual system state
   - Updated Overview: FastAPI/PostgreSQL marked as "deployed" (not "planned")

@@ -264,6 +264,8 @@ Every PR adds entry to `docs/changelog.md`:
 | GOOGLE-OAUTH-REFRESH-TOKEN | Google Workspace OAuth |
 | MCP-BRIDGE-TOKEN | Railway MCP Bridge auth |
 | MCP-GATEWAY-TOKEN | MCP Gateway auth |
+| WORKSPACE-MCP-CLIENT-ID | Google Workspace MCP OAuth |
+| WORKSPACE-MCP-CLIENT-SECRET | Google Workspace MCP OAuth |
 
 ---
 
@@ -271,20 +273,53 @@ Every PR adds entry to `docs/changelog.md`:
 
 **Status**: ✅ **Full Autonomy** (verified 2026-01-16)
 
-### Available Services
+### Recommended: Persistent MCP Server
+
+For TRUE persistent autonomy (works in EVERY session automatically), use the standard MCP server:
+
+```bash
+# One-time setup
+claude mcp add --scope user google-workspace -- uvx workspace-mcp --tool-tier complete
+```
+
+**Configuration** (`~/.claude.json`):
+```json
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "uvx",
+      "args": ["workspace-mcp", "--tool-tier", "complete"],
+      "env": {
+        "GOOGLE_OAUTH_CLIENT_ID": "your-client-id",
+        "GOOGLE_OAUTH_CLIENT_SECRET": "your-client-secret"
+      }
+    }
+  }
+}
+```
+
+**Setup Guide**: See [docs/google-workspace-mcp-setup.md](docs/google-workspace-mcp-setup.md)
+
+### Available Services (100+ tools)
 
 | Service | Capabilities | Status |
 |---------|--------------|--------|
-| **Gmail** | Send, read, search emails | ✅ Verified |
-| **Calendar** | Create, edit, delete events | ✅ Verified |
-| **Drive** | Create folders, upload/download files | ✅ Verified |
-| **Sheets** | Create spreadsheets, read/write data | ✅ Verified |
-| **Docs** | Create documents, insert/edit text | ✅ Verified |
+| **Gmail** | Send, read, search, labels, drafts | ✅ Verified |
+| **Calendar** | Create, edit, delete events, list calendars | ✅ Verified |
+| **Drive** | Create folders, upload/download, share | ✅ Verified |
+| **Sheets** | Create, read/write cells, append rows | ✅ Verified |
+| **Docs** | Create, insert/edit text, formatting | ✅ Verified |
+| **Slides** | Create presentations, add slides | ✅ Available |
+| **Forms** | Create forms, add questions, get responses | ✅ Available |
+| **Tasks** | Create, update, complete tasks | ✅ Available |
+| **Chat** | Send messages to spaces | ✅ Available |
+| **Search** | Custom web search | ✅ Available |
 
 ### OAuth Workflows
 
 | Workflow | Purpose |
 |----------|---------|
+| `setup-workspace-mcp.yml` | Store/verify MCP credentials in GCP |
 | `generate-oauth-url.yml` | Generate authorization URL |
 | `exchange-oauth-code.yml` | Exchange code for refresh token |
 | `verify-oauth-config.yml` | Verify credentials match |
@@ -294,6 +329,9 @@ Every PR adds entry to `docs/changelog.md`:
 
 ### Architecture Decision
 See [ADR-004: Google Workspace OAuth](docs/decisions/ADR-004-google-workspace-oauth.md)
+
+### Legacy Implementation
+The `src/workspace_mcp_bridge/` directory contains a custom implementation that works via GitHub Actions but requires session-specific token loading. The MCP Server approach above is recommended for persistent autonomy.
 
 ---
 
