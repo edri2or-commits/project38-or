@@ -1,0 +1,148 @@
+name: Deploy GCS MCP Relay
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - check-status
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  SERVICE_DIR: services/gcs-mcp-relay
+  RAILWAY_PROJECT_ID: 95ec21cc-9ada-41c5-8485-12f9a00e0116
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'deploy'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=${{ env.PROJECT_ID }})
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check for GCS SA Key
+        id: gcs-key
+        run: |
+          if gcloud secrets describe GCS-RELAY-SA-KEY --project=${{ env.PROJECT_ID }} 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            GCS_KEY=$(gcloud secrets versions access latest --secret="GCS-RELAY-SA-KEY" --project=${{ env.PROJECT_ID }})
+            echo "::add-mask::$GCS_KEY"
+            # Base64 encode to avoid JSON issues
+            echo "key=$(echo "$GCS_KEY" | base64 -w0)" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::error::GCS-RELAY-SA-KEY not found in Secret Manager!"
+            echo ""
+            echo "To create it:"
+            echo "1. Go to GCP Console > IAM > Service Accounts"
+            echo "2. Select claude-code-agent@project38-483612.iam.gserviceaccount.com"
+            echo "3. Keys > Add Key > Create new key > JSON"
+            echo "4. Store the key:"
+            echo "   gcloud secrets create GCS-RELAY-SA-KEY --data-file=<key-file>.json --project=${{ env.PROJECT_ID }}"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        working-directory: ${{ env.SERVICE_DIR }}
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway.outputs.token }}
+        run: |
+          echo "Deploying GCS MCP Relay to Railway..."
+
+          # Link to project
+          railway link ${{ env.RAILWAY_PROJECT_ID }}
+
+          # Set environment variables
+          railway variables set \
+            GCS_BUCKET=project38-mcp-relay \
+            GCS_PREFIX=mcp-relay \
+            MCP_GATEWAY_URL=http://localhost:8080/mcp \
+            GOOGLE_APPLICATION_CREDENTIALS_JSON="$(echo '${{ steps.gcs-key.outputs.key }}' | base64 -d)"
+
+          # Deploy
+          railway up --detach
+
+          echo "Deployment triggered!"
+
+      - name: Summary
+        run: |
+          echo "## GCS MCP Relay Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Service: gcs-mcp-relay" >> $GITHUB_STEP_SUMMARY
+          echo "- Bucket: gs://project38-mcp-relay" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: Deployed" >> $GITHUB_STEP_SUMMARY
+
+  check-status:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'check-status'
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Check Status
+        run: |
+          echo "## GCS MCP Relay Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check bucket
+          if gsutil ls -b gs://project38-mcp-relay 2>/dev/null; then
+            echo "- Bucket: exists" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Bucket: NOT FOUND" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check SA key secret
+          if gcloud secrets describe GCS-RELAY-SA-KEY --project=${{ env.PROJECT_ID }} 2>/dev/null; then
+            echo "- SA Key: stored in Secret Manager" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- SA Key: NOT FOUND (required for Railway deployment)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Create SA Key" >> $GITHUB_STEP_SUMMARY
+            echo "1. GCP Console > IAM > Service Accounts" >> $GITHUB_STEP_SUMMARY
+            echo "2. Select claude-code-agent" >> $GITHUB_STEP_SUMMARY
+            echo "3. Keys > Add Key > JSON" >> $GITHUB_STEP_SUMMARY
+            echo "4. \`gcloud secrets create GCS-RELAY-SA-KEY --data-file=<key>.json\`" >> $GITHUB_STEP_SUMMARY
+          fi
