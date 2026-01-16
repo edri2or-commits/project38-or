@@ -58,8 +58,11 @@ jobs:
       - name: Deploy to Cloud Run (from source)
         id: deploy
         working-directory: services/mcp-gateway-cloudrun
+        continue-on-error: true
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
+          # Capture output and errors
+          set +e
+          OUTPUT=$(gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region ${{ env.REGION }} \
             --platform managed \
@@ -69,7 +72,23 @@ jobs:
             --min-instances 0 \
             --max-instances 10 \
             --set-env-vars "GCP_PROJECT_ID=${{ env.PROJECT_ID }}" \
-            --quiet
+            --verbosity=debug 2>&1)
+          EXIT_CODE=$?
+
+          echo "$OUTPUT"
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Exit code: $EXIT_CODE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Error Output" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "deploy_failed=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
           # Get the service URL
           URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
@@ -79,6 +98,7 @@ jobs:
           echo "🚀 Deployed to: $URL"
 
       - name: Show Cloud Run URL
+        if: steps.deploy.outputs.deploy_failed != 'true'
         run: |
           echo "🚀 MCP Gateway deployed to: ${{ steps.deploy.outputs.url }}"
           echo ""
