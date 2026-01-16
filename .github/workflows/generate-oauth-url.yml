@@ -1,0 +1,58 @@
+name: Generate OAuth URL
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Generate Auth URL and Post to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID)
+
+          SCOPES="https://www.googleapis.com/auth/gmail.modify"
+          SCOPES="$SCOPES%20https://www.googleapis.com/auth/gmail.send"
+          SCOPES="$SCOPES%20https://www.googleapis.com/auth/calendar"
+          SCOPES="$SCOPES%20https://www.googleapis.com/auth/drive"
+          SCOPES="$SCOPES%20https://www.googleapis.com/auth/spreadsheets"
+          SCOPES="$SCOPES%20https://www.googleapis.com/auth/documents"
+
+          AUTH_URL="https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=urn:ietf:wg:oauth:2.0:oob&response_type=code&scope=${SCOPES}&access_type=offline&prompt=consent"
+
+          gh issue comment 149 --body "## 🔗 OAuth Authorization URL
+
+          **פתח את הקישור הזה בדפדפן:**
+
+          \`\`\`
+          ${AUTH_URL}
+          \`\`\`
+
+          **שלבים:**
+          1. פתח את הקישור
+          2. התחבר עם חשבון Google
+          3. אשר את כל ההרשאות
+          4. העתק את הקוד שמופיע
+          5. תגיב לי כאן עם הקוד ואני אשלים את התהליך
+
+          ---
+          Generated: $(date -u +'%Y-%m-%d %H:%M UTC')" --repo edri2or-commits/project38-or
