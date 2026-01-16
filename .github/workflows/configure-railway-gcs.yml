@@ -1,0 +1,111 @@
+name: Configure Railway GCS Relay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  RAILWAY_PROJECT_ID: 95ec21cc-9ada-41c5-8485-12f9a00e0116
+  RAILWAY_ENVIRONMENT_ID: 99c99a18-aea2-4d01-9360-6a93705102a0
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get secrets from GCP
+        id: secrets
+        run: |
+          # Get Railway token
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=${{ env.PROJECT_ID }})
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+          
+          # Get GCS SA key
+          GCS_KEY=$(gcloud secrets versions access latest --secret="GCS-RELAY-SA-KEY" --project=${{ env.PROJECT_ID }})
+          echo "::add-mask::$GCS_KEY"
+          # Escape for JSON
+          GCS_KEY_ESCAPED=$(echo "$GCS_KEY" | jq -Rs .)
+          echo "gcs_key=$GCS_KEY_ESCAPED" >> $GITHUB_OUTPUT
+
+      - name: Get Railway Service ID
+        id: service
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"{ project(id: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\") { services { edges { node { id name } } } } }\"}")
+          
+          echo "Services response: $RESPONSE"
+          
+          # Get the first service (main app)
+          SERVICE_ID=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[0].node.id')
+          SERVICE_NAME=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[0].node.name')
+          
+          echo "Service: $SERVICE_NAME ($SERVICE_ID)"
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+
+      - name: Set GCS_RELAY_ENABLED
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\", serviceId: \\\"$SERVICE_ID\\\", name: \\\"GCS_RELAY_ENABLED\\\", value: \\\"true\\\" }) }\"
+            }")
+          echo "GCS_RELAY_ENABLED: $RESPONSE"
+
+      - name: Set GOOGLE_APPLICATION_CREDENTIALS_JSON
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+          GCS_KEY: ${{ steps.secrets.outputs.gcs_key }}
+        run: |
+          # The key is already JSON-escaped from the previous step
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\", serviceId: \\\"$SERVICE_ID\\\", name: \\\"GOOGLE_APPLICATION_CREDENTIALS_JSON\\\", value: $GCS_KEY }) }\"
+            }")
+          echo "GOOGLE_APPLICATION_CREDENTIALS_JSON set: $(echo $RESPONSE | jq -r '.data.variableUpsert // .errors')"
+
+      - name: Trigger Redeploy
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { serviceInstanceRedeploy(serviceId: \\\"$SERVICE_ID\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\") }\"
+            }")
+          echo "Redeploy: $RESPONSE"
+
+      - name: Summary
+        run: |
+          echo "## Railway GCS Relay Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- GCS_RELAY_ENABLED: true" >> $GITHUB_STEP_SUMMARY
+          echo "- GOOGLE_APPLICATION_CREDENTIALS_JSON: (set from GCS-RELAY-SA-KEY)" >> $GITHUB_STEP_SUMMARY
+          echo "- Redeploy triggered" >> $GITHUB_STEP_SUMMARY
