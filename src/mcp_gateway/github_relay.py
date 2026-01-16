@@ -156,9 +156,7 @@ class GitHubMCPRelay:
         encoded = _encode_message(response_data)
 
         # Truncate result preview for readability
-        result_preview = json.dumps(
-            response_data.get("result", response_data), indent=2
-        )
+        result_preview = json.dumps(response_data.get("result", response_data), indent=2)
         if len(result_preview) > 400:
             result_preview = result_preview[:400] + "..."
 
@@ -378,9 +376,7 @@ class GitHubMCPRelay:
 
     async def run(self) -> None:
         """Run the relay service continuously."""
-        logger.info(
-            f"Starting GitHub MCP Relay for {self.repo}#{self.issue_number}"
-        )
+        logger.info(f"Starting GitHub MCP Relay for {self.repo}#{self.issue_number}")
         self._running = True
 
         while self._running:

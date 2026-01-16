@@ -393,9 +393,7 @@ class GCSMCPClient:
             "sheets_read", {"spreadsheet_id": spreadsheet_id, "range": range_name}
         )
 
-    def sheets_write(
-        self, spreadsheet_id: str, range_name: str, values: list[list]
-    ) -> dict:
+    def sheets_write(self, spreadsheet_id: str, range_name: str, values: list[list]) -> dict:
         """Write to a spreadsheet."""
         return self.call_tool(
             "sheets_write",

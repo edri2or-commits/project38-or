@@ -107,9 +107,7 @@ def get_config() -> MCPGatewayConfig:
         github_app_id=os.environ.get("GITHUB_APP_ID", "2497877"),
         github_installation_id=os.environ.get("GITHUB_INSTALLATION_ID", "100231961"),
         github_private_key=github_private_key,
-        github_relay_repo=os.environ.get(
-            "GITHUB_RELAY_REPO", "edri2or-commits/project38-or"
-        ),
+        github_relay_repo=os.environ.get("GITHUB_RELAY_REPO", "edri2or-commits/project38-or"),
         github_relay_issue=int(os.environ.get("GITHUB_RELAY_ISSUE", "183")),
     )
 

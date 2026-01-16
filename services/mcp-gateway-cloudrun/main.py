@@ -88,8 +88,10 @@ app.add_middleware(
 # MCP Protocol Endpoints
 # ============================================================================
 
+
 class MCPRequest(BaseModel):
     """MCP JSON-RPC request."""
+
     jsonrpc: str = "2.0"
     id: int | str | None = None
     method: str
@@ -98,6 +100,7 @@ class MCPRequest(BaseModel):
 
 class MCPResponse(BaseModel):
     """MCP JSON-RPC response."""
+
     jsonrpc: str = "2.0"
     id: int | str | None = None
     result: Any = None
@@ -109,12 +112,12 @@ MCP_TOOLS = [
     {
         "name": "health_check",
         "description": "Check MCP Gateway health and connectivity",
-        "inputSchema": {"type": "object", "properties": {}, "required": []}
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "railway_status",
         "description": "Get Railway deployment status",
-        "inputSchema": {"type": "object", "properties": {}, "required": []}
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "gmail_send",
@@ -124,10 +127,10 @@ MCP_TOOLS = [
             "properties": {
                 "to": {"type": "string", "description": "Recipient email"},
                 "subject": {"type": "string", "description": "Email subject"},
-                "body": {"type": "string", "description": "Email body"}
+                "body": {"type": "string", "description": "Email body"},
             },
-            "required": ["to", "subject", "body"]
-        }
+            "required": ["to", "subject", "body"],
+        },
     },
     {
         "name": "calendar_list_events",
@@ -137,8 +140,8 @@ MCP_TOOLS = [
             "properties": {
                 "max_results": {"type": "integer", "description": "Max events", "default": 10}
             },
-            "required": []
-        }
+            "required": [],
+        },
     },
     {
         "name": "drive_list_files",
@@ -147,10 +150,10 @@ MCP_TOOLS = [
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Search query"},
-                "max_results": {"type": "integer", "default": 10}
+                "max_results": {"type": "integer", "default": 10},
             },
-            "required": []
-        }
+            "required": [],
+        },
     },
 ]
 
@@ -162,7 +165,7 @@ async def execute_tool(name: str, params: dict) -> dict:
             "status": "healthy",
             "timestamp": datetime.now(UTC).isoformat(),
             "gateway": "Cloud Run",
-            "version": "1.0.0"
+            "version": "1.0.0",
         }
 
     elif name == "railway_status":
@@ -173,7 +176,7 @@ async def execute_tool(name: str, params: dict) -> dict:
         return {
             "status": "connected",
             "project": "delightful-cat",
-            "timestamp": datetime.now(UTC).isoformat()
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     elif name == "gmail_send":
@@ -208,8 +211,8 @@ async def _gmail_send(params: dict) -> dict:
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "refresh_token": refresh_token,
-                "grant_type": "refresh_token"
-            }
+                "grant_type": "refresh_token",
+            },
         )
         if token_response.status_code != 200:
             return {"error": "Failed to refresh token"}
@@ -218,6 +221,7 @@ async def _gmail_send(params: dict) -> dict:
 
         # Create email
         import base64
+
         email_content = f"To: {params['to']}\nSubject: {params['subject']}\n\n{params['body']}"
         raw_message = base64.urlsafe_b64encode(email_content.encode()).decode()
 
@@ -225,7 +229,7 @@ async def _gmail_send(params: dict) -> dict:
         send_response = await client.post(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
             headers={"Authorization": f"Bearer {access_token}"},
-            json={"raw": raw_message}
+            json={"raw": raw_message},
         )
 
         if send_response.status_code == 200:
@@ -254,8 +258,8 @@ async def _calendar_list_events(params: dict) -> dict:
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "refresh_token": refresh_token,
-                "grant_type": "refresh_token"
-            }
+                "grant_type": "refresh_token",
+            },
         )
         if token_response.status_code != 200:
             return {"error": "Failed to refresh token"}
@@ -271,8 +275,8 @@ async def _calendar_list_events(params: dict) -> dict:
                 "maxResults": max_results,
                 "singleEvents": True,
                 "orderBy": "startTime",
-                "timeMin": datetime.now(UTC).isoformat()
-            }
+                "timeMin": datetime.now(UTC).isoformat(),
+            },
         )
 
         if events_response.status_code == 200:
@@ -281,7 +285,7 @@ async def _calendar_list_events(params: dict) -> dict:
                 {
                     "summary": e.get("summary", "No title"),
                     "start": e.get("start", {}).get("dateTime", e.get("start", {}).get("date")),
-                    "id": e.get("id")
+                    "id": e.get("id"),
                 }
                 for e in data.get("items", [])
             ]
@@ -308,8 +312,8 @@ async def _drive_list_files(params: dict) -> dict:
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "refresh_token": refresh_token,
-                "grant_type": "refresh_token"
-            }
+                "grant_type": "refresh_token",
+            },
         )
         if token_response.status_code != 200:
             return {"error": "Failed to refresh token"}
@@ -323,7 +327,7 @@ async def _drive_list_files(params: dict) -> dict:
         files_response = await client.get(
             "https://www.googleapis.com/drive/v3/files",
             headers={"Authorization": f"Bearer {access_token}"},
-            params=drive_params
+            params=drive_params,
         )
 
         if files_response.status_code == 200:
@@ -356,16 +360,12 @@ async def mcp_endpoint(request: Request, authorization: str = Header(...)):
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "mcp-gateway-cloudrun", "version": "1.0.0"}
-            }
+                "serverInfo": {"name": "mcp-gateway-cloudrun", "version": "1.0.0"},
+            },
         }
 
     elif method == "tools/list":
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": {"tools": MCP_TOOLS}
-        }
+        return {"jsonrpc": "2.0", "id": request_id, "result": {"tools": MCP_TOOLS}}
 
     elif method == "tools/call":
         tool_name = params.get("name", "")
@@ -374,13 +374,13 @@ async def mcp_endpoint(request: Request, authorization: str = Header(...)):
         return {
             "jsonrpc": "2.0",
             "id": request_id,
-            "result": {"content": [{"type": "text", "text": json.dumps(result)}]}
+            "result": {"content": [{"type": "text", "text": json.dumps(result)}]},
         }
 
     return {
         "jsonrpc": "2.0",
         "id": request_id,
-        "error": {"code": -32601, "message": f"Method not found: {method}"}
+        "error": {"code": -32601, "message": f"Method not found: {method}"},
     }
 
 
@@ -390,7 +390,7 @@ async def health():
     return {
         "status": "healthy",
         "timestamp": datetime.now(UTC).isoformat(),
-        "service": "mcp-gateway-cloudrun"
+        "service": "mcp-gateway-cloudrun",
     }
 
 
@@ -401,11 +401,12 @@ async def root():
         "service": "MCP Gateway (Cloud Run)",
         "version": "1.0.0",
         "mcp_endpoint": "/mcp",
-        "health_endpoint": "/health"
+        "health_endpoint": "/health",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
