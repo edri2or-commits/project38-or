@@ -16,12 +16,11 @@ Authentication:
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from google.cloud import secretmanager
 from pydantic import BaseModel
 
@@ -161,7 +160,7 @@ async def execute_tool(name: str, params: dict) -> dict:
     if name == "health_check":
         return {
             "status": "healthy",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "gateway": "Cloud Run",
             "version": "1.0.0"
         }
@@ -174,7 +173,7 @@ async def execute_tool(name: str, params: dict) -> dict:
         return {
             "status": "connected",
             "project": "delightful-cat",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
 
     elif name == "gmail_send":
@@ -266,13 +265,13 @@ async def _calendar_list_events(params: dict) -> dict:
         # List events
         max_results = params.get("max_results", 10)
         events_response = await client.get(
-            f"https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             headers={"Authorization": f"Bearer {access_token}"},
             params={
                 "maxResults": max_results,
                 "singleEvents": True,
                 "orderBy": "startTime",
-                "timeMin": datetime.now(timezone.utc).isoformat()
+                "timeMin": datetime.now(UTC).isoformat()
             }
         )
 
@@ -390,7 +389,7 @@ async def health():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "service": "mcp-gateway-cloudrun"
     }
 
