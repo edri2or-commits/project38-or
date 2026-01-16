@@ -2,14 +2,17 @@
 
 ## Overview
 
-Personal AI System with autonomous GCP Secret Manager integration. This is a **public repository** on a GitHub Free personal account.
+Personal AI System with **full autonomous capabilities** - Railway deployments, Google Workspace integration, multi-agent orchestration, and ML-based self-healing. This is a **public repository** on a GitHub Free personal account.
+
+**Production Status**: ✅ **Deployed** at https://or-infra.com (Railway project: delightful-cat)
 
 **Primary Stack:**
-- Python 3.11+
-- FastAPI (planned)
-- PostgreSQL on Railway (planned)
-- GCP Secret Manager for secrets
-- GitHub Actions for CI/CD
+- Python 3.11+ (87 modules, 29,200+ lines of code)
+- FastAPI (deployed, 11 API route modules)
+- PostgreSQL on Railway (deployed)
+- GCP Secret Manager for secrets (12 secrets)
+- GitHub Actions for CI/CD (20+ workflows)
+- MCP Gateway for full autonomy
 
 ---
 
@@ -40,6 +43,7 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-001: Research Synthesis Approach](docs/decisions/ADR-001-research-synthesis-approach.md) - Why dual documentation strategy
 - [ADR-002: Dual Documentation Strategy](docs/decisions/ADR-002-dual-documentation-strategy.md) - The 4-layer architecture
 - [ADR-003: Railway Autonomous Control](docs/decisions/ADR-003-railway-autonomous-control.md) - Autonomous Railway management approach
+- [ADR-004: Google Workspace OAuth](docs/decisions/ADR-004-google-workspace-oauth.md) - Google Workspace integration architecture
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
@@ -105,12 +109,12 @@ Frequency: Every major feature completion (not every commit)
 
 | Layer | Files | Size | Purpose |
 |-------|-------|------|---------|
-| Layer 1 (CLAUDE.md) | 1 | 48KB | Quick context |
-| Layer 2 (decisions/) | 3 ADRs | 22KB | Decision records |
-| Layer 3 (JOURNEY.md) | 1 | 17KB | Narrative timeline |
+| Layer 1 (CLAUDE.md) | 1 | 55KB | Quick context |
+| Layer 2 (decisions/) | 4 ADRs | 30KB | Decision records |
+| Layer 3 (JOURNEY.md) | 1 | 42KB | Narrative timeline |
 | Layer 4a (integrations/) | 5 | 199KB | Practical research |
-| Layer 4b (autonomous/) | 8 | 209KB | Theory + code synthesis |
-| **Total** | **18** | **494KB** | Complete context |
+| Layer 4b (autonomous/) | 9 | 240KB | Theory + code synthesis |
+| **Total** | **20** | **566KB** | Complete context |
 
 ### Industry Standards Referenced
 
@@ -295,112 +299,272 @@ See [ADR-004: Google Workspace OAuth](docs/decisions/ADR-004-google-workspace-oa
 
 ## File Structure
 
+**Total: 87 Python modules, 29,200+ lines of production code**
+
 ```
 project38-or/
-├── src/
-│   ├── __init__.py
-│   ├── secrets_manager.py    # USE THIS for all secret access
-│   ├── github_auth.py        # GitHub WIF authentication
-│   ├── github_pr.py          # Universal PR creation (gh CLI + requests fallback)
-│   ├── github_app_client.py  # GitHub App JWT authentication & API client (Phase 2)
-│   ├── n8n_client.py         # n8n workflow orchestration client (Phase 2)
-│   ├── orchestrator.py       # MainOrchestrator with OODA Loop (Phase 3)
-│   ├── state_machine.py      # Deployment lifecycle state machine (Phase 3)
-│   ├── api/                  # FastAPI application (Phase 3.1)
-│   │   ├── __init__.py
-│   │   ├── main.py           # FastAPI app entry point
-│   │   ├── database.py       # PostgreSQL connection management
+├── src/                           # Production code (29,200+ lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # CORE INFRASTRUCTURE (5 modules, ~700 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── secrets_manager.py         # GCP Secret Manager with WIF (156 lines)
+│   ├── github_auth.py             # GitHub WIF authentication (122 lines)
+│   ├── github_pr.py               # Universal PR creation (285 lines)
+│   ├── logging_config.py          # Structured JSON logging (101 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # EXTERNAL SERVICE CLIENTS (3 modules, ~2,000 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── railway_client.py          # Railway GraphQL API (747 lines)
+│   ├── github_app_client.py       # GitHub App JWT + API (701 lines)
+│   ├── n8n_client.py              # n8n workflow orchestration (538 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # CORE ORCHESTRATION (5 modules, ~3,300 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── orchestrator.py            # OODA Loop MainOrchestrator (699 lines)
+│   ├── state_machine.py           # Deployment state machine (468 lines)
+│   ├── autonomous_controller.py   # Safety guardrails + confidence (954 lines)
+│   ├── monitoring_loop.py         # Continuous metrics scheduler (607 lines)
+│   ├── anomaly_response_integrator.py  # Anomaly → healing routing (619 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # ML & ANALYTICS (3 modules, ~2,300 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── ml_anomaly_detector.py     # 5-algorithm ensemble detection (835 lines)
+│   ├── performance_baseline.py    # Performance metric analysis (737 lines)
+│   ├── learning_service.py        # Decision learning service (706 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # OPERATIONS & MAINTENANCE (9 modules, ~4,800 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── cost_monitor.py            # Railway cost tracking (535 lines)
+│   ├── cost_alert_service.py      # Cost alert notifications (371 lines)
+│   ├── autoscaling.py             # Auto-scaling recommendations (639 lines)
+│   ├── backup_manager.py          # Database backup management (684 lines)
+│   ├── alert_manager.py           # Multi-channel alert routing (631 lines)
+│   ├── credential_lifecycle.py    # Token rotation management (740 lines)
+│   ├── token_rotation.py          # Automated secret rotation (398 lines)
+│   ├── dependency_updater.py      # Auto-dependency updates (603 lines)
+│   ├── secrets_health.py          # Secrets monitoring (237 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # API LAYER (12 modules, ~3,000 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── api/
+│   │   ├── main.py                # FastAPI entry point (183 lines)
+│   │   ├── database.py            # PostgreSQL connection (100 lines)
 │   │   └── routes/
-│   │       ├── __init__.py
-│   │       ├── health.py     # Health check endpoints
-│   │       ├── agents.py     # Agent CRUD endpoints (Phase 3.2)
-│   │       └── tasks.py      # Task management endpoints (Phase 3.3)
-│   ├── models/               # SQLModel database schemas (Phase 3.1)
-│   │   ├── __init__.py
-│   │   ├── agent.py          # Agent entity
-│   │   └── task.py           # Task entity
-│   ├── factory/              # Agent Factory (Phase 3.2)
-│   │   ├── __init__.py
-│   │   ├── generator.py      # Claude code generation from NL
-│   │   ├── validator.py      # Multi-stage code validation
-│   │   └── ralph_loop.py     # Recursive Test→Fix→Test cycle
-│   ├── harness/              # Agent Harness (Phase 3.3)
-│   │   ├── __init__.py
-│   │   ├── executor.py       # Isolated subprocess execution
-│   │   ├── scheduler.py      # APScheduler + PostgreSQL locks
-│   │   ├── resources.py      # Resource monitoring & limits
-│   │   └── handoff.py        # State persistence between runs
-│   ├── multi_agent/          # Multi-Agent Orchestration (Phase 4)
-│   │   ├── __init__.py       # Module exports
-│   │   ├── base.py           # SpecializedAgent, AgentTask, AgentResult
-│   │   ├── orchestrator.py   # AgentOrchestrator task routing
-│   │   ├── deploy_agent.py   # DeployAgent for Railway operations
-│   │   ├── monitoring_agent.py # MonitoringAgent for observability
-│   │   └── integration_agent.py # IntegrationAgent for GitHub/n8n
-│   └── mcp/                  # MCP Tools (Phase 3.4)
-│       ├── __init__.py
-│       ├── browser.py        # Playwright browser automation
-│       ├── filesystem.py     # Sandboxed file operations
-│       ├── notifications.py  # Telegram + n8n webhooks
-│       └── registry.py       # Tool access control & usage tracking
-├── railway.toml               # Railway build & deploy configuration
-├── Procfile                   # Process definition for Railway
-├── .github/workflows/
-│   ├── agent-dev.yml         # Issue comment trigger (OWNER only)
-│   ├── deploy-railway.yml    # Railway deployment (workflow_dispatch only)
-│   ├── docs.yml              # Documentation deployment (push to main)
-│   ├── docs-check.yml        # Changelog & docstring enforcement (workflow_dispatch + PR)
-│   ├── docs-validation.yml   # Strict mkdocs validation & docstring coverage (PR)
-│   ├── gcp-secret-manager.yml
-│   ├── lint.yml              # PR linting (workflow_dispatch + PR)
-│   ├── quick-check.yml       # workflow_dispatch only
-│   ├── report-secrets.yml    # workflow_dispatch only
-│   ├── test.yml              # PR testing (workflow_dispatch + PR)
-│   ├── test-wif.yml          # Test GCP WIF authentication (workflow_dispatch only)
-│   └── verify-secrets.yml    # workflow_dispatch only
-├── tests/                     # pytest tests
-│   ├── test_github_app_client.py  # GitHub App client tests (30+ tests, Phase 2)
-│   ├── test_n8n_client.py        # n8n client tests (30+ tests, Phase 2)
-│   ├── test_orchestrator.py      # MainOrchestrator tests (25+ tests, Phase 3)
-│   ├── test_state_machine.py     # State machine tests (25+ tests, Phase 3)
-│   └── test_multi_agent.py       # Multi-agent orchestration tests (45 tests, Phase 4)
-├── research/                  # Research documents (read-only)
-├── docs/                      # MkDocs source
-│   ├── index.md              # Home page
-│   ├── getting-started.md    # Quick start guide
-│   ├── changelog.md          # Version history (auto-updated)
-│   ├── JOURNEY.md            # Project timeline and narrative (Layer 3)
-│   ├── SECURITY.md           # Security documentation
-│   ├── BOOTSTRAP_PLAN.md     # Architecture plan
-│   ├── RAILWAY_SETUP.md      # Railway deployment guide
-│   ├── api/                  # API reference (auto-generated)
-│   │   ├── github_app_client.md   # GitHub App client API docs (Phase 2)
-│   │   ├── n8n_client.md         # n8n client API docs (Phase 2)
-│   │   └── orchestrator.md       # MainOrchestrator API docs (Phase 3)
-│   ├── decisions/            # Architecture Decision Records (Layer 2, 3 ADRs)
-│   │   ├── ADR-001-research-synthesis-approach.md
-│   │   ├── ADR-002-dual-documentation-strategy.md
-│   │   └── ADR-003-railway-autonomous-control.md
-│   ├── integrations/         # Integration guides (5 documents, 203KB) (Layer 4a)
-│   │   ├── implementation-roadmap.md    # 7-day development plan
-│   │   ├── autonomous-architecture.md   # System architecture
-│   │   ├── github-app-setup.md         # GitHub App integration
-│   │   ├── n8n-integration.md          # n8n orchestration
-│   │   └── railway-api-guide.md        # Railway GraphQL API
-│   ├── autonomous/           # Autonomous system documentation (8 documents, 211KB) (Layer 4b)
-│   │   ├── 00-autonomous-philosophy.md      # Automation vs Autonomy, OODA Loop
-│   │   ├── 01-system-architecture-hybrid.md # 4-layer architecture + implementations
-│   │   ├── 02-railway-integration-hybrid.md # Infrastructure domain
-│   │   ├── 03-github-app-integration-hybrid.md # Code domain
-│   │   ├── 04-n8n-orchestration-hybrid.md   # Nervous system
-│   │   ├── 05-resilience-patterns-hybrid.md # Circuit breaker, retry logic
-│   │   ├── 06-security-architecture-hybrid.md # Zero trust security
-│   │   └── 07-operational-scenarios-hybrid.md # End-to-end scenarios
-│   └── research/             # Research summaries
-├── mkdocs.yml                 # MkDocs configuration
-├── CLAUDE.md                  # This file
+│   │       ├── health.py          # Health check endpoints (74 lines)
+│   │       ├── monitoring.py      # Monitoring control (411 lines)
+│   │       ├── costs.py           # Cost tracking API (422 lines)
+│   │       ├── metrics.py         # System metrics (422 lines)
+│   │       ├── backups.py         # Backup endpoints (423 lines)
+│   │       ├── agents.py          # Agent CRUD (500 lines)
+│   │       ├── tasks.py           # Task management (252 lines)
+│   │       ├── learning.py        # ML endpoints (394 lines)
+│   │       └── secrets_health.py  # Secrets health (203 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # MULTI-AGENT SYSTEM (5 modules, ~3,200 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── multi_agent/
+│   │   ├── base.py                # SpecializedAgent base classes (449 lines)
+│   │   ├── orchestrator.py        # AgentOrchestrator routing (571 lines)
+│   │   ├── deploy_agent.py        # DeployAgent for Railway (563 lines)
+│   │   ├── monitoring_agent.py    # MonitoringAgent (735 lines)
+│   │   └── integration_agent.py   # IntegrationAgent GitHub/n8n (894 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # AGENT FACTORY & HARNESS (7 modules, ~2,100 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── factory/
+│   │   ├── generator.py           # Claude code generation (189 lines)
+│   │   ├── validator.py           # Multi-stage validation (307 lines)
+│   │   └── ralph_loop.py          # Test→Fix→Test cycle (306 lines)
+│   ├── harness/
+│   │   ├── executor.py            # Subprocess execution (256 lines)
+│   │   ├── scheduler.py           # APScheduler + locks (388 lines)
+│   │   ├── resources.py           # Resource monitoring (275 lines)
+│   │   └── handoff.py             # State persistence (345 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # MCP GATEWAY (7 modules, ~1,300 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── mcp_gateway/
+│   │   ├── server.py              # FastMCP HTTP gateway (267 lines)
+│   │   ├── auth.py                # Bearer token validation (70 lines)
+│   │   ├── config.py              # GCP configuration (106 lines)
+│   │   └── tools/
+│   │       ├── railway.py         # Railway operations (285 lines)
+│   │       ├── n8n.py             # n8n operations (200 lines)
+│   │       ├── monitoring.py      # Health/metrics (212 lines)
+│   │       └── oauth.py           # Google OAuth (170 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # MCP TOOLS (4 modules, ~1,800 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── mcp/
+│   │   ├── browser.py             # Playwright automation (490 lines)
+│   │   ├── filesystem.py          # Sandboxed file ops (526 lines)
+│   │   ├── notifications.py       # Telegram + n8n webhooks (327 lines)
+│   │   └── registry.py            # Tool access control (498 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # GOOGLE WORKSPACE MCP BRIDGE (8 modules, ~2,100 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── workspace_mcp_bridge/
+│   │   ├── server.py              # Workspace MCP server (190 lines)
+│   │   ├── auth.py                # OAuth 2.0 authentication (208 lines)
+│   │   ├── config.py              # Workspace configuration (97 lines)
+│   │   └── tools/
+│   │       ├── gmail.py           # Gmail operations (348 lines)
+│   │       ├── calendar.py        # Calendar operations (336 lines)
+│   │       ├── drive.py           # Drive operations (446 lines)
+│   │       ├── sheets.py          # Sheets operations (336 lines)
+│   │       └── docs.py            # Docs operations (346 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # DATA MODELS (3 modules, ~265 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── models/
+│   │   ├── agent.py               # Agent entity (54 lines)
+│   │   ├── task.py                # Task entity (57 lines)
+│   │   └── action_record.py       # Action history (154 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # OBSERVABILITY (2 modules, ~500 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── observability/
+│   │   ├── metrics.py             # Prometheus metrics (326 lines)
+│   │   └── tracer.py              # OpenTelemetry tracing (173 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # WORKFLOWS (2 modules, ~850 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   └── workflows/
+│       ├── cost_alert_workflow.py     # n8n cost alerts (354 lines)
+│       └── database_backup_workflow.py # n8n backup workflow (496 lines)
+│
+├── services/                      # Deployable services
+│   └── railway-mcp-bridge/        # Railway MCP HTTP Bridge
+│       ├── server.js              # Express.js bridge
+│       ├── Dockerfile
+│       └── package.json
+│
+├── tests/                         # pytest tests (148+ tests)
+│   ├── e2e/                       # End-to-end tests
+│   │   └── test_full_deployment.py
+│   ├── load/                      # Load tests
+│   │   └── test_webhook_load.py
+│   └── test_*.py                  # Unit tests for all modules
+│
+├── scripts/                       # Operational scripts
+│   ├── health-check.sh            # Production health verification
+│   └── collect-metrics.sh         # Metrics collection
+│
+├── .github/workflows/             # GitHub Actions (20+ workflows)
+│   ├── deploy-railway.yml         # Railway deployment
+│   ├── deploy-mcp-bridge.yml      # MCP Bridge deployment
+│   ├── production-health-check.yml # Automated health checks
+│   ├── dependency-update.yml      # Weekly security updates
+│   ├── generate-oauth-url.yml     # Google OAuth
+│   ├── exchange-oauth-code.yml    # OAuth token exchange
+│   ├── test-workspace-v2.yml      # Workspace tests
+│   ├── test-drive-sheets-docs.yml # Workspace tests
+│   └── ...                        # CI/CD workflows
+│
+├── docs/                          # Documentation (566KB)
+│   ├── JOURNEY.md                 # Project timeline (42KB)
+│   ├── deployment.md              # Production guide (700+ lines)
+│   ├── maintenance-runbook.md     # Operations runbook
+│   ├── decisions/                 # ADRs (4 files)
+│   │   ├── ADR-001-*.md
+│   │   ├── ADR-002-*.md
+│   │   ├── ADR-003-*.md
+│   │   └── ADR-004-*.md
+│   ├── autonomous/                # System architecture (9 files)
+│   │   └── 08-mcp-gateway-architecture.md
+│   └── api/                       # API reference
+│
+├── .claude/                       # Claude Code configuration
+│   ├── skills/                    # 10 autonomous skills
+│   └── hooks/                     # Session hooks
+│
+├── railway.toml                   # Railway configuration
+├── Procfile                       # Process definition
+├── mkdocs.yml                     # Documentation config
+├── CLAUDE.md                      # This file
 └── README.md
 ```
+
+---
+
+## System Capabilities (17+ Phases Implemented)
+
+**Status: Production Ready** - All core phases complete, 99%+ of code functional.
+
+### Core Autonomous Capabilities
+
+| Capability | Module | Lines | Status |
+|------------|--------|-------|--------|
+| **OODA Loop Orchestration** | `orchestrator.py` | 699 | ✅ Active |
+| **State Machine** | `state_machine.py` | 468 | ✅ Active |
+| **Safety Guardrails** | `autonomous_controller.py` | 954 | ✅ Active |
+| **ML Anomaly Detection** | `ml_anomaly_detector.py` | 835 | ✅ Active |
+| **Self-Healing** | `anomaly_response_integrator.py` | 619 | ✅ Active |
+| **Monitoring Loop** | `monitoring_loop.py` | 607 | ✅ Active |
+
+### Multi-Agent System
+
+| Agent | Capabilities | Lines |
+|-------|--------------|-------|
+| **DeployAgent** | deploy, rollback, status, scale, health_check, set_env | 563 |
+| **MonitoringAgent** | check_anomalies, send_alert, collect_metrics, analyze_performance | 735 |
+| **IntegrationAgent** | create_issue, create_pr, merge_pr, trigger_workflow | 894 |
+
+### External Integrations
+
+| Integration | Module | Status |
+|-------------|--------|--------|
+| **Railway** | `railway_client.py` (747 lines) | ✅ Full control |
+| **GitHub App** | `github_app_client.py` (701 lines) | ✅ JWT auth |
+| **n8n** | `n8n_client.py` (538 lines) | ✅ Workflows |
+| **Google Workspace** | `workspace_mcp_bridge/` (2,100 lines) | ✅ 5 services |
+| **MCP Gateway** | `mcp_gateway/` (1,300 lines) | ✅ 10 tools |
+
+### Operations & Maintenance
+
+| Feature | Module | Lines |
+|---------|--------|-------|
+| Cost Monitoring | `cost_monitor.py` | 535 |
+| Auto-Scaling | `autoscaling.py` | 639 |
+| Backup Management | `backup_manager.py` | 684 |
+| Alert Management | `alert_manager.py` | 631 |
+| Token Rotation | `credential_lifecycle.py` | 740 |
+| Dependency Updates | `dependency_updater.py` | 603 |
+
+### API Endpoints (40+)
+
+| Category | Endpoints |
+|----------|-----------|
+| **Health** | `/api/health`, `/api/health/database` |
+| **Monitoring** | `/api/monitoring/status`, `/start`, `/stop`, `/pause`, `/resume` |
+| **Costs** | `/api/costs/estimate`, `/budget`, `/recommendations`, `/report` |
+| **Metrics** | `/api/metrics/system`, `/summary`, `/agents` |
+| **Backups** | `/api/backups/create`, `/restore`, `/list`, `/status` |
+| **Agents** | `/api/agents` (CRUD) |
+| **Tasks** | `/api/tasks` (CRUD) |
+| **Learning** | `/api/learning/metrics`, `/recommendations` |
+
+### Safety Features
+
+- **Kill Switch**: Halt all autonomous operations instantly
+- **Rate Limiting**: Max 20 actions per hour
+- **Blast Radius**: Max 3 services affected per action
+- **Confidence Threshold**: Auto-execute only above 80%
+- **Cascading Failure Detection**: Auto-halt after 3+ rollbacks/hour
 
 ---
 
