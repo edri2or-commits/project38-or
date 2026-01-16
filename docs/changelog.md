@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **MCP Gateway Cloud Run Deployment** (2026-01-16) - Solution for Anthropic proxy limitation
+  - Created `services/mcp-gateway-cloudrun/` - Standalone MCP Gateway for Cloud Run
+  - `Dockerfile` - Python 3.11-slim container for Cloud Run
+  - `main.py` - FastAPI MCP server with Gmail, Calendar, Drive, Sheets, Docs tools
+  - `cloudbuild.yaml` - Google Cloud Build configuration
+  - `.github/workflows/deploy-mcp-cloudrun.yml` - Automated deployment workflow
+  - Deploys to `*.run.app` domain (whitelisted by Anthropic proxy)
+  - Uses WIF authentication for GCP Secret Manager access
+  - Enables TRUE MCP autonomy from Anthropic-hosted Claude Code sessions
+
 - **MCP Gateway Access Limitation Discovery** (2026-01-16) - Critical finding documented
   - Discovered Anthropic egress proxy blocks `or-infra.com` and `*.railway.app` domains
   - HTTP 403 with `x-deny-reason: host_not_allowed` returned for blocked domains
