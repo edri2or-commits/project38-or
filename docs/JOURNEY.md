@@ -2074,8 +2074,40 @@ We achieve **practical autonomy**: one-time human setup, then autonomous operati
 | **Secrets Stored** | 3 (Client ID, Secret, Refresh Token) |
 | **Total Capabilities** | 28 (across all Workspace services) |
 
+### Evolution: Cloud-Based MCP Gateway (Later on 2026-01-16)
+
+**Problem Identified**: The OAuth workflow approach required session-specific token loading. Each new Claude Code session started without Google Workspace access until tokens were manually loaded.
+
+**User Feedback**: "אם זה תלוי סשן, זו לא אוטונומיה" (If it depends on the session, it's not autonomy)
+
+**Solution**: Integrate Google Workspace tools directly into the MCP Gateway running on Railway.
+
+**Architecture**:
+```
+Claude Code Session (any machine/cloud)
+    ↓ (MCP Protocol over HTTPS)
+MCP Gateway (Railway @ or-infra.com/mcp)
+    ↓ (OAuth via GCP Secret Manager)
+Google Workspace APIs
+```
+
+**Implementation**:
+| File | Purpose | Lines |
+|------|---------|-------|
+| `src/mcp_gateway/tools/workspace.py` | 13 Google Workspace tools | 550 |
+| `src/mcp_gateway/server.py` | Tool registration | +270 |
+
+**New Tools Available**:
+- Gmail: `gmail_send`, `gmail_search`, `gmail_list`
+- Calendar: `calendar_list_events`, `calendar_create_event`
+- Drive: `drive_list_files`, `drive_create_folder`
+- Sheets: `sheets_read`, `sheets_write`, `sheets_create`
+- Docs: `docs_create`, `docs_read`, `docs_append`
+
+**Result**: TRUE machine-independent autonomy - works from ANY Claude Code session without local setup.
+
 ---
 
 *Last Updated: 2026-01-16*
-*Status: **Google Workspace - FULL AUTONOMY***
-*Current Milestone: Complete Workspace Integration with 5 Services*
+*Status: **Google Workspace - FULL CLOUD AUTONOMY***
+*Current Milestone: Cloud-Based Workspace Integration via MCP Gateway*
