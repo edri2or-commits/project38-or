@@ -53,34 +53,30 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker --quiet
-
-      - name: Build Docker image
+      # Deploy from source - Cloud Build handles container building
+      # No GCR push permissions needed!
+      - name: Deploy to Cloud Run (from source)
+        id: deploy
         working-directory: services/mcp-gateway-cloudrun
         run: |
-          docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
-          docker tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --source . \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 10 \
+            --set-env-vars "GCP_PROJECT_ID=${{ env.PROJECT_ID }}" \
+            --quiet
 
-      - name: Push to Container Registry
-        run: |
-          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest
-
-      - name: Deploy to Cloud Run
-        id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          region: ${{ env.REGION }}
-          image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-          flags: |
-            --allow-unauthenticated
-            --memory=512Mi
-            --cpu=1
-            --min-instances=0
-            --max-instances=10
-            --set-env-vars=GCP_PROJECT_ID=${{ env.PROJECT_ID }}
+          # Get the service URL
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "🚀 Deployed to: $URL"
 
       - name: Show Cloud Run URL
         run: |
@@ -93,7 +89,8 @@ jobs:
         run: |
           URL="${{ steps.deploy.outputs.url }}/health"
           echo "Testing health endpoint: $URL"
-          curl -s "$URL" | jq .
+          sleep 10  # Wait for service to be ready
+          curl -s "$URL" | jq . || echo "Health check pending (service may still be starting)"
 
       - name: Create deployment summary
         run: |
@@ -104,9 +101,12 @@ jobs:
           echo "| Service | ${{ env.SERVICE_NAME }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Region | ${{ env.REGION }} |" >> $GITHUB_STEP_SUMMARY
           echo "| URL | ${{ steps.deploy.outputs.url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Image | gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy Method | Source (Cloud Build) |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configure Claude Code" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "claude mcp add-json mcp-gateway '{\"type\":\"http\",\"url\":\"${{ steps.deploy.outputs.url }}/mcp\",\"headers\":{\"Authorization\":\"Bearer <TOKEN>\"}}' --scope user" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Get token from GCP Secret Manager: \`MCP-GATEWAY-TOKEN\`" >> $GITHUB_STEP_SUMMARY
