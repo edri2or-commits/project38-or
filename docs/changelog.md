@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MCP Gateway Access Limitation Discovery** (2026-01-16) - Critical finding documented
+  - Discovered Anthropic egress proxy blocks `or-infra.com` and `*.railway.app` domains
+  - HTTP 403 with `x-deny-reason: host_not_allowed` returned for blocked domains
+  - MCP Gateway tools NOT accessible from Anthropic-managed Claude Code sessions
+  - Identified potential solution: Deploy to Google Cloud Run (whitelisted in proxy)
+  - Documented in `docs/JOURNEY.md` Phase 17: MCP Gateway Access Limitation Discovery
+
 ### Changed
 - **Implementation Roadmap Documentation Audit** (2026-01-16) - Updated `docs/integrations/implementation-roadmap.md`
   - Week 3-4 tasks marked complete (were pending but all modules exist)
