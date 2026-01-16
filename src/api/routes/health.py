@@ -72,3 +72,30 @@ async def root() -> dict[str, str]:
         "docs": "/docs",
         "health": "/api/health",
     }
+
+
+@router.get("/relay/status")
+async def relay_status() -> dict:
+    """Check GitHub MCP Relay status.
+
+    Returns:
+        dict: Relay status information
+    """
+    from src.api.main import get_github_relay
+
+    relay = get_github_relay()
+    if relay is None:
+        return {
+            "status": "not_started",
+            "message": "GitHub relay was not initialized",
+            "repo": None,
+            "issue": None,
+        }
+
+    return {
+        "status": "running" if relay._running else "stopped",
+        "repo": relay.repo,
+        "issue": relay.issue_number,
+        "processed_requests": len(relay._processed_requests),
+        "has_token": relay._github_token is not None,
+    }

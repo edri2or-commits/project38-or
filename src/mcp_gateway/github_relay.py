@@ -401,6 +401,10 @@ async def start_relay(config: MCPGatewayConfig | None = None) -> GitHubMCPRelay:
 
     Returns:
         Running relay instance
+
+    Raises:
+        ValueError: If configuration is invalid
+        RuntimeError: If initial connection test fails
     """
     if config is None:
         config = load_config()
@@ -408,7 +412,20 @@ async def start_relay(config: MCPGatewayConfig | None = None) -> GitHubMCPRelay:
     if not config.github_relay_issue:
         raise ValueError("GITHUB_RELAY_ISSUE not configured")
 
+    if not config.github_private_key:
+        logger.error("GitHub private key not configured - relay cannot authenticate")
+        raise ValueError("GITHUB_APP_PRIVATE_KEY not configured")
+
     relay = GitHubMCPRelay(config)
+
+    # Test authentication before starting
+    try:
+        token = await relay._get_github_token()
+        logger.info(f"GitHub authentication successful (token: {token[:10]}...)")
+    except Exception as e:
+        logger.error(f"GitHub authentication failed during startup: {e}")
+        raise RuntimeError(f"GitHub authentication failed: {e}") from e
+
     asyncio.create_task(relay.run())
     return relay
 
