@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **GitHub Relay Status Endpoint** (2026-01-16) - Diagnose relay health
+  - New `/api/relay/status` endpoint shows relay state, processed requests, token status
+  - Enhanced startup validation: checks for private key before starting
+  - Authentication test during startup to fail fast if credentials invalid
+  - Better error logging with full stack traces for startup failures
+
 - **GitHub Issue-Based MCP Relay** (2026-01-16) - Bypass Anthropic egress proxy
   - `src/mcp_gateway/github_mcp_client.py` - Client for Claude Code sessions (290 lines)
   - `src/mcp_gateway/github_relay.py` - Server-side relay for Railway (350 lines)
