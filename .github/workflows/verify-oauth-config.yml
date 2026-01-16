@@ -1,0 +1,81 @@
+name: Verify OAuth Config
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify OAuth Configuration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "🔍 Verifying OAuth configuration..."
+
+          CLIENT_ID=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-ID --project=$GCP_PROJECT_ID)
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret=GOOGLE-OAUTH-CLIENT-SECRET --project=$GCP_PROJECT_ID)
+
+          # Check Client ID format
+          if [[ "$CLIENT_ID" == *".apps.googleusercontent.com" ]]; then
+            CLIENT_ID_STATUS="✅ Valid format"
+          else
+            CLIENT_ID_STATUS="❌ Invalid format (should end with .apps.googleusercontent.com)"
+          fi
+
+          # Check Client Secret length (should be ~24 chars)
+          SECRET_LEN=${#CLIENT_SECRET}
+          if [ $SECRET_LEN -gt 10 ]; then
+            CLIENT_SECRET_STATUS="✅ Has value ($SECRET_LEN chars)"
+          else
+            CLIENT_SECRET_STATUS="❌ Too short or empty ($SECRET_LEN chars)"
+          fi
+
+          # Test token endpoint with a dummy request to check credentials
+          RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "client_id=$CLIENT_ID" \
+            -d "client_secret=$CLIENT_SECRET" \
+            -d "grant_type=refresh_token" \
+            -d "refresh_token=dummy_token_for_testing")
+
+          ERROR=$(echo "$RESPONSE" | jq -r '.error // "none"')
+          ERROR_DESC=$(echo "$RESPONSE" | jq -r '.error_description // "none"')
+
+          if [ "$ERROR" = "invalid_grant" ]; then
+            CREDENTIALS_STATUS="✅ Credentials valid (rejected only because of dummy token)"
+          elif [ "$ERROR" = "invalid_client" ] || [ "$ERROR" = "unauthorized_client" ]; then
+            CREDENTIALS_STATUS="❌ Credentials invalid - Client ID/Secret mismatch"
+          else
+            CREDENTIALS_STATUS="⚠️ Unknown: $ERROR - $ERROR_DESC"
+          fi
+
+          gh issue comment 149 --body "## 🔍 OAuth Configuration Verification
+
+          | Check | Status |
+          |-------|--------|
+          | Client ID Format | $CLIENT_ID_STATUS |
+          | Client Secret | $CLIENT_SECRET_STATUS |
+          | Credentials Test | $CREDENTIALS_STATUS |
+
+          **Client ID:** \`${CLIENT_ID:0:20}...${CLIENT_ID: -30}\`
+
+          ---
+          Verified: $(date -u +'%Y-%m-%d %H:%M UTC')" --repo edri2or-commits/project38-or
