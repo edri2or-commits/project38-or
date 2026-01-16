@@ -1,0 +1,45 @@
+name: Check Relay Status
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check relay status
+        run: |
+          echo "Checking relay status at https://or-infra.com/api/relay/status"
+          RESPONSE=$(curl -s https://or-infra.com/api/relay/status || echo '{"error": "connection failed"}')
+          echo "Response: $RESPONSE"
+
+          # Also check health
+          echo ""
+          echo "Checking health at https://or-infra.com/api/health"
+          HEALTH=$(curl -s https://or-infra.com/api/health || echo '{"error": "connection failed"}')
+          echo "Health: $HEALTH"
+
+      - name: Post to issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELAY=$(curl -s https://or-infra.com/api/relay/status || echo '{"error": "connection failed"}')
+          HEALTH=$(curl -s https://or-infra.com/api/health || echo '{"error": "connection failed"}')
+
+          gh issue comment 183 --repo ${{ github.repository }} --body "## Relay Status Check
+
+          **Time**: $(date -u)
+
+          **Relay Status**:
+          \`\`\`json
+          $RELAY
+          \`\`\`
+
+          **Health**:
+          \`\`\`json
+          $HEALTH
+          \`\`\`"
