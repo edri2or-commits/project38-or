@@ -255,6 +255,41 @@ Every PR adds entry to `docs/changelog.md`:
 | RAILWAY-API | Railway deployment |
 | TELEGRAM-BOT-TOKEN | Telegram bot |
 | github-app-private-key | GitHub App auth |
+| GOOGLE-OAUTH-CLIENT-ID | Google Workspace OAuth |
+| GOOGLE-OAUTH-CLIENT-SECRET | Google Workspace OAuth |
+| GOOGLE-OAUTH-REFRESH-TOKEN | Google Workspace OAuth |
+| MCP-BRIDGE-TOKEN | Railway MCP Bridge auth |
+| MCP-GATEWAY-TOKEN | MCP Gateway auth |
+
+---
+
+## Google Workspace Autonomy
+
+**Status**: ✅ **Full Autonomy** (verified 2026-01-16)
+
+### Available Services
+
+| Service | Capabilities | Status |
+|---------|--------------|--------|
+| **Gmail** | Send, read, search emails | ✅ Verified |
+| **Calendar** | Create, edit, delete events | ✅ Verified |
+| **Drive** | Create folders, upload/download files | ✅ Verified |
+| **Sheets** | Create spreadsheets, read/write data | ✅ Verified |
+| **Docs** | Create documents, insert/edit text | ✅ Verified |
+
+### OAuth Workflows
+
+| Workflow | Purpose |
+|----------|---------|
+| `generate-oauth-url.yml` | Generate authorization URL |
+| `exchange-oauth-code.yml` | Exchange code for refresh token |
+| `verify-oauth-config.yml` | Verify credentials match |
+| `check-oauth-secrets.yml` | Check all OAuth secrets status |
+| `test-workspace-v2.yml` | Test Gmail/Calendar |
+| `test-drive-sheets-docs.yml` | Test Drive/Sheets/Docs |
+
+### Architecture Decision
+See [ADR-004: Google Workspace OAuth](docs/decisions/ADR-004-google-workspace-oauth.md)
 
 ---
 
