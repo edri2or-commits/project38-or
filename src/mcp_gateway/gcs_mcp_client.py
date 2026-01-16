@@ -20,8 +20,6 @@ Usage:
     status = client.railway_status()
 """
 
-import base64
-import json
 import os
 import time
 import uuid
@@ -70,7 +68,7 @@ def _get_access_token() -> str | None:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except Exception:
+    except Exception:  # noqa: S110 - Expected failure if gcloud not installed
         pass
 
     # Method 3: GCE metadata server
@@ -82,7 +80,7 @@ def _get_access_token() -> str | None:
         )
         if resp.status_code == 200:
             return resp.json().get("access_token")
-    except Exception:
+    except Exception:  # noqa: S110 - Expected failure if not in GCP
         pass
 
     return None
@@ -217,9 +215,9 @@ class GCSMCPClient:
                 # Check for errors
                 if "error" in response:
                     error = response["error"]
-                    raise RuntimeError(
-                        f"MCP Error {error.get('code', 'unknown')}: {error.get('message', 'Unknown error')}"
-                    )
+                    error_code = error.get("code", "unknown")
+                    error_msg = error.get("message", "Unknown error")
+                    raise RuntimeError(f"MCP Error {error_code}: {error_msg}")
 
                 return response.get("result", response)
 
@@ -395,9 +393,7 @@ class GCSMCPClient:
             "sheets_read", {"spreadsheet_id": spreadsheet_id, "range": range_name}
         )
 
-    def sheets_write(
-        self, spreadsheet_id: str, range_name: str, values: list[list]
-    ) -> dict:
+    def sheets_write(self, spreadsheet_id: str, range_name: str, values: list[list]) -> dict:
         """Write to a spreadsheet."""
         return self.call_tool(
             "sheets_write",
