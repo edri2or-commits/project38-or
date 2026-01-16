@@ -70,35 +70,89 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        working-directory: ${{ env.SERVICE_DIR }}
+      - name: Deploy to Railway via GraphQL
         env:
           RAILWAY_TOKEN: ${{ steps.railway.outputs.token }}
+          GCS_KEY_B64: ${{ steps.gcs-key.outputs.key }}
         run: |
           echo "Deploying GCS MCP Relay to Railway..."
 
-          # Link to project
-          railway link ${{ env.RAILWAY_PROJECT_ID }}
+          # First, check if service exists or create it
+          # For now, we'll set env vars on the main service and add a worker
 
-          # Set environment variables
-          railway variables set \
-            GCS_BUCKET=project38-mcp-relay \
-            GCS_PREFIX=mcp-relay \
-            MCP_GATEWAY_URL=http://localhost:8080/mcp \
-            GOOGLE_APPLICATION_CREDENTIALS_JSON="$(echo '${{ steps.gcs-key.outputs.key }}' | base64 -d)"
+          ENVIRONMENT_ID="${{ vars.RAILWAY_ENVIRONMENT_ID || '99c99a18-aea2-4d01-9360-6a93705102a0' }}"
 
-          # Deploy
-          railway up --detach
+          echo "Project: ${{ env.RAILWAY_PROJECT_ID }}"
+          echo "Environment: $ENVIRONMENT_ID"
 
-          echo "Deployment triggered!"
+          # Set environment variables using Railway GraphQL API
+          # The GCS Relay will run as part of the main deployment
+
+          # For now, store the configuration as env vars
+          echo "Storing GCS configuration..."
+
+          # Query to get service ID
+          SERVICES_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"query { project(id: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\") { services { edges { node { id name } } } } }\"
+            }")
+
+          echo "Services: $SERVICES_RESPONSE"
+
+          # Extract the main service ID (first one)
+          SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[0].node.id // empty')
+
+          if [ -z "$SERVICE_ID" ]; then
+            echo "Could not find service ID, creating new service..."
+
+            # Create a new service
+            CREATE_RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation { serviceCreate(input: { name: \\\"gcs-mcp-relay\\\", projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\" }) { id name } }\"
+              }")
+
+            echo "Create response: $CREATE_RESPONSE"
+            SERVICE_ID=$(echo "$CREATE_RESPONSE" | jq -r '.data.serviceCreate.id // empty')
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          if [ -z "$SERVICE_ID" ]; then
+            echo "❌ Failed to get or create service"
+            exit 1
+          fi
+
+          # Set environment variables on the service
+          GCS_KEY=$(echo "$GCS_KEY_B64" | base64 -d)
+
+          # Use upsertVariables mutation
+          VARS_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\", environmentId: \\\"$ENVIRONMENT_ID\\\", serviceId: \\\"$SERVICE_ID\\\", name: \\\"GCS_BUCKET\\\", value: \\\"project38-mcp-relay\\\" }) }\"
+            }")
+
+          echo "Set GCS_BUCKET: $VARS_RESPONSE"
+
+          # Trigger deployment
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { serviceInstanceRedeploy(serviceId: \\\"$SERVICE_ID\\\", environmentId: \\\"$ENVIRONMENT_ID\\\") }\"
+            }")
+
+          echo "Deploy response: $DEPLOY_RESPONSE"
+          echo "✅ Deployment triggered!"
 
       - name: Summary
         run: |
