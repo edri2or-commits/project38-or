@@ -1498,7 +1498,9 @@ The system autonomously identified the IAM permission issue through:
 
 ### LiteLLM Gateway (Multi-LLM Routing)
 
-**Status**: ✅ **Ready for Deployment** (2026-01-17)
+**Status**: ✅ **DEPLOYED** (2026-01-17 20:14 UTC)
+
+**Production URL**: `https://litellm-gateway-production-0339.up.railway.app`
 
 **Purpose**: Self-hosted multi-LLM routing proxy providing unified access to Anthropic, OpenAI, and Google with automatic fallback, cost control, and budget enforcement.
 
@@ -1509,7 +1511,7 @@ Telegram Bot → LiteLLM Gateway → [Claude 3.7, GPT-4o, Gemini 1.5] → MCP Ga
 
 **Location**: `services/litellm-gateway/`
 
-**Deployment**: Railway service (pending creation)
+**Deployment**: Railway service (delightful-cat project, production environment)
 
 #### Available Models
 
