@@ -1,0 +1,143 @@
+name: Deploy MCP Router Cloud Function
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'GCP Region'
+        required: true
+        default: 'us-central1'
+        type: choice
+        options:
+          - us-central1
+          - us-east1
+          - europe-west1
+
+permissions:
+  contents: read
+  id-token: write  # Required for WIF
+
+concurrency:
+  group: deploy-mcp-router-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_ID: project38-483612
+  FUNCTION_NAME: mcp-router
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Get secrets from Secret Manager
+        id: secrets
+        run: |
+          echo "Getting RAILWAY-API token..."
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project="${PROJECT_ID}")
+          echo "::add-mask::${RAILWAY_TOKEN}"
+          echo "RAILWAY_TOKEN=${RAILWAY_TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Deploy Cloud Function
+        run: |
+          echo "Deploying MCP Router to ${{ inputs.region }}..."
+
+          gcloud functions deploy ${{ env.FUNCTION_NAME }} \
+            --gen2 \
+            --runtime=python311 \
+            --region=${{ inputs.region }} \
+            --source=cloud_functions/mcp_router \
+            --entry-point=mcp_router \
+            --trigger-http \
+            --allow-unauthenticated=false \
+            --service-account=${{ env.SERVICE_ACCOUNT }} \
+            --min-instances=1 \
+            --max-instances=10 \
+            --memory=512MB \
+            --timeout=120s \
+            --set-env-vars="RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0"
+
+      - name: Get Function URL
+        id: function_url
+        run: |
+          URL=$(gcloud functions describe ${{ env.FUNCTION_NAME }} \
+            --region=${{ inputs.region }} \
+            --format='value(url)')
+          echo "function_url=${URL}" >> $GITHUB_OUTPUT
+          echo "Function URL: ${URL}"
+
+      - name: Set IAM Policy
+        run: |
+          echo "Setting IAM policy for Claude Code access..."
+
+          gcloud functions add-invoker-policy-binding ${{ env.FUNCTION_NAME }} \
+            --region=${{ inputs.region }} \
+            --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}"
+
+      - name: Test Function
+        run: |
+          echo "Testing MCP Router..."
+
+          # Get access token
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+
+          # Test tools/list
+          RESPONSE=$(curl -s -X POST \
+            "${{ steps.function_url.outputs.function_url }}" \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"data": "{\"jsonrpc\": \"2.0\", \"method\": \"tools/list\", \"id\": 1}"}')
+
+          echo "Response: ${RESPONSE}"
+
+          # Check for success
+          if echo "${RESPONSE}" | grep -q '"tools"'; then
+            echo "✅ MCP Router is working!"
+          else
+            echo "❌ MCP Router test failed"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "## MCP Router Deployed Successfully! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Function URL:** ${{ steps.function_url.outputs.function_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Project:** ${{ env.PROJECT_ID }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Update your Claude Code MCP configuration" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test the tunnel from your Claude Code session" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### MCP Configuration" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '{' >> $GITHUB_STEP_SUMMARY
+          echo '  "mcpServers": {' >> $GITHUB_STEP_SUMMARY
+          echo '    "gcp-tunnel": {' >> $GITHUB_STEP_SUMMARY
+          echo '      "command": "python",' >> $GITHUB_STEP_SUMMARY
+          echo '      "args": ["src/gcp_tunnel/adapter.py"],' >> $GITHUB_STEP_SUMMARY
+          echo '      "env": {' >> $GITHUB_STEP_SUMMARY
+          echo '        "GOOGLE_PROJECT_ID": "${{ env.PROJECT_ID }}",' >> $GITHUB_STEP_SUMMARY
+          echo '        "MCP_ROUTER_REGION": "${{ inputs.region }}",' >> $GITHUB_STEP_SUMMARY
+          echo '        "MCP_ROUTER_NAME": "${{ env.FUNCTION_NAME }}"' >> $GITHUB_STEP_SUMMARY
+          echo '      }' >> $GITHUB_STEP_SUMMARY
+          echo '    }' >> $GITHUB_STEP_SUMMARY
+          echo '  }' >> $GITHUB_STEP_SUMMARY
+          echo '}' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
