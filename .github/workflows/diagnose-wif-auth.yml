@@ -1,0 +1,235 @@
+name: Diagnose WIF Authentication
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  PROJECT_NUMBER: "979429709900"
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+
+jobs:
+  diagnose-auth:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test 1 - Authenticate to GCP via WIF
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Test 2 - Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Test 3 - Detailed Authentication Diagnostics
+        run: |
+          REPORT_FILE="wif_diagnostic_report.md"
+
+          echo "# WIF Authentication Diagnostic Report" > $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "**Generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "---" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # Test 1: Check gcloud version
+          echo "## 1. gcloud CLI Version" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud version >> $REPORT_FILE 2>&1 || echo "ERROR: gcloud version failed" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # Test 2: Check authentication status
+          echo "## 2. Authentication Status" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud auth list >> $REPORT_FILE 2>&1 || echo "ERROR: gcloud auth list failed" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # Test 3: Check config
+          echo "## 3. gcloud Configuration" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud config list >> $REPORT_FILE 2>&1 || echo "ERROR: gcloud config list failed" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # Test 4: Get access token (should succeed if WIF works)
+          echo "## 4. Access Token Test" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          set +e
+          ACCESS_TOKEN=$(gcloud auth print-access-token 2>&1)
+          TOKEN_EXIT=$?
+          set -e
+
+          if [ $TOKEN_EXIT -eq 0 ]; then
+            echo "- **Result:** ✅ Token obtained successfully" >> $REPORT_FILE
+            echo "- **Token length:** ${#ACCESS_TOKEN} characters" >> $REPORT_FILE
+            echo "- **Token prefix:** ${ACCESS_TOKEN:0:20}..." >> $REPORT_FILE
+          else
+            echo "- **Result:** ❌ FAILED to get access token" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+            echo "$ACCESS_TOKEN" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # Test 5: Test basic GCP API call
+          echo "## 5. Basic GCP API Call" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          set +e
+          PROJECT_INFO=$(gcloud projects describe $PROJECT_ID --format=json 2>&1)
+          PROJECT_EXIT=$?
+          set -e
+
+          if [ $PROJECT_EXIT -eq 0 ]; then
+            echo "- **Result:** ✅ Successfully accessed project" >> $REPORT_FILE
+            echo "\`\`\`json" >> $REPORT_FILE
+            echo "$PROJECT_INFO" | jq '.' >> $REPORT_FILE 2>&1 || echo "$PROJECT_INFO" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          else
+            echo "- **Result:** ❌ FAILED to access project" >> $REPORT_FILE
+            echo "- **Exit code:** $PROJECT_EXIT" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+            echo "$PROJECT_INFO" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # Test 6: Check service account identity
+          echo "## 6. Service Account Identity" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          set +e
+          SA_EMAIL=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>&1)
+          SA_EXIT=$?
+          set -e
+
+          if [ $SA_EXIT -eq 0 ]; then
+            echo "- **Result:** ✅ Authenticated as: \`$SA_EMAIL\`" >> $REPORT_FILE
+            if [ "$SA_EMAIL" = "$SERVICE_ACCOUNT" ]; then
+              echo "- **Match:** ✅ Correct service account" >> $REPORT_FILE
+            else
+              echo "- **Match:** ❌ WRONG service account!" >> $REPORT_FILE
+              echo "- **Expected:** \`$SERVICE_ACCOUNT\`" >> $REPORT_FILE
+              echo "- **Got:** \`$SA_EMAIL\`" >> $REPORT_FILE
+            fi
+          else
+            echo "- **Result:** ❌ Could not determine identity" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+            echo "$SA_EMAIL" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # Test 7: List service accounts (requires resourcemanager.projects.get permission)
+          echo "## 7. Test API Access (List APIs)" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          set +e
+          APIS=$(gcloud services list --project=$PROJECT_ID --limit=5 2>&1)
+          API_EXIT=$?
+          set -e
+
+          if [ $API_EXIT -eq 0 ]; then
+            echo "- **Result:** ✅ Can list APIs" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+            echo "$APIS" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          else
+            echo "- **Result:** ❌ FAILED to list APIs" >> $REPORT_FILE
+            echo "- **Exit code:** $API_EXIT" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+            echo "$APIS" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # Test 8: Check IAM permissions explicitly
+          echo "## 8. IAM Permissions Test" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          set +e
+          TESTABLE=$(gcloud projects get-iam-policy $PROJECT_ID --flatten="bindings[].members" --filter="bindings.members:serviceAccount:$SERVICE_ACCOUNT" --format="value(bindings.role)" 2>&1)
+          TESTABLE_EXIT=$?
+          set -e
+
+          if [ $TESTABLE_EXIT -eq 0 ]; then
+            echo "- **Result:** ✅ Can read IAM policy" >> $REPORT_FILE
+            echo "- **Roles assigned:**" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+            echo "$TESTABLE" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          else
+            echo "- **Result:** ❌ FAILED to read IAM policy" >> $REPORT_FILE
+            echo "- **Exit code:** $TESTABLE_EXIT" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+            echo "$TESTABLE" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # Diagnosis
+          echo "## Diagnosis" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          if [ $TOKEN_EXIT -eq 0 ] && [ $PROJECT_EXIT -eq 0 ]; then
+            echo "✅ **WIF Authentication is working correctly**" >> $REPORT_FILE
+            echo "" >> $REPORT_FILE
+            echo "The service account can authenticate and access the project." >> $REPORT_FILE
+          elif [ $TOKEN_EXIT -eq 0 ] && [ $PROJECT_EXIT -ne 0 ]; then
+            echo "⚠️ **Partial Success: Authentication works but API access fails**" >> $REPORT_FILE
+            echo "" >> $REPORT_FILE
+            echo "Possible causes:" >> $REPORT_FILE
+            echo "- Service account lacks necessary IAM roles" >> $REPORT_FILE
+            echo "- APIs not enabled" >> $REPORT_FILE
+            echo "- Billing not enabled" >> $REPORT_FILE
+          else
+            echo "❌ **WIF Authentication is FAILING**" >> $REPORT_FILE
+            echo "" >> $REPORT_FILE
+            echo "Possible causes:" >> $REPORT_FILE
+            echo "- WIF pool/provider misconfigured" >> $REPORT_FILE
+            echo "- Service account impersonation not granted" >> $REPORT_FILE
+            echo "- Workload identity binding missing" >> $REPORT_FILE
+          fi
+
+          # Print to console
+          cat $REPORT_FILE
+
+          # Create GitHub Issue
+          ISSUE_TITLE="[Diagnostic] WIF Authentication Analysis - $(date +%Y-%m-%d_%H:%M)"
+          ISSUE_BODY=$(cat $REPORT_FILE)
+
+          ISSUE_URL=$(curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/issues" \
+            -d "$(jq -n --arg title "$ISSUE_TITLE" --arg body "$ISSUE_BODY" '{title: $title, body: $body, labels: ["diagnostic", "wif", "automated"]}')" \
+            | jq -r '.html_url // "ERROR"')
+
+          if [ "$ISSUE_URL" != "ERROR" ]; then
+            echo ""
+            echo "✅ Diagnostic report published to: $ISSUE_URL"
+          else
+            echo ""
+            echo "❌ Failed to create issue"
+            exit 1
+          fi
+
+      - name: Summary
+        run: |
+          echo "## WIF Authentication Diagnostic Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See diagnostic issue for detailed results." >> $GITHUB_STEP_SUMMARY
