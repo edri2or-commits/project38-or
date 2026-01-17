@@ -415,23 +415,43 @@ class MCPRouter:
 
         data = response.json()
 
+        # Debug: return full response if error
+        if "errors" in data:
+            return {"error": "GraphQL error", "details": data}
+
         # Extract service matching the name
         if "data" in data and "project" in data["data"]:
             services = data["data"]["project"]["services"]["edges"]
+            
+            # Debug: log all service names
+            all_names = [edge["node"]["name"] for edge in services]
+            
             for edge in services:
                 service = edge["node"]
-                if service["name"] == service_name:
+                if service["name"].lower() == service_name.lower():
+                    domains = []
+                    
+                    # Extract domains safely
+                    if "serviceInstances" in service and "edges" in service["serviceInstances"]:
+                        for instance_edge in service["serviceInstances"]["edges"]:
+                            instance = instance_edge["node"]
+                            if "domains" in instance and "serviceDomains" in instance["domains"]:
+                                for domain_item in instance["domains"]["serviceDomains"]:
+                                    if "domain" in domain_item:
+                                        domains.append(domain_item["domain"])
+                    
                     return {
                         "service_id": service["id"],
                         "service_name": service["name"],
-                        "domains": [
-                            instance_edge["node"]["domains"]["serviceDomains"][0]["domain"]
-                            for instance_edge in service["serviceInstances"]["edges"]
-                            if instance_edge["node"]["domains"]["serviceDomains"]
-                        ]
+                        "domains": domains
                     }
+            
+            return {
+                "error": f"Service '{service_name}' not found",
+                "available_services": all_names
+            }
 
-        return {"error": f"Service '{service_name}' not found"}
+        return {"error": "Invalid response from Railway API", "response": data}
 
     def _railway_list_services(self) -> dict:
         """List all Railway services in the project."""
