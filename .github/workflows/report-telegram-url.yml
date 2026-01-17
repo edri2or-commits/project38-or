@@ -1,0 +1,61 @@
+name: Report Telegram URL
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Query Railway and Save URL
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          DOMAIN=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { name serviceInstances(environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }"
+            }' | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain' 2>/dev/null || echo "")
+
+          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
+            echo "TELEGRAM_BOT_URL=https://$DOMAIN" >> telegram-url.txt
+            echo "✅ URL saved: https://$DOMAIN"
+
+            # Also save to repository file
+            echo "https://$DOMAIN" > TELEGRAM_BOT_URL.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add TELEGRAM_BOT_URL.txt
+            git commit -m "chore: Update Telegram Bot URL"
+            git push
+          else
+            echo "ERROR: Could not get domain" >> telegram-url.txt
+            exit 1
+          fi
