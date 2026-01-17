@@ -264,8 +264,13 @@ client.chat.completions.create(model="claude-sonnet", ...)
   - base_url: https://litellm-gateway-production-0339.up.railway.app
   - OpenAI SDK client implementation
   - Default model: claude-sonnet with automatic fallback
-- [ ] Deploy Telegram Bot to Railway (next: run workflow)
-- [ ] Test end-to-end: User → Telegram → LiteLLM → Claude → Response
+- [x] Deploy Telegram Bot to Railway - ✅ DEPLOYED (2026-01-17)
+  - URL: https://telegram-bot-production-053d.up.railway.app
+  - Service created via workflow #21100613950
+  - Code deployed via workflow #21100626525
+  - Webhook configured via workflow #21100638013
+  - Public domain generated: telegram-bot-production-053d.up.railway.app
+- [ ] Test end-to-end: User → Telegram → LiteLLM → Claude → Response (ready for testing)
 - [ ] Test MCP integration: "Check Railway status" → LiteLLM → Claude → MCP → Result
 - [ ] Measure cost: 100 requests = $X (verify budget tracking)
 
