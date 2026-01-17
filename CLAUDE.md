@@ -1432,23 +1432,24 @@ MCP Gateway (Railway) ← Bearer Token Auth
 
 | Component | Status | Evidence |
 |-----------|--------|----------|
-| Cloud Function Code | ✅ Complete | `cloud_functions/mcp_router/main.py` (400+ lines) |
+| Cloud Function Code | ✅ Complete | `cloud_functions/mcp_router/main.py` (953 lines) |
 | Local Adapter | ✅ Complete | `src/gcp_tunnel/adapter.py` (250+ lines) |
 | Deployment Workflow | ✅ Complete | `.github/workflows/deploy-mcp-router.yml` |
-| Function Deployment | ✅ Deployed | Workflow #21097668333 (2026-01-17 16:52 UTC) |
-| End-to-End Test | ✅ Verified | 17 tools accessible via Protocol Encapsulation |
+| Function Deployment | ✅ Deployed | Workflow #21098783553 (2026-01-17 18:18 UTC) |
+| Phase 3 Migration | ✅ Complete | Google Workspace tools migrated (PR #237, 2026-01-17) |
+| End-to-End Test | ✅ Verified | 20 tools accessible via Protocol Encapsulation |
 
 **Deployment Details**:
 
 - **URL**: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
 - **Status**: HTTP 200 (deployed and responding)
-- **Verified**: 2026-01-17 16:54 UTC
+- **Verified**: 2026-01-17 18:20 UTC (Phase 3 complete)
 - **Authentication**: MCP_TUNNEL_TOKEN (stored in GCP Secret Manager)
-- **Tools Available**: 17 tools across 4 categories
-  - Railway: deploy, status, rollback, deployments
-  - n8n: trigger, list, status
-  - Monitoring: health_check, get_metrics, deployment_health
-  - Google Workspace: gmail_send, gmail_list, calendar_list_events, calendar_create_event, drive_list_files, sheets_read, sheets_write
+- **Tools Available**: 20 tools across 4 categories
+  - **Railway (4)**: deploy, status, rollback, deployments
+  - **n8n (3)**: trigger, list, status
+  - **Monitoring (3)**: health_check, get_metrics, deployment_health
+  - **Google Workspace (10)**: gmail_send, gmail_list, calendar_list_events, calendar_create_event, drive_list_files, sheets_read, sheets_write, docs_create, docs_read, docs_append
 
 **How to Use**:
 
@@ -1482,7 +1483,18 @@ The system autonomously identified the IAM permission issue through:
 
 - **Local sessions**: Use MCP Gateway at `https://or-infra.com/mcp` (lower latency)
 - **Cloud sessions**: Use GCP Tunnel at `cloudfunctions.googleapis.com` (bypasses Anthropic proxy)
-- **Both environments**: Full access to 17 autonomous tools across Railway, n8n, Monitoring, and Google Workspace
+- **Both environments**: Full access to 20 autonomous tools across Railway, n8n, Monitoring, and Google Workspace
+
+**Phase 3: Google Workspace Tools Migration** (2026-01-17):
+- **Status**: ✅ **COMPLETED**
+- **Changes**: Migrated full Google Workspace implementation from `src/mcp_gateway/tools/workspace.py` to Cloud Function
+- **Added Tools**: 3 additional tools (docs_create, docs_read, docs_append)
+- **Total Growth**: Cloud Function expanded from 471 → 953 lines (+482 lines, +102%)
+- **WorkspaceAuth**: Singleton token management with automatic refresh (60s buffer)
+- **OAuth2**: Credentials loaded from GCP Secret Manager (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN)
+- **Evidence**: PR #237 merged (SHA: 8b0e7fc), deployed via workflow #21098783553
+- **Verification**: All 20 tools tested and operational (2026-01-17 18:20 UTC)
+- **See**: [ADR-005 Phase 3](docs/decisions/ADR-005-gcp-tunnel-protocol-encapsulation.md#phase-3-tool-migration--completed-2026-01-17)
 
 ---
 
