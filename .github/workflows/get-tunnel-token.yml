@@ -1,0 +1,83 @@
+name: Get MCP Tunnel Token
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to post token to (for secure delivery)'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+
+jobs:
+  deliver-token:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Get Token and Post to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Getting MCP_TUNNEL_TOKEN from Secret Manager..."
+
+          TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" --project="${PROJECT_ID}")
+
+          if [ -z "$TOKEN" ]; then
+            echo "Error: Could not retrieve token"
+            exit 1
+          fi
+
+          echo "Posting token to issue #${{ inputs.issue_number }}..."
+
+          # Create comment with token (will be visible only to repo owner)
+          COMMENT="## MCP Tunnel Token 🔑
+
+Your \`MCP_TUNNEL_TOKEN\` for Claude Code:
+
+\`\`\`
+${TOKEN}
+\`\`\`
+
+### Setup Instructions:
+
+1. **Copy the token above**
+
+2. **In Claude Code web UI:**
+   - Click on Environment name (top left)
+   - Select 'Add environment' or edit existing
+   - Add variable: \`MCP_TUNNEL_TOKEN=${TOKEN}\`
+   - Click Save
+
+3. **Start a new session** - the tunnel will work automatically!
+
+### Security Note:
+- Delete this comment after copying the token
+- The token is stored securely in GCP Secret Manager
+- You can rotate it anytime by running the deploy workflow
+
+---
+*This comment was auto-generated. Delete after use.*"
+
+          gh issue comment ${{ inputs.issue_number }} --body "$COMMENT" --repo ${{ github.repository }}
+
+          echo "✅ Token posted to issue #${{ inputs.issue_number }}"
+          echo ""
+          echo "Go to: https://github.com/${{ github.repository }}/issues/${{ inputs.issue_number }}"
