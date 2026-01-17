@@ -160,6 +160,7 @@ class MCPRouter:
         self.tools["railway_deployments"] = self._railway_deployments
         self.tools["railway_service_info"] = self._railway_service_info
         self.tools["railway_list_services"] = self._railway_list_services
+        self.tools["railway_create_domain"] = self._railway_create_domain
 
         # n8n tools
         self.tools["n8n_trigger"] = self._n8n_trigger
@@ -492,6 +493,69 @@ class MCPRouter:
         )
 
         return response.json()
+
+    def _railway_create_domain(self, service_name: str = "litellm-gateway") -> dict:
+        """Create a public domain for a Railway service."""
+        import httpx
+
+        railway_token = os.environ.get("RAILWAY_TOKEN")
+        project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
+        environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
+
+        if not railway_token:
+            return {"error": "RAILWAY_TOKEN not configured"}
+
+        # First, get the service ID
+        service_info = self._railway_service_info(service_name)
+        
+        if "error" in service_info:
+            return service_info
+        
+        service_id = service_info["service_id"]
+
+        # Create domain using Railway GraphQL mutation
+        mutation = """
+        mutation serviceDomainCreate($input: ServiceDomainCreateInput!) {
+            serviceDomainCreate(input: $input) {
+                id
+                domain
+            }
+        }
+        """
+
+        response = httpx.post(
+            "https://backboard.railway.app/graphql/v2",
+            headers={
+                "Authorization": f"Bearer {railway_token}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "query": mutation,
+                "variables": {
+                    "input": {
+                        "environmentId": environment_id,
+                        "serviceId": service_id
+                    }
+                }
+            },
+            timeout=30
+        )
+
+        data = response.json()
+
+        if "errors" in data:
+            return {"error": "Failed to create domain", "details": data["errors"]}
+
+        if "data" in data and "serviceDomainCreate" in data["data"]:
+            domain_data = data["data"]["serviceDomainCreate"]
+            return {
+                "success": True,
+                "domain": domain_data["domain"],
+                "domain_id": domain_data["id"],
+                "url": f"https://{domain_data['domain']}"
+            }
+
+        return {"error": "Unexpected response", "response": data}
 
     # =========================================================================
     # n8n Tools
