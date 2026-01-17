@@ -112,53 +112,31 @@ jobs:
           echo "::add-mask::$RAILWAY_TOKEN"
           echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Trigger Railway Deployment
+      - name: Install Railway CLI
+        run: |
+          npm i -g @railway/cli
+          railway version
+
+      - name: Deploy to Railway
         env:
           RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
-          # IMPORTANT: Set these in GitHub Repository Secrets or Variables
-          # Get from Railway dashboard: Settings → General
-          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || 'NOT_SET' }}
-          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID || 'production' }}
+          RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID || '' }}
         run: |
-          # Deploy to Railway using GraphQL API
-          # See docs/RAILWAY_SETUP.md for complete setup instructions
+          echo "🚀 Deploying to Railway using CLI..."
+          echo "Service ID: ${RAILWAY_SERVICE_ID:-not set}"
 
-          echo "🚀 Deploying to Railway..."
-          echo "Project ID: $RAILWAY_PROJECT_ID"
-          echo "Environment: $RAILWAY_ENVIRONMENT_ID"
-
-          # Validate configuration
-          if [ "$RAILWAY_PROJECT_ID" = "NOT_SET" ]; then
-            echo "❌ ERROR: RAILWAY_PROJECT_ID not configured"
-            echo "Please set in GitHub Repository Variables:"
-            echo "  Settings → Secrets and variables → Actions → Variables"
-            echo "  Name: RAILWAY_PROJECT_ID"
-            echo "  Value: <your-project-id-from-railway>"
-            echo ""
-            echo "Get your Project ID from Railway dashboard:"
-            echo "  https://railway.app/dashboard → Your Project → Settings → General"
-            exit 1
+          # Deploy using Railway CLI
+          # The CLI uses RAILWAY_TOKEN automatically for authentication
+          # railway up deploys the current directory to Railway
+          if [ -n "$RAILWAY_SERVICE_ID" ]; then
+            echo "Deploying to service: $RAILWAY_SERVICE_ID"
+            railway up --service "$RAILWAY_SERVICE_ID" --detach
+          else
+            echo "Deploying to linked service..."
+            railway up --detach
           fi
 
-          # Trigger deployment via Railway GraphQL API
-          RESPONSE=$(curl -s -X POST \
-            "https://backboard.railway.app/graphql" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"query\": \"mutation { deploymentTrigger(projectId: \\\"$RAILWAY_PROJECT_ID\\\", environmentId: \\\"$RAILWAY_ENVIRONMENT_ID\\\") { id status } }\"
-            }")
-
-          echo "API Response: $RESPONSE"
-
-          # Check for errors in response
-          if echo "$RESPONSE" | grep -q "error"; then
-            echo "❌ Deployment failed"
-            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
-            exit 1
-          fi
-
-          echo "✅ Deployment triggered successfully"
+          echo "✅ Deployment started successfully"
 
       - name: Wait for deployment
         run: |

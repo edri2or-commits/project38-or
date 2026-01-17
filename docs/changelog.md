@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Railway Deployment Not Pulling Latest Code** (2026-01-17) - Use Railway CLI instead of GraphQL API
+  - Discovered `deploymentTrigger` API was not pulling fresh code from GitHub
+  - Changed deployment workflow to use Railway CLI (`railway up`)
+  - CLI deploys the actual checked-out code instead of triggering cached deployment
+  - Fixes issue where new routes/code were not being deployed
+
 ### Added
 - **GitHub Relay Startup Beacon** (2026-01-17) - Verify relay starts on Railway
   - Posts startup notification directly to GitHub Issue #183 when relay starts
