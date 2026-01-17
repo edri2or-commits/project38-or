@@ -148,12 +148,20 @@ Response encapsulated back through same chain
   - Updated autonomy status table for cloud sessions
   - Documented resolution and autonomous diagnostic pipeline
 
-### Phase 3: Tool Migration (Pending)
+### Phase 3: Tool Migration ✅ **COMPLETED** (2026-01-17)
 
-- [ ] Migrate Railway tools to Cloud Function
-- [ ] Migrate n8n tools to Cloud Function
-- [ ] Migrate Google Workspace tools to Cloud Function
-- [ ] Full integration testing
+- [x] Migrate Railway tools to Cloud Function - ✅ Already present (deploy, status, rollback, deployments)
+- [x] Migrate n8n tools to Cloud Function - ✅ Already present (trigger, list, status)
+- [x] Migrate Google Workspace tools to Cloud Function - ✅ **COMPLETED** (2026-01-17, commit 48a6a56)
+  - Gmail: gmail_send, gmail_list (2 tools)
+  - Calendar: calendar_list_events, calendar_create_event (2 tools)
+  - Drive: drive_list_files (1 tool)
+  - Sheets: sheets_read, sheets_write (2 tools)
+  - Docs: docs_create, docs_read, docs_append (3 tools)
+  - WorkspaceAuth class with automatic token refresh
+  - Total: 10 functional Workspace tools (upgraded from stubs)
+  - File size: 471 → 953 lines (+482 lines)
+- [ ] Full integration testing - **PENDING** (awaiting deployment)
 
 ---
 
@@ -486,4 +494,56 @@ Following PR #234 (which updated Layer 2 ADR-005 and Layer 4 changelog/workflows
 - New AI sessions will read correct operational status
 - Complete audit trail from problem → diagnosis → solution → documentation
 - Project standards maintained (4-layer architecture)
+
+---
+
+### 2026-01-17: Phase 3 Complete - Google Workspace Tools Migration
+
+**Context:**
+Cloud Function had stub implementations for Google Workspace tools. Phase 3 migrates full implementation from `src/mcp_gateway/tools/workspace.py`.
+
+**Implementation (2026-01-17):**
+- ✅ Migrated WorkspaceAuth class (singleton token management, auto-refresh with 60s buffer)
+- ✅ Gmail tools: gmail_send, gmail_list (OAuth + email operations)
+- ✅ Calendar tools: calendar_list_events, calendar_create_event (event management)
+- ✅ Drive tools: drive_list_files (file browsing with query support)
+- ✅ Sheets tools: sheets_read, sheets_write (spreadsheet operations)
+- ✅ Docs tools: docs_create, docs_read, docs_append (document creation/editing)
+
+**Technical Details:**
+- All functions implemented as sync wrappers around async implementations (asyncio.run())
+- OAuth2 credentials loaded from GCP Secret Manager (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN)
+- Token caching prevents unnecessary API calls
+- Comprehensive error handling with logging
+- Uses existing httpx dependency
+
+**Metrics:**
+- File size: 471 → 953 lines (+482 lines, +102% growth)
+- Tools added: 10 functional Workspace tools (replaced stubs)
+- Total tools: 20 (4 Railway + 3 n8n + 3 monitoring + 10 Workspace)
+- Syntax validation: ✅ Passed (py_compile)
+
+**Commit:**
+- SHA: 48a6a56
+- Message: "feat(mcp): Phase 3 - Migrate Google Workspace tools to Cloud Function"
+- Branch: claude/read-claude-md-NQiEq
+- Files changed: cloud_functions/mcp_router/main.py, docs/changelog.md
+
+**ADR Updates:**
+- Phase 3 checkboxes: Railway ✅, n8n ✅, Workspace ✅
+- Status: Phase 3 complete, pending deployment
+- Update Log: This entry added
+
+**Next Steps:**
+1. Push changes to remote branch
+2. Deploy Cloud Function (trigger deploy-mcp-router.yml workflow)
+3. Verify all 20 tools accessible via Protocol Encapsulation
+4. Mark "Full integration testing" checkbox as complete
+
+**Evidence:**
+- Commit: 48a6a56
+- Changelog: docs/changelog.md lines 11-24
+- ADR-005: Phase 3 section updated (lines 151-164)
+- File verification: `wc -l cloud_functions/mcp_router/main.py` → 953 lines
+- Tool count: `grep "self.tools\[" cloud_functions/mcp_router/main.py | wc -l` → 21 registrations (20 tools + monitoring)
 
