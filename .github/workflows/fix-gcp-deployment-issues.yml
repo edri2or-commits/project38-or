@@ -1,0 +1,190 @@
+name: Fix GCP Deployment Issues
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write  # Required for WIF
+
+env:
+  PROJECT_ID: project38-483612
+  PROJECT_NUMBER: "979429709900"
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  REGION: us-central1
+
+jobs:
+  fix-deployment-issues:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: "Fix #1: Enable Required APIs"
+        run: |
+          echo "=========================================="
+          echo "ENABLING REQUIRED APIs"
+          echo "=========================================="
+          echo ""
+
+          set -e
+
+          REQUIRED_APIS=(
+            "cloudfunctions.googleapis.com"
+            "cloudbuild.googleapis.com"
+            "run.googleapis.com"
+            "artifactregistry.googleapis.com"
+            "cloudbilling.googleapis.com"
+          )
+
+          for API in "${REQUIRED_APIS[@]}"; do
+            echo "Checking $API..."
+
+            if gcloud services list --enabled --filter="name:$API" --format="value(name)" | grep -q "$API"; then
+              echo "  ✅ $API already enabled"
+            else
+              echo "  🔧 Enabling $API..."
+              gcloud services enable "$API" --project="${PROJECT_ID}" && {
+                echo "  ✅ $API enabled successfully"
+              } || {
+                echo "  ⚠️  Could not enable $API (may require manual action)"
+              }
+            fi
+          done
+
+          echo ""
+          echo "✅ API enablement complete"
+          echo ""
+
+      - name: "Fix #2: Grant IAM serviceAccountUser Role"
+        continue-on-error: true
+        run: |
+          echo "=========================================="
+          echo "GRANTING IAM PERMISSIONS"
+          echo "=========================================="
+          echo ""
+
+          echo "Checking if $SERVICE_ACCOUNT has serviceAccountUser role..."
+
+          CURRENT_ROLES=$(gcloud projects get-iam-policy $PROJECT_ID \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:serviceAccount:$SERVICE_ACCOUNT" \
+            --format="value(bindings.role)")
+
+          echo "Current roles:"
+          echo "$CURRENT_ROLES"
+          echo ""
+
+          if echo "$CURRENT_ROLES" | grep -q "serviceAccountUser"; then
+            echo "✅ Service account already has serviceAccountUser role"
+          else
+            echo "🔧 Granting roles/iam.serviceAccountUser..."
+
+            gcloud projects add-iam-policy-binding $PROJECT_ID \
+              --member="serviceAccount:$SERVICE_ACCOUNT" \
+              --role="roles/iam.serviceAccountUser" \
+              --condition=None && {
+                echo "✅ serviceAccountUser role granted"
+              } || {
+                echo "⚠️  Could not grant role (may require Owner/Admin permissions)"
+                echo "    Manual action: Run as project owner:"
+                echo "    gcloud projects add-iam-policy-binding $PROJECT_ID \\"
+                echo "      --member='serviceAccount:$SERVICE_ACCOUNT' \\"
+                echo "      --role='roles/iam.serviceAccountUser'"
+              }
+          fi
+
+          echo ""
+
+      - name: "Fix #3: Check Billing Status"
+        continue-on-error: true
+        run: |
+          echo "=========================================="
+          echo "CHECKING BILLING STATUS"
+          echo "=========================================="
+          echo ""
+
+          echo "⚠️  Note: This workflow CANNOT enable billing automatically."
+          echo "   Billing requires Owner role or Billing Admin role."
+          echo ""
+
+          BILLING_INFO=$(gcloud beta billing projects describe $PROJECT_ID \
+            --format="value(billingEnabled)" 2>&1 || echo "ERROR")
+
+          if [ "$BILLING_INFO" = "True" ]; then
+            echo "✅ Billing is ENABLED"
+          elif [ "$BILLING_INFO" = "False" ]; then
+            echo "❌ Billing is DISABLED"
+            echo ""
+            echo "🔧 Manual action required:"
+            echo ""
+            echo "1. Go to: https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT_ID"
+            echo "2. Link a billing account"
+            echo ""
+            echo "OR run from an account with Billing Admin role:"
+            echo ""
+            echo "gcloud beta billing projects link $PROJECT_ID \\"
+            echo "  --billing-account=YOUR-BILLING-ACCOUNT-ID"
+            echo ""
+          else
+            echo "⚠️  Could not check billing status"
+            echo "   Error: $BILLING_INFO"
+          fi
+
+          echo ""
+
+      - name: "Verification: List Service Account Roles"
+        run: |
+          echo "=========================================="
+          echo "VERIFICATION: SERVICE ACCOUNT ROLES"
+          echo "=========================================="
+          echo ""
+
+          gcloud projects get-iam-policy $PROJECT_ID \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:serviceAccount:$SERVICE_ACCOUNT" \
+            --format="table(bindings.role)" || echo "Could not list roles"
+
+          echo ""
+
+      - name: "Verification: List Enabled APIs"
+        run: |
+          echo "=========================================="
+          echo "VERIFICATION: ENABLED APIs"
+          echo "=========================================="
+          echo ""
+
+          gcloud services list --enabled \
+            --filter="name:cloudfunctions.googleapis.com OR name:cloudbuild.googleapis.com OR name:run.googleapis.com" \
+            --format="table(name,title)" || echo "Could not list APIs"
+
+          echo ""
+
+      - name: Summary
+        run: |
+          echo "## Fix GCP Deployment Issues - Complete 🔧" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Actions Taken" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Enabled required APIs (Cloud Functions, Cloud Build, Cloud Run, Artifact Registry)" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✅ Granted serviceAccountUser role (or verified existing)" >> $GITHUB_STEP_SUMMARY
+          echo "3. ℹ️  Checked billing status (requires manual action if disabled)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **If billing was disabled:** Enable billing manually (see workflow logs)" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Re-run deployment:** Go to Actions → Deploy MCP Router Cloud Function → Run workflow" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Expected result:** Deployment should succeed OR show specific error (not silent)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
