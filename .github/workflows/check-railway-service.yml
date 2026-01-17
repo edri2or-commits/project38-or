@@ -1,0 +1,130 @@
+name: Check Railway Service
+
+on:
+  push:
+    branches:
+      - check-railway-status
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: project38-483612
+          workload_identity_provider: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: claude-code-agent@project38-483612.iam.gserviceaccount.com
+          token_format: access_token
+
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check Service Status
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+        run: |
+          echo "Checking telegram-bot service status..."
+
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"95ec21cc-9ada-41c5-8485-12f9a00e0116\") { services { edges { node { id name serviceInstances(environmentId: \"99c99a18-aea2-4d01-9360-6a93705102a0\") { edges { node { status startedAt restartedAt domains { serviceDomains { domain } } } } } } } } } }"
+            }')
+
+          echo "$RESPONSE" | jq '.'
+
+          # Extract telegram-bot service status
+          STATUS=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.serviceInstances.edges[0].node.status')
+          DOMAIN=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain')
+
+          echo "Service status: $STATUS"
+          echo "Service domain: $DOMAIN"
+
+      - name: Get Recent Deployments
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+        run: |
+          echo "Getting recent deployments..."
+
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"95ec21cc-9ada-41c5-8485-12f9a00e0116\") { services { edges { node { name deployments(first: 5, environmentId: \"99c99a18-aea2-4d01-9360-6a93705102a0\") { edges { node { status createdAt meta } } } } } } } }"
+            }')
+
+          echo "$RESPONSE" | jq '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.deployments.edges[] | {status: .node.status, created: .node.createdAt}'
+
+      - name: Check Environment Variables
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+        run: |
+          echo "Checking environment variables..."
+
+          # Get service ID
+          SERVICE_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"95ec21cc-9ada-41c5-8485-12f9a00e0116\") { services { edges { node { id name } } } } }"
+            }')
+
+          SERVICE_ID=$(echo "$SERVICE_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.id')
+
+          echo "Service ID: $SERVICE_ID"
+
+          # Get variables
+          VARS_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"query { variables(serviceId: \\\"$SERVICE_ID\\\", environmentId: \\\"99c99a18-aea2-4d01-9360-6a93705102a0\\\") { edges { node { name } } } }\"
+            }")
+
+          echo "Environment variables:"
+          echo "$VARS_RESPONSE" | jq -r '.data.variables.edges[].node.name' | sort
+
+      - name: Post Results to Issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## 🔍 Railway Service Status Check
+
+Results from automated diagnostics workflow.
+
+Check the workflow logs for detailed information:
+${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+Key things to verify:
+1. Service status (should be "RUNNING")
+2. Recent deployments (should be "SUCCESS")
+3. Environment variables (TELEGRAM_BOT_TOKEN, DATABASE_URL, etc.)
+4. Service domain accessibility
+
+If service is crashed or variables missing, that's the issue.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 242,
+              body: body
+            });
