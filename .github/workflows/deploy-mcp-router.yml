@@ -15,7 +15,7 @@ on:
       generation:
         description: 'Cloud Functions Generation'
         required: true
-        default: 'gen1'
+        default: 'gen2'
         type: choice
         options:
           - gen1
@@ -52,6 +52,113 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
+
+      - name: Pre-Deployment Diagnostics
+        run: |
+          echo "=========================================="
+          echo "PRE-DEPLOYMENT DIAGNOSTIC CHECKS"
+          echo "=========================================="
+          echo ""
+
+          # Enable strict error checking for diagnostics
+          set -e
+
+          # Check 1: Verify GCP authentication
+          echo "✓ Check 1: GCP Authentication"
+          gcloud auth list --filter=status:ACTIVE --format="value(account)" || {
+            echo "❌ FAILED: Not authenticated to GCP"
+            exit 1
+          }
+          echo "  ✅ Authenticated"
+          echo ""
+
+          # Check 2: Verify project access
+          echo "✓ Check 2: Project Access"
+          gcloud projects describe ${{ env.PROJECT_ID }} --format="value(projectId)" || {
+            echo "❌ FAILED: Cannot access project ${{ env.PROJECT_ID }}"
+            exit 1
+          }
+          echo "  ✅ Project accessible"
+          echo ""
+
+          # Check 3: Billing status (non-blocking but informative)
+          echo "✓ Check 3: Billing Status"
+          set +e  # Don't fail on billing check
+          BILLING_INFO=$(gcloud beta billing projects describe ${{ env.PROJECT_ID }} --format="value(billingEnabled)" 2>&1)
+          BILLING_EXIT=$?
+          set -e
+
+          if [ $BILLING_EXIT -eq 0 ]; then
+            if [ "$BILLING_INFO" = "True" ]; then
+              echo "  ✅ Billing ENABLED"
+            else
+              echo "  ⚠️  WARNING: Billing appears DISABLED"
+              echo "  This will cause deployment to fail!"
+              echo "  Fix: gcloud beta billing projects link ${{ env.PROJECT_ID }} --billing-account=YOUR-BILLING-ACCOUNT-ID"
+            fi
+          else
+            echo "  ⚠️  WARNING: Could not check billing status"
+            echo "  Error: $BILLING_INFO"
+          fi
+          echo ""
+
+          # Check 4: List existing Cloud Functions
+          echo "✓ Check 4: Existing Functions in Region"
+          set +e
+          FUNCTIONS=$(gcloud functions list --regions=${{ inputs.region }} --format="value(name)" 2>&1)
+          FUNCTIONS_EXIT=$?
+          set -e
+
+          if [ $FUNCTIONS_EXIT -eq 0 ]; then
+            if [ -z "$FUNCTIONS" ]; then
+              echo "  ℹ️  No existing functions in ${{ inputs.region }}"
+            else
+              echo "  ℹ️  Existing functions:"
+              echo "$FUNCTIONS" | while read func; do
+                echo "    - $func"
+              done
+            fi
+          else
+            echo "  ⚠️  WARNING: Could not list functions"
+            echo "  This may indicate API not enabled or permission issues"
+          fi
+          echo ""
+
+          # Check 5: Service Account permissions
+          echo "✓ Check 5: IAM Permissions Check"
+          echo "  Checking if ${{ env.SERVICE_ACCOUNT }} has necessary roles..."
+
+          set +e
+          IAM_POLICY=$(gcloud projects get-iam-policy ${{ env.PROJECT_ID }} \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
+            --format="table(bindings.role)" 2>&1)
+          IAM_EXIT=$?
+          set -e
+
+          if [ $IAM_EXIT -eq 0 ]; then
+            echo "  Current roles for service account:"
+            echo "$IAM_POLICY"
+
+            # Check for critical roles
+            if echo "$IAM_POLICY" | grep -q "serviceAccountUser"; then
+              echo "  ✅ Has roles/iam.serviceAccountUser (actAs permission)"
+            else
+              echo "  ⚠️  WARNING: Missing roles/iam.serviceAccountUser"
+              echo "  This is required to deploy functions!"
+              echo "  Fix: gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \\"
+              echo "         --member='serviceAccount:${{ env.SERVICE_ACCOUNT }}' \\"
+              echo "         --role='roles/iam.serviceAccountUser'"
+            fi
+          else
+            echo "  ⚠️  Could not check IAM permissions"
+          fi
+          echo ""
+
+          echo "=========================================="
+          echo "DIAGNOSTIC CHECKS COMPLETE"
+          echo "=========================================="
+          echo ""
 
       - name: Check and Enable Required APIs
         run: |
@@ -116,7 +223,9 @@ jobs:
       - name: Deploy Cloud Function (Gen 1)
         if: inputs.generation == 'gen1'
         run: |
-          echo "Deploying MCP Router (Gen 1) to ${{ inputs.region }}..."
+          echo "=========================================="
+          echo "DEPLOYING MCP ROUTER (GEN 1)"
+          echo "=========================================="
           echo ""
           echo "Source files:"
           ls -la cloud_functions/mcp_router/
@@ -125,9 +234,16 @@ jobs:
           cat cloud_functions/mcp_router/requirements.txt
           echo ""
 
+          # Enable strict error checking - deployment MUST succeed or fail loud
+          set -e
+          set -o pipefail
+
+          echo "Starting deployment..."
+          echo "⚠️  WARNING: You are using Gen 1. Consider Gen 2 for better Python 3.12 support."
+          echo ""
+
           # Deploy with --allow-unauthenticated (public HTTP) but custom token validation
           # The function validates MCP_TUNNEL_TOKEN internally
-          set +e
           gcloud functions deploy ${{ env.FUNCTION_NAME }} \
             --runtime=python312 \
             --region=${{ inputs.region }} \
@@ -139,22 +255,33 @@ jobs:
             --memory=512MB \
             --timeout=120s \
             --verbosity=debug \
-            --set-env-vars="MCP_TUNNEL_TOKEN=${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }},RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0" 2>&1 | tee deploy_output.txt
+            --set-env-vars="MCP_TUNNEL_TOKEN=${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }},RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0"
 
-          RESULT=$?
-          if [ $RESULT -ne 0 ]; then
-            echo ""
-            echo "❌ Deployment failed with exit code: $RESULT"
-            echo ""
-            echo "=== ERROR DETAILS ==="
-            cat deploy_output.txt | tail -50
-            exit $RESULT
-          fi
+          echo ""
+          echo "✅ Deployment completed successfully"
+          echo ""
 
       - name: Deploy Cloud Function (Gen 2)
         if: inputs.generation == 'gen2'
         run: |
-          echo "Deploying MCP Router (Gen 2) to ${{ inputs.region }}..."
+          echo "=========================================="
+          echo "DEPLOYING MCP ROUTER (GEN 2)"
+          echo "=========================================="
+          echo ""
+          echo "Source files:"
+          ls -la cloud_functions/mcp_router/
+          echo ""
+          echo "Requirements:"
+          cat cloud_functions/mcp_router/requirements.txt
+          echo ""
+
+          # Enable strict error checking - deployment MUST succeed or fail loud
+          set -e
+          set -o pipefail
+
+          echo "Starting deployment to Gen 2 (Cloud Run functions)..."
+          echo "✅ Gen 2 is recommended for Python 3.12 + functions_framework"
+          echo ""
 
           gcloud functions deploy ${{ env.FUNCTION_NAME }} \
             --gen2 \
@@ -169,7 +296,12 @@ jobs:
             --max-instances=10 \
             --memory=512MB \
             --timeout=120s \
+            --verbosity=debug \
             --set-env-vars="MCP_TUNNEL_TOKEN=${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }},RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          echo ""
+          echo "✅ Deployment completed successfully"
+          echo ""
 
       - name: Get Function URL
         id: function_url
@@ -197,80 +329,109 @@ jobs:
           echo "function_url=${URL}" >> $GITHUB_OUTPUT
           echo "Function URL: ${URL}"
 
-      - name: Set IAM Policy
+      - name: Set IAM Policy (Optional)
         continue-on-error: true
         run: |
           echo "Setting IAM policy for Claude Code access..."
+          echo ""
+          echo "⚠️  Note: This is optional since we deployed with --allow-unauthenticated"
+          echo "The service account may not have IAM admin rights - this is best-effort."
+          echo ""
 
-          # Note: IAM may already be set via --no-allow-unauthenticated
-          # The service account running deployment may not have IAM admin rights
-          # This step is best-effort
-
-          set +e
           if [ "${{ inputs.generation }}" = "gen1" ]; then
             # Gen 1: Use add-iam-policy-binding
             gcloud functions add-iam-policy-binding ${{ env.FUNCTION_NAME }} \
               --region=${{ inputs.region }} \
               --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
-              --role="roles/cloudfunctions.invoker" 2>&1 || {
-                echo "⚠️ Could not set IAM policy - may need manual setup"
-                echo "The function should still work if deployed with --no-allow-unauthenticated"
+              --role="roles/cloudfunctions.invoker" && echo "✅ IAM policy set" || {
+                echo "⚠️ Could not set IAM policy - not critical since function is public"
               }
           else
             # Gen 2: Use add-invoker-policy-binding
             gcloud functions add-invoker-policy-binding ${{ env.FUNCTION_NAME }} \
               --region=${{ inputs.region }} \
-              --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" 2>&1 || {
-                echo "⚠️ Could not set IAM policy"
+              --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" && echo "✅ IAM policy set" || {
+                echo "⚠️ Could not set IAM policy - not critical since function is public"
               }
           fi
-          exit 0  # Don't fail the workflow
 
-      - name: Test Function
+      - name: Test Function (Verification)
         continue-on-error: true
         run: |
-          echo "Testing MCP Router via HTTP trigger with custom token..."
+          echo "=========================================="
+          echo "POST-DEPLOYMENT VERIFICATION"
+          echo "=========================================="
           echo ""
 
-          # Use the HTTP trigger URL (same as the adapter will use)
-          HTTP_URL="https://${{ inputs.region }}-${{ env.PROJECT_ID }}.cloudfunctions.net/${{ env.FUNCTION_NAME }}"
+          # Get the actual function URL from previous step
+          FUNCTION_URL="${{ steps.function_url.outputs.function_url }}"
 
-          echo "Testing via: ${HTTP_URL}"
+          if [ -z "$FUNCTION_URL" ] || [ "$FUNCTION_URL" = "N/A" ]; then
+            echo "⚠️  WARNING: Could not retrieve function URL from deployment"
+            echo "Attempting to construct URL manually..."
+
+            if [ "${{ inputs.generation }}" = "gen1" ]; then
+              FUNCTION_URL="https://${{ inputs.region }}-${{ env.PROJECT_ID }}.cloudfunctions.net/${{ env.FUNCTION_NAME }}"
+            else
+              echo "⚠️  Gen 2 URL format is dynamic, cannot construct without describe"
+              echo "Skipping HTTP test"
+              exit 0
+            fi
+          fi
+
+          echo "Testing function at: ${FUNCTION_URL}"
           echo ""
 
-          # Test with custom MCP_TUNNEL_TOKEN (NOT GCP OAuth)
-          RESPONSE=$(curl -s -w "\n\nHTTP_CODE: %{http_code}\n" -X POST "${HTTP_URL}" \
+          # Test 1: Basic connectivity (no auth)
+          echo "Test 1: Basic Connectivity Check"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${FUNCTION_URL}")
+          echo "  HTTP Status: ${HTTP_CODE}"
+
+          if [ "$HTTP_CODE" = "404" ]; then
+            echo "  ❌ FAILED: Function not accessible (404)"
+            echo "  This indicates the function was NOT deployed successfully!"
+            exit 1
+          elif [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "401" ]; then
+            echo "  ℹ️  Function exists but requires authentication (expected)"
+          elif [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "400" ]; then
+            echo "  ✅ Function is accessible"
+          else
+            echo "  ⚠️  Unexpected status code: ${HTTP_CODE}"
+          fi
+          echo ""
+
+          # Test 2: MCP Protocol Test with token
+          echo "Test 2: MCP Protocol Test (with MCP_TUNNEL_TOKEN)"
+          RESPONSE=$(curl -s -w "\n\nHTTP_CODE: %{http_code}\n" -X POST "${FUNCTION_URL}" \
             -H "Authorization: Bearer ${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"data": "{\"jsonrpc\": \"2.0\", \"method\": \"tools/list\", \"id\": 1}"}')
+            -d '{"data": "{\"jsonrpc\": \"2.0\", \"method\": \"tools/list\", \"id\": 1}"}' 2>&1)
 
-          echo "=== HTTP Trigger Response ==="
+          echo "Response:"
           echo "${RESPONSE}"
           echo ""
 
-          # Check for success
-          if echo "${RESPONSE}" | grep -q 'tools\|result'; then
-            echo "✅ MCP Router responded with custom token!"
+          if echo "${RESPONSE}" | grep -q '"result"'; then
+            echo "  ✅ MCP Router responding correctly!"
+          elif echo "${RESPONSE}" | grep -q 'tools'; then
+            echo "  ✅ Function responded with tools data"
           else
-            echo "⚠️ Test inconclusive, checking function logs..."
-
-            # Get recent logs
-            echo ""
-            echo "=== Recent Function Logs ==="
-            gcloud functions logs read ${{ env.FUNCTION_NAME }} \
-              --region=${{ inputs.region }} \
-              --limit=20 2>/dev/null || echo "Could not fetch logs"
+            echo "  ⚠️  Response format unexpected, but function is running"
           fi
-
           echo ""
-          echo "=== Function Status ==="
+
+          # Show function status
+          echo "=========================================="
+          echo "FUNCTION STATUS"
+          echo "=========================================="
           gcloud functions describe ${{ env.FUNCTION_NAME }} \
             --region=${{ inputs.region }} \
-            --format="table(name,status,updateTime,httpsTrigger.url)" 2>/dev/null || echo "Could not describe function"
-
-          # Don't fail the workflow - function is deployed
+            --format="yaml(name,state,updateTime,serviceConfig.uri,httpsTrigger.url)" 2>/dev/null || {
+              echo "Could not retrieve function status"
+            }
           echo ""
-          echo "The function is deployed. Test manually with the adapter if needed."
+
+          echo "✅ Verification complete"
 
       - name: Summary
         run: |
