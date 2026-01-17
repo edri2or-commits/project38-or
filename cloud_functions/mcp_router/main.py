@@ -171,6 +171,7 @@ class MCPRouter:
         self.tools["health_check"] = self._health_check
         self.tools["get_metrics"] = self._get_metrics
         self.tools["deployment_health"] = self._deployment_health
+        self.tools["http_get"] = self._http_get
 
         # Google Workspace tools
         self.tools["gmail_send"] = self._gmail_send
