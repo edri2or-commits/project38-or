@@ -112,14 +112,10 @@ jobs:
           echo "::add-mask::$RAILWAY_TOKEN"
           echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Install Railway CLI
         run: |
-          npm i -g @railway/cli
+          # Install Railway CLI using the official installer
+          bash <(curl -fsSL https://railway.app/install.sh)
           railway version
 
       - name: Deploy to Railway
