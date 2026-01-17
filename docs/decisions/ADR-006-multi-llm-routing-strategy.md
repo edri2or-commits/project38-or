@@ -251,10 +251,20 @@ client.chat.completions.create(model="claude-sonnet", ...)
 - [ ] Test model routing: `curl .../v1/chat/completions -d '{"model":"claude-sonnet",...}'` (requires user testing)
 - [ ] Test fallback: Temporarily revoke Claude API key → verify GPT-4 takes over (requires user testing)
 
-### Phase 1: Integration (⏭️ Next)
+### Phase 1: Integration (🔄 In Progress - 2026-01-17)
 
-- [ ] Build Telegram Bot service (`services/telegram-bot/`)
-- [ ] Configure bot to use LiteLLM Gateway as base_url
+- [x] Build Telegram Bot service (`services/telegram-bot/`) - ✅ COMPLETE (2026-01-17)
+  - FastAPI webhook application (main.py, handlers.py, 450+ lines)
+  - LiteLLM Gateway client (litellm_client.py, 120+ lines)
+  - PostgreSQL models for conversation history (models.py, database.py, 170+ lines)
+  - Configuration with GCP Secret Manager (config.py, 100+ lines)
+  - Dockerfile + railway.toml + deployment workflow (250+ lines)
+  - Comprehensive README.md (500+ lines)
+- [x] Configure bot to use LiteLLM Gateway as base_url - ✅ COMPLETE
+  - base_url: https://litellm-gateway-production-0339.up.railway.app
+  - OpenAI SDK client implementation
+  - Default model: claude-sonnet with automatic fallback
+- [ ] Deploy Telegram Bot to Railway (next: run workflow)
 - [ ] Test end-to-end: User → Telegram → LiteLLM → Claude → Response
 - [ ] Test MCP integration: "Check Railway status" → LiteLLM → Claude → MCP → Result
 - [ ] Measure cost: 100 requests = $X (verify budget tracking)

@@ -1,0 +1,30 @@
+# Telegram Bot Service Dependencies
+
+# FastAPI & Web Server
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# Telegram Bot API
+python-telegram-bot==21.10
+
+# Database
+sqlalchemy==2.0.36
+sqlmodel==0.0.27
+asyncpg==0.30.0
+alembic==1.14.3
+
+# OpenAI SDK (for LiteLLM Gateway)
+openai==1.59.7
+
+# Google Cloud (for secrets)
+google-cloud-secret-manager==2.21.2
+
+# HTTP Client
+httpx==0.28.1
+requests==2.32.3
+
+# Utilities
+python-dotenv==1.0.1
+pydantic==2.10.6
+pydantic-settings==2.7.1
