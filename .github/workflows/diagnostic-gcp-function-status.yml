@@ -1,0 +1,193 @@
+name: Diagnostic - GCP Function Status Report
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  FUNCTION_NAME: mcp-router
+  REGION: us-central1
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Comprehensive Diagnostic Report
+        id: diagnostic
+        run: |
+          REPORT_FILE="diagnostic_report.md"
+
+          echo "# GCP Cloud Function Deployment Diagnostic Report" > $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $REPORT_FILE
+          echo "**Project:** $PROJECT_ID" >> $REPORT_FILE
+          echo "**Function:** $FUNCTION_NAME" >> $REPORT_FILE
+          echo "**Region:** $REGION" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "---" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 1. Billing Status
+          echo "## 1. Billing Status" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud beta billing projects describe $PROJECT_ID 2>&1 | tee -a $REPORT_FILE || echo "ERROR: Could not check billing" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 2. Function List
+          echo "## 2. Cloud Functions in Region" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud functions list --regions=$REGION 2>&1 | tee -a $REPORT_FILE || echo "ERROR: Could not list functions" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 3. Try to describe our function
+          echo "## 3. Function Details (if exists)" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud functions describe $FUNCTION_NAME --region=$REGION --gen2 2>&1 | tee -a $REPORT_FILE || {
+            echo "Function does not exist (expected if never deployed)" >> $REPORT_FILE
+          }
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 4. Service Account Roles
+          echo "## 4. Service Account IAM Roles" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud projects get-iam-policy $PROJECT_ID \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:serviceAccount:$SERVICE_ACCOUNT" \
+            --format="table(bindings.role)" 2>&1 | tee -a $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 5. Enabled APIs
+          echo "## 5. Enabled APIs (Cloud Functions related)" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud services list --enabled \
+            --filter="name:cloudfunctions.googleapis.com OR name:cloudbuild.googleapis.com OR name:run.googleapis.com OR name:artifactregistry.googleapis.com" \
+            --format="table(name,title)" 2>&1 | tee -a $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 6. Recent Cloud Build operations
+          echo "## 6. Recent Cloud Build History" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          gcloud builds list --limit=5 2>&1 | tee -a $REPORT_FILE || echo "No recent builds or API not accessible" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 7. Test function URL
+          echo "## 7. Function Accessibility Test" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          FUNCTION_URL="https://$REGION-$PROJECT_ID.cloudfunctions.net/$FUNCTION_NAME"
+          echo "Testing: $FUNCTION_URL" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "\`\`\`" >> $REPORT_FILE
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$FUNCTION_URL" 2>&1 || echo "ERROR")
+          echo "HTTP Status Code: $HTTP_CODE" >> $REPORT_FILE
+          if [ "$HTTP_CODE" = "404" ]; then
+            echo "Result: Function NOT deployed (404 Not Found)" >> $REPORT_FILE
+          elif [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "400" ]; then
+            echo "Result: Function IS deployed and accessible" >> $REPORT_FILE
+          else
+            echo "Result: Unexpected status ($HTTP_CODE)" >> $REPORT_FILE
+          fi
+          echo "\`\`\`" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # 8. Diagnosis
+          echo "## 8. Automated Diagnosis" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # Parse billing
+          BILLING_ENABLED=$(gcloud beta billing projects describe $PROJECT_ID --format="value(billingEnabled)" 2>/dev/null || echo "unknown")
+
+          if [ "$BILLING_ENABLED" = "True" ]; then
+            echo "✅ **Billing:** ENABLED" >> $REPORT_FILE
+          elif [ "$BILLING_ENABLED" = "False" ]; then
+            echo "❌ **Billing:** DISABLED - **THIS IS THE ROOT CAUSE**" >> $REPORT_FILE
+            echo "" >> $REPORT_FILE
+            echo "**Fix:** Enable billing at https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT_ID" >> $REPORT_FILE
+          else
+            echo "⚠️ **Billing:** Status unknown" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # Parse IAM
+          if gcloud projects get-iam-policy $PROJECT_ID \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:serviceAccount:$SERVICE_ACCOUNT" \
+            --format="value(bindings.role)" | grep -q "serviceAccountUser"; then
+            echo "✅ **IAM:** Service account has serviceAccountUser role" >> $REPORT_FILE
+          else
+            echo "⚠️ **IAM:** Service account may be missing serviceAccountUser role" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # Parse function status
+          if [ "$HTTP_CODE" = "404" ]; then
+            echo "❌ **Function Status:** NOT deployed (HTTP 404)" >> $REPORT_FILE
+          else
+            echo "✅ **Function Status:** Deployed and accessible" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          echo "---" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "**Generated by:** Automated diagnostic workflow" >> $REPORT_FILE
+
+          # Save for artifact
+          cat $REPORT_FILE
+
+          # Also save the billing status for next steps
+          echo "BILLING_ENABLED=$BILLING_ENABLED" >> $GITHUB_OUTPUT
+
+      - name: Create diagnostic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-report
+          path: diagnostic_report.md
+
+      - name: Commit diagnostic report to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          mkdir -p diagnostics
+          mv diagnostic_report.md diagnostics/diagnostic_$(date +%Y%m%d_%H%M%S).md
+
+          git add diagnostics/
+          git commit -m "docs: Add GCP function deployment diagnostic report
+
+Automated diagnostic report generated to identify root cause of deployment failure.
+
+Run ID: ${{ github.run_id }}" || echo "Nothing to commit"
+
+          git push origin HEAD:main || echo "Could not push (may need force or branch doesn't exist)"
