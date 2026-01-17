@@ -158,6 +158,7 @@ class MCPRouter:
         self.tools["railway_status"] = self._railway_status
         self.tools["railway_rollback"] = self._railway_rollback
         self.tools["railway_deployments"] = self._railway_deployments
+        self.tools["railway_service_info"] = self._railway_service_info
 
         # n8n tools
         self.tools["n8n_trigger"] = self._n8n_trigger
@@ -356,6 +357,80 @@ class MCPRouter:
     def _railway_deployments(self, limit: int = 10) -> dict:
         """List recent deployments."""
         return self._railway_status()
+
+    def _railway_service_info(self, service_name: str = "litellm-gateway") -> dict:
+        """Get Railway service information including domains."""
+        import httpx
+
+        railway_token = os.environ.get("RAILWAY_TOKEN")
+        project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
+        environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
+
+        if not railway_token:
+            return {"error": "RAILWAY_TOKEN not configured"}
+
+        # Query to get service with domains
+        query = """
+        query getServiceDomains($projectId: String!, $environmentId: String!) {
+            project(id: $projectId) {
+                services {
+                    edges {
+                        node {
+                            id
+                            name
+                            serviceInstances(environmentId: $environmentId) {
+                                edges {
+                                    node {
+                                        domains {
+                                            serviceDomains {
+                                                domain
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        response = httpx.post(
+            "https://backboard.railway.app/graphql/v2",
+            headers={
+                "Authorization": f"Bearer {railway_token}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "query": query,
+                "variables": {
+                    "projectId": project_id,
+                    "environmentId": environment_id
+                }
+            },
+            timeout=30
+        )
+
+        data = response.json()
+
+        # Extract service matching the name
+        if "data" in data and "project" in data["data"]:
+            services = data["data"]["project"]["services"]["edges"]
+            for edge in services:
+                service = edge["node"]
+                if service["name"] == service_name:
+                    return {
+                        "service_id": service["id"],
+                        "service_name": service["name"],
+                        "domains": [
+                            instance_edge["node"]["domains"]["serviceDomains"][0]["domain"]
+                            for instance_edge in service["serviceInstances"]["edges"]
+                            if instance_edge["node"]["domains"]["serviceDomains"]
+                        ]
+                    }
+
+        return {"error": f"Service '{service_name}' not found"}
 
     # =========================================================================
     # n8n Tools
