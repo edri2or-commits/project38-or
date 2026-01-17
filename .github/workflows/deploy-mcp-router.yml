@@ -90,9 +90,18 @@ jobs:
         if: inputs.generation == 'gen1'
         run: |
           echo "Deploying MCP Router (Gen 1) to ${{ inputs.region }}..."
+          echo ""
+          echo "Source files:"
+          ls -la cloud_functions/mcp_router/
+          echo ""
+          echo "Requirements:"
+          cat cloud_functions/mcp_router/requirements.txt
+          echo ""
 
+          # Try deployment with verbose output
+          set +e
           gcloud functions deploy ${{ env.FUNCTION_NAME }} \
-            --runtime=python311 \
+            --runtime=python312 \
             --region=${{ inputs.region }} \
             --source=cloud_functions/mcp_router \
             --entry-point=mcp_router \
@@ -101,7 +110,18 @@ jobs:
             --service-account=${{ env.SERVICE_ACCOUNT }} \
             --memory=512MB \
             --timeout=120s \
-            --set-env-vars="RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0"
+            --verbosity=debug \
+            --set-env-vars="RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0" 2>&1 | tee deploy_output.txt
+
+          RESULT=$?
+          if [ $RESULT -ne 0 ]; then
+            echo ""
+            echo "❌ Deployment failed with exit code: $RESULT"
+            echo ""
+            echo "=== ERROR DETAILS ==="
+            cat deploy_output.txt | tail -50
+            exit $RESULT
+          fi
 
       - name: Deploy Cloud Function (Gen 2)
         if: inputs.generation == 'gen2'
