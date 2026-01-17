@@ -254,15 +254,40 @@ jobs:
           if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
             echo "🌐 Telegram Bot URL: https://$DOMAIN"
 
-            # Save to repository variable
-            gh variable set TELEGRAM_BOT_URL --body "https://$DOMAIN" --repo ${{ github.repository }}
+            # Post to issue #242
+            COMMENT="## 🚀 Telegram Bot Deployed Successfully
+
+**Service**: telegram-bot
+**Domain**: \`$DOMAIN\`
+**URL**: https://$DOMAIN
+
+### Test Commands
+
+\`\`\`bash
+# Health check
+curl https://$DOMAIN/health
+
+# Root endpoint
+curl https://$DOMAIN/
+
+# Webhook info
+curl https://$DOMAIN/webhook/info
+\`\`\`
+
+### Test Bot
+
+1. Open Telegram
+2. Search for your bot
+3. Send \`/start\`
+4. Send any message
+
+---
+*Deployed at $(date -u)*"
+
+            gh issue comment 242 --body "$COMMENT" --repo ${{ github.repository }}
 
             echo ""
-            echo "Test with:"
-            echo "curl https://$DOMAIN/health"
-            echo ""
-            echo "Setup webhook:"
-            echo "gh workflow run deploy-telegram-bot.yml -f action=setup-webhook"
+            echo "✅ URL posted to issue #242"
           else
             echo "Service domain not available yet. Add domain in Railway dashboard."
           fi
