@@ -1476,7 +1476,23 @@ The function is not deployed to GCP despite workflow success. Possible reasons:
 3. Check GCP billing status and Cloud Functions quota
 4. Add explicit validation to deployment workflow (fail on 404)
 
-**Recommendation**: Use the **MCP Gateway** (Railway) for autonomy until this issue is resolved.
+**Current Autonomy Status**:
+
+| Environment | MCP Gateway (Railway) | GCP Tunnel | GitHub Relay | Status |
+|-------------|----------------------|------------|--------------|--------|
+| **Local Claude Code** | ✅ Works (`or-infra.com/mcp`) | ❌ Not needed | ❌ Disabled | ✅ Full autonomy |
+| **Anthropic Cloud Sessions** | ❌ Blocked (proxy) | ❌ Not working (404) | ❌ Disabled by default | ❌ No autonomy |
+
+**Source for "Blocked"**: ADR-005 line 20 - `or-infra.com` returns HTTP 000 (timeout) from Anthropic proxy.
+
+**Recommendation by Environment**:
+
+- **Local sessions**: Use MCP Gateway at `https://or-infra.com/mcp` (working)
+- **Cloud sessions**: No working solution currently available
+  - GCP Tunnel: Not functional (deployment issue)
+  - MCP Gateway: Blocked by Anthropic proxy
+  - GitHub Relay: Disabled by default (high latency, unstable)
+  - Action needed: Fix GCP Tunnel deployment OR enable GitHub Relay
 
 ---
 
