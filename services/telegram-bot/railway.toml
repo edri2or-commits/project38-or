@@ -1,0 +1,22 @@
+# Railway Configuration for Telegram Bot Service
+# Documentation: https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Health check endpoint
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+
+# Restart policy
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Environment variables required:
+# - TELEGRAM_BOT_TOKEN (from GCP Secret Manager)
+# - DATABASE_URL (auto-provided by Railway PostgreSQL)
+# - TELEGRAM_WEBHOOK_URL (public URL of this service)
+# - LITELLM_GATEWAY_URL (https://litellm-gateway-production-0339.up.railway.app)
+# - GCP_PROJECT_ID (project38-483612)

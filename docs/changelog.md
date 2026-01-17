@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Telegram Bot Service** (2026-01-17) - Multi-LLM Telegram bot using LiteLLM Gateway
+  - `services/telegram-bot/` - FastAPI webhook-based Telegram bot
+  - **main.py** - FastAPI application with webhook receiver (200+ lines)
+  - **handlers.py** - Telegram command and message handlers (250+ lines)
+  - **litellm_client.py** - LiteLLM Gateway client using OpenAI SDK (120+ lines)
+  - **models.py** - PostgreSQL models for conversation history and stats (70+ lines)
+  - **database.py** - Async SQLAlchemy + asyncpg connection management (100+ lines)
+  - **config.py** - Pydantic Settings with GCP Secret Manager integration (100+ lines)
+  - **Dockerfile** - Multi-stage Python build with health checks
+  - **railway.toml** - Railway deployment configuration
+  - **README.md** - Complete documentation with deployment guide (500+ lines)
+  - `.github/workflows/deploy-telegram-bot.yml` - Automated deployment workflow (250+ lines)
+  - **Features**:
+    - Multi-LLM support: Access Claude, GPT-4, Gemini via LiteLLM Gateway
+    - Conversation history: Maintains context with last 10 messages
+    - Cost tracking: Token usage and USD estimates per user
+    - Commands: `/start`, `/generate <prompt>`, regular messages
+    - Database: PostgreSQL for message storage and user statistics
+    - Health monitoring: `/health` endpoint for Railway checks
+    - Webhook mode: High-performance async webhook receiver
+  - **Architecture**: User → Telegram → FastAPI Bot → LiteLLM Gateway → Claude/GPT-4/Gemini
+  - **Security**: Bot token from GCP Secret Manager, no hardcoded credentials
+  - **Models**: ConversationMessage (individual messages), ConversationStats (user aggregates)
+  - **Status**: ✅ Implementation complete, ready for deployment
+  - Integration with existing LiteLLM Gateway (https://litellm-gateway-production-0339.up.railway.app)
+  - See Phase 1 Integration in [ADR-006](decisions/ADR-006-multi-llm-routing-strategy.md)
+
 - **LiteLLM Gateway - Multi-LLM Routing** (2026-01-17) - Production-ready proxy for multi-provider AI
   - `services/litellm-gateway/` - Self-hosted LiteLLM proxy on Railway
   - **Dockerfile** - Based on official `ghcr.io/berriai/litellm:main-latest` image

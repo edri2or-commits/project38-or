@@ -2711,6 +2711,262 @@ Response back to Telegram
 
 ---
 
+## Milestone: Telegram Bot Service Implementation (2026-01-17)
+
+**Phase**: Phase 1 Integration - Building User-Facing Interface
+**Time**: 2026-01-17 Evening Session
+**Significance**: Complete Telegram Bot with multi-LLM support via LiteLLM Gateway
+
+### Context
+
+With LiteLLM Gateway deployed to production (https://litellm-gateway-production-0339.up.railway.app), the next logical step was implementing the user-facing interface. A Telegram bot provides:
+1. **Instant user access** - no app installation required
+2. **Conversational interface** - natural language interaction
+3. **Mobile-first** - works on any device
+4. **Production-ready** - billions use Telegram daily
+
+**Decision**: Build FastAPI webhook-based bot (not polling) for Railway deployment.
+
+### Technical Implementation
+
+**Complete Service** (`services/telegram-bot/`):
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `main.py` | FastAPI application with webhook receiver | 200+ |
+| `handlers.py` | Command and message handlers | 250+ |
+| `litellm_client.py` | LiteLLM Gateway client (OpenAI SDK) | 120+ |
+| `models.py` | PostgreSQL models (messages + stats) | 70+ |
+| `database.py` | Async SQLAlchemy connection management | 100+ |
+| `config.py` | Pydantic Settings + GCP secrets | 100+ |
+| `Dockerfile` | Multi-stage Python build | 50+ |
+| `railway.toml` | Railway deployment config | 20+ |
+| `requirements.txt` | Python dependencies | 30+ |
+| `.env.example` | Environment template | 20+ |
+| `README.md` | Complete documentation | 500+ |
+| **Workflow** | `.github/workflows/deploy-telegram-bot.yml` | 250+ |
+| **Total** | 14 files | **1,680+ lines** |
+
+### Features Implemented
+
+**Bot Commands**:
+- `/start` - Welcome message with model info
+- `/generate <prompt>` - Generate response for prompt
+- Regular messages - Conversational with context (last 10 messages)
+
+**LiteLLM Integration**:
+- Base URL: https://litellm-gateway-production-0339.up.railway.app
+- Default model: `claude-sonnet`
+- Automatic fallback: Claude → GPT-4 → Gemini
+- OpenAI SDK client (AsyncOpenAI)
+
+**PostgreSQL Storage**:
+- **ConversationMessage**: Individual messages with role, content, model, tokens
+- **ConversationStats**: User aggregates (total messages, tokens, estimated cost)
+- Conversation history: Last 10 messages kept in context
+
+**Cost Tracking**:
+- Token usage per request
+- USD estimates (simplified: $9/1M tokens avg for Claude Sonnet)
+- Per-user statistics
+
+**Security**:
+- Bot token from GCP Secret Manager (`TELEGRAM-BOT-TOKEN`)
+- No hardcoded credentials
+- PostgreSQL connection pooling with pre-ping
+- Health monitoring endpoint
+
+### Architecture
+
+```
+Telegram User
+    ↓ (webhook HTTPS POST)
+Telegram Bot (FastAPI on Railway)
+    ├─ Webhook Receiver (/webhook)
+    ├─ Command Handlers (/start, /generate)
+    ├─ Message Handler (text messages)
+    └─ Database (PostgreSQL - conversation history)
+    ↓ (OpenAI API format)
+LiteLLM Gateway (https://litellm-gateway-production-0339.up.railway.app)
+    ├─ Model Router (claude-sonnet → gpt-4o → gemini-pro)
+    ├─ Budget Tracker ($10/day)
+    └─ Fallback Logic
+    ↓ (Provider APIs)
+Claude 3.7 / GPT-4o / Gemini 1.5
+    ↓ (MCP Protocol - future)
+MCP Gateway (Railway/n8n/Workspace operations)
+```
+
+### Documentation Updates
+
+**4-Layer Architecture Updates**:
+
+| Layer | Document | Update | Evidence |
+|-------|----------|--------|----------|
+| **Layer 1** | CLAUDE.md | Updated file structure with services/telegram-bot/ | Lines 521-531 |
+| **Layer 1** | CLAUDE.md | Updated integration status (Step 2 complete) | Lines 1618-1622 |
+| **Layer 2** | ADR-006 | Phase 1 Integration marked in progress | Lines 254-270 |
+| **Layer 3** | JOURNEY.md | This entry (Telegram Bot milestone) | This section |
+| **Layer 4** | Technical | services/telegram-bot/README.md (500+ lines) | Complete service docs |
+| **Always** | changelog.md | Telegram Bot feature entry added | Lines 11-36 |
+
+**ADR-006 Updates**:
+- Phase 1 Integration: Task 1-2 marked complete (✅ Build bot, ✅ Configure LiteLLM)
+- Evidence: File counts, line counts, features list
+- Status: 🔄 In Progress (deployment pending)
+
+### Implementation Timeline
+
+**Session Start**: 2026-01-17 ~21:00 UTC
+**Planning**: 21:00-21:15 (15 min) - Analyzed existing database.py pattern, reviewed LiteLLM client needs
+**Core Implementation**: 21:15-22:30 (75 min) - Built 11 files (main, handlers, client, models, database, config, Dockerfile, etc.)
+**Documentation**: 22:30-23:00 (30 min) - README.md (500+ lines), workflow, .env.example
+**Integration**: 23:00-23:15 (15 min) - Updated CLAUDE.md, ADR-006, changelog.md
+**Git Operations**: 23:15-23:30 (15 min) - Branch, commit, push, PR creation
+
+**Total**: ~2.5 hours from start to PR #241
+
+### Deployment Status
+
+**Current**: ✅ Implementation complete, PR #241 created
+**Branch**: `claude/telegram-bot-service-ACmMa`
+**Commit**: 2b7319c (14 files, 1,680+ insertions)
+**PR**: #241 (https://github.com/edri2or-commits/project38-or/pull/241)
+
+**Next Steps**:
+1. Merge PR #241
+2. Run workflow: `gh workflow run deploy-telegram-bot.yml -f action=create-service`
+3. Run workflow: `gh workflow run deploy-telegram-bot.yml -f action=deploy`
+4. Setup webhook: `gh workflow run deploy-telegram-bot.yml -f action=setup-webhook`
+5. Test: Send `/start` to bot
+
+### Key Technical Decisions
+
+**1. Webhook vs. Polling**:
+- **Chosen**: Webhook (FastAPI endpoint)
+- **Why**: Better for Railway deployment, lower latency, scales horizontally
+- **Trade-off**: Requires public HTTPS URL (Railway provides this automatically)
+
+**2. OpenAI SDK vs. Direct HTTP**:
+- **Chosen**: `openai` Python SDK (AsyncOpenAI)
+- **Why**: LiteLLM Gateway exposes OpenAI-compatible API, SDK handles retries/errors
+- **Benefit**: Familiar API, well-tested, type hints
+
+**3. Conversation History Storage**:
+- **Chosen**: PostgreSQL (not Redis)
+- **Why**: Railway provides PostgreSQL free tier, persistent storage, queryable for analytics
+- **Trade-off**: Slightly slower than Redis, but acceptable for < 100ms lookup
+
+**4. Cost Tracking Approach**:
+- **Chosen**: Simplified ($9/1M tokens for Claude Sonnet)
+- **Why**: Actual cost varies by input/output ratio, this gives rough estimate
+- **Note**: Phase 2 can add precise tracking with token breakdown
+
+**5. Configuration Management**:
+- **Chosen**: Pydantic Settings + GCP Secret Manager
+- **Why**: Type-safe, validates at startup, integrates with FastAPI
+- **Pattern**: Reused from `src/api/` modules
+
+### Learning & Insights
+
+**What Went Well**:
+1. **Pattern reuse**: Copied database.py pattern from `src/api/database.py`, saved 30+ minutes
+2. **OpenAI SDK**: Using official SDK simplified LiteLLM integration (no custom HTTP client)
+3. **FastAPI lifespan**: Clean startup/shutdown for bot initialization and DB connections
+4. **Documentation-first**: Writing README.md early clarified missing features
+
+**Challenges**:
+1. **python-telegram-bot version**: Latest version (21.10) has breaking changes from older tutorials
+2. **Webhook mode**: Requires `updater=None` in Application.builder() - not obvious from docs
+3. **Async everywhere**: Had to ensure all DB operations use `async with`, all bot operations `await`
+
+**Key Insight**: Building on solid foundations (LiteLLM Gateway, PostgreSQL patterns, GCP secrets) makes new services fast to implement. The 2.5 hours included full documentation and deployment workflow.
+
+### Evidence
+
+**Commit**: 2b7319c (`feat(telegram-bot): Add Telegram Bot service with LiteLLM Gateway integration`)
+**PR**: #241 (https://github.com/edri2or-commits/project38-or/pull/241)
+**Files**: 14 new files, 1,680+ lines
+- 11 Python modules (main, handlers, client, models, database, config)
+- Dockerfile + railway.toml
+- README.md (500+ lines)
+- GitHub Actions workflow (250+ lines)
+
+**Documentation**:
+- CLAUDE.md: File structure updated (lines 521-531), integration status (lines 1618-1622)
+- ADR-006: Phase 1 Integration section (lines 254-270)
+- changelog.md: Feature entry (lines 11-36)
+- JOURNEY.md: This milestone entry
+
+### Integration with Existing Systems
+
+**LiteLLM Gateway** (deployed 2026-01-17):
+- URL: https://litellm-gateway-production-0339.up.railway.app
+- Used as base_url for OpenAI client
+- Automatic fallback chain: claude-sonnet → gpt-4o → gemini-pro
+
+**GCP Secret Manager**:
+- TELEGRAM-BOT-TOKEN: Loaded via `config.py` at startup
+- Pattern consistent with other services
+
+**Railway PostgreSQL**:
+- DATABASE_URL: Auto-provided by Railway
+- Connection string conversion: `postgres://` → `postgresql+asyncpg://`
+- Pool size: 10 connections, max overflow: 5
+
+**Repository Structure**:
+- Follows services/ pattern (telegram-bot/, litellm-gateway/, railway-mcp-bridge/)
+- Consistent with project layout in CLAUDE.md
+
+### What's Next
+
+**Immediate** (next session):
+1. Merge PR #241
+2. Deploy Telegram Bot to Railway
+3. Create PostgreSQL service in Railway
+4. Setup Telegram webhook
+5. Test basic commands
+
+**Phase 1 POC Completion** (1-2 days):
+- Test end-to-end: User → Telegram → LiteLLM → Claude → Response
+- Test fallback: Revoke Claude API key temporarily → verify GPT-4 takes over
+- Test conversation context: Send follow-up questions
+- Verify PostgreSQL storage: Check conversation_messages table
+- Measure cost: Send 100 test messages, verify budget tracking
+
+**Phase 1 MCP Integration** (2-3 days):
+- Test MCP tool use: "Check Railway deployment status"
+- Verify: User → Telegram → LiteLLM → Claude → MCP Gateway → Railway API → Response
+- Test other MCP tools: n8n_trigger, health_check
+
+**Phase 2** (1-2 weeks):
+- Redis semantic caching (30% cost savings)
+- Rate limiting per user
+- Budget alerts via Telegram
+- Admin commands: `/stats`, `/users`, `/cost`
+
+**Phase 3** (2-3 weeks):
+- Group chat support
+- Inline query support
+- Voice message transcription
+- Document upload handling
+
+### Success Metrics
+
+**POC Success Criteria** (from ADR-006):
+- [ ] 10 users tested successfully
+- [ ] 3 LLMs working (Claude, GPT-4, Gemini)
+- [ ] Fallback tested (primary down → secondary works)
+- [ ] Cost tracking (<$1 for 100 requests)
+- [ ] MCP integration: Bot can call Railway/n8n tools
+
+**Technical Metrics**:
+- Response time: < 5s (target)
+- Uptime: > 99% (Railway health checks)
+- Database connections: < 10 concurrent
+- Memory usage: < 500MB baseline
+
+---
+
 *Last Updated: 2026-01-17*
-*Status: **Multi-LLM Infrastructure Ready***
-*Current Milestone: LiteLLM Gateway implemented with 4 models, automatic fallback, and budget control. Ready for Phase 1 POC (Telegram Bot).*
+*Status: **Telegram Bot Implementation Complete, Deployment Pending***

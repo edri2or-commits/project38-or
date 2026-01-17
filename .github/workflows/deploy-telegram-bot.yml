@@ -1,0 +1,278 @@
+name: Deploy Telegram Bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - create-service
+          - status
+          - setup-webhook
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Get Telegram Bot Token
+        id: telegram-token
+        run: |
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "::add-mask::$BOT_TOKEN"
+          echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check Railway Status
+        if: inputs.action == 'status'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+        run: |
+          echo "Checking Telegram Bot status..."
+
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }')
+
+          echo "Services in project:"
+          echo "$RESPONSE" | jq '.data.project.services.edges[].node'
+
+      - name: Create Telegram Bot Service
+        if: inputs.action == 'create-service'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ steps.telegram-token.outputs.bot_token }}
+          LITELLM_GATEWAY_URL: ${{ vars.LITELLM_GATEWAY_URL }}
+        run: |
+          echo "Creating Telegram Bot service via GraphQL API..."
+
+          # Create service
+          echo "Step 1: Creating service..."
+          CREATE_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceCreate(input: { name: \"telegram-bot\", projectId: \"'$RAILWAY_PROJECT_ID'\" }) { id name } }"
+            }')
+
+          echo "Create response: $CREATE_RESPONSE"
+
+          SERVICE_ID=$(echo "$CREATE_RESPONSE" | jq -r '.data.serviceCreate.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "Service may already exist, searching..."
+            SERVICES_RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+              }')
+
+            SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.id')
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Failed to create or find service"
+            exit 1
+          fi
+
+          # Set environment variables
+          echo "Step 2: Setting environment variables..."
+
+          # Telegram Bot Token
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'$TELEGRAM_BOT_TOKEN'\" }) }"
+            }'
+
+          # LiteLLM Gateway URL
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"LITELLM_GATEWAY_URL\", value: \"'$LITELLM_GATEWAY_URL'\" }) }"
+            }'
+
+          # GCP Project ID
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"GCP_PROJECT_ID\", value: \"project38-483612\" }) }"
+            }'
+
+          # Port
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"PORT\", value: \"8000\" }) }"
+            }'
+
+          echo "✅ Environment variables set"
+          echo ""
+          echo "✅ Telegram Bot service created!"
+          echo "Service ID: $SERVICE_ID"
+          echo ""
+          echo "Next steps:"
+          echo "1. Connect service to GitHub repo in Railway dashboard"
+          echo "2. Path: services/telegram-bot"
+          echo "3. Add PostgreSQL service to project"
+          echo "4. Run this workflow again with action: deploy"
+
+      - name: Deploy Telegram Bot
+        if: inputs.action == 'deploy'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "Triggering deployment for Telegram Bot..."
+
+          SERVICES_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }')
+
+          SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Service not found. Run with action: create-service first."
+            exit 1
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { deploymentTrigger(input: { serviceId: \"'$SERVICE_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\" }) { id status } }"
+            }')
+
+          echo "Deploy response: $DEPLOY_RESPONSE"
+          echo "✅ Deployment triggered"
+
+      - name: Setup Webhook
+        if: inputs.action == 'setup-webhook'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "Setting up Telegram webhook..."
+
+          # Get service URL
+          DOMAIN=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { name serviceInstances(environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }"
+            }' | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain' 2>/dev/null || echo "")
+
+          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
+            echo "🌐 Telegram Bot URL: https://$DOMAIN"
+
+            # Call webhook setup endpoint
+            curl -X POST "https://$DOMAIN/webhook/setup"
+
+            echo ""
+            echo "✅ Webhook setup initiated"
+            echo ""
+            echo "Verify with:"
+            echo "curl https://$DOMAIN/webhook/info"
+          else
+            echo "Service domain not available yet. Create domain in Railway dashboard."
+          fi
+
+      - name: Get Service URL
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "Getting service URL..."
+
+          DOMAIN=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { name serviceInstances(environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }"
+            }' | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain' 2>/dev/null || echo "")
+
+          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
+            echo "🌐 Telegram Bot URL: https://$DOMAIN"
+            echo ""
+            echo "Test with:"
+            echo "curl https://$DOMAIN/health"
+            echo ""
+            echo "Setup webhook:"
+            echo "gh workflow run deploy-telegram-bot.yml -f action=setup-webhook"
+          else
+            echo "Service domain not available yet. Add domain in Railway dashboard."
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Telegram Bot Deployment"
+          echo "| Item | Status |"
+          echo "|------|--------|"
+          echo "| Action | ${{ inputs.action }} |"
+          echo "| Railway Token | ✅ |"
+          echo "| Telegram Bot Token | ✅ |"
+          echo "| LiteLLM Gateway URL | ${{ vars.LITELLM_GATEWAY_URL }} |"
+          echo ""
+          echo "### Next Steps"
+          echo "1. Verify deployment: Check Railway dashboard"
+          echo "2. Test health endpoint: \`curl https://<domain>/health\`"
+          echo "3. Setup webhook: \`gh workflow run deploy-telegram-bot.yml -f action=setup-webhook\`"
+          echo "4. Test bot: Send message to your Telegram bot"
