@@ -33,6 +33,7 @@ jobs:
           echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Update Webhook
+        id: update
         env:
           BOT_TOKEN: ${{ steps.token.outputs.bot_token }}
         run: |
@@ -40,27 +41,51 @@ jobs:
 
           echo "Updating webhook to: $RAILWAY_URL"
 
-          curl -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
             -d "url=$RAILWAY_URL" \
-            -d "max_connections=40"
+            -d "max_connections=40")
+
+          echo "$RESPONSE"
+
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.ok')
+
+          if [ "$SUCCESS" = "true" ]; then
+            echo "✅ Webhook updated"
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Update failed"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
           echo ""
           echo "Verifying..."
-          curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo" | jq '.'
+          VERIFY=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo")
+          echo "$VERIFY" | jq '.'
+
+          NEW_URL=$(echo "$VERIFY" | jq -r '.result.url')
+          echo "new_url=$NEW_URL" >> $GITHUB_OUTPUT
 
       - name: Post to Issue
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
-            const body = `## ✅ Webhook Updated to Railway
+            const success = '${{ steps.update.outputs.success }}' === 'true';
+            const newUrl = '${{ steps.update.outputs.new_url }}';
 
-**New URL**: \`https://telegram-bot-production-053d.up.railway.app/webhook\`
+            const body = success ? `## ✅ Webhook Updated to Railway
+
+**New URL**: \`${newUrl}\`
 
 Test the bot now in Telegram:
 - Send: \`/start\`
 - Send: \`Hello!\`
 
-The bot should respond with Claude/GPT-4/Gemini, not n8n templates.`;
+The bot should respond with Claude/GPT-4/Gemini, not n8n templates.` : `## ❌ Webhook Update Failed
+
+Check workflow logs for details:
+${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
