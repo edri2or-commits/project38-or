@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Features**: 17 tools available (Railway, n8n, monitoring, Google Workspace)
   - **Authentication**: MCP_TUNNEL_TOKEN validated via Bearer token
   - **Protocol**: MCP JSON-RPC with Protocol Encapsulation (data field)
+  - **Documentation**: Fully documented across all 4 layers (PR #234, #235)
   - See ADR-005 for full architecture and deployment details
 
 ### Fixed
