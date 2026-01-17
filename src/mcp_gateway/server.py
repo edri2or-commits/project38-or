@@ -36,9 +36,8 @@ def create_mcp_server() -> Any | None:
     if not FASTMCP_AVAILABLE:
         return None
 
-    mcp = FastMCP(
-        "Claude Gateway", description="MCP Gateway for Railway and n8n autonomous operations"
-    )
+    # Note: FastMCP 2.x doesn't support 'description' parameter
+    mcp = FastMCP("Claude Gateway")
 
     # Register Railway tools
     @mcp.tool
