@@ -426,6 +426,21 @@ async def start_relay(config: MCPGatewayConfig | None = None) -> GitHubMCPRelay:
         logger.error(f"GitHub authentication failed during startup: {e}")
         raise RuntimeError(f"GitHub authentication failed: {e}") from e
 
+    # Post startup beacon to issue
+    try:
+        await relay._post_response(
+            "startup-beacon",
+            {
+                "event": "relay_started",
+                "repo": relay.repo,
+                "issue": relay.issue_number,
+                "token_ok": True,
+            },
+        )
+        logger.info("Posted startup beacon to GitHub issue")
+    except Exception as e:
+        logger.warning(f"Failed to post startup beacon: {e}")
+
     asyncio.create_task(relay.run())
     return relay
 
