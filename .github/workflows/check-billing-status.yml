@@ -26,66 +26,156 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Check Billing Status (Detailed)
+      - name: Comprehensive Diagnostic Check
         run: |
-          echo "=========================================="
-          echo "BILLING STATUS CHECK"
-          echo "=========================================="
-          echo ""
+          REPORT_FILE="diagnostics/billing_diagnostic_$(date +%Y%m%d_%H%M%S).md"
+          mkdir -p diagnostics
 
-          # Try to get billing info
-          echo "Attempting to get billing information..."
-          echo ""
+          echo "# GCP Deployment Diagnostic Report" > $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "---" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
 
+          # 1. Billing Status
+          echo "## Billing Status" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
           set +e
           BILLING_OUTPUT=$(gcloud beta billing projects describe $PROJECT_ID --format=json 2>&1)
           EXIT_CODE=$?
           set -e
 
-          echo "Exit code: $EXIT_CODE"
-          echo ""
-          echo "Output:"
-          echo "$BILLING_OUTPUT"
-          echo ""
-
-          if echo "$BILLING_OUTPUT" | jq -e '.billingEnabled' > /dev/null 2>&1; then
+          if [ $EXIT_CODE -eq 0 ]; then
             BILLING_ENABLED=$(echo "$BILLING_OUTPUT" | jq -r '.billingEnabled')
             BILLING_ACCOUNT=$(echo "$BILLING_OUTPUT" | jq -r '.billingAccountName // "N/A"')
 
-            echo "=========================================="
-            echo "RESULT"
-            echo "=========================================="
-            echo ""
-            echo "Billing Enabled: $BILLING_ENABLED"
-            echo "Billing Account: $BILLING_ACCOUNT"
-            echo ""
+            echo "- **Status:** $BILLING_ENABLED" >> $REPORT_FILE
+            echo "- **Account:** $BILLING_ACCOUNT" >> $REPORT_FILE
 
             if [ "$BILLING_ENABLED" = "true" ]; then
-              echo "✅ BILLING IS ENABLED"
-              echo ""
-              echo "The deployment failure is NOT due to billing."
-              echo "Other possible causes:"
-              echo "1. Service account permissions"
-              echo "2. Quota limits"
-              echo "3. Entry point or code issue"
+              echo "- **Result:** ✅ ENABLED" >> $REPORT_FILE
             else
-              echo "❌ BILLING IS DISABLED"
-              echo ""
-              echo "🔧 ACTION REQUIRED:"
-              echo "1. Go to: https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT_ID"
-              echo "2. Link a billing account"
-              echo ""
-              echo "OR use gcloud (requires Billing Admin role):"
-              echo "gcloud beta billing projects link $PROJECT_ID --billing-account=YOUR-BILLING-ACCOUNT-ID"
+              echo "- **Result:** ❌ **DISABLED - ROOT CAUSE IDENTIFIED**" >> $REPORT_FILE
+              echo "" >> $REPORT_FILE
+              echo "**Fix:** https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT_ID" >> $REPORT_FILE
             fi
           else
-            echo "⚠️  Could not parse billing status"
-            echo ""
-            echo "This may indicate:"
-            echo "1. Billing API not enabled"
-            echo "2. Insufficient permissions to check billing"
-            echo "3. Project not linked to any billing account"
+            echo "- **Result:** ⚠️ Could not check (Exit code: $EXIT_CODE)" >> $REPORT_FILE
           fi
+          echo "" >> $REPORT_FILE
+
+          # 2. Cloud Function Status
+          echo "## Cloud Function Status" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          set +e
+          FUNC_LIST=$(gcloud functions list --regions=us-central1 --format="value(name)" 2>&1)
+          FUNC_EXIT=$?
+          set -e
+
+          if [ $FUNC_EXIT -eq 0 ]; then
+            if echo "$FUNC_LIST" | grep -q "mcp-router"; then
+              echo "- **Function mcp-router:** ✅ EXISTS" >> $REPORT_FILE
+            else
+              echo "- **Function mcp-router:** ❌ NOT FOUND" >> $REPORT_FILE
+            fi
+            echo "- **All functions:** $FUNC_LIST" >> $REPORT_FILE
+          else
+            echo "- **Result:** ⚠️ Could not list functions" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # 3. Service Account IAM
+          echo "## Service Account IAM Roles" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          set +e
+          IAM_ROLES=$(gcloud projects get-iam-policy $PROJECT_ID \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:serviceAccount:claude-code-agent@$PROJECT_ID.iam.gserviceaccount.com" \
+            --format="value(bindings.role)" 2>&1)
+          IAM_EXIT=$?
+          set -e
+
+          if [ $IAM_EXIT -eq 0 ]; then
+            echo "\`\`\`" >> $REPORT_FILE
+            echo "$IAM_ROLES" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+
+            if echo "$IAM_ROLES" | grep -q "serviceAccountUser"; then
+              echo "- **serviceAccountUser role:** ✅ GRANTED" >> $REPORT_FILE
+            else
+              echo "- **serviceAccountUser role:** ⚠️ MISSING" >> $REPORT_FILE
+            fi
+          else
+            echo "- **Result:** ⚠️ Could not check IAM" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # 4. Enabled APIs
+          echo "## Required APIs Status" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          set +e
+          APIS=$(gcloud services list --enabled \
+            --filter="name:cloudfunctions.googleapis.com OR name:cloudbuild.googleapis.com OR name:run.googleapis.com" \
+            --format="value(name)" 2>&1)
+          API_EXIT=$?
+          set -e
+
+          if [ $API_EXIT -eq 0 ]; then
+            for api in "cloudfunctions.googleapis.com" "cloudbuild.googleapis.com" "run.googleapis.com"; do
+              if echo "$APIS" | grep -q "$api"; then
+                echo "- $api: ✅" >> $REPORT_FILE
+              else
+                echo "- $api: ❌" >> $REPORT_FILE
+              fi
+            done
+          else
+            echo "- **Result:** ⚠️ Could not check APIs" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # 5. Function URL Test
+          echo "## Function Accessibility Test" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          FUNC_URL="https://us-central1-$PROJECT_ID.cloudfunctions.net/mcp-router"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$FUNC_URL" 2>&1 || echo "ERROR")
+          echo "- **URL:** $FUNC_URL" >> $REPORT_FILE
+          echo "- **HTTP Status:** $HTTP_CODE" >> $REPORT_FILE
+
+          if [ "$HTTP_CODE" = "404" ]; then
+            echo "- **Result:** ❌ Function NOT deployed" >> $REPORT_FILE
+          elif [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "400" ]; then
+            echo "- **Result:** ✅ Function IS deployed" >> $REPORT_FILE
+          else
+            echo "- **Result:** ⚠️ Unexpected status" >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # 6. Conclusion
+          echo "## Diagnosis Conclusion" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          if [ "$BILLING_ENABLED" = "false" ]; then
+            echo "🔴 **ROOT CAUSE: Billing is DISABLED**" >> $REPORT_FILE
+            echo "" >> $REPORT_FILE
+            echo "This prevents Cloud Function deployment. Enable billing to proceed." >> $REPORT_FILE
+          elif [ "$HTTP_CODE" = "404" ]; then
+            echo "⚠️ **Function not deployed despite billing being enabled**" >> $REPORT_FILE
+            echo "" >> $REPORT_FILE
+            echo "Check deployment logs for specific errors (quota, permissions, code issues)." >> $REPORT_FILE
+          else
+            echo "✅ **Function appears to be working**" >> $REPORT_FILE
+          fi
+
+          # Print to console
+          cat $REPORT_FILE
+
+          # Commit to repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add $REPORT_FILE
+          git commit -m "docs: Add diagnostic report [skip ci]" || echo "Nothing to commit"
+          git push origin HEAD:main || echo "Could not push"
 
       - name: Summary
         run: |
