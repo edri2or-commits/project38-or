@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **FastMCP Server Crash Fix** (2026-01-17) - Remove invalid `description` parameter (#206)
+  - FastMCP was crashing on startup due to invalid `description` parameter in server initialization
+  - Disabled GitHub Relay by default (`GITHUB_RELAY_ENABLED=false`) for stability
+  - Fixed `HealthResponse` model to match API requirements
+  - Production now stable at build `2026-01-17-v2`
+
 - **Railway Deployment Not Pulling Latest Code** (2026-01-17) - Use Railway CLI instead of GraphQL API
   - Discovered `deploymentTrigger` API was not pulling fresh code from GitHub
   - Changed deployment workflow to use Railway CLI (`railway up`)
