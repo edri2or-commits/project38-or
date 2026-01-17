@@ -1,0 +1,95 @@
+# LiteLLM Gateway Configuration
+# Documentation: https://docs.litellm.ai/docs/proxy/configs
+# Date: 2026-01-17
+
+# Model definitions
+model_list:
+  # Primary: Claude 3.7 Sonnet (balanced performance/cost)
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-3-5-sonnet-20241022
+      api_key: os.environ/ANTHROPIC_API_KEY
+      max_tokens: 4096
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: false
+
+  # Secondary: GPT-4o (fallback, vision support)
+  - model_name: gpt-4o
+    litellm_params:
+      model: gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+      max_tokens: 4096
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+
+  # Tertiary: Gemini 1.5 Pro (cheap fallback, multimodal)
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-1.5-pro-latest
+      api_key: os.environ/GEMINI_API_KEY
+      max_tokens: 8192
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+
+  # Budget option: Gemini Flash (ultra-cheap)
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-1.5-flash-latest
+      api_key: os.environ/GEMINI_API_KEY
+      max_tokens: 8192
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: false
+
+# Router configuration
+router_settings:
+  # Routing strategy: usage-based (prefer cheaper models when quality is similar)
+  routing_strategy: usage-based-routing
+
+  # Fallback chains (if primary fails, try secondary, then tertiary)
+  fallbacks:
+    - claude-sonnet: [gpt-4o, gemini-pro]
+    - gpt-4o: [claude-sonnet, gemini-pro]
+    - gemini-pro: [gemini-flash]
+
+  # Retry logic
+  num_retries: 2
+  timeout: 60  # seconds
+
+  # Load balancing (if multiple deployments exist)
+  model_group_alias:
+    claude: claude-sonnet
+    gpt4: gpt-4o
+    gemini: gemini-pro
+
+# General settings
+litellm_settings:
+  # Budget control (Phase 1: $10/day limit)
+  max_budget: 10.0  # USD per day
+  budget_duration: 1d
+
+  # Logging
+  success_callback: []  # Add observability later (Phase 2)
+  failure_callback: []
+
+  # Drop unsupported params (for model compatibility)
+  drop_params: true
+
+  # Error handling
+  set_verbose: false  # Set to true for debugging
+  json_logs: true
+
+  # Security
+  allowed_origins: ["*"]  # Restrict in production
+
+# Cost tracking (optional - Phase 2)
+# general_settings:
+#   master_key: os.environ/LITELLM_MASTER_KEY
+#   database_url: os.environ/DATABASE_URL
