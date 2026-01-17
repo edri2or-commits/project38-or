@@ -1,0 +1,89 @@
+name: Check Telegram Webhook
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - check
+          - update
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  check-webhook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: project38-483612
+          workload_identity_provider: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: claude-code-agent@project38-483612.iam.gserviceaccount.com
+          token_format: access_token
+
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Telegram Bot Token
+        id: telegram-token
+        run: |
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "::add-mask::$BOT_TOKEN"
+          echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check Current Webhook
+        env:
+          BOT_TOKEN: ${{ steps.telegram-token.outputs.bot_token }}
+        run: |
+          echo "📍 Checking current webhook configuration..."
+
+          RESPONSE=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo")
+
+          echo "$RESPONSE" | jq '.'
+
+          WEBHOOK_URL=$(echo "$RESPONSE" | jq -r '.result.url')
+          PENDING_COUNT=$(echo "$RESPONSE" | jq -r '.result.pending_update_count')
+          LAST_ERROR=$(echo "$RESPONSE" | jq -r '.result.last_error_message // "None"')
+
+          echo ""
+          echo "Current webhook URL: $WEBHOOK_URL"
+          echo "Pending updates: $PENDING_COUNT"
+          echo "Last error: $LAST_ERROR"
+
+      - name: Update Webhook to Railway
+        if: inputs.action == 'update'
+        env:
+          BOT_TOKEN: ${{ steps.telegram-token.outputs.bot_token }}
+        run: |
+          RAILWAY_URL="https://telegram-bot-production-053d.up.railway.app"
+
+          echo "🔄 Updating webhook to Railway..."
+          echo "New URL: $RAILWAY_URL/webhook"
+
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
+            -d "url=$RAILWAY_URL/webhook" \
+            -d "max_connections=40" \
+            -d "drop_pending_updates=false")
+
+          echo "$RESPONSE" | jq '.'
+
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.ok')
+
+          if [ "$SUCCESS" = "true" ]; then
+            echo "✅ Webhook updated successfully!"
+            echo ""
+            echo "Verifying new webhook..."
+            curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo" | jq '.'
+          else
+            echo "❌ Failed to update webhook"
+            exit 1
+          fi
