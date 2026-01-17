@@ -1420,6 +1420,80 @@ MCP Gateway (Railway) ← Bearer Token Auth
 | `src/mcp_gateway/tools/monitoring.py` | Health checks and metrics |
 | `docs/autonomous/08-mcp-gateway-architecture.md` | Full architecture documentation |
 
+### GCP Tunnel Protocol Encapsulation
+
+**Status**: ⚠️ **Not Functional** (2026-01-17)
+
+**Purpose**: Alternative MCP tunnel using Cloud Functions to bypass Anthropic proxy for cloud sessions.
+
+**Architecture Decision**: See [ADR-005: GCP Tunnel Protocol Encapsulation](docs/decisions/ADR-005-gcp-tunnel-protocol-encapsulation.md)
+
+**Implementation Status**:
+
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| Cloud Function Code | ✅ Complete | `cloud_functions/mcp_router/main.py` (400+ lines) |
+| Local Adapter | ✅ Complete | `src/gcp_tunnel/adapter.py` (250+ lines) |
+| Deployment Workflow | ✅ Complete | `.github/workflows/deploy-mcp-router.yml` |
+| Function Deployment | ❌ Failed | HTTP 404 at expected URL |
+| End-to-End Test | ❌ Blocked | Function not accessible |
+
+**Problem**:
+
+The deployment workflow reports "success" but the Cloud Function is not accessible:
+- Expected URL: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
+- Actual result: HTTP 404 - Page not found
+- Verified: 2026-01-17 14:06 UTC and 14:15 UTC (after re-deployment)
+
+**Investigation**:
+
+Tested from Claude Code cloud session (2026-01-17):
+- ✅ `GH_TOKEN` available
+- ✅ `MCP_TUNNEL_TOKEN` available
+- ✅ GitHub API accessible (via Python `requests` library)
+- ❌ Cloud Function not accessible (HTTP 404)
+- ❌ Cloud Functions API `:call` requires GCP OAuth (unavailable in cloud sessions)
+
+**Root Cause (Hypothesis)**:
+
+The function is not deployed to GCP despite workflow success. Possible reasons:
+1. `gcloud functions deploy` returns exit code 0 but function not created
+2. GCP quota/billing issue (free tier limits)
+3. Insufficient IAM permissions for actual deployment
+4. Workflow has `continue-on-error: true` on test step
+
+**Cannot Verify Without GCP Console Access**:
+
+- Actual `gcloud functions deploy` output (workflow logs blocked by proxy)
+- List of existing Cloud Functions in the project
+- GCP billing and quota status
+- IAM audit logs
+
+**Next Steps**:
+
+1. Manual verification via GCP Console: Cloud Functions → list functions
+2. Review workflow logs at: https://github.com/edri2or-commits/project38-or/actions/runs/21095597084
+3. Check GCP billing status and Cloud Functions quota
+4. Add explicit validation to deployment workflow (fail on 404)
+
+**Current Autonomy Status**:
+
+| Environment | MCP Gateway (Railway) | GCP Tunnel | GitHub Relay | Status |
+|-------------|----------------------|------------|--------------|--------|
+| **Local Claude Code** | ✅ Works (`or-infra.com/mcp`) | ❌ Not needed | ❌ Disabled | ✅ Full autonomy |
+| **Anthropic Cloud Sessions** | ❌ Blocked (proxy) | ❌ Not working (404) | ❌ Disabled by default | ❌ No autonomy |
+
+**Source for "Blocked"**: ADR-005 line 20 - `or-infra.com` returns HTTP 000 (timeout) from Anthropic proxy.
+
+**Recommendation by Environment**:
+
+- **Local sessions**: Use MCP Gateway at `https://or-infra.com/mcp` (working)
+- **Cloud sessions**: No working solution currently available
+  - GCP Tunnel: Not functional (deployment issue)
+  - MCP Gateway: Blocked by Anthropic proxy
+  - GitHub Relay: Disabled by default (high latency, unstable)
+  - Action needed: Fix GCP Tunnel deployment OR enable GitHub Relay
+
 ---
 
 ### Proxy Constraints (Anthropic Environment)

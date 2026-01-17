@@ -1,7 +1,7 @@
 # ADR-005: GCP Tunnel Protocol Encapsulation Architecture
 
 **Date**: 2026-01-17 (Created)
-**Status**: Proposed
+**Status**: Blocked - Under Investigation
 **Deciders**: User (edri2or-commits), Claude AI Agent
 **Tags**: autonomy, gcp, cloud-functions, mcp, protocol-encapsulation
 
@@ -128,11 +128,14 @@ Response encapsulated back through same chain
 - [x] `src/gcp_tunnel/__init__.py` - Module init
 - [x] `.github/workflows/deploy-mcp-router.yml` - Deployment workflow
 
-### Phase 2: Deployment (Pending)
+### Phase 2: Deployment ⚠️ **BLOCKED** (2026-01-17)
 
-- [ ] Deploy Cloud Function to GCP
-- [ ] Test end-to-end from Claude Code session
-- [ ] Update CLAUDE.md with new MCP configuration
+- [x] Deploy Cloud Function to GCP - **Attempted** (workflows #21095083467, #21095597084)
+  - Workflow reports: `success`
+  - Actual result: HTTP 404 at `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
+  - **Issue**: Function not accessible despite successful workflow completion
+- [ ] Test end-to-end from Claude Code session - **Blocked** (function not accessible)
+- [ ] Update CLAUDE.md with new MCP configuration - **Blocked** (feature not working)
 
 ### Phase 3: Tool Migration (Pending)
 
@@ -219,6 +222,88 @@ The Cloud Function is restricted to:
 
 ---
 
+## Investigation Log
+
+### 2026-01-17: Deployment Verification Failed
+
+**Investigation Scope:** Verify GCP Tunnel (mcp-router) accessibility from Claude Code cloud session.
+
+**Findings:**
+
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| `GH_TOKEN` | ✅ Available | Environment variable set, GitHub API returns 200 OK |
+| `MCP_TUNNEL_TOKEN` | ✅ Available | Environment variable set |
+| GitHub API Access | ✅ Working | `https://api.github.com/repos/edri2or-commits/project38-or` returns 200 |
+| Cloud Function URL | ❌ Not Accessible | `https://us-central1-project38-483612.cloudfunctions.net/mcp-router` returns HTTP 404 |
+| Deployment Workflows | ⚠️ Suspicious | 2 successful runs (2026-01-17), but function not accessible |
+| Deployment Duration | ⚠️ Too Fast | Deploy step completed in ~1s (typical: 30-90s) |
+
+**Tests Performed:**
+
+1. **Direct HTTP Access** (2026-01-17 14:06 UTC):
+   ```bash
+   curl https://us-central1-project38-483612.cloudfunctions.net/mcp-router
+   Result: HTTP 404 - Page not found
+   ```
+
+2. **POST with MCP_TUNNEL_TOKEN**:
+   ```bash
+   curl -X POST -H "Authorization: Bearer ${MCP_TUNNEL_TOKEN}" \
+     https://us-central1-project38-483612.cloudfunctions.net/mcp-router
+   Result: HTTP 404 - Page not found
+   ```
+
+3. **Cloud Functions API :call Method**:
+   ```bash
+   POST https://cloudfunctions.googleapis.com/v1/projects/project38-483612/locations/us-central1/functions/mcp-router:call
+   Result: HTTP 401 - "Expected OAuth 2 access token"
+   ```
+   Note: The `:call` API requires GCP OAuth (not custom token), unavailable from Claude Code cloud sessions.
+
+4. **Re-deployment Test** (workflow #21095597084):
+   - Triggered: 2026-01-17 14:13 UTC
+   - Result: Success (40 seconds)
+   - Post-deployment test: HTTP 404 (function still not accessible)
+
+**Workflow Analysis:**
+
+Source: `.github/workflows/deploy-mcp-router.yml`
+
+Potential issues identified:
+- Line 130: `set +e` - disables automatic error checking
+- Line 142: Output redirected to file but not validated
+- Line 230: Test step has `continue-on-error: true`
+
+**Root Cause (Hypothesis):**
+
+The Cloud Function is **not deployed to GCP** despite workflow reporting "success". Possible reasons:
+1. `gcloud functions deploy` returns exit code 0 but function not created
+2. Deployment quota exceeded (free tier limits)
+3. IAM permissions insufficient for actual deployment
+4. Function deployed but immediately deleted due to validation failure
+
+**Cannot Verify (No Access):**
+
+- ❌ Actual `gcloud functions deploy` output (workflow logs blocked by proxy)
+- ❌ List of functions in GCP project (no GCP credentials in this environment)
+- ❌ GCP billing/quota status
+- ❌ IAM audit logs
+
+**Recommendations:**
+
+1. Manual verification via GCP Console: Cloud Functions → list functions
+2. Run `gcloud functions list --region=us-central1` from environment with GCP credentials
+3. Review workflow logs manually at: https://github.com/edri2or-commits/project38-or/actions/runs/21095597084
+4. Check GCP billing and Cloud Functions quota
+5. Add explicit validation to deployment workflow (e.g., curl test that fails workflow on 404)
+
+**Conclusion:**
+
+GCP Tunnel autonomy is **NOT FUNCTIONAL** as of 2026-01-17. The deployment infrastructure exists but the Cloud Function is not accessible. Further investigation with GCP console access is required.
+
+---
+
 ## Update Log
 
 ### 2026-01-17: ADR Created
@@ -237,3 +322,34 @@ The Cloud Function is restricted to:
 - Deploy Cloud Function
 - Test from Claude Code cloud session
 - Document in CLAUDE.md
+
+### 2026-01-17: Deployment Investigation - Status Blocked
+
+**Context:**
+- Attempted to verify GCP Tunnel autonomy from Claude Code cloud session
+- Deployment workflow reports "success" but function not accessible
+
+**Investigation:**
+- Verified environment tokens: GH_TOKEN ✅, MCP_TUNNEL_TOKEN ✅
+- Tested function URL: HTTP 404 (not accessible)
+- Re-deployed via workflow #21095597084: Success reported, still 404
+- Tested Cloud Functions API `:call`: Requires GCP OAuth (unavailable in cloud sessions)
+
+**Findings:**
+- The Cloud Function is NOT accessible despite workflow success
+- Deployment duration suspiciously fast (~1s, typical: 30-90s)
+- Workflow has `continue-on-error: true` on test step
+- Cannot access workflow logs from cloud environment (proxy blocks GitHub artifacts)
+
+**Root Cause:**
+Unconfirmed - function may not be deployed to GCP, or quota/IAM issue
+
+**Status Update:**
+- Phase 2: Deployment → **BLOCKED**
+- ADR Status: Proposed → **Blocked - Under Investigation**
+
+**Next Steps:**
+1. Manual GCP Console verification (check if function exists)
+2. Review workflow logs via GitHub UI
+3. Check GCP billing and quota status
+4. Fix deployment workflow validation

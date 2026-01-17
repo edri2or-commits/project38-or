@@ -8,15 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **GCP Tunnel Protocol Encapsulation** (2026-01-17) - Full autonomy for cloud sessions
+- **GCP Tunnel Protocol Encapsulation** (2026-01-17) - ⚠️ **Not Functional Yet**
   - `cloud_functions/mcp_router/main.py` - Cloud Function MCP router (400+ lines)
   - `src/gcp_tunnel/adapter.py` - Local adapter for stdio-to-API bridging (250+ lines)
   - `.github/workflows/deploy-mcp-router.yml` - Automated deployment workflow
   - ADR-005: Documents the Protocol Encapsulation architecture
-  - Tunnels MCP messages through `cloudfunctions.googleapis.com` (whitelisted)
-  - Enables full autonomous control from Anthropic cloud sessions
-  - Uses existing WIF authentication (no new credentials needed)
-  - Expected latency: 200ms-2s (vs 10-60s for GitHub Relay)
+  - **Status**: Implementation complete, but deployment not working
+  - **Issue**: Function returns HTTP 404 despite successful workflow
+  - See ADR-005 Investigation Log for details
+  - **Recommendation**: Use MCP Gateway (Railway) until resolved
 
 ### Fixed
 - **FastMCP Server Crash Fix** (2026-01-17) - Remove invalid `description` parameter (#206)
@@ -30,6 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Changed deployment workflow to use Railway CLI (`railway up`)
   - CLI deploys the actual checked-out code instead of triggering cached deployment
   - Fixes issue where new routes/code were not being deployed
+
+### Known Issues
+
+- **GCP Tunnel Deployment Not Working** (2026-01-17) - Cloud Function returns 404
+  - Deployment workflow reports "success" but function not accessible
+  - Tested: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router` returns HTTP 404
+  - Verified: 2026-01-17 14:06 UTC and 14:15 UTC (after re-deployment)
+  - Root cause: Function not deployed to GCP (unconfirmed - requires GCP Console access)
+  - Tracked in: [ADR-005 Investigation Log](decisions/ADR-005-gcp-tunnel-protocol-encapsulation.md#investigation-log)
+  - Workaround: Use MCP Gateway at `https://or-infra.com/mcp` (Railway)
+  - Next steps: Manual GCP Console verification, review workflow logs, check billing/quota
 
 ### Added
 - **GitHub Relay Startup Beacon** (2026-01-17) - Verify relay starts on Railway
