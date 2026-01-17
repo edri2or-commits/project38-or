@@ -31,7 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Architecture**: User → Telegram → FastAPI Bot → LiteLLM Gateway → Claude/GPT-4/Gemini
   - **Security**: Bot token from GCP Secret Manager, no hardcoded credentials
   - **Models**: ConversationMessage (individual messages), ConversationStats (user aggregates)
-  - **Status**: ✅ Implementation complete, ready for deployment
+  - **Status**: ✅ **DEPLOYED** to Railway (2026-01-17)
+  - **Production URL**: https://telegram-bot-production-053d.up.railway.app
+  - **Evidence**: Workflows #21100613950 (create), #21100626525 (deploy), #21100638013 (webhook)
   - Integration with existing LiteLLM Gateway (https://litellm-gateway-production-0339.up.railway.app)
   - See Phase 1 Integration in [ADR-006](decisions/ADR-006-multi-llm-routing-strategy.md)
 
