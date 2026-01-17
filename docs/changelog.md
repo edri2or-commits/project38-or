@@ -8,27 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **GCP Tunnel Protocol Encapsulation** (2026-01-17) - ⚠️ **Not Functional Yet**
+- **GCP Tunnel Protocol Encapsulation** (2026-01-17) - ✅ **OPERATIONAL**
   - `cloud_functions/mcp_router/main.py` - Cloud Function MCP router (400+ lines)
   - `src/gcp_tunnel/adapter.py` - Local adapter for stdio-to-API bridging (250+ lines)
   - `.github/workflows/deploy-mcp-router.yml` - Automated deployment workflow
   - ADR-005: Documents the Protocol Encapsulation architecture
-  - **Status**: Implementation complete, but deployment not working
-  - **Issue**: Function returns HTTP 404 despite successful workflow
-  - See ADR-005 Investigation Log for details
-  - **Recommendation**: Use MCP Gateway (Railway) until resolved
+  - **Status**: ✅ Deployed and fully operational (workflow #21097668333)
+  - **URL**: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
+  - **Features**: 17 tools available (Railway, n8n, monitoring, Google Workspace)
+  - **Authentication**: MCP_TUNNEL_TOKEN validated via Bearer token
+  - **Protocol**: MCP JSON-RPC with Protocol Encapsulation (data field)
+  - See ADR-005 for full architecture and deployment details
 
 ### Fixed
-- **Autonomous Diagnostic Pipeline** (2026-01-17) - Established autonomous diagnostic capability (#224, #225, #226)
-  - **Problem**: Workflows reported false success while masking deployment failures
-  - **Root Cause**: Error masking patterns (`|| echo`, `continue-on-error: true`) hid real failures
-  - **Solution**: Created autonomous diagnostic pipeline that publishes to GitHub Issues
-  - **PR #224**: Added checkout step and `contents: write` permission
-  - **PR #225**: Removed error masking from commit/push operations
-  - **PR #226**: Changed strategy from repo commits to GitHub Issues (bypasses branch protection)
-  - **Result**: `check-billing-status.yml` now creates diagnostic Issues automatically
-  - **Benefit**: System can diagnose itself without manual log inspection (proxy-friendly)
-  - **Evidence**: Issue #227 created autonomously with full GCP diagnostic report
+- **GCP Tunnel Deployment** (2026-01-17) - Resolved IAM permission issues and deployed Cloud Function successfully
+  - **Problem**: Deployment workflow reported "success" but function returned HTTP 404
+  - **Root Cause**: Service account lacked required IAM permissions (cloudfunctions.developer, serviceusage.serviceUsageAdmin, iam.serviceAccountUser)
+  - **Investigation**: Autonomous diagnostic pipeline (Issues #227, #230, #231, #232) identified permission gaps
+  - **Resolution**: User manually granted permissions via GCP Cloud Shell
+  - **Deployment**: Workflow #21097668333 completed successfully (2026-01-17 16:52 UTC)
+  - **Verification**: Function responds with HTTP 200, authentication working, 17 tools available
+  - **Impact**: GCP Tunnel now operational for Claude Code cloud sessions
+  - See ADR-005 Update Log for detailed investigation timeline
 
 - **FastMCP Server Crash Fix** (2026-01-17) - Remove invalid `description` parameter (#206)
   - FastMCP was crashing on startup due to invalid `description` parameter in server initialization
@@ -44,14 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Issues
 
-- **GCP Tunnel Deployment Not Working** (2026-01-17) - Cloud Function returns 404
-  - Deployment workflow reports "success" but function not accessible
-  - Tested: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router` returns HTTP 404
-  - Verified: 2026-01-17 14:06 UTC and 14:15 UTC (after re-deployment)
-  - Root cause: Function not deployed to GCP (unconfirmed - requires GCP Console access)
-  - Tracked in: [ADR-005 Investigation Log](decisions/ADR-005-gcp-tunnel-protocol-encapsulation.md#investigation-log)
-  - Workaround: Use MCP Gateway at `https://or-infra.com/mcp` (Railway)
-  - Next steps: Manual GCP Console verification, review workflow logs, check billing/quota
+- ~~**GCP Tunnel Deployment Not Working** (2026-01-17)~~ - ✅ **RESOLVED** (2026-01-17 16:52 UTC)
+  - Issue was resolved after granting IAM permissions to service account
+  - Cloud Function now operational at `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
+  - See "Fixed" section above for details
 
 ### Added
 - **GitHub Relay Startup Beacon** (2026-01-17) - Verify relay starts on Railway
