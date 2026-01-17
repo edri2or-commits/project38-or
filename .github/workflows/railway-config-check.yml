@@ -78,8 +78,24 @@ jobs:
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { deployments(first: 5, input: { projectId: \"'"$PROJECT_ID"'\" }) { edges { node { id status createdAt service { name } } } } }"
+              "query": "query { deployments(first: 5, input: { projectId: \"'"$PROJECT_ID"'\" }) { edges { node { id status createdAt service { name } meta } } } }"
             }')
+
+          # Get the first failed deployment ID for detailed logs
+          FAILED_ID=$(echo "$DEPLOYMENTS" | jq -r '.data.deployments.edges[0].node.id // empty')
+
+          if [ -n "$FAILED_ID" ]; then
+            DEPLOY_DETAIL=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "query { deployment(id: \"'"$FAILED_ID"'\") { id status buildLogs } }"
+              }')
+            BUILD_LOGS=$(echo "$DEPLOY_DETAIL" | jq '.data.deployment.buildLogs // "No build logs available"' | head -c 1500)
+          else
+            BUILD_LOGS="No failed deployments found"
+          fi
 
           gh issue comment 183 --repo ${{ github.repository }} --body "## Railway Configuration Check
 
@@ -95,4 +111,9 @@ jobs:
           **Recent Deployments**:
           \`\`\`json
           $(echo "$DEPLOYMENTS" | jq '.data.deployments.edges')
+          \`\`\`
+
+          **Latest Deployment Build Logs** (truncated):
+          \`\`\`
+          $BUILD_LOGS
           \`\`\`"
