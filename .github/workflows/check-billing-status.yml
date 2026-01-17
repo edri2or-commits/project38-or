@@ -1,0 +1,94 @@
+name: Check Billing Status
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+
+jobs:
+  check-billing:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: claude-code-agent@project38-483612.iam.gserviceaccount.com
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Check Billing Status (Detailed)
+        run: |
+          echo "=========================================="
+          echo "BILLING STATUS CHECK"
+          echo "=========================================="
+          echo ""
+
+          # Try to get billing info
+          echo "Attempting to get billing information..."
+          echo ""
+
+          set +e
+          BILLING_OUTPUT=$(gcloud beta billing projects describe $PROJECT_ID --format=json 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          echo "Exit code: $EXIT_CODE"
+          echo ""
+          echo "Output:"
+          echo "$BILLING_OUTPUT"
+          echo ""
+
+          if echo "$BILLING_OUTPUT" | jq -e '.billingEnabled' > /dev/null 2>&1; then
+            BILLING_ENABLED=$(echo "$BILLING_OUTPUT" | jq -r '.billingEnabled')
+            BILLING_ACCOUNT=$(echo "$BILLING_OUTPUT" | jq -r '.billingAccountName // "N/A"')
+
+            echo "=========================================="
+            echo "RESULT"
+            echo "=========================================="
+            echo ""
+            echo "Billing Enabled: $BILLING_ENABLED"
+            echo "Billing Account: $BILLING_ACCOUNT"
+            echo ""
+
+            if [ "$BILLING_ENABLED" = "true" ]; then
+              echo "✅ BILLING IS ENABLED"
+              echo ""
+              echo "The deployment failure is NOT due to billing."
+              echo "Other possible causes:"
+              echo "1. Service account permissions"
+              echo "2. Quota limits"
+              echo "3. Entry point or code issue"
+            else
+              echo "❌ BILLING IS DISABLED"
+              echo ""
+              echo "🔧 ACTION REQUIRED:"
+              echo "1. Go to: https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT_ID"
+              echo "2. Link a billing account"
+              echo ""
+              echo "OR use gcloud (requires Billing Admin role):"
+              echo "gcloud beta billing projects link $PROJECT_ID --billing-account=YOUR-BILLING-ACCOUNT-ID"
+            fi
+          else
+            echo "⚠️  Could not parse billing status"
+            echo ""
+            echo "This may indicate:"
+            echo "1. Billing API not enabled"
+            echo "2. Insufficient permissions to check billing"
+            echo "3. Project not linked to any billing account"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Billing Status Check Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See workflow logs above for detailed billing information." >> $GITHUB_STEP_SUMMARY
