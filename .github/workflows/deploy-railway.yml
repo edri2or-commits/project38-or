@@ -120,14 +120,18 @@ jobs:
           ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
         run: |
           echo "🚀 Triggering Railway deployment via GraphQL API..."
+          echo "Project: $PROJECT_ID"
+          echo "Service: $SERVICE_ID"
+          echo "Environment: $ENVIRONMENT_ID"
 
-          # Create deployment using Railway GraphQL API
+          # Use deploymentTrigger to trigger a fresh build from the connected GitHub repo
+          # This is the correct way to trigger a new build (not serviceInstanceRedeploy which just restarts)
           RESPONSE=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "mutation { serviceInstanceRedeploy(serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENVIRONMENT_ID"'\") }"
+              "query": "mutation { deploymentTrigger(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENVIRONMENT_ID"'\" }) { id status } }"
             }')
 
           echo "Railway API Response:"
@@ -135,9 +139,24 @@ jobs:
 
           # Check for errors
           if echo "$RESPONSE" | jq -e '.errors' > /dev/null 2>&1; then
-            echo "❌ Deployment failed with errors"
+            echo "❌ Deployment trigger failed with errors"
             echo "$RESPONSE" | jq '.errors'
-            exit 1
+
+            # Fall back to serviceInstanceRedeploy
+            echo "Trying serviceInstanceRedeploy as fallback..."
+            RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "mutation { serviceInstanceRedeploy(serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENVIRONMENT_ID"'\") }"
+              }')
+            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+
+            if echo "$RESPONSE" | jq -e '.errors' > /dev/null 2>&1; then
+              echo "❌ Both methods failed"
+              exit 1
+            fi
           fi
 
           echo "✅ Deployment triggered successfully"
