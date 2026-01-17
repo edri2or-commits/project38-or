@@ -29,11 +29,17 @@ logger = logging.getLogger(__name__)
 
 # Global relay instance for status checking
 _github_relay = None
+_relay_startup_error = None
 
 
 def get_github_relay():
     """Get the global GitHub relay instance."""
     return _github_relay
+
+
+def get_relay_startup_error():
+    """Get the relay startup error if any."""
+    return _relay_startup_error
 
 
 @asynccontextmanager
@@ -64,14 +70,18 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Failed to start GCS relay: {e}")
 
     # Start GitHub relay polling if enabled
-    global _github_relay
-    if os.getenv("GITHUB_RELAY_ENABLED", "true").lower() == "true":
+    global _github_relay, _relay_startup_error
+    relay_enabled = os.getenv("GITHUB_RELAY_ENABLED", "true").lower() == "true"
+    logger.info(f"GitHub relay enabled: {relay_enabled}")
+
+    if relay_enabled:
         try:
             from src.mcp_gateway.github_relay import start_relay
 
             _github_relay = await start_relay()
             logger.info("GitHub MCP Relay started successfully")
         except Exception as e:
+            _relay_startup_error = str(e)
             logger.error(f"Failed to start GitHub relay: {e}", exc_info=True)
 
     yield
