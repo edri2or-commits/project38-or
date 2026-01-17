@@ -8,14 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3: Google Workspace Tools Migration** (2026-01-17) - Complete implementation
+  - Migrated full Google Workspace implementation from `src/mcp_gateway/tools/workspace.py` to Cloud Function
+  - **Gmail**: `gmail_send`, `gmail_list` (2 tools) - Full OAuth authentication + email sending/reading
+  - **Calendar**: `calendar_list_events`, `calendar_create_event` (2 tools) - Event management
+  - **Drive**: `drive_list_files` (1 tool) - File browsing with query support
+  - **Sheets**: `sheets_read`, `sheets_write` (2 tools) - Spreadsheet read/write operations
+  - **Docs**: `docs_create`, `docs_read`, `docs_append` (3 tools) - Document creation and editing
+  - **WorkspaceAuth class**: Singleton token management with automatic refresh (60s buffer)
+  - **Total**: 10 functional Workspace tools (upgraded from stubs)
+  - **File size**: Cloud Function expanded from 471 to 953 lines (+482 lines)
+  - **Total tools**: 20 tools available (4 Railway + 3 n8n + 3 monitoring + 10 Workspace)
+  - **Dependencies**: Uses existing httpx, google-cloud-secret-manager
+  - **Authentication**: OAuth2 via GCP Secret Manager (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN)
+  - See ADR-005 Phase 3 for implementation details
+
 - **GCP Tunnel Protocol Encapsulation** (2026-01-17) - ✅ **OPERATIONAL**
-  - `cloud_functions/mcp_router/main.py` - Cloud Function MCP router (400+ lines)
+  - `cloud_functions/mcp_router/main.py` - Cloud Function MCP router (was 400+ lines, now 953 lines)
   - `src/gcp_tunnel/adapter.py` - Local adapter for stdio-to-API bridging (250+ lines)
   - `.github/workflows/deploy-mcp-router.yml` - Automated deployment workflow
   - ADR-005: Documents the Protocol Encapsulation architecture
   - **Status**: ✅ Deployed and fully operational (workflow #21097668333)
   - **URL**: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
-  - **Features**: 17 tools available (Railway, n8n, monitoring, Google Workspace)
+  - **Features**: 20 tools available (Railway, n8n, monitoring, Google Workspace)
   - **Authentication**: MCP_TUNNEL_TOKEN validated via Bearer token
   - **Protocol**: MCP JSON-RPC with Protocol Encapsulation (data field)
   - **Documentation**: Fully documented across all 4 layers (PR #234, #235)

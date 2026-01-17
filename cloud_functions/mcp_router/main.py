@@ -20,18 +20,122 @@ Why this works:
     - From firewall perspective, this is legitimate GCP API traffic
 """
 
+import asyncio
+import base64
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
+from email.mime.text import MIMEText
 from typing import Any
 
 import functions_framework
+import httpx
 from flask import Request
+from google.cloud import secretmanager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# GCP Configuration
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project38-483612")
+
+
+def get_secret(secret_name: str) -> str | None:
+    """Fetch secret from GCP Secret Manager."""
+    try:
+        client = secretmanager.SecretManagerServiceClient()
+        name = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}/versions/latest"
+        response = client.access_secret_version(request={"name": name})
+        return response.payload.data.decode("UTF-8")
+    except Exception as e:
+        logger.error(f"Failed to get secret {secret_name}: {e}")
+        return None
+
+
+# API base URLs
+GMAIL_API = "https://gmail.googleapis.com/gmail/v1"
+CALENDAR_API = "https://www.googleapis.com/calendar/v3"
+DRIVE_API = "https://www.googleapis.com/drive/v3"
+SHEETS_API = "https://sheets.googleapis.com/v4"
+DOCS_API = "https://docs.googleapis.com/v1"
+OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
+
+
+class WorkspaceAuth:
+    """Handles Google Workspace OAuth authentication."""
+
+    _instance = None
+    _access_token: str | None = None
+    _token_expiry: float = 0
+
+    def __new__(cls) -> "WorkspaceAuth":
+        """Singleton pattern for token management."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    async def get_access_token(self) -> str:
+        """Get a valid access token, refreshing if needed.
+
+        Returns:
+            Valid access token
+
+        Raises:
+            Exception: If unable to get token
+        """
+        # Check if current token is still valid (with 60s buffer)
+        if self._access_token and time.time() < self._token_expiry - 60:
+            return self._access_token
+
+        # Get credentials from Secret Manager
+        client_id = get_secret("GOOGLE-OAUTH-CLIENT-ID")
+        client_secret = get_secret("GOOGLE-OAUTH-CLIENT-SECRET")
+        refresh_token = get_secret("GOOGLE-OAUTH-REFRESH-TOKEN")
+
+        if not all([client_id, client_secret, refresh_token]):
+            missing = []
+            if not client_id:
+                missing.append("GOOGLE-OAUTH-CLIENT-ID")
+            if not client_secret:
+                missing.append("GOOGLE-OAUTH-CLIENT-SECRET")
+            if not refresh_token:
+                missing.append("GOOGLE-OAUTH-REFRESH-TOKEN")
+            raise ValueError(f"Missing OAuth secrets: {missing}")
+
+        # Refresh the token
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                OAUTH_TOKEN_URL,
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "refresh_token": refresh_token,
+                    "grant_type": "refresh_token",
+                },
+            )
+
+            if response.status_code != 200:
+                raise ValueError(f"Token refresh failed: {response.text}")
+
+            data = response.json()
+            self._access_token = data["access_token"]
+            self._token_expiry = time.time() + data.get("expires_in", 3600)
+
+            logger.info("Google Workspace access token refreshed")
+            return self._access_token
+
+
+# Global auth instance
+_auth = WorkspaceAuth()
+
+
+async def _get_workspace_headers() -> dict[str, str]:
+    """Get authorization headers for Workspace APIs."""
+    token = await _auth.get_access_token()
+    return {"Authorization": f"Bearer {token}"}
 
 
 class MCPRouter:
@@ -73,6 +177,9 @@ class MCPRouter:
         self.tools["drive_list_files"] = self._drive_list_files
         self.tools["sheets_read"] = self._sheets_read
         self.tools["sheets_write"] = self._sheets_write
+        self.tools["docs_create"] = self._docs_create
+        self.tools["docs_read"] = self._docs_read
+        self.tools["docs_append"] = self._docs_append
 
         logger.info(f"Registered {len(self.tools)} tools")
 
@@ -320,34 +427,409 @@ class MCPRouter:
     # Google Workspace Tools
     # =========================================================================
 
-    def _gmail_send(self, to: str, subject: str, body: str) -> dict:
+    def _gmail_send(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "") -> dict:
         """Send an email via Gmail."""
-        # Implementation would use Google Workspace API
-        return {"status": "sent", "to": to, "subject": subject}
+        return asyncio.run(self._gmail_send_async(to, subject, body, cc, bcc))
 
-    def _gmail_list(self, max_results: int = 10) -> dict:
+    async def _gmail_send_async(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "") -> dict:
+        """Send an email via Gmail (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            message = MIMEText(body)
+            message["to"] = to
+            message["subject"] = subject
+            if cc:
+                message["cc"] = cc
+            if bcc:
+                message["bcc"] = bcc
+
+            raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{GMAIL_API}/users/me/messages/send",
+                    headers=headers,
+                    json={"raw": raw},
+                )
+
+                if response.status_code != 200:
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+                return {
+                    "success": True,
+                    "message_id": data.get("id"),
+                    "thread_id": data.get("threadId"),
+                }
+
+        except Exception as e:
+            logger.error(f"gmail_send failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _gmail_list(self, label: str = "INBOX", max_results: int = 10) -> dict:
         """List recent emails."""
-        return {"emails": [], "count": 0}
+        return asyncio.run(self._gmail_list_async(label, max_results))
 
-    def _calendar_list_events(self, max_results: int = 10) -> dict:
+    async def _gmail_list_async(self, label: str = "INBOX", max_results: int = 10) -> dict:
+        """List recent emails (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{GMAIL_API}/users/me/messages",
+                    headers=headers,
+                    params={"labelIds": label, "maxResults": max_results},
+                )
+
+                if response.status_code != 200:
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+                messages = data.get("messages", [])
+
+                results = []
+                for msg in messages:
+                    msg_response = await client.get(
+                        f"{GMAIL_API}/users/me/messages/{msg['id']}",
+                        headers=headers,
+                        params={
+                            "format": "metadata",
+                            "metadataHeaders": ["Subject", "From", "Date"],
+                        },
+                    )
+                    if msg_response.status_code == 200:
+                        msg_data = msg_response.json()
+                        hdrs = {
+                            h["name"]: h["value"]
+                            for h in msg_data.get("payload", {}).get("headers", [])
+                        }
+                        results.append(
+                            {
+                                "id": msg["id"],
+                                "subject": hdrs.get("Subject", ""),
+                                "from": hdrs.get("From", ""),
+                                "date": hdrs.get("Date", ""),
+                                "snippet": msg_data.get("snippet", ""),
+                            }
+                        )
+
+                return {
+                    "success": True,
+                    "label": label,
+                    "count": len(results),
+                    "messages": results,
+                }
+
+        except Exception as e:
+            logger.error(f"gmail_list failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _calendar_list_events(self, calendar_id: str = "primary", max_results: int = 10, time_min: str = "") -> dict:
         """List upcoming calendar events."""
-        return {"events": [], "count": 0}
+        return asyncio.run(self._calendar_list_events_async(calendar_id, max_results, time_min))
 
-    def _calendar_create_event(self, summary: str, start: str, end: str) -> dict:
+    async def _calendar_list_events_async(self, calendar_id: str = "primary", max_results: int = 10, time_min: str = "") -> dict:
+        """List upcoming calendar events (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            if not time_min:
+                time_min = datetime.now(timezone.utc).isoformat()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{CALENDAR_API}/calendars/{calendar_id}/events",
+                    headers=headers,
+                    params={
+                        "maxResults": max_results,
+                        "timeMin": time_min,
+                        "singleEvents": "true",
+                        "orderBy": "startTime",
+                    },
+                )
+
+                if response.status_code != 200:
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+                events = []
+                for item in data.get("items", []):
+                    events.append(
+                        {
+                            "id": item.get("id"),
+                            "summary": item.get("summary", ""),
+                            "start": item.get("start", {}).get("dateTime")
+                            or item.get("start", {}).get("date"),
+                            "end": item.get("end", {}).get("dateTime")
+                            or item.get("end", {}).get("date"),
+                            "location": item.get("location", ""),
+                            "description": item.get("description", ""),
+                        }
+                    )
+
+                return {"success": True, "count": len(events), "events": events}
+
+        except Exception as e:
+            logger.error(f"calendar_list_events failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _calendar_create_event(self, summary: str, start_time: str, end_time: str, calendar_id: str = "primary", description: str = "", location: str = "", attendees: str = "") -> dict:
         """Create a calendar event."""
-        return {"status": "created", "summary": summary}
+        return asyncio.run(self._calendar_create_event_async(summary, start_time, end_time, calendar_id, description, location, attendees))
 
-    def _drive_list_files(self, folder_id: str = None) -> dict:
+    async def _calendar_create_event_async(self, summary: str, start_time: str, end_time: str, calendar_id: str = "primary", description: str = "", location: str = "", attendees: str = "") -> dict:
+        """Create a calendar event (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            event = {
+                "summary": summary,
+                "start": {"dateTime": start_time},
+                "end": {"dateTime": end_time},
+            }
+
+            if description:
+                event["description"] = description
+            if location:
+                event["location"] = location
+            if attendees:
+                event["attendees"] = [{"email": e.strip()} for e in attendees.split(",")]
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{CALENDAR_API}/calendars/{calendar_id}/events",
+                    headers=headers,
+                    json=event,
+                )
+
+                if response.status_code not in (200, 201):
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+                return {
+                    "success": True,
+                    "event_id": data.get("id"),
+                    "html_link": data.get("htmlLink"),
+                }
+
+        except Exception as e:
+            logger.error(f"calendar_create_event failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _drive_list_files(self, query: str = "", max_results: int = 10, folder_id: str = "") -> dict:
         """List files in Google Drive."""
-        return {"files": [], "count": 0}
+        return asyncio.run(self._drive_list_files_async(query, max_results, folder_id))
 
-    def _sheets_read(self, spreadsheet_id: str, range: str) -> dict:
+    async def _drive_list_files_async(self, query: str = "", max_results: int = 10, folder_id: str = "") -> dict:
+        """List files in Google Drive (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            params = {
+                "pageSize": max_results,
+                "fields": "files(id,name,mimeType,modifiedTime,size,webViewLink)",
+            }
+
+            if query:
+                params["q"] = query
+            if folder_id:
+                params["q"] = f"'{folder_id}' in parents"
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{DRIVE_API}/files",
+                    headers=headers,
+                    params=params,
+                )
+
+                if response.status_code != 200:
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+                files = [
+                    {
+                        "id": f.get("id"),
+                        "name": f.get("name"),
+                        "mimeType": f.get("mimeType"),
+                        "modifiedTime": f.get("modifiedTime"),
+                        "size": f.get("size"),
+                        "webViewLink": f.get("webViewLink"),
+                    }
+                    for f in data.get("files", [])
+                ]
+
+                return {"success": True, "count": len(files), "files": files}
+
+        except Exception as e:
+            logger.error(f"drive_list_files failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _sheets_read(self, spreadsheet_id: str, range_notation: str = "Sheet1!A1:Z100") -> dict:
         """Read data from Google Sheets."""
-        return {"values": [], "range": range}
+        return asyncio.run(self._sheets_read_async(spreadsheet_id, range_notation))
 
-    def _sheets_write(self, spreadsheet_id: str, range: str, values: list) -> dict:
+    async def _sheets_read_async(self, spreadsheet_id: str, range_notation: str = "Sheet1!A1:Z100") -> dict:
+        """Read data from Google Sheets (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{SHEETS_API}/spreadsheets/{spreadsheet_id}/values/{range_notation}",
+                    headers=headers,
+                )
+
+                if response.status_code != 200:
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+                return {
+                    "success": True,
+                    "range": data.get("range"),
+                    "values": data.get("values", []),
+                }
+
+        except Exception as e:
+            logger.error(f"sheets_read failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _sheets_write(self, spreadsheet_id: str, range_notation: str, values: list) -> dict:
         """Write data to Google Sheets."""
-        return {"status": "written", "range": range}
+        return asyncio.run(self._sheets_write_async(spreadsheet_id, range_notation, values))
+
+    async def _sheets_write_async(self, spreadsheet_id: str, range_notation: str, values: list) -> dict:
+        """Write data to Google Sheets (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    f"{SHEETS_API}/spreadsheets/{spreadsheet_id}/values/{range_notation}",
+                    headers=headers,
+                    params={"valueInputOption": "USER_ENTERED"},
+                    json={"values": values},
+                )
+
+                if response.status_code != 200:
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+                return {
+                    "success": True,
+                    "updated_range": data.get("updatedRange"),
+                    "updated_rows": data.get("updatedRows"),
+                    "updated_columns": data.get("updatedColumns"),
+                    "updated_cells": data.get("updatedCells"),
+                }
+
+        except Exception as e:
+            logger.error(f"sheets_write failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _docs_create(self, title: str) -> dict:
+        """Create a new Google Doc."""
+        return asyncio.run(self._docs_create_async(title))
+
+    async def _docs_create_async(self, title: str) -> dict:
+        """Create a new Google Doc (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{DOCS_API}/documents",
+                    headers=headers,
+                    json={"title": title},
+                )
+
+                if response.status_code not in (200, 201):
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+                return {
+                    "success": True,
+                    "document_id": data.get("documentId"),
+                    "title": data.get("title"),
+                }
+
+        except Exception as e:
+            logger.error(f"docs_create failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _docs_read(self, document_id: str) -> dict:
+        """Read content from a Google Doc."""
+        return asyncio.run(self._docs_read_async(document_id))
+
+    async def _docs_read_async(self, document_id: str) -> dict:
+        """Read content from a Google Doc (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{DOCS_API}/documents/{document_id}",
+                    headers=headers,
+                )
+
+                if response.status_code != 200:
+                    return {"success": False, "error": response.text}
+
+                data = response.json()
+
+                # Extract text content
+                content = ""
+                for element in data.get("body", {}).get("content", []):
+                    if "paragraph" in element:
+                        for elem in element["paragraph"].get("elements", []):
+                            if "textRun" in elem:
+                                content += elem["textRun"].get("content", "")
+
+                return {
+                    "success": True,
+                    "document_id": document_id,
+                    "title": data.get("title"),
+                    "content": content,
+                }
+
+        except Exception as e:
+            logger.error(f"docs_read failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _docs_append(self, document_id: str, text: str) -> dict:
+        """Append text to a Google Doc."""
+        return asyncio.run(self._docs_append_async(document_id, text))
+
+    async def _docs_append_async(self, document_id: str, text: str) -> dict:
+        """Append text to a Google Doc (async)."""
+        try:
+            headers = await _get_workspace_headers()
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{DOCS_API}/documents/{document_id}:batchUpdate",
+                    headers=headers,
+                    json={
+                        "requests": [
+                            {
+                                "insertText": {
+                                    "location": {"index": 1},
+                                    "text": text,
+                                }
+                            }
+                        ]
+                    },
+                )
+
+                if response.status_code != 200:
+                    return {"success": False, "error": response.text}
+
+                return {"success": True, "document_id": document_id}
+
+        except Exception as e:
+            logger.error(f"docs_append failed: {e}")
+            return {"success": False, "error": str(e)}
 
 
 # Global router instance
