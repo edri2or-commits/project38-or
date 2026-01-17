@@ -234,10 +234,12 @@ jobs:
           fi
 
       - name: Get Service URL
+        id: get-url
         env:
           RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "Getting service URL..."
 
@@ -251,6 +253,10 @@ jobs:
 
           if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
             echo "🌐 Telegram Bot URL: https://$DOMAIN"
+
+            # Save to repository variable
+            gh variable set TELEGRAM_BOT_URL --body "https://$DOMAIN" --repo ${{ github.repository }}
+
             echo ""
             echo "Test with:"
             echo "curl https://$DOMAIN/health"
