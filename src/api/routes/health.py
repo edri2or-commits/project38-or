@@ -49,12 +49,18 @@ async def health_check() -> HealthResponse:
     # Determine overall health status
     status = "healthy" if db_status == "connected" else "degraded"
 
-    return HealthResponse(
+    # Build marker to verify deployment version
+    # Change this value to verify Railway is deploying new code
+    build_marker = "2026-01-17-v1"
+
+    response = HealthResponse(
         status=status,
         timestamp=datetime.now(UTC),
         version="0.1.0",
         database=db_status,
     )
+    # Add build marker to response (will appear in JSON)
+    return {**response.model_dump(), "build": build_marker}
 
 
 @router.get("/", response_model=dict[str, str])
