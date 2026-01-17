@@ -113,10 +113,34 @@ jobs:
           echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Deploy to Railway
-        uses: bervProject/railway-deploy@main
-        with:
-          railway_token: ${{ steps.railway-token.outputs.token }}
-          service: ${{ vars.RAILWAY_SERVICE_ID || '' }}
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+          ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "🚀 Triggering Railway deployment via GraphQL API..."
+
+          # Create deployment using Railway GraphQL API
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceInstanceRedeploy(serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENVIRONMENT_ID"'\") }"
+            }')
+
+          echo "Railway API Response:"
+          echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+
+          # Check for errors
+          if echo "$RESPONSE" | jq -e '.errors' > /dev/null 2>&1; then
+            echo "❌ Deployment failed with errors"
+            echo "$RESPONSE" | jq '.errors'
+            exit 1
+          fi
+
+          echo "✅ Deployment triggered successfully"
 
       - name: Wait for deployment
         run: |
