@@ -78,7 +78,7 @@ jobs:
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { deployments(first: 3, input: { projectId: \"'"$PROJECT_ID"'\" }) { edges { node { id status createdAt } } } }"
+              "query": "query { deployments(first: 5, input: { projectId: \"'"$PROJECT_ID"'\" }) { edges { node { id status createdAt service { name } } } } }"
             }')
 
           gh issue comment 183 --repo ${{ github.repository }} --body "## Railway Configuration Check
