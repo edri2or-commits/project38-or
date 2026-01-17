@@ -241,14 +241,15 @@ client.chat.completions.create(model="claude-sonnet", ...)
 - [x] Create ADR-006 (this document)
 - [x] Commit and push: PR #240
 
-### Phase 1: Deployment (⏭️ Pending)
+### Phase 1: Deployment (✅ Complete - 2026-01-17)
 
-- [ ] Merge PR #240
-- [ ] Run workflow: `create-service` action (creates Railway service)
-- [ ] Run workflow: `deploy` action (deploys Docker image)
-- [ ] Verify health endpoint: `curl https://litellm-gateway.railway.app/health`
-- [ ] Test model routing: `curl .../v1/chat/completions -d '{"model":"claude-sonnet",...}'`
-- [ ] Test fallback: Temporarily revoke Claude API key → verify GPT-4 takes over
+- [x] Merge PR #240 (SHA: 2cd296f, 2026-01-17 19:34 UTC)
+- [x] Run workflow: `create-service` action (Workflow #21099849223, service created)
+- [x] Run workflow: `deploy` action (Workflow #21099864987, deployment SUCCESS)
+- [x] Create public domain (https://litellm-gateway-production-0339.up.railway.app)
+- [x] Verify deployment status (SUCCESS at 20:14:08, Railway confirms healthy)
+- [ ] Test model routing: `curl .../v1/chat/completions -d '{"model":"claude-sonnet",...}'` (requires user testing)
+- [ ] Test fallback: Temporarily revoke Claude API key → verify GPT-4 takes over (requires user testing)
 
 ### Phase 1: Integration (⏭️ Next)
 
