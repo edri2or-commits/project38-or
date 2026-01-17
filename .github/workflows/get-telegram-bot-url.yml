@@ -1,0 +1,112 @@
+name: Get Telegram Bot URL
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to post result'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  get-url:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Query Railway API
+        id: query
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { name serviceInstances(environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }"
+            }')
+
+          echo "Response: $RESPONSE"
+
+          # Extract telegram-bot domain
+          DOMAIN=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain' 2>/dev/null || echo "")
+
+          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
+            echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+            echo "✅ Found domain: $DOMAIN"
+          else
+            echo "domain=" >> $GITHUB_OUTPUT
+            echo "⚠️  No domain found"
+          fi
+
+      - name: Post to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          DOMAIN: ${{ steps.query.outputs.domain }}
+        run: |
+          if [ -n "$DOMAIN" ]; then
+            COMMENT="## 🚀 Telegram Bot Deployed
+
+**Service**: telegram-bot
+**Domain**: \`$DOMAIN\`
+**URL**: https://$DOMAIN
+
+### Test Endpoints
+
+\`\`\`bash
+# Health check
+curl https://$DOMAIN/health
+
+# Root endpoint
+curl https://$DOMAIN/
+
+# Webhook info
+curl https://$DOMAIN/webhook/info
+\`\`\`
+
+### Next Steps
+
+1. Test bot: Send \`/start\` to your Telegram bot
+2. Monitor logs: Railway dashboard
+3. Check database: PostgreSQL on Railway
+
+---
+*Posted by workflow at $(date -u)*"
+          else
+            COMMENT="## ⚠️  No Domain Found
+
+The telegram-bot service exists but no domain is configured yet.
+
+**Actions:**
+1. Go to Railway dashboard
+2. Navigate to telegram-bot service
+3. Settings → Domains → Generate Domain
+
+---
+*Posted by workflow at $(date -u)*"
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "$COMMENT" --repo ${{ github.repository }}
