@@ -146,9 +146,26 @@ jobs:
       - name: Get Function URL
         id: function_url
         run: |
-          URL=$(gcloud functions describe ${{ env.FUNCTION_NAME }} \
-            --region=${{ inputs.region }} \
-            --format='value(url)')
+          echo "Getting function URL..."
+
+          # Gen 1 uses httpsTrigger.url, Gen 2 uses serviceConfig.uri
+          if [ "${{ inputs.generation }}" = "gen1" ]; then
+            URL=$(gcloud functions describe ${{ env.FUNCTION_NAME }} \
+              --region=${{ inputs.region }} \
+              --format='value(httpsTrigger.url)' 2>/dev/null || echo "")
+          else
+            URL=$(gcloud functions describe ${{ env.FUNCTION_NAME }} \
+              --region=${{ inputs.region }} \
+              --format='value(serviceConfig.uri)' 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$URL" ]; then
+            echo "Warning: Could not get function URL, trying alternate method..."
+            URL=$(gcloud functions describe ${{ env.FUNCTION_NAME }} \
+              --region=${{ inputs.region }} \
+              --format=json | jq -r '.httpsTrigger.url // .serviceConfig.uri // "N/A"')
+          fi
+
           echo "function_url=${URL}" >> $GITHUB_OUTPUT
           echo "Function URL: ${URL}"
 
@@ -156,9 +173,18 @@ jobs:
         run: |
           echo "Setting IAM policy for Claude Code access..."
 
-          gcloud functions add-invoker-policy-binding ${{ env.FUNCTION_NAME }} \
-            --region=${{ inputs.region }} \
-            --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}"
+          if [ "${{ inputs.generation }}" = "gen1" ]; then
+            # Gen 1: Use add-iam-policy-binding
+            gcloud functions add-iam-policy-binding ${{ env.FUNCTION_NAME }} \
+              --region=${{ inputs.region }} \
+              --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
+              --role="roles/cloudfunctions.invoker"
+          else
+            # Gen 2: Use add-invoker-policy-binding
+            gcloud functions add-invoker-policy-binding ${{ env.FUNCTION_NAME }} \
+              --region=${{ inputs.region }} \
+              --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}"
+          fi
 
       - name: Test Function
         run: |
