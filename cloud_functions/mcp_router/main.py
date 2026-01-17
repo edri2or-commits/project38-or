@@ -159,6 +159,7 @@ class MCPRouter:
         self.tools["railway_rollback"] = self._railway_rollback
         self.tools["railway_deployments"] = self._railway_deployments
         self.tools["railway_service_info"] = self._railway_service_info
+        self.tools["railway_list_services"] = self._railway_list_services
 
         # n8n tools
         self.tools["n8n_trigger"] = self._n8n_trigger
@@ -431,6 +432,47 @@ class MCPRouter:
                     }
 
         return {"error": f"Service '{service_name}' not found"}
+
+    def _railway_list_services(self) -> dict:
+        """List all Railway services in the project."""
+        import httpx
+
+        railway_token = os.environ.get("RAILWAY_TOKEN")
+        project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
+        environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
+
+        if not railway_token:
+            return {"error": "RAILWAY_TOKEN not configured"}
+
+        query = """
+        query listServices($projectId: String!) {
+            project(id: $projectId) {
+                services {
+                    edges {
+                        node {
+                            id
+                            name
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        response = httpx.post(
+            "https://backboard.railway.app/graphql/v2",
+            headers={
+                "Authorization": f"Bearer {railway_token}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "query": query,
+                "variables": {"projectId": project_id}
+            },
+            timeout=30
+        )
+
+        return response.json()
 
     # =========================================================================
     # n8n Tools
