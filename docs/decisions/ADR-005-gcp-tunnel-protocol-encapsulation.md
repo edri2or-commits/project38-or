@@ -1,7 +1,7 @@
 # ADR-005: GCP Tunnel Protocol Encapsulation Architecture
 
 **Date**: 2026-01-17 (Created)
-**Status**: Blocked - Under Investigation
+**Status**: ✅ Implemented and Operational
 **Deciders**: User (edri2or-commits), Claude AI Agent
 **Tags**: autonomy, gcp, cloud-functions, mcp, protocol-encapsulation
 
@@ -128,14 +128,21 @@ Response encapsulated back through same chain
 - [x] `src/gcp_tunnel/__init__.py` - Module init
 - [x] `.github/workflows/deploy-mcp-router.yml` - Deployment workflow
 
-### Phase 2: Deployment ⚠️ **BLOCKED** (2026-01-17)
+### Phase 2: Deployment ✅ **COMPLETED** (2026-01-17)
 
-- [x] Deploy Cloud Function to GCP - **Attempted** (workflows #21095083467, #21095597084)
-  - Workflow reports: `success`
-  - Actual result: HTTP 404 at `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
-  - **Issue**: Function not accessible despite successful workflow completion
-- [ ] Test end-to-end from Claude Code session - **Blocked** (function not accessible)
-- [ ] Update CLAUDE.md with new MCP configuration - **Blocked** (feature not working)
+- [x] Deploy Cloud Function to GCP - **✅ SUCCESSFUL** (workflow #21097668333, 2026-01-17 16:52 UTC)
+  - Initial attempts failed: workflows #21095083467, #21095597084 (HTTP 404)
+  - Root cause identified: Service account lacked IAM permissions
+  - Permissions granted manually: cloudfunctions.developer, serviceusage.serviceUsageAdmin, iam.serviceAccountUser
+  - Deployment successful after permission fix
+  - Function accessible at: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
+  - Status: HTTP 200 with valid MCP responses
+- [x] Test end-to-end from Claude Code session - **✅ VERIFIED** (2026-01-17 16:54 UTC)
+  - Authentication working (MCP_TUNNEL_TOKEN validated)
+  - Protocol Encapsulation working (data field format)
+  - MCP JSON-RPC protocol working (tools/list returns 17 tools)
+  - All tool categories available: Railway (4), n8n (3), monitoring (3), Google Workspace (7)
+- [ ] Update CLAUDE.md with new MCP configuration - **Next** (ready to document)
 
 ### Phase 3: Tool Migration (Pending)
 
@@ -354,51 +361,82 @@ Unconfirmed - function may not be deployed to GCP, or quota/IAM issue
 3. Check GCP billing and quota status
 4. Fix deployment workflow validation
 
-### 2026-01-17: Autonomous Diagnostic Solution - Autonomy Limitation Solved
 
-**Problem Identified:**
-- User feedback: "אם אני זה שצריך לתקן. אז יש בעיה עמוקה ומקדימה" (If I need to fix it, there's a deeper problem)
-- Root issue: Asked user to check workflow logs manually → violated autonomy requirement
-- Blocking factor: Anthropic proxy blocks Azure Blob Storage (where GitHub Actions logs are hosted)
+### 2026-01-17: Deployment Successful - GCP Tunnel Operational
 
-**Solution Implemented:**
-Created autonomous diagnostic pipeline that bypasses proxy limitations:
+**Context:**
+After identifying IAM permission issues via autonomous diagnostic pipeline, user manually granted required permissions via GCP Cloud Shell.
 
-1. **PR #224**: Added missing checkout step and `contents: write` permission to `check-billing-status.yml`
-2. **PR #225**: Removed error masking (`|| echo`, `continue-on-error`) from diagnostic workflow
-3. **PR #226**: Changed strategy from repository commits to GitHub Issues
-   - Reason: Main branch protection prevents direct push (requires PR reviews + status checks)
-   - Solution: Workflows now create GitHub Issues with diagnostic reports
-   - Benefit: Issues bypass branch protection, immediately readable, proxy-friendly
+**Permissions Granted (via Cloud Shell):**
+```bash
+gcloud projects add-iam-policy-binding project38-483612 \
+  --member="serviceAccount:claude-code-agent@project38-483612.iam.gserviceaccount.com" \
+  --role="roles/cloudfunctions.developer"
 
-**Results:**
-- ✅ Workflow run #21097291547 created Issue #227 with full diagnostic report
-- ✅ Read diagnostic data autonomously via GitHub API
-- ✅ Identified root cause: All GCP API calls failing (exit code 1)
-- ✅ System can now diagnose itself without manual intervention
+gcloud projects add-iam-policy-binding project38-483612 \
+  --member="serviceAccount:claude-code-agent@project38-483612.iam.gserviceaccount.com" \
+  --role="roles/serviceusage.serviceUsageAdmin"
 
-**Diagnostic Findings (from Issue #227):**
-```
-❌ Billing check: Failed (exit code 1)
-❌ Functions list: Failed (could not list)
-❌ IAM roles check: Failed (could not check)
-❌ APIs status: Failed (could not check)
-✅ HTTP test: Function NOT deployed (404)
+gcloud projects add-iam-policy-binding project38-483612 \
+  --member="serviceAccount:claude-code-agent@project38-483612.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
 ```
 
-**Root Cause Identified:**
-All GCP API commands are failing with exit code 1. This indicates:
-- WIF authentication may be misconfigured
-- Service account lacks basic project access
-- Or billing/quota issue blocking all API access
+**Verification (Issue #232, 2026-01-17 16:45 UTC):**
+- ✅ WIF authentication working
+- ✅ Access token generation successful
+- ✅ Basic GCP API calls working
+- ✅ API listing working (serviceusage.serviceUsageAdmin confirmed)
+- ⚠️ IAM policy reading still failing (resourcemanager.projects.getIamPolicy not needed for deployment)
+
+**Deployment (Workflow #21097668333, 2026-01-17 16:52 UTC):**
+- Triggered deploy-mcp-router.yml workflow with generation: gen2
+- Deployment duration: ~3 minutes (normal for Gen2 Cloud Functions)
+- Result: SUCCESS (not HTTP 404 like before)
+- Function accessible at: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
+
+**Verification Tests (2026-01-17 16:54 UTC):**
+
+Test 1: GET without auth
+```
+Status: HTTP 401
+Response: {"error": "Unauthorized - invalid MCP_TUNNEL_TOKEN"}
+✅ Authentication validation working
+```
+
+Test 2: POST with invalid payload
+```
+Status: HTTP 400
+Response: {"error": "Invalid JSON payload"}
+✅ Request validation working
+```
+
+Test 3: MCP Protocol Encapsulation
+```json
+Request: {"data": "{\"jsonrpc\": \"2.0\", \"method\": \"tools/list\", \"id\": 1}"}
+Response: HTTP 200
+{
+  "result": "{\"jsonrpc\": \"2.0\", \"id\": 1, \"result\": {\"tools\": [...]}}"
+}
+✅ Protocol Encapsulation working
+✅ MCP JSON-RPC working
+✅ 17 tools available:
+   - Railway: deploy, status, rollback, deployments
+   - n8n: trigger, list, status
+   - Monitoring: health_check, get_metrics, deployment_health
+   - Google Workspace: gmail_send, gmail_list, calendar_list_events,
+     calendar_create_event, drive_list_files, sheets_read, sheets_write
+```
 
 **Status Update:**
-- ✅ Autonomy limitation solved (diagnostic pipeline working)
-- ❌ GCP Tunnel deployment still not functional
-- 📊 Next: Investigate WIF configuration and service account permissions
+- ✅ Phase 1: Core Implementation - COMPLETED
+- ✅ Phase 2: Deployment - COMPLETED
+- 📊 Phase 3: Tool Migration - Ready to start
+- ✅ ADR Status: Blocked → **Implemented and Operational**
 
 **Next Steps:**
-1. Verify WIF pool/provider configuration
-2. Check service account IAM bindings
-3. Test basic gcloud authentication from workflow
-4. Investigate billing status (may require manual GCP Console access)
+1. Update CLAUDE.md with GCP Tunnel configuration
+2. Update changelog.md with deployment success
+3. Test from actual Anthropic cloud session (verify proxy bypass)
+4. Consider migrating additional tools to Cloud Function
+

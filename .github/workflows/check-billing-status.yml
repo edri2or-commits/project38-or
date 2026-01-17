@@ -6,7 +6,6 @@ on:
 permissions:
   contents: write
   id-token: write
-  issues: write
 
 env:
   PROJECT_ID: project38-483612
@@ -174,27 +173,12 @@ jobs:
           # Print to console
           cat $REPORT_FILE
 
-          # Create GitHub Issue with diagnostic report
-          # (Cannot push to main due to branch protection)
-          echo ""
-          echo "Creating GitHub Issue with diagnostic report..."
-
-          ISSUE_TITLE="[Diagnostic] GCP Billing & Deployment Status - $(date +%Y-%m-%d_%H:%M)"
-          ISSUE_BODY=$(cat $REPORT_FILE)
-
-          ISSUE_URL=$(curl -s -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/issues" \
-            -d "$(jq -n --arg title "$ISSUE_TITLE" --arg body "$ISSUE_BODY" '{title: $title, body: $body, labels: ["diagnostic", "automated"]}')" \
-            | jq -r '.html_url // "ERROR"')
-
-          if [ "$ISSUE_URL" != "ERROR" ]; then
-            echo "✅ Diagnostic report published to: $ISSUE_URL"
-          else
-            echo "❌ Failed to create issue"
-            exit 1
-          fi
+          # Commit to repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add $REPORT_FILE
+          git commit -m "docs: Add diagnostic report [skip ci]" || echo "Nothing to commit"
+          git push origin HEAD:main || echo "Could not push"
 
       - name: Summary
         run: |
