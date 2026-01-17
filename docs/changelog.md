@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **GitHub Relay Startup Beacon** (2026-01-17) - Verify relay starts on Railway
+  - Posts startup notification directly to GitHub Issue #183 when relay starts
+  - Confirms authentication working and relay is running
+  - Helps diagnose deployment issues
+
 - **GitHub Relay Status Endpoint** (2026-01-16) - Diagnose relay health
   - New `/api/relay/status` endpoint shows relay state, processed requests, token status
   - Enhanced startup validation: checks for private key before starting
