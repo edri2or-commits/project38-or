@@ -354,12 +354,43 @@ class MCPRouter:
 router = MCPRouter()
 
 
+def _validate_token(request: Request) -> bool:
+    """
+    Validate the custom MCP tunnel token.
+
+    The token is stored in GCP Secret Manager and compared against
+    the Authorization header. This allows public access to the function
+    while still requiring authentication.
+
+    Returns:
+        True if token is valid, False otherwise
+    """
+    auth_header = request.headers.get("Authorization", "")
+
+    if not auth_header.startswith("Bearer "):
+        return False
+
+    provided_token = auth_header[7:]  # Remove "Bearer " prefix
+
+    # Get expected token from environment (set during deployment from Secret Manager)
+    expected_token = os.environ.get("MCP_TUNNEL_TOKEN", "")
+
+    if not expected_token:
+        logger.error("MCP_TUNNEL_TOKEN not configured in environment")
+        return False
+
+    # Constant-time comparison to prevent timing attacks
+    import hmac
+    return hmac.compare_digest(provided_token, expected_token)
+
+
 @functions_framework.http
 def mcp_router(request: Request):
     """
     HTTP Cloud Function entry point.
 
     Receives encapsulated MCP messages and routes them to handlers.
+    Requires custom MCP_TUNNEL_TOKEN for authentication (not GCP OAuth).
 
     Expected payload format:
     {
@@ -382,6 +413,15 @@ def mcp_router(request: Request):
         return ("", 204, headers)
 
     headers = {"Access-Control-Allow-Origin": "*"}
+
+    # Validate custom token (NOT GCP OAuth - this is our own token)
+    if not _validate_token(request):
+        logger.warning("Invalid or missing MCP tunnel token")
+        return (
+            json.dumps({"error": "Unauthorized - invalid MCP_TUNNEL_TOKEN"}),
+            401,
+            headers
+        )
 
     try:
         # Parse request

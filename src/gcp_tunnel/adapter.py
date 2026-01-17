@@ -3,19 +3,22 @@
 GCP Tunnel Adapter - Protocol Encapsulation Client.
 
 This script runs locally in the Claude Code session and tunnels MCP messages
-through the cloudfunctions.googleapis.com API, bypassing Anthropic's egress proxy.
+through Cloud Functions HTTP trigger, using a custom token for authentication.
 
 Architecture:
-    Claude Code → stdio → This Adapter → HTTPS → googleapis.com → Cloud Function
+    Claude Code → stdio → This Adapter → HTTPS → cloudfunctions.net → Cloud Function
 
 Usage:
     python adapter.py
 
 Environment Variables:
+    MCP_TUNNEL_TOKEN: Custom authentication token (REQUIRED)
     GOOGLE_PROJECT_ID: GCP project ID (default: project38-483612)
     MCP_ROUTER_REGION: Cloud Function region (default: us-central1)
     MCP_ROUTER_NAME: Cloud Function name (default: mcp-router)
-    GOOGLE_APPLICATION_CREDENTIALS: Path to service account key (optional with WIF)
+
+Note: This does NOT require GCP credentials. It uses a custom token that
+works in Anthropic cloud sessions where GCP auth is not available.
 """
 
 import asyncio
@@ -34,92 +37,74 @@ logging.basicConfig(
 logger = logging.getLogger("gcp_tunnel")
 
 
-class GoogleRestTransport:
+class MCPTunnelTransport:
     """
-    MCP Transport that tunnels messages through Google Cloud Functions API.
+    MCP Transport that tunnels messages through Cloud Functions HTTP trigger.
 
-    This transport encapsulates MCP JSON-RPC messages in the 'data' field
-    of cloudfunctions.googleapis.com/v1/.../functions/...:call requests.
+    This transport uses a custom token (MCP_TUNNEL_TOKEN) for authentication,
+    NOT GCP OAuth. This allows it to work in Anthropic cloud sessions where
+    GCP credentials are not available.
     """
 
     def __init__(
         self,
         project_id: str = None,
         region: str = None,
-        function_name: str = None
+        function_name: str = None,
+        token: str = None
     ):
         """
-        Initialize the Google REST transport.
+        Initialize the MCP tunnel transport.
 
         Args:
             project_id: GCP project ID
             region: Cloud Function region
             function_name: Cloud Function name
+            token: Custom MCP tunnel token (or from MCP_TUNNEL_TOKEN env)
         """
         self.project_id = project_id or os.environ.get("GOOGLE_PROJECT_ID", "project38-483612")
         self.region = region or os.environ.get("MCP_ROUTER_REGION", "us-central1")
         self.function_name = function_name or os.environ.get("MCP_ROUTER_NAME", "mcp-router")
 
-        self.api_url = (
-            f"https://cloudfunctions.googleapis.com/v1/"
-            f"projects/{self.project_id}/"
-            f"locations/{self.region}/"
-            f"functions/{self.function_name}:call"
+        # Custom token - NOT GCP OAuth
+        self.token = token or os.environ.get("MCP_TUNNEL_TOKEN")
+
+        # HTTP trigger URL (publicly accessible, but requires our custom token)
+        # Format: https://{region}-{project}.cloudfunctions.net/{function}
+        self.http_url = (
+            f"https://{self.region}-{self.project_id}.cloudfunctions.net/"
+            f"{self.function_name}"
         )
 
-        self.credentials = None
-        self.token: Optional[str] = None
         self._http_client = None
 
-        logger.info(f"Initialized transport: {self.api_url}")
+        logger.info(f"Initialized transport: {self.http_url}")
 
     async def start(self):
-        """Initialize credentials and HTTP client."""
-        try:
-            import httpx
-
-            # Initialize HTTP client
-            self._http_client = httpx.AsyncClient(timeout=120.0)
-
-            # Try to get credentials
-            await self._refresh_credentials()
-
-            logger.info("Transport started successfully")
-
-        except Exception as e:
-            logger.error(f"Failed to start transport: {e}")
-            raise
-
-    async def _refresh_credentials(self):
-        """Refresh OAuth2 credentials."""
-        try:
-            # Try google-auth library first
-            import google.auth
-            import google.auth.transport.requests
-
-            self.credentials, project = google.auth.default(
-                scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        """Initialize HTTP client and validate token."""
+        if not self.token:
+            raise RuntimeError(
+                "MCP_TUNNEL_TOKEN environment variable is required.\n"
+                "Set it in Claude Code UI: Environment > Add variable > MCP_TUNNEL_TOKEN=your-token"
             )
 
-            # Refresh the token
-            request = google.auth.transport.requests.Request()
-            self.credentials.refresh(request)
-            self.token = self.credentials.token
-
-            logger.info(f"Credentials refreshed, project: {project}")
-
+        try:
+            import httpx
+            self._http_client = httpx.AsyncClient(timeout=120.0)
+            logger.info("Transport started successfully")
         except ImportError:
-            logger.warning("google-auth not available, trying environment token")
-            # Fallback to environment variable
-            self.token = os.environ.get("GOOGLE_ACCESS_TOKEN")
-            if not self.token:
-                raise RuntimeError(
-                    "No credentials available. Install google-auth or set GOOGLE_ACCESS_TOKEN"
-                )
+            raise RuntimeError("httpx library required. Install with: pip install httpx")
+
+    async def stop(self):
+        """Close HTTP client."""
+        if self._http_client:
+            await self._http_client.aclose()
+            self._http_client = None
+        logger.info("Transport stopped")
 
     async def send(self, message: str) -> str:
         """
-        Send an MCP message through the Google API tunnel.
+        Send an MCP message through the Cloud Function tunnel.
 
         Args:
             message: JSON-RPC message as string
@@ -130,18 +115,14 @@ class GoogleRestTransport:
         if not self._http_client:
             await self.start()
 
-        # Ensure we have valid credentials
-        if self.credentials and self.credentials.expired:
-            await self._refresh_credentials()
-
-        # Encapsulate the MCP message
+        # Encapsulate the MCP message in 'data' field
         payload = {"data": message}
 
         logger.debug(f"Sending to tunnel: {message[:100]}...")
 
         try:
             response = await self._http_client.post(
-                self.api_url,
+                self.http_url,
                 headers={
                     "Authorization": f"Bearer {self.token}",
                     "Content-Type": "application/json"
@@ -149,14 +130,24 @@ class GoogleRestTransport:
                 json=payload
             )
 
+            if response.status_code == 401:
+                logger.error("Authentication failed - check MCP_TUNNEL_TOKEN")
+                return json.dumps({
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32001,
+                        "message": "Authentication failed - invalid MCP_TUNNEL_TOKEN"
+                    }
+                })
+
             if response.status_code != 200:
                 error_text = response.text
-                logger.error(f"API error {response.status_code}: {error_text}")
+                logger.error(f"HTTP error {response.status_code}: {error_text}")
                 return json.dumps({
                     "jsonrpc": "2.0",
                     "error": {
                         "code": -32000,
-                        "message": f"API error: {response.status_code}"
+                        "message": f"HTTP error: {response.status_code}"
                     }
                 })
 
@@ -168,93 +159,87 @@ class GoogleRestTransport:
             return result
 
         except Exception as e:
-            logger.exception("Transport error")
+            logger.exception(f"Request failed: {e}")
             return json.dumps({
                 "jsonrpc": "2.0",
                 "error": {
-                    "code": -32000,
-                    "message": f"Transport error: {e}"
+                    "code": -32603,
+                    "message": f"Transport error: {str(e)}"
                 }
             })
 
-    async def close(self):
-        """Close the HTTP client."""
-        if self._http_client:
-            await self._http_client.aclose()
-            self._http_client = None
 
-
-class MCPStdioAdapter:
+class MCPStdioServer:
     """
-    Bridges stdio MCP protocol with the Google REST transport.
-
-    Reads JSON-RPC messages from stdin, sends them through the tunnel,
-    and writes responses to stdout.
+    Simple MCP server that bridges stdio to the Cloud Function tunnel.
     """
 
-    def __init__(self, transport: GoogleRestTransport):
-        """Initialize the adapter with a transport."""
+    def __init__(self, transport: MCPTunnelTransport):
+        """Initialize with transport."""
         self.transport = transport
+        self.running = False
 
     async def run(self):
-        """Main loop: read from stdin, tunnel, write to stdout."""
+        """Run the MCP stdio bridge."""
         await self.transport.start()
+        self.running = True
 
-        logger.info("MCP Stdio Adapter running")
-
-        # Read from stdin line by line
-        reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(reader)
-
-        loop = asyncio.get_event_loop()
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+        logger.info("MCP Tunnel Server started - reading from stdin")
 
         try:
-            while True:
-                # Read a line from stdin
-                line = await reader.readline()
+            reader = asyncio.StreamReader()
+            protocol = asyncio.StreamReaderProtocol(reader)
+            await asyncio.get_event_loop().connect_read_pipe(
+                lambda: protocol, sys.stdin
+            )
 
+            while self.running:
+                line = await reader.readline()
                 if not line:
-                    logger.info("EOF received, exiting")
                     break
 
-                line = line.decode("utf-8").strip()
-
+                line = line.decode().strip()
                 if not line:
                     continue
 
-                logger.debug(f"Received from Claude: {line[:100]}...")
+                logger.debug(f"Received from stdio: {line[:100]}...")
 
-                # Send through tunnel
+                # Forward to Cloud Function
                 response = await self.transport.send(line)
 
                 # Write response to stdout
-                sys.stdout.write(response + "\n")
-                sys.stdout.flush()
-
-                logger.debug(f"Sent to Claude: {response[:100]}...")
+                print(response, flush=True)
 
         except asyncio.CancelledError:
-            logger.info("Adapter cancelled")
+            logger.info("Server cancelled")
+        except Exception as e:
+            logger.exception(f"Server error: {e}")
         finally:
-            await self.transport.close()
+            await self.transport.stop()
 
 
 async def main():
     """Entry point."""
-    logger.info("Starting GCP Tunnel Adapter")
-    logger.info(f"Project: {os.environ.get('GOOGLE_PROJECT_ID', 'project38-483612')}")
+    # Check for token
+    if not os.environ.get("MCP_TUNNEL_TOKEN"):
+        print(
+            "ERROR: MCP_TUNNEL_TOKEN environment variable is required.\n\n"
+            "To use this tunnel from Claude Code:\n"
+            "1. Go to Claude Code UI\n"
+            "2. Click on Environment name (top left)\n"
+            "3. Add environment variable: MCP_TUNNEL_TOKEN=your-token\n"
+            "4. Start a new session\n",
+            file=sys.stderr
+        )
+        sys.exit(1)
 
-    transport = GoogleRestTransport()
-    adapter = MCPStdioAdapter(transport)
+    transport = MCPTunnelTransport()
+    server = MCPStdioServer(transport)
 
     try:
-        await adapter.run()
+        await server.run()
     except KeyboardInterrupt:
         logger.info("Interrupted")
-    except Exception as e:
-        logger.exception("Fatal error")
-        sys.exit(1)
 
 
 if __name__ == "__main__":
