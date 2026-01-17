@@ -14,6 +14,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  issues: write
 
 jobs:
   check-webhook:
@@ -41,6 +42,7 @@ jobs:
           echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Check Current Webhook
+        id: check-webhook
         env:
           BOT_TOKEN: ${{ steps.telegram-token.outputs.bot_token }}
         run: |
@@ -59,7 +61,58 @@ jobs:
           echo "Pending updates: $PENDING_COUNT"
           echo "Last error: $LAST_ERROR"
 
+          # Save to outputs for posting to issue
+          echo "webhook_url=$WEBHOOK_URL" >> $GITHUB_OUTPUT
+          echo "pending_count=$PENDING_COUNT" >> $GITHUB_OUTPUT
+          echo "last_error=$LAST_ERROR" >> $GITHUB_OUTPUT
+
+      - name: Post Results to Issue
+        if: inputs.action == 'check'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const webhookUrl = '${{ steps.check-webhook.outputs.webhook_url }}';
+            const pendingCount = '${{ steps.check-webhook.outputs.pending_count }}';
+            const lastError = '${{ steps.check-webhook.outputs.last_error }}';
+
+            const railwayUrl = 'https://telegram-bot-production-053d.up.railway.app/webhook';
+            const isCorrect = webhookUrl === railwayUrl;
+
+            const statusEmoji = isCorrect ? '✅' : '⚠️';
+
+            const body = `## ${statusEmoji} Telegram Webhook Status Check
+
+**Current Configuration:**
+- **Webhook URL**: \`${webhookUrl || 'Not set'}\`
+- **Pending Updates**: ${pendingCount}
+- **Last Error**: ${lastError}
+
+**Expected URL**: \`${railwayUrl}\`
+
+${isCorrect ? '✅ **Webhook is correctly configured!**' : '⚠️ **Webhook needs to be updated!**'}
+
+${isCorrect ? '' : `
+### Next Step: Update Webhook
+
+Run the workflow again with \`action: update\` to point the webhook to Railway:
+
+\`\`\`bash
+gh workflow run check-telegram-webhook.yml -f action=update --repo edri2or-commits/project38-or
+\`\`\`
+`}
+
+---
+Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 242,
+              body: body
+            });
+
       - name: Update Webhook to Railway
+        id: update-webhook
         if: inputs.action == 'update'
         env:
           BOT_TOKEN: ${{ steps.telegram-token.outputs.bot_token }}
@@ -82,8 +135,60 @@ jobs:
             echo "✅ Webhook updated successfully!"
             echo ""
             echo "Verifying new webhook..."
-            curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo" | jq '.'
+            VERIFY_RESPONSE=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo")
+            echo "$VERIFY_RESPONSE" | jq '.'
+
+            NEW_WEBHOOK_URL=$(echo "$VERIFY_RESPONSE" | jq -r '.result.url')
+            echo "new_webhook_url=$NEW_WEBHOOK_URL" >> $GITHUB_OUTPUT
+            echo "success=true" >> $GITHUB_OUTPUT
           else
             echo "❌ Failed to update webhook"
+            echo "success=false" >> $GITHUB_OUTPUT
             exit 1
           fi
+
+      - name: Post Update Results to Issue
+        if: inputs.action == 'update'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const success = '${{ steps.update-webhook.outputs.success }}' === 'true';
+            const newWebhookUrl = '${{ steps.update-webhook.outputs.new_webhook_url }}';
+
+            const statusEmoji = success ? '✅' : '❌';
+
+            const body = `## ${statusEmoji} Telegram Webhook ${success ? 'Updated' : 'Update Failed'}
+
+${success ? `
+**Webhook has been updated successfully!**
+
+- **New URL**: \`${newWebhookUrl}\`
+- **Service**: Railway (telegram-bot-production-053d)
+
+### ✅ Next Steps
+
+1. **Test the bot** in Telegram:
+   - Send: \`/start\`
+   - Send: \`Hello!\`
+   - Send: \`/generate Write a haiku about coding\`
+
+2. **Verify responses** come from Claude/GPT-4/Gemini (not n8n templates)
+
+3. **Check Railway logs** for LiteLLM Gateway calls
+
+The bot should now respond with intelligent, context-aware messages powered by Multi-LLM routing!
+` : `
+**Failed to update webhook.**
+
+Please check the workflow logs for details.
+`}
+
+---
+Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 242,
+              body: body
+            });
