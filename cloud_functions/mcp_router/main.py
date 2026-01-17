@@ -372,14 +372,14 @@ class MCPRouter:
 
         # Query to get service with domains
         query = """
-        query getServiceDomains($projectId: String!, $environmentId: String!) {
+        query getServiceDomains($projectId: String!) {
             project(id: $projectId) {
                 services {
                     edges {
                         node {
                             id
                             name
-                            serviceInstances(environmentId: $environmentId) {
+                            serviceInstances {
                                 edges {
                                     node {
                                         domains {
@@ -406,8 +406,7 @@ class MCPRouter:
             json={
                 "query": query,
                 "variables": {
-                    "projectId": project_id,
-                    "environmentId": environment_id
+                    "projectId": project_id
                 }
             },
             timeout=30
