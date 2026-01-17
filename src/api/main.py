@@ -70,8 +70,9 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Failed to start GCS relay: {e}")
 
     # Start GitHub relay polling if enabled
+    # Disabled by default - enable with GITHUB_RELAY_ENABLED=true in Railway env vars
     global _github_relay, _relay_startup_error
-    relay_enabled = os.getenv("GITHUB_RELAY_ENABLED", "true").lower() == "true"
+    relay_enabled = os.getenv("GITHUB_RELAY_ENABLED", "false").lower() == "true"
     logger.info(f"GitHub relay enabled: {relay_enabled}")
 
     if relay_enabled:
