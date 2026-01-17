@@ -24,8 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Architecture**: Telegram Bot → LiteLLM Gateway → [Claude/GPT-4/Gemini] → MCP Gateway
   - **Deployment**: Railway service with health checks (/health endpoint)
   - **Security**: API keys from GCP Secret Manager, no hardcoded credentials
-  - **Status**: ✅ Ready for deployment (awaiting Railway service creation)
-  - See research report for full Multi-LLM architecture rationale
+  - **Status**: ✅ **DEPLOYED** to production (2026-01-17 20:14 UTC)
+  - **Production URL**: https://litellm-gateway-production-0339.up.railway.app
+  - **Evidence**: Workflow #21099849223 (create-service), #21099864987 (deploy), deployment SUCCESS
+  - See [ADR-006](decisions/ADR-006-multi-llm-routing-strategy.md) for full rationale and implementation details
 
 - **Phase 3: Google Workspace Tools Migration** (2026-01-17) - Complete implementation
   - Migrated full Google Workspace implementation from `src/mcp_gateway/tools/workspace.py` to Cloud Function
