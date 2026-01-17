@@ -1,0 +1,20 @@
+# Railway Configuration for LiteLLM Gateway
+# Documentation: https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Health check endpoint
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+
+# Restart policy
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Environment variables required:
+# - ANTHROPIC_API_KEY
+# - OPENAI_API_KEY
+# - GEMINI_API_KEY

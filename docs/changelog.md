@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **LiteLLM Gateway - Multi-LLM Routing** (2026-01-17) - Production-ready proxy for multi-provider AI
+  - `services/litellm-gateway/` - Self-hosted LiteLLM proxy on Railway
+  - **Dockerfile** - Based on official `ghcr.io/berriai/litellm:main-latest` image
+  - **litellm-config.yaml** - Multi-LLM routing configuration (Claude, GPT-4, Gemini)
+  - **railway.toml** - Railway deployment configuration
+  - **README.md** - Complete documentation with usage examples (150+ lines)
+  - `.github/workflows/deploy-litellm-gateway.yml` - Automated deployment workflow
+  - **Features**:
+    - 4 models: Claude 3.7 Sonnet, GPT-4o, Gemini 1.5 Pro/Flash
+    - Automatic fallback chains: claude-sonnet → gpt-4o → gemini-pro
+    - Budget control: $10/day hard cap (configurable)
+    - Unified API: OpenAI Chat Completion format for all providers
+    - Cost tracking: Per-request logging with budget enforcement
+  - **Architecture**: Telegram Bot → LiteLLM Gateway → [Claude/GPT-4/Gemini] → MCP Gateway
+  - **Deployment**: Railway service with health checks (/health endpoint)
+  - **Security**: API keys from GCP Secret Manager, no hardcoded credentials
+  - **Status**: ✅ Ready for deployment (awaiting Railway service creation)
+  - See research report for full Multi-LLM architecture rationale
+
 - **Phase 3: Google Workspace Tools Migration** (2026-01-17) - Complete implementation
   - Migrated full Google Workspace implementation from `src/mcp_gateway/tools/workspace.py` to Cloud Function
   - **Gmail**: `gmail_send`, `gmail_list` (2 tools) - Full OAuth authentication + email sending/reading

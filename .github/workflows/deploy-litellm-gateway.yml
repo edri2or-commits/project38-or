@@ -1,0 +1,249 @@
+name: Deploy LiteLLM Gateway
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - create-service
+          - status
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Get LLM API Keys
+        id: llm-keys
+        run: |
+          ANTHROPIC_KEY=$(gcloud secrets versions access latest --secret="ANTHROPIC-API" --project=project38-483612)
+          OPENAI_KEY=$(gcloud secrets versions access latest --secret="OPENAI-API" --project=project38-483612)
+          GEMINI_KEY=$(gcloud secrets versions access latest --secret="GEMINI-API" --project=project38-483612)
+
+          echo "::add-mask::$ANTHROPIC_KEY"
+          echo "::add-mask::$OPENAI_KEY"
+          echo "::add-mask::$GEMINI_KEY"
+
+          echo "anthropic_key=$ANTHROPIC_KEY" >> $GITHUB_OUTPUT
+          echo "openai_key=$OPENAI_KEY" >> $GITHUB_OUTPUT
+          echo "gemini_key=$GEMINI_KEY" >> $GITHUB_OUTPUT
+
+      - name: Check Railway Status
+        if: inputs.action == 'status'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+        run: |
+          echo "Checking LiteLLM Gateway status..."
+
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }')
+
+          echo "Services in project:"
+          echo "$RESPONSE" | jq '.data.project.services.edges[].node'
+
+      - name: Create LiteLLM Gateway Service
+        if: inputs.action == 'create-service'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          ANTHROPIC_API_KEY: ${{ steps.llm-keys.outputs.anthropic_key }}
+          OPENAI_API_KEY: ${{ steps.llm-keys.outputs.openai_key }}
+          GEMINI_API_KEY: ${{ steps.llm-keys.outputs.gemini_key }}
+        run: |
+          echo "Creating LiteLLM Gateway service via GraphQL API..."
+
+          # Create service
+          echo "Step 1: Creating service..."
+          CREATE_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceCreate(input: { name: \"litellm-gateway\", projectId: \"'$RAILWAY_PROJECT_ID'\" }) { id name } }"
+            }')
+
+          echo "Create response: $CREATE_RESPONSE"
+
+          SERVICE_ID=$(echo "$CREATE_RESPONSE" | jq -r '.data.serviceCreate.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "Service may already exist, searching..."
+            SERVICES_RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+              }')
+
+            SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "litellm-gateway") | .node.id')
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Failed to create or find service"
+            exit 1
+          fi
+
+          # Set environment variables
+          echo "Step 2: Setting environment variables..."
+
+          # Anthropic API Key
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"ANTHROPIC_API_KEY\", value: \"'$ANTHROPIC_API_KEY'\" }) }"
+            }'
+
+          # OpenAI API Key
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"OPENAI_API_KEY\", value: \"'$OPENAI_API_KEY'\" }) }"
+            }'
+
+          # Gemini API Key
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"GEMINI_API_KEY\", value: \"'$GEMINI_API_KEY'\" }) }"
+            }'
+
+          # Port
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"PORT\", value: \"4000\" }) }"
+            }'
+
+          echo "✅ Environment variables set"
+          echo ""
+          echo "✅ LiteLLM Gateway service created!"
+          echo "Service ID: $SERVICE_ID"
+          echo ""
+          echo "Next: Go to Railway dashboard and connect this service to GitHub repo"
+          echo "Path: services/litellm-gateway"
+          echo "Or run this workflow again with action: deploy"
+
+      - name: Deploy LiteLLM Gateway
+        if: inputs.action == 'deploy'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "Triggering deployment for LiteLLM Gateway..."
+
+          SERVICES_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }')
+
+          SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "litellm-gateway") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Service not found. Run with action: create-service first."
+            exit 1
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { deploymentTrigger(input: { serviceId: \"'$SERVICE_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\" }) { id status } }"
+            }')
+
+          echo "Deploy response: $DEPLOY_RESPONSE"
+          echo "✅ Deployment triggered"
+
+      - name: Get Service URL
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "Getting service URL..."
+
+          DOMAIN=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { name serviceInstances(environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }"
+            }' | jq -r '.data.project.services.edges[] | select(.node.name == "litellm-gateway") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain' 2>/dev/null || echo "")
+
+          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
+            echo "🌐 LiteLLM Gateway URL: https://$DOMAIN"
+            echo ""
+            echo "Test with:"
+            echo "curl https://$DOMAIN/health"
+          else
+            echo "Service domain not available yet. Add domain in Railway dashboard."
+          fi
+
+      - name: Summary
+        run: |
+          echo "## LiteLLM Gateway Deployment"
+          echo "| Item | Status |"
+          echo "|------|--------|"
+          echo "| Action | ${{ inputs.action }} |"
+          echo "| Railway Token | ✅ |"
+          echo "| Anthropic API Key | ✅ |"
+          echo "| OpenAI API Key | ✅ |"
+          echo "| Gemini API Key | ✅ |"
+          echo ""
+          echo "### Next Steps"
+          echo "1. Verify deployment: Check Railway dashboard"
+          echo "2. Test health endpoint: \`curl https://<domain>/health\`"
+          echo "3. Test model routing: \`curl https://<domain>/v1/models\`"
+          echo "4. Integrate with Telegram Bot (Phase 1)"

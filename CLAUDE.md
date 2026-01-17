@@ -1496,6 +1496,118 @@ The system autonomously identified the IAM permission issue through:
 - **Verification**: All 20 tools tested and operational (2026-01-17 18:20 UTC)
 - **See**: [ADR-005 Phase 3](docs/decisions/ADR-005-gcp-tunnel-protocol-encapsulation.md#phase-3-tool-migration--completed-2026-01-17)
 
+### LiteLLM Gateway (Multi-LLM Routing)
+
+**Status**: ✅ **Ready for Deployment** (2026-01-17)
+
+**Purpose**: Self-hosted multi-LLM routing proxy providing unified access to Anthropic, OpenAI, and Google with automatic fallback, cost control, and budget enforcement.
+
+**Architecture Position**:
+```
+Telegram Bot → LiteLLM Gateway → [Claude 3.7, GPT-4o, Gemini 1.5] → MCP Gateway
+```
+
+**Location**: `services/litellm-gateway/`
+
+**Deployment**: Railway service (pending creation)
+
+#### Available Models
+
+| Model Name | Provider | Use Case | Cost (per 1M tokens) |
+|------------|----------|----------|---------------------|
+| `claude-sonnet` | Anthropic Claude 3.7 | Primary (balanced) | $3 input, $15 output |
+| `gpt-4o` | OpenAI | Fallback, vision | $2.50 input, $10 output |
+| `gemini-pro` | Google Gemini 1.5 Pro | Cheap fallback | $1.25 input, $5 output |
+| `gemini-flash` | Google Gemini 1.5 Flash | Ultra-cheap | $0.075 input, $0.30 output |
+
+**Pricing Source**: Official provider pricing pages (2026-01-17)
+
+#### Features
+
+- **Multi-Provider Support**: Claude 3.7, GPT-4o, Gemini 1.5 Pro/Flash
+- **Automatic Fallback**: `claude-sonnet → gpt-4o → gemini-pro → gemini-flash`
+- **Cost Control**: $10/day budget limit (configurable in `litellm-config.yaml`)
+- **Unified API**: All models exposed via OpenAI Chat Completion format
+- **Health Monitoring**: `/health` endpoint for Railway health checks
+- **Security**: API keys from GCP Secret Manager (ANTHROPIC-API, OPENAI-API, GEMINI-API)
+
+#### Configuration Files
+
+| File | Purpose | Size |
+|------|---------|------|
+| `Dockerfile` | Based on `ghcr.io/berriai/litellm:main-latest` | 23 lines |
+| `litellm-config.yaml` | Model definitions, routing, budget | 100+ lines |
+| `railway.toml` | Railway deployment config | 20 lines |
+| `README.md` | Complete documentation | 150+ lines |
+
+#### Deployment Workflow
+
+**GitHub Actions**: `.github/workflows/deploy-litellm-gateway.yml`
+
+```bash
+# Step 1: Create Railway service (one-time)
+gh workflow run deploy-litellm-gateway.yml -f action=create-service
+
+# Step 2: Deploy to Railway
+gh workflow run deploy-litellm-gateway.yml -f action=deploy
+
+# Step 3: Check status
+gh workflow run deploy-litellm-gateway.yml -f action=status
+```
+
+**Environment Variables** (auto-configured from GCP Secret Manager):
+- `ANTHROPIC_API_KEY` → `ANTHROPIC-API` secret
+- `OPENAI_API_KEY` → `OPENAI-API` secret
+- `GEMINI_API_KEY` → `GEMINI-API` secret
+- `PORT` → 4000
+
+#### Usage Example
+
+```python
+from openai import OpenAI
+
+# Point to LiteLLM Gateway
+client = OpenAI(
+    base_url="https://litellm-gateway.railway.app",
+    api_key="dummy"  # Not required for self-hosted
+)
+
+# Use any model with automatic fallback
+response = client.chat.completions.create(
+    model="claude-sonnet",  # Primary
+    messages=[{"role": "user", "content": "Write a tweet about AI safety"}]
+)
+# If claude-sonnet fails → auto-tries gpt-4o → gemini-pro → gemini-flash
+```
+
+#### Integration with Telegram Bot (Phase 1 POC)
+
+**Architecture**:
+```
+User sends message via Telegram
+    ↓
+Telegram Bot (FastAPI on Railway)
+    ↓
+LiteLLM Gateway (model selection + fallback)
+    ↓
+Selected LLM (Claude/GPT-4/Gemini)
+    ↓
+(If tool call needed) → MCP Gateway
+    ↓
+Response back to Telegram
+```
+
+**Next Steps**:
+1. Deploy LiteLLM Gateway to Railway (run workflow)
+2. Build Telegram Bot service (Phase 1)
+3. Connect Telegram Bot → LiteLLM Gateway
+4. Test end-to-end: User → Bot → LLM → MCP → Response
+
+**References**:
+- **LiteLLM Docs**: https://docs.litellm.ai/
+- **Research Report**: Multi-LLM Agentic System Architecture (2026)
+- **README**: `services/litellm-gateway/README.md`
+
 ---
 
 ### Proxy Constraints (Anthropic Environment)
