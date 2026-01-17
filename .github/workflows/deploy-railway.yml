@@ -112,32 +112,11 @@ jobs:
           echo "::add-mask::$RAILWAY_TOKEN"
           echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Install Railway CLI
-        run: |
-          # Install Railway CLI using the official installer
-          bash <(curl -fsSL https://railway.app/install.sh)
-          railway version
-
       - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
-          RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID || '' }}
-        run: |
-          echo "🚀 Deploying to Railway using CLI..."
-          echo "Service ID: ${RAILWAY_SERVICE_ID:-not set}"
-
-          # Deploy using Railway CLI
-          # The CLI uses RAILWAY_TOKEN automatically for authentication
-          # railway up deploys the current directory to Railway
-          if [ -n "$RAILWAY_SERVICE_ID" ]; then
-            echo "Deploying to service: $RAILWAY_SERVICE_ID"
-            railway up --service "$RAILWAY_SERVICE_ID" --detach
-          else
-            echo "Deploying to linked service..."
-            railway up --detach
-          fi
-
-          echo "✅ Deployment started successfully"
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ steps.railway-token.outputs.token }}
+          service: ${{ vars.RAILWAY_SERVICE_ID || '' }}
 
       - name: Wait for deployment
         run: |
