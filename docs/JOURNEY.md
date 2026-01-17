@@ -2206,6 +2206,67 @@ Allowed: *.483703932474.us-east5.run.app
 
 ---
 
-*Last Updated: 2026-01-16*
-*Status: **MCP Gateway - Deployment Location Issue***
-*Current Milestone: Egress Proxy Limitation Discovered - Solutions Identified*
+## Phase 18: Production Stabilization (2026-01-17)
+
+### The Problem
+
+**Date**: 2026-01-17
+**Issue**: Production deployment crashing on startup
+
+**Symptoms**:
+- FastMCP server failing to start
+- `/api/health` endpoint not responding
+- Railway showing deployment as "crashed"
+
+### Root Cause Analysis
+
+**Problem 1: Invalid FastMCP Parameter**
+```python
+# WRONG - caused crash
+mcp = FastMCP("project38-or", description="MCP Gateway")
+
+# FIXED - description parameter not supported
+mcp = FastMCP("project38-or")
+```
+
+**Problem 2: HealthResponse Model Mismatch**
+- API returning fields not defined in Pydantic model
+- Fixed model to match actual response structure
+
+### Solution
+
+**PR #206**: `fix: disable GitHub relay by default and fix HealthResponse model`
+
+**Changes Made**:
+1. Removed invalid `description` parameter from FastMCP initialization
+2. Set `GITHUB_RELAY_ENABLED=false` as default (relay requires additional config)
+3. Fixed `HealthResponse` model to include all required fields
+
+### Verification
+
+**All endpoints working after fix**:
+
+| Endpoint | Status | Response |
+|----------|--------|----------|
+| `/api/health` | ✅ | `build: "2026-01-17-v2"` |
+| `/api/test/ping` | ✅ | `"status": "pong"` |
+| `/api/relay/status` | ✅ | Shows relay disabled |
+| `/mcp` | ✅ | MCP Gateway responding |
+
+### Commits
+
+- `c93012e`: fix: disable GitHub relay by default and fix HealthResponse model (#206)
+- `a737353`: ci: add build logs to railway config check (#205)
+- `6633a35`: fix(deploy): use deploymentTrigger to rebuild from source (#204)
+
+### Key Learning
+
+**FastMCP API Changes**: The `description` parameter was removed or changed in recent FastMCP versions. Always check library documentation for current API.
+
+**Defensive Defaults**: Features requiring additional configuration (like GitHub Relay requiring private key) should be disabled by default.
+
+---
+
+*Last Updated: 2026-01-17*
+*Status: **Production Stable***
+*Current Milestone: FastMCP crash fixed, all endpoints operational*
