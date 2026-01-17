@@ -1,0 +1,154 @@
+name: Diagnose GCP Cloud Functions Setup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Check Required APIs
+        run: |
+          echo "## API Status Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          APIS=(
+            "cloudfunctions.googleapis.com"
+            "cloudbuild.googleapis.com"
+            "run.googleapis.com"
+            "artifactregistry.googleapis.com"
+            "secretmanager.googleapis.com"
+          )
+
+          for api in "${APIS[@]}"; do
+            STATUS=$(gcloud services list --enabled --filter="name:$api" --format="value(name)" 2>/dev/null || echo "")
+            if [ -n "$STATUS" ]; then
+              echo "✅ $api - ENABLED" | tee -a $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ $api - NOT ENABLED" | tee -a $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Check IAM Roles
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## IAM Roles for Service Account" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Service Account: ${{ env.SERVICE_ACCOUNT }}"
+          echo ""
+
+          # Get project IAM policy and filter for our SA
+          gcloud projects get-iam-policy ${{ env.PROJECT_ID }} \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:${{ env.SERVICE_ACCOUNT }}" \
+            --format="table(bindings.role)" 2>&1 | tee roles.txt
+
+          cat roles.txt >> $GITHUB_STEP_SUMMARY
+
+          echo ""
+          echo "Required roles for Gen 2 Cloud Functions:"
+          echo "- roles/cloudfunctions.developer"
+          echo "- roles/iam.serviceAccountUser"
+          echo "- roles/cloudbuild.builds.builder"
+          echo "- roles/storage.objectAdmin"
+
+      - name: Check Cloud Functions Quota
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Cloud Functions Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # List existing functions
+          echo "Existing Cloud Functions:" | tee -a $GITHUB_STEP_SUMMARY
+          gcloud functions list --format="table(name,status,runtime)" 2>&1 | tee -a $GITHUB_STEP_SUMMARY || echo "No functions or cannot list"
+
+      - name: Try Gen 1 Dry Run
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Gen 1 Capability Check" >> $GITHUB_STEP_SUMMARY
+
+          # Create minimal test function
+          mkdir -p /tmp/test-func
+          cat > /tmp/test-func/main.py << 'PYEOF'
+          def hello_http(request):
+              return "OK"
+          PYEOF
+
+          cat > /tmp/test-func/requirements.txt << 'REQEOF'
+          functions-framework==3.*
+          REQEOF
+
+          # Try Gen 1 deploy (dry-run simulation via describe)
+          echo "Testing Gen 1 deployment capability..."
+
+          # Check if we can describe (implies list permission)
+          if gcloud functions describe mcp-router --region=us-central1 2>&1 | grep -q "NOT_FOUND\|does not exist"; then
+            echo "✅ Gen 1: Can access Cloud Functions API" | tee -a $GITHUB_STEP_SUMMARY
+          elif gcloud functions describe mcp-router --region=us-central1 2>&1 | grep -q "PERMISSION_DENIED"; then
+            echo "❌ Gen 1: Permission denied" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Gen 1: Function may already exist" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Try Gen 2 Dry Run
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Gen 2 Capability Check" >> $GITHUB_STEP_SUMMARY
+
+          # Check Gen 2 specific APIs
+          echo "Testing Gen 2 prerequisites..."
+
+          # Check Cloud Run API
+          if gcloud run services list --region=us-central1 2>&1 | grep -q "PERMISSION_DENIED\|API.*not enabled"; then
+            echo "❌ Gen 2: Cloud Run API issue" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Gen 2: Cloud Run API accessible" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check Cloud Build API
+          if gcloud builds list --limit=1 2>&1 | grep -q "PERMISSION_DENIED\|API.*not enabled"; then
+            echo "❌ Gen 2: Cloud Build API issue" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Gen 2: Cloud Build API accessible" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Summary and Recommendations
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "If APIs are missing, enable them with:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'gcloud services enable cloudfunctions.googleapis.com' >> $GITHUB_STEP_SUMMARY
+          echo 'gcloud services enable cloudbuild.googleapis.com' >> $GITHUB_STEP_SUMMARY
+          echo 'gcloud services enable run.googleapis.com' >> $GITHUB_STEP_SUMMARY
+          echo 'gcloud services enable artifactregistry.googleapis.com' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "If IAM roles are missing, add them with:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'gcloud projects add-iam-policy-binding $PROJECT_ID \' >> $GITHUB_STEP_SUMMARY
+          echo '  --member="serviceAccount:$SERVICE_ACCOUNT" \' >> $GITHUB_STEP_SUMMARY
+          echo '  --role="roles/cloudfunctions.developer"' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

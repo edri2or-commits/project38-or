@@ -12,6 +12,14 @@ on:
           - us-central1
           - us-east1
           - europe-west1
+      generation:
+        description: 'Cloud Functions Generation'
+        required: true
+        default: 'gen1'
+        type: choice
+        options:
+          - gen1
+          - gen2
 
 permissions:
   contents: read
@@ -45,6 +53,31 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Check and Enable Required APIs
+        run: |
+          echo "Checking required APIs..."
+
+          # Core API (required for both Gen 1 and Gen 2)
+          CORE_APIS="cloudfunctions.googleapis.com"
+
+          # Gen 2 requires additional APIs
+          if [ "${{ inputs.generation }}" = "gen2" ]; then
+            CORE_APIS="$CORE_APIS cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com"
+          fi
+
+          for API in $CORE_APIS; do
+            echo "Checking $API..."
+            if ! gcloud services list --enabled --filter="name:$API" --format="value(name)" | grep -q "$API"; then
+              echo "Enabling $API..."
+              gcloud services enable "$API" --project="${{ env.PROJECT_ID }}" || {
+                echo "⚠️ Could not enable $API - may need manual enablement"
+                echo "Run: gcloud services enable $API --project=${{ env.PROJECT_ID }}"
+              }
+            else
+              echo "✅ $API already enabled"
+            fi
+          done
+
       - name: Get secrets from Secret Manager
         id: secrets
         run: |
@@ -53,9 +86,27 @@ jobs:
           echo "::add-mask::${RAILWAY_TOKEN}"
           echo "RAILWAY_TOKEN=${RAILWAY_TOKEN}" >> $GITHUB_OUTPUT
 
-      - name: Deploy Cloud Function
+      - name: Deploy Cloud Function (Gen 1)
+        if: inputs.generation == 'gen1'
         run: |
-          echo "Deploying MCP Router to ${{ inputs.region }}..."
+          echo "Deploying MCP Router (Gen 1) to ${{ inputs.region }}..."
+
+          gcloud functions deploy ${{ env.FUNCTION_NAME }} \
+            --runtime=python311 \
+            --region=${{ inputs.region }} \
+            --source=cloud_functions/mcp_router \
+            --entry-point=mcp_router \
+            --trigger-http \
+            --no-allow-unauthenticated \
+            --service-account=${{ env.SERVICE_ACCOUNT }} \
+            --memory=512MB \
+            --timeout=120s \
+            --set-env-vars="RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0"
+
+      - name: Deploy Cloud Function (Gen 2)
+        if: inputs.generation == 'gen2'
+        run: |
+          echo "Deploying MCP Router (Gen 2) to ${{ inputs.region }}..."
 
           gcloud functions deploy ${{ env.FUNCTION_NAME }} \
             --gen2 \
@@ -64,7 +115,7 @@ jobs:
             --source=cloud_functions/mcp_router \
             --entry-point=mcp_router \
             --trigger-http \
-            --allow-unauthenticated=false \
+            --no-allow-unauthenticated \
             --service-account=${{ env.SERVICE_ACCOUNT }} \
             --min-instances=1 \
             --max-instances=10 \
