@@ -1,6 +1,6 @@
 # ADR-003: Railway Autonomous Control Architecture
 
-**Date**: 2026-01-12 (Created), 2026-01-14 (Updated - Tier 3 Complete via MCP Gateway)
+**Date**: 2026-01-12 (Created), 2026-01-14 (Tier 3 Complete), 2026-01-17 (Production Stabilization)
 **Status**: Accepted (All 3 Tiers Implemented)
 **Deciders**: User (edri2or-commits), Claude AI Agent
 **Tags**: railway, autonomous-control, infrastructure, deployment
@@ -703,6 +703,35 @@ This section tracks implementation progress against the decision:
 - PR #105: Week 2 Post-Launch Maintenance - 100% Complete (merged 2026-01-14)
 
 **ADR Impact:** Risk mitigation only - core architecture unchanged
+
+---
+
+### 2026-01-17: Production Stabilization - FastMCP Crash Fix
+
+**Problem:**
+- MCP Gateway crashing on Railway startup
+- `/api/health` endpoint not responding
+- Build `2026-01-17-v1` failing
+
+**Root Cause:**
+- Invalid `description` parameter in FastMCP initialization
+- FastMCP API changed - `description` not supported
+- GitHub Relay starting without required private key
+
+**Fix (PR #206):**
+- ✅ Removed `description` parameter from FastMCP: `mcp = FastMCP("project38-or")`
+- ✅ Set `GITHUB_RELAY_ENABLED=false` as default (requires explicit opt-in)
+- ✅ Fixed `HealthResponse` Pydantic model
+
+**Result:**
+- Production stable at build `2026-01-17-v2`
+- All endpoints operational: `/api/health`, `/api/test/ping`, `/api/relay/status`
+
+**Evidence:**
+- Commit: `c93012e`
+- PR: #206 (merged)
+
+**ADR Impact:** MCP Gateway (Tier 3) operational stability improved
 
 ---
 
