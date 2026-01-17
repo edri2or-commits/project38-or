@@ -345,6 +345,242 @@ When rotating Telegram bot token:
 - **Database connections**: Pool of 10 connections
 - **Memory usage**: ~200MB baseline
 
+## Testing
+
+### End-to-End Test Plan
+
+**Prerequisites:**
+1. Telegram bot deployed to Railway
+2. Public URL accessible: https://telegram-bot-production-053d.up.railway.app
+3. Telegram app installed on your device
+4. Bot username from @BotFather
+
+### Phase 1: Service Health Verification
+
+From a system with Railway access (outside Anthropic proxy):
+
+```bash
+# 1. Check service health
+curl https://telegram-bot-production-053d.up.railway.app/health
+
+# Expected response:
+# {
+#   "status": "healthy",
+#   "database": "connected",
+#   "bot_configured": true,
+#   "litellm_gateway": "https://litellm-gateway-production-0339.up.railway.app"
+# }
+
+# 2. Check root endpoint
+curl https://telegram-bot-production-053d.up.railway.app/
+
+# Expected: JSON with service info
+
+# 3. Verify webhook configuration
+curl https://telegram-bot-production-053d.up.railway.app/webhook/info
+
+# Expected: JSON with webhook URL and status
+```
+
+### Phase 2: Bot Interaction Testing
+
+**Test Case 1: Start Command**
+```
+Action: Open Telegram, search for your bot, send: /start
+
+Expected Response:
+"Welcome to the Multi-LLM Bot! 🤖
+
+Available commands:
+/start - Show this message
+/generate <prompt> - Generate a response
+
+Or just send me any message and I'll respond with context!"
+
+Verification:
+✅ Bot responds within 5 seconds
+✅ Message is clear and formatted correctly
+```
+
+**Test Case 2: Simple Message (No Context)**
+```
+Action: Send: "Hello!"
+
+Expected Response:
+A friendly greeting response from Claude/GPT-4/Gemini
+
+Verification:
+✅ Response is generated within 5 seconds
+✅ Response is relevant and natural
+✅ Check Railway logs for successful LiteLLM call
+```
+
+**Test Case 3: Generate Command**
+```
+Action: Send: /generate Write a haiku about coding
+
+Expected Response:
+A properly formatted haiku (3 lines: 5-7-5 syllables)
+
+Verification:
+✅ Response is a haiku
+✅ Model used is logged (check Railway logs)
+✅ Token usage recorded in database
+```
+
+**Test Case 4: Conversation with Context**
+```
+Action 1: Send: "What's 5 + 3?"
+Expected: "5 + 3 equals 8." (or similar)
+
+Action 2: Send: "And if I multiply that by 2?"
+Expected: "If you multiply 8 by 2, you get 16." (or similar)
+
+Verification:
+✅ Bot remembers previous message (shows "8" not "5+3")
+✅ Conversation context is maintained
+✅ Database has both messages stored
+```
+
+**Test Case 5: Database Verification**
+
+From Railway CLI or dashboard:
+```sql
+-- Check conversation messages
+SELECT chat_id, user_id, username, role, content, model, tokens_used, created_at
+FROM conversation_messages
+ORDER BY created_at DESC
+LIMIT 10;
+
+-- Check user statistics
+SELECT user_id, username, total_messages, total_tokens, total_cost_usd,
+       first_interaction, last_interaction
+FROM conversation_stats;
+
+Verification:
+✅ All messages are recorded
+✅ Roles are correct (user/assistant)
+✅ Model names are recorded (e.g., "claude-sonnet")
+✅ Token counts are positive integers
+✅ Cost estimates are calculated
+✅ Timestamps are accurate
+```
+
+### Phase 3: LiteLLM Gateway Verification
+
+**Test Case 6: Primary Model (Claude)**
+```
+Action: Send: "Tell me about yourself"
+
+Expected: Response from Claude 3.7 Sonnet
+
+Verification:
+✅ Check Railway logs: Should show "model": "claude-sonnet"
+✅ Response quality is high (Claude-level reasoning)
+✅ Database records model as "claude-sonnet"
+```
+
+**Test Case 7: Fallback Mechanism (Optional)**
+
+Requires temporarily revoking Claude API key:
+
+```
+1. Temporarily disable Claude in LiteLLM Gateway config
+2. Send: "What's the capital of France?"
+3. Expected: Response from GPT-4o (fallback)
+4. Re-enable Claude
+
+Verification:
+✅ Bot still responds (doesn't fail)
+✅ Railway logs show fallback model used
+✅ User is unaware of backend change
+```
+
+### Phase 4: Cost Tracking
+
+**Test Case 8: Token and Cost Tracking**
+```
+Action: Send 10 messages of varying lengths
+
+Database Query:
+SELECT user_id, username, total_messages, total_tokens, total_cost_usd
+FROM conversation_stats
+WHERE user_id = <your-telegram-user-id>;
+
+Verification:
+✅ total_messages = 10 (your messages) + N (bot responses)
+✅ total_tokens > 0 and increasing
+✅ total_cost_usd > 0 and matches token calculation
+✅ Calculation: ~$9/1M tokens for Claude (average)
+```
+
+### Phase 5: Error Handling
+
+**Test Case 9: Empty Message**
+```
+Action: Send empty message (if possible)
+
+Expected: Either handled gracefully or prevented by Telegram
+
+Verification:
+✅ No crashes in Railway logs
+✅ Database remains consistent
+```
+
+**Test Case 10: Very Long Message**
+```
+Action: Send message > 500 words
+
+Expected: Response generated or gracefully truncated
+
+Verification:
+✅ Bot responds within timeout (< 30s)
+✅ No memory issues
+✅ Token limit respected (max 1000 by default)
+```
+
+### Success Criteria
+
+**Deployment Success:**
+- [x] Service deployed to Railway
+- [x] Public domain accessible
+- [x] PostgreSQL connected
+- [x] Environment variables configured
+- [x] Webhook configured
+
+**Functional Success:**
+- [ ] `/start` command works
+- [ ] Simple messages generate responses
+- [ ] `/generate` command works
+- [ ] Conversation context maintained (2+ message exchanges)
+- [ ] Database records all messages correctly
+- [ ] Token usage tracked accurately
+- [ ] Cost estimates calculated
+
+**Integration Success:**
+- [ ] LiteLLM Gateway responds (primary model)
+- [ ] Fallback mechanism works (optional test)
+- [ ] Claude/GPT-4/Gemini responses verified
+- [ ] Response time < 5 seconds on average
+
+**Performance Success:**
+- [ ] Handles 10 consecutive messages without issues
+- [ ] No memory leaks (check Railway metrics)
+- [ ] Database connections stable
+- [ ] No timeout errors
+
+### Reporting Issues
+
+If any test fails, collect:
+1. **Test case number** that failed
+2. **Expected vs. actual** behavior
+3. **Railway logs** (last 50 lines): `railway logs --tail 50`
+4. **Database state**: Query conversation_messages and conversation_stats
+5. **Webhook info**: `curl https://telegram-bot-production-053d.up.railway.app/webhook/info`
+6. **Health status**: `curl https://telegram-bot-production-053d.up.railway.app/health`
+
+Report to GitHub Issue #242 with all diagnostic information.
+
 ## Future Enhancements
 
 - [ ] Webhook secret verification

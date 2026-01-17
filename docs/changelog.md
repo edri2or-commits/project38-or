@@ -36,6 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Evidence**: Workflows #21100613950 (create), #21100626525 (deploy), #21100638013 (webhook)
   - Integration with existing LiteLLM Gateway (https://litellm-gateway-production-0339.up.railway.app)
   - See Phase 1 Integration in [ADR-006](decisions/ADR-006-multi-llm-routing-strategy.md)
+- **Telegram Bot Testing Documentation** (2026-01-17) - Comprehensive end-to-end test plan
+  - Added **Testing** section to `services/telegram-bot/README.md` (+233 lines)
+  - **5 test phases**: Service Health, Bot Interaction, LiteLLM Gateway, Cost Tracking, Error Handling
+  - **10 test cases** covering all functionality: /start, /generate, conversation context, database, cost tracking
+  - **Success criteria**: 20 checkboxes across deployment, functional, integration, and performance
+  - **Troubleshooting guide**: What to collect and where to report issues
+  - **Database verification**: SQL queries to validate message storage and cost calculations
+  - Ready for Phase 1 Integration testing per ADR-006
 
 - **LiteLLM Gateway - Multi-LLM Routing** (2026-01-17) - Production-ready proxy for multi-provider AI
   - `services/litellm-gateway/` - Self-hosted LiteLLM proxy on Railway
