@@ -35,17 +35,29 @@ jobs:
         run: |
           echo "Checking Railway project configuration..."
 
-          # Query project info
+          # Get project info with services
           RESPONSE=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name source { repo branch } } } } } }"
+              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name updatedAt services { edges { node { id name updatedAt } } } environments { edges { node { id name } } } } }"
             }')
 
           echo "Project Info:"
           echo "$RESPONSE" | jq '.'
+
+          # Get recent deployments
+          DEPLOYMENTS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { deployments(first: 3, input: { projectId: \"'"$PROJECT_ID"'\" }) { edges { node { id status createdAt staticUrl } } } }"
+            }')
+
+          echo "Recent Deployments:"
+          echo "$DEPLOYMENTS" | jq '.'
 
       - name: Post to Issue
         env:
@@ -53,12 +65,20 @@ jobs:
           RAILWAY_TOKEN: ${{ steps.railway.outputs.token }}
           PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
         run: |
-          RESPONSE=$(curl -s -X POST \
+          PROJECT=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name source { repo branch } } } } } }"
+              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name updatedAt services { edges { node { id name } } } } }"
+            }')
+
+          DEPLOYMENTS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { deployments(first: 3, input: { projectId: \"'"$PROJECT_ID"'\" }) { edges { node { id status createdAt } } } }"
             }')
 
           gh issue comment 183 --repo ${{ github.repository }} --body "## Railway Configuration Check
@@ -67,10 +87,12 @@ jobs:
 
           **Project ID**: $PROJECT_ID
 
-          **Configuration**:
+          **Project Info**:
           \`\`\`json
-          $(echo "$RESPONSE" | jq '.')
+          $(echo "$PROJECT" | jq '.data.project')
           \`\`\`
 
-          If \`source.repo\` is null, the service is not connected to GitHub.
-          To fix: Railway Dashboard → Service → Settings → Connect GitHub repo"
+          **Recent Deployments**:
+          \`\`\`json
+          $(echo "$DEPLOYMENTS" | jq '.data.deployments.edges')
+          \`\`\`"
