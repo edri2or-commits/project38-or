@@ -1,0 +1,76 @@
+name: Check Railway Configuration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  check-config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check Railway Project and Services
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway.outputs.token }}
+          PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+        run: |
+          echo "Checking Railway project configuration..."
+
+          # Query project info
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name source { repo branch } } } } } }"
+            }')
+
+          echo "Project Info:"
+          echo "$RESPONSE" | jq '.'
+
+      - name: Post to Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAILWAY_TOKEN: ${{ steps.railway.outputs.token }}
+          PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name source { repo branch } } } } } }"
+            }')
+
+          gh issue comment 183 --repo ${{ github.repository }} --body "## Railway Configuration Check
+
+          **Time**: $(date -u)
+
+          **Project ID**: $PROJECT_ID
+
+          **Configuration**:
+          \`\`\`json
+          $(echo "$RESPONSE" | jq '.')
+          \`\`\`
+
+          If \`source.repo\` is null, the service is not connected to GitHub.
+          To fix: Railway Dashboard → Service → Settings → Connect GitHub repo"
