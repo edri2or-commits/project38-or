@@ -35,13 +35,13 @@ jobs:
         run: |
           echo "Checking Railway project configuration..."
 
-          # Query project info
+          # Query project and services
           RESPONSE=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name source { repo branch } } } } } }"
+              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name repoTriggers { edges { node { repository branch } } } } } } } }"
             }')
 
           echo "Project Info:"
@@ -58,7 +58,7 @@ jobs:
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name source { repo branch } } } } } }"
+              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name repoTriggers { edges { node { repository branch } } } } } } } }"
             }')
 
           gh issue comment 183 --repo ${{ github.repository }} --body "## Railway Configuration Check
@@ -72,5 +72,5 @@ jobs:
           $(echo "$RESPONSE" | jq '.')
           \`\`\`
 
-          If \`source.repo\` is null, the service is not connected to GitHub.
+          If \`repoTriggers\` is empty, auto-deploy is not configured.
           To fix: Railway Dashboard → Service → Settings → Connect GitHub repo"
