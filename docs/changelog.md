@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Recommendation**: Use MCP Gateway (Railway) until resolved
 
 ### Fixed
+- **Autonomous Diagnostic Pipeline** (2026-01-17) - Established autonomous diagnostic capability (#224, #225, #226)
+  - **Problem**: Workflows reported false success while masking deployment failures
+  - **Root Cause**: Error masking patterns (`|| echo`, `continue-on-error: true`) hid real failures
+  - **Solution**: Created autonomous diagnostic pipeline that publishes to GitHub Issues
+  - **PR #224**: Added checkout step and `contents: write` permission
+  - **PR #225**: Removed error masking from commit/push operations
+  - **PR #226**: Changed strategy from repo commits to GitHub Issues (bypasses branch protection)
+  - **Result**: `check-billing-status.yml` now creates diagnostic Issues automatically
+  - **Benefit**: System can diagnose itself without manual log inspection (proxy-friendly)
+  - **Evidence**: Issue #227 created autonomously with full GCP diagnostic report
+
 - **FastMCP Server Crash Fix** (2026-01-17) - Remove invalid `description` parameter (#206)
   - FastMCP was crashing on startup due to invalid `description` parameter in server initialization
   - Disabled GitHub Relay by default (`GITHUB_RELAY_ENABLED=false`) for stability
