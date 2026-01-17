@@ -109,12 +109,12 @@ Frequency: Every major feature completion (not every commit)
 
 | Layer | Files | Size | Purpose |
 |-------|-------|------|---------|
-| Layer 1 (CLAUDE.md) | 1 | 55KB | Quick context |
-| Layer 2 (decisions/) | 4 ADRs | 30KB | Decision records |
-| Layer 3 (JOURNEY.md) | 1 | 42KB | Narrative timeline |
+| Layer 1 (CLAUDE.md) | 1 | 65KB | Quick context |
+| Layer 2 (decisions/) | 5 ADRs | 55KB | Decision records |
+| Layer 3 (JOURNEY.md) | 1 | 52KB | Narrative timeline |
 | Layer 4a (integrations/) | 5 | 199KB | Practical research |
 | Layer 4b (autonomous/) | 9 | 240KB | Theory + code synthesis |
-| **Total** | **20** | **566KB** | Complete context |
+| **Total** | **21** | **611KB** | Complete context |
 
 ### Industry Standards Referenced
 
