@@ -74,6 +74,12 @@ async def root() -> dict[str, str]:
     }
 
 
+@router.get("/test/ping")
+async def test_ping() -> dict:
+    """Test endpoint to verify routes are being registered."""
+    return {"status": "pong", "message": "If you see this, routes are working"}
+
+
 @router.get("/relay/status")
 async def relay_status() -> dict:
     """Check GitHub MCP Relay status.

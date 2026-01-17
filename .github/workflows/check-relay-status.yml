@@ -34,7 +34,8 @@ jobs:
         run: |
           RELAY=$(curl -s https://or-infra.com/api/relay/status || echo '{"error": "connection failed"}')
           HEALTH=$(curl -s https://or-infra.com/api/health || echo '{"error": "connection failed"}')
-          ROUTES=$(curl -s https://or-infra.com/debug/routes | jq -c '[.routes[] | select(.path | contains("relay") or contains("health"))]' 2>/dev/null || echo '[]')
+          PING=$(curl -s https://or-infra.com/api/test/ping || echo '{"error": "connection failed"}')
+          ROUTES=$(curl -s https://or-infra.com/debug/routes | jq -c '[.routes[] | select(.path | contains("relay") or contains("health") or contains("test"))]' 2>/dev/null || echo '[]')
 
           gh issue comment 183 --repo ${{ github.repository }} --body "## Relay Status Check
 
@@ -50,7 +51,12 @@ jobs:
           $HEALTH
           \`\`\`
 
-          **Related Routes** (health/relay):
+          **Test Ping** (/api/test/ping):
+          \`\`\`json
+          $PING
+          \`\`\`
+
+          **Routes** (health/relay/test):
           \`\`\`json
           $ROUTES
           \`\`\`"
