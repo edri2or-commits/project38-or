@@ -45,21 +45,9 @@ jobs:
 
       - name: Deploy GCP MCP Server
         run: |
-          set -e  # Exit on error
-
           echo "🚀 Deploying GCP MCP Server to Cloud Run..."
-          echo "Current directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-
-          echo "Checking src/gcp_mcp..."
-          ls -la src/
-          ls -la src/gcp_mcp/
 
           cd src/gcp_mcp
-          echo "✅ Changed to src/gcp_mcp"
-          echo "Contents:"
-          ls -la
 
           # Configure Docker for Artifact Registry
           gcloud auth configure-docker us-central1-docker.pkg.dev
