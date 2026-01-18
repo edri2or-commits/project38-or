@@ -25,15 +25,17 @@ import base64
 import json
 import logging
 import os
+import shutil
+import subprocess
 import time
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
-from typing import Any
+from typing import Any, Optional
 
 import functions_framework
 import httpx
 from flask import Request
-from google.cloud import secretmanager
+from google.cloud import secretmanager, storage, compute_v1, iam_v1, resourcemanager_v3
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -184,6 +186,31 @@ class MCPRouter:
         self.tools["docs_create"] = self._docs_create
         self.tools["docs_read"] = self._docs_read
         self.tools["docs_append"] = self._docs_append
+
+        # GCP gcloud tools
+        self.tools["gcloud_run"] = self._gcloud_run
+        self.tools["gcloud_version"] = self._gcloud_version
+
+        # GCP Secret Manager tools
+        self.tools["secret_get"] = self._secret_get
+        self.tools["secret_list"] = self._secret_list
+        self.tools["secret_create"] = self._secret_create
+        self.tools["secret_update"] = self._secret_update
+
+        # GCP Compute Engine tools
+        self.tools["compute_list"] = self._compute_list
+        self.tools["compute_get"] = self._compute_get
+        self.tools["compute_start"] = self._compute_start
+        self.tools["compute_stop"] = self._compute_stop
+
+        # GCP Cloud Storage tools
+        self.tools["storage_list"] = self._storage_list
+        self.tools["storage_get"] = self._storage_get
+        self.tools["storage_upload"] = self._storage_upload
+
+        # GCP IAM tools
+        self.tools["iam_list_accounts"] = self._iam_list_accounts
+        self.tools["iam_get_policy"] = self._iam_get_policy
 
         logger.info(f"Registered {len(self.tools)} tools")
 
@@ -1033,6 +1060,448 @@ class MCPRouter:
             return {"success": False, "error": str(e)}
 
 
+    # ========================================================================
+    # GCP GCLOUD TOOLS
+    # ========================================================================
+
+    def _gcloud_run(self, command: str, project_id: str = "") -> dict:
+        """Execute a gcloud command."""
+        return asyncio.run(self._gcloud_run_async(command, project_id or None))
+
+    async def _gcloud_run_async(self, command: str, project_id: Optional[str]) -> dict:
+        """Execute a gcloud command (async)."""
+        try:
+            # Check if gcloud is installed
+            gcloud_path = shutil.which("gcloud")
+            if not gcloud_path:
+                return {
+                    "status": "error",
+                    "error": "gcloud CLI not installed"
+                }
+
+            # Build command
+            cmd_parts = ["gcloud"]
+            if project_id:
+                cmd_parts.extend(["--project", project_id])
+            cmd_parts.extend(command.split())
+            if "--format" not in command:
+                cmd_parts.extend(["--format", "json"])
+
+            # Execute
+            process = await asyncio.create_subprocess_exec(
+                *cmd_parts,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await process.communicate()
+
+            if process.returncode == 0:
+                return {
+                    "status": "success",
+                    "output": stdout.decode("utf-8"),
+                    "command": " ".join(cmd_parts),
+                }
+            else:
+                return {
+                    "status": "error",
+                    "error": stderr.decode("utf-8"),
+                    "command": " ".join(cmd_parts),
+                    "exit_code": process.returncode,
+                }
+
+        except Exception as e:
+            logger.error(f"gcloud_run failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _gcloud_version(self) -> dict:
+        """Get gcloud version."""
+        return asyncio.run(self._gcloud_version_async())
+
+    async def _gcloud_version_async(self) -> dict:
+        """Get gcloud version (async)."""
+        try:
+            gcloud_path = shutil.which("gcloud")
+            if not gcloud_path:
+                return {"status": "error", "error": "gcloud CLI not installed"}
+
+            version_proc = await asyncio.create_subprocess_exec(
+                "gcloud", "version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            version_out, _ = await version_proc.communicate()
+
+            config_proc = await asyncio.create_subprocess_exec(
+                "gcloud", "config", "list",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            config_out, _ = await config_proc.communicate()
+
+            return {
+                "status": "success",
+                "version": version_out.decode("utf-8"),
+                "config": config_out.decode("utf-8"),
+                "path": gcloud_path,
+            }
+
+        except Exception as e:
+            logger.error(f"gcloud_version failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    # ========================================================================
+    # GCP SECRET MANAGER TOOLS
+    # ========================================================================
+
+    def _secret_get(self, secret_name: str, version: str = "latest") -> dict:
+        """Get secret value from Secret Manager."""
+        try:
+            client = secretmanager.SecretManagerServiceClient()
+            name = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}/versions/{version}"
+            response = client.access_secret_version(request={"name": name})
+
+            value = response.payload.data.decode("UTF-8")
+            masked = value[:4] + "..." + value[-4:] if len(value) > 8 else "***"
+
+            return {
+                "status": "success",
+                "secret_name": secret_name,
+                "version": version,
+                "value_preview": masked,
+                "message": "Secret retrieved (value masked for security)"
+            }
+
+        except Exception as e:
+            logger.error(f"secret_get failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _secret_list(self) -> dict:
+        """List all secrets in Secret Manager."""
+        try:
+            client = secretmanager.SecretManagerServiceClient()
+            parent = f"projects/{GCP_PROJECT_ID}"
+
+            secrets = []
+            for secret in client.list_secrets(request={"parent": parent}):
+                secrets.append({
+                    "name": secret.name.split("/")[-1],
+                    "created": str(secret.create_time),
+                    "labels": dict(secret.labels)
+                })
+
+            return {
+                "status": "success",
+                "secrets": secrets,
+                "count": len(secrets)
+            }
+
+        except Exception as e:
+            logger.error(f"secret_list failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _secret_create(self, secret_name: str, secret_value: str) -> dict:
+        """Create a new secret."""
+        try:
+            client = secretmanager.SecretManagerServiceClient()
+            parent = f"projects/{GCP_PROJECT_ID}"
+
+            # Create secret
+            secret = client.create_secret(
+                request={
+                    "parent": parent,
+                    "secret_id": secret_name,
+                    "secret": {"replication": {"automatic": {}}},
+                }
+            )
+
+            # Add version
+            client.add_secret_version(
+                request={
+                    "parent": secret.name,
+                    "payload": {"data": secret_value.encode("UTF-8")},
+                }
+            )
+
+            return {
+                "status": "success",
+                "secret_name": secret_name,
+                "message": "Secret created successfully"
+            }
+
+        except Exception as e:
+            logger.error(f"secret_create failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _secret_update(self, secret_name: str, secret_value: str) -> dict:
+        """Update secret (add new version)."""
+        try:
+            client = secretmanager.SecretManagerServiceClient()
+            parent = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}"
+
+            version = client.add_secret_version(
+                request={
+                    "parent": parent,
+                    "payload": {"data": secret_value.encode("UTF-8")},
+                }
+            )
+
+            return {
+                "status": "success",
+                "secret_name": secret_name,
+                "version": version.name.split("/")[-1],
+                "message": "Secret updated successfully"
+            }
+
+        except Exception as e:
+            logger.error(f"secret_update failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    # ========================================================================
+    # GCP COMPUTE ENGINE TOOLS
+    # ========================================================================
+
+    def _compute_list(self, zone: str = "") -> dict:
+        """List Compute Engine instances."""
+        try:
+            client = compute_v1.InstancesClient()
+
+            instances = []
+            if zone:
+                # List instances in specific zone
+                request = compute_v1.ListInstancesRequest(
+                    project=GCP_PROJECT_ID,
+                    zone=zone,
+                )
+                for instance in client.list(request=request):
+                    instances.append({
+                        "name": instance.name,
+                        "zone": zone,
+                        "status": instance.status,
+                        "machine_type": instance.machine_type.split("/")[-1],
+                    })
+            else:
+                # List all instances across all zones
+                zones_client = compute_v1.ZonesClient()
+                for zone_obj in zones_client.list(project=GCP_PROJECT_ID):
+                    zone_name = zone_obj.name
+                    request = compute_v1.ListInstancesRequest(
+                        project=GCP_PROJECT_ID,
+                        zone=zone_name,
+                    )
+                    for instance in client.list(request=request):
+                        instances.append({
+                            "name": instance.name,
+                            "zone": zone_name,
+                            "status": instance.status,
+                            "machine_type": instance.machine_type.split("/")[-1],
+                        })
+
+            return {
+                "status": "success",
+                "instances": instances,
+                "count": len(instances)
+            }
+
+        except Exception as e:
+            logger.error(f"compute_list failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _compute_get(self, instance_name: str, zone: str) -> dict:
+        """Get instance details."""
+        try:
+            client = compute_v1.InstancesClient()
+            instance = client.get(
+                project=GCP_PROJECT_ID,
+                zone=zone,
+                instance=instance_name,
+            )
+
+            return {
+                "status": "success",
+                "name": instance.name,
+                "zone": zone,
+                "status": instance.status,
+                "machine_type": instance.machine_type.split("/")[-1],
+                "creation_timestamp": instance.creation_timestamp,
+            }
+
+        except Exception as e:
+            logger.error(f"compute_get failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _compute_start(self, instance_name: str, zone: str) -> dict:
+        """Start a stopped instance."""
+        try:
+            client = compute_v1.InstancesClient()
+            operation = client.start(
+                project=GCP_PROJECT_ID,
+                zone=zone,
+                instance=instance_name,
+            )
+
+            return {
+                "status": "success",
+                "instance": instance_name,
+                "zone": zone,
+                "operation": operation.name,
+                "message": "Instance start initiated"
+            }
+
+        except Exception as e:
+            logger.error(f"compute_start failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _compute_stop(self, instance_name: str, zone: str) -> dict:
+        """Stop a running instance."""
+        try:
+            client = compute_v1.InstancesClient()
+            operation = client.stop(
+                project=GCP_PROJECT_ID,
+                zone=zone,
+                instance=instance_name,
+            )
+
+            return {
+                "status": "success",
+                "instance": instance_name,
+                "zone": zone,
+                "operation": operation.name,
+                "message": "Instance stop initiated"
+            }
+
+        except Exception as e:
+            logger.error(f"compute_stop failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    # ========================================================================
+    # GCP CLOUD STORAGE TOOLS
+    # ========================================================================
+
+    def _storage_list(self, bucket_name: str = "", prefix: str = "") -> dict:
+        """List buckets or objects."""
+        try:
+            client = storage.Client(project=GCP_PROJECT_ID)
+
+            if not bucket_name:
+                # List all buckets
+                buckets = [{"name": b.name, "created": str(b.time_created)}
+                          for b in client.list_buckets()]
+                return {
+                    "status": "success",
+                    "buckets": buckets,
+                    "count": len(buckets)
+                }
+            else:
+                # List objects in bucket
+                bucket = client.bucket(bucket_name)
+                blobs = [{"name": b.name, "size": b.size, "updated": str(b.updated)}
+                        for b in bucket.list_blobs(prefix=prefix or None)]
+                return {
+                    "status": "success",
+                    "bucket": bucket_name,
+                    "objects": blobs,
+                    "count": len(blobs)
+                }
+
+        except Exception as e:
+            logger.error(f"storage_list failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _storage_get(self, bucket_name: str, object_name: str) -> dict:
+        """Get object metadata."""
+        try:
+            client = storage.Client(project=GCP_PROJECT_ID)
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(object_name)
+
+            blob.reload()
+
+            return {
+                "status": "success",
+                "name": blob.name,
+                "bucket": bucket_name,
+                "size": blob.size,
+                "content_type": blob.content_type,
+                "created": str(blob.time_created),
+                "updated": str(blob.updated),
+            }
+
+        except Exception as e:
+            logger.error(f"storage_get failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _storage_upload(self, bucket_name: str, source_path: str, destination_path: str) -> dict:
+        """Upload a file to Cloud Storage."""
+        try:
+            client = storage.Client(project=GCP_PROJECT_ID)
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(destination_path)
+
+            blob.upload_from_filename(source_path)
+
+            return {
+                "status": "success",
+                "bucket": bucket_name,
+                "destination": destination_path,
+                "url": blob.public_url,
+                "message": "File uploaded successfully"
+            }
+
+        except Exception as e:
+            logger.error(f"storage_upload failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    # ========================================================================
+    # GCP IAM TOOLS
+    # ========================================================================
+
+    def _iam_list_accounts(self) -> dict:
+        """List service accounts."""
+        try:
+            client = iam_v1.IAMClient()
+            parent = f"projects/{GCP_PROJECT_ID}"
+
+            accounts = []
+            for account in client.list_service_accounts(name=parent):
+                accounts.append({
+                    "email": account.email,
+                    "display_name": account.display_name,
+                    "unique_id": account.unique_id,
+                })
+
+            return {
+                "status": "success",
+                "accounts": accounts,
+                "count": len(accounts)
+            }
+
+        except Exception as e:
+            logger.error(f"iam_list_accounts failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _iam_get_policy(self, resource: str) -> dict:
+        """Get IAM policy for a resource."""
+        try:
+            client = resourcemanager_v3.ProjectsClient()
+            policy = client.get_iam_policy(resource=f"projects/{resource}")
+
+            bindings = []
+            for binding in policy.bindings:
+                bindings.append({
+                    "role": binding.role,
+                    "members": list(binding.members),
+                })
+
+            return {
+                "status": "success",
+                "resource": resource,
+                "bindings": bindings,
+                "etag": policy.etag.decode() if policy.etag else None,
+            }
+
+        except Exception as e:
+            logger.error(f"iam_get_policy failed: {e}")
+            return {"status": "error", "error": str(e)}
 # Global router instance
 router = MCPRouter()
 
