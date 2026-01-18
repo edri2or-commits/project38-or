@@ -1,9 +1,13 @@
 # ADR-005: GCP Tunnel Protocol Encapsulation Architecture
 
-**Date**: 2026-01-17 (Created)
-**Status**: ✅ Implemented and Operational
+**Date**: 2026-01-17 (Created), 2026-01-18 (Updated - Cloud Run Migration)
+**Status**: ✅ Implemented and Operational (Cloud Run)
 **Deciders**: User (edri2or-commits), Claude AI Agent
-**Tags**: autonomy, gcp, cloud-functions, mcp, protocol-encapsulation
+**Tags**: autonomy, gcp, cloud-run, mcp, protocol-encapsulation
+
+> **Current Production URL**: `https://mcp-router-3e7yyrd7xq-uc.a.run.app`
+>
+> **Note**: Migrated from Cloud Functions to Cloud Run on 2026-01-18 due to Python 3.12 compatibility issues. Historical Cloud Functions URLs in this document are preserved for context.
 
 ---
 
