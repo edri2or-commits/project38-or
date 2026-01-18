@@ -313,6 +313,8 @@ def create_mcp_app():
 def main():
     """Run the MCP server standalone."""
     import uvicorn
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
 
     mcp = create_mcp_server()
     if mcp is None:
@@ -320,12 +322,24 @@ def main():
         print("Install with: pip install fastmcp")
         return 1
 
-    app = mcp.http_app()
+    # Create FastAPI app with health check
+    app = FastAPI(title="GCP MCP Gateway")
+
+    @app.get("/")
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint for Cloud Run."""
+        return JSONResponse({"status": "healthy", "service": "gcp-mcp-gateway"})
+
+    # Mount MCP app
+    mcp_app = mcp.http_app()
+    app.mount("/mcp", mcp_app)
 
     port = int(os.getenv("PORT", "8080"))
     print(f"🚀 GCP MCP Gateway starting on port {port}")
-    print(f"📡 Tools available: {len(mcp._tools)} tools")
     print("✅ Ready for autonomous GCP operations")
+    print(f"📡 Health check: http://0.0.0.0:{port}/health")
+    print(f"🔌 MCP endpoint: http://0.0.0.0:{port}/mcp")
 
     uvicorn.run(app, host="0.0.0.0", port=port)
 
