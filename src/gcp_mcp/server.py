@@ -307,7 +307,7 @@ def create_mcp_app():
     mcp = create_mcp_server()
     if mcp is None:
         raise ImportError("fastmcp is not installed")
-    return mcp.get_asgi_app()
+    return mcp.http_app()
 
 
 def main():
@@ -320,7 +320,7 @@ def main():
         print("Install with: pip install fastmcp")
         return 1
 
-    app = mcp.get_asgi_app()
+    app = mcp.http_app()
 
     port = int(os.getenv("PORT", "8080"))
     print(f"🚀 GCP MCP Gateway starting on port {port}")
