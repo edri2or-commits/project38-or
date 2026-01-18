@@ -36,8 +36,9 @@ import functions_framework
 import httpx
 from flask import Request
 from google.cloud import secretmanager, storage, compute_v1
-from google.cloud.iam_admin_v1 import IAMClient
-from google.cloud.resourcemanager_v3 import ProjectsClient
+# IAM imports temporarily disabled - will re-enable after testing
+# from google.cloud.iam_admin_v1 import IAMClient
+# from google.cloud.resourcemanager_v3 import ProjectsClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -210,9 +211,9 @@ class MCPRouter:
         self.tools["storage_get"] = self._storage_get
         self.tools["storage_upload"] = self._storage_upload
 
-        # GCP IAM tools
-        self.tools["iam_list_accounts"] = self._iam_list_accounts
-        self.tools["iam_get_policy"] = self._iam_get_policy
+        # GCP IAM tools (temporarily disabled - API issues)
+        # self.tools["iam_list_accounts"] = self._iam_list_accounts
+        # self.tools["iam_get_policy"] = self._iam_get_policy
 
         logger.info(f"Registered {len(self.tools)} tools")
 
