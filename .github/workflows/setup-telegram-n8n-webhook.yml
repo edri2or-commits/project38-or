@@ -78,11 +78,15 @@ jobs:
           fi
 
           # Create minimal workflow - just webhook that returns 200
-          cat > /tmp/workflow.json << 'WORKFLOW_EOF'
+          # Generate unique node ID
+          NODE_ID=$(cat /proc/sys/kernel/random/uuid)
+
+          cat > /tmp/workflow.json << WORKFLOW_EOF
 {
   "name": "Telegram Webhook Bot",
   "nodes": [
     {
+      "id": "$NODE_ID",
       "parameters": {
         "httpMethod": "POST",
         "path": "telegram-bot",
@@ -97,12 +101,24 @@ jobs:
   ],
   "connections": {},
   "active": false,
-  "settings": {}
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
 WORKFLOW_EOF
 
           echo "Workflow JSON:"
           cat /tmp/workflow.json
+
+          echo ""
+          echo "Testing API key by listing workflows first..."
+          LIST_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+          LIST_HTTP=$(echo "$LIST_RESPONSE" | tail -1)
+          LIST_BODY=$(echo "$LIST_RESPONSE" | head -n -1)
+          echo "List workflows HTTP: $LIST_HTTP"
+          echo "List workflows response: $(echo "$LIST_BODY" | head -c 500)"
 
           echo ""
           echo "Sending workflow creation request..."
@@ -114,6 +130,9 @@ WORKFLOW_EOF
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "Full response body:"
+          echo "$BODY"
 
           echo "HTTP Code: $HTTP_CODE"
           echo "Response: $(echo "$BODY" | head -c 1000)"
