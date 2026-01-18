@@ -214,6 +214,7 @@ jobs:
           fi
 
       - name: Generate Public Domain
+        id: domain
         if: inputs.action == 'deploy'
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
@@ -221,7 +222,26 @@ jobs:
         run: |
           ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
 
-          echo "Generating public domain..."
+          echo "Checking for existing domain..."
+
+          # First check if domain already exists
+          EXISTING=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { service(id: \"'"$SERVICE_ID"'\") { domains { serviceDomains { domain } } } }"
+            }')
+
+          EXISTING_DOMAIN=$(echo "$EXISTING" | jq -r '.data.service.domains.serviceDomains[0].domain // "null"')
+
+          if [[ "$EXISTING_DOMAIN" != "null" && -n "$EXISTING_DOMAIN" ]]; then
+            echo "✅ Using existing domain: $EXISTING_DOMAIN"
+            echo "domain=$EXISTING_DOMAIN" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Generating new public domain..."
 
           DOMAIN_RESPONSE=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
@@ -296,7 +316,7 @@ jobs:
           ACTION: ${{ inputs.action }}
           SERVICE_ID: ${{ steps.check.outputs.service_id || steps.create.outputs.service_id }}
           EXISTS: ${{ steps.check.outputs.exists }}
-          DOMAIN: ${{ steps.status.outputs.domain || 'pending' }}
+          DOMAIN: ${{ steps.status.outputs.domain || steps.domain.outputs.domain || 'pending' }}
           DEPLOYMENT_STATUS: ${{ steps.status.outputs.deployment_status || 'pending' }}
         run: |
           if [[ "$ACTION" == "deploy" ]]; then
