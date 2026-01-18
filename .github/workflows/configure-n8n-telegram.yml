@@ -1,0 +1,299 @@
+name: Configure n8n Telegram Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - create-credentials
+          - create-workflow
+          - full-setup
+          - test-connection
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  configure-telegram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Secrets
+        id: secrets
+        run: |
+          N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=project38-483612)
+          TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "n8n_api_key=$N8N_API_KEY" >> $GITHUB_OUTPUT
+          echo "telegram_bot_token=$TELEGRAM_BOT_TOKEN" >> $GITHUB_OUTPUT
+          echo "✅ Secrets loaded"
+
+      - name: Test n8n Connection
+        if: inputs.action == 'test-connection' || inputs.action == 'full-setup'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+        run: |
+          echo "Testing n8n API connection..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          if [[ "$HTTP_CODE" == "200" ]]; then
+            echo "✅ n8n API connection successful"
+            echo "Existing workflows: $(echo "$BODY" | jq '.data | length')"
+          else
+            echo "❌ n8n API connection failed (HTTP $HTTP_CODE)"
+            echo "$BODY"
+            exit 1
+          fi
+
+      - name: Create Telegram Credentials
+        id: credentials
+        if: inputs.action == 'create-credentials' || inputs.action == 'full-setup'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          TELEGRAM_BOT_TOKEN: ${{ steps.secrets.outputs.telegram_bot_token }}
+          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+        run: |
+          echo "Creating Telegram credentials in n8n..."
+
+          # Check if credential already exists
+          EXISTING=$(curl -s \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/credentials")
+
+          TELEGRAM_CRED=$(echo "$EXISTING" | jq -r '.data[] | select(.type == "telegramApi") | .id')
+
+          if [[ -n "$TELEGRAM_CRED" ]]; then
+            echo "✅ Telegram credential already exists (ID: $TELEGRAM_CRED)"
+            echo "credential_id=$TELEGRAM_CRED" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Create new credential
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            "$N8N_URL/api/v1/credentials" \
+            -d '{
+              "name": "Telegram Bot",
+              "type": "telegramApi",
+              "data": {
+                "accessToken": "'"$TELEGRAM_BOT_TOKEN"'"
+              }
+            }')
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
+            CRED_ID=$(echo "$BODY" | jq -r '.id')
+            echo "✅ Telegram credential created (ID: $CRED_ID)"
+            echo "credential_id=$CRED_ID" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Failed to create credential (HTTP $HTTP_CODE)"
+            echo "$BODY"
+            exit 1
+          fi
+
+      - name: Create Telegram Echo Workflow
+        id: workflow
+        if: inputs.action == 'create-workflow' || inputs.action == 'full-setup'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          CREDENTIAL_ID: ${{ steps.credentials.outputs.credential_id }}
+          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+        run: |
+          echo "Creating Telegram Echo workflow..."
+
+          # Get credential ID if not set
+          if [[ -z "$CREDENTIAL_ID" ]]; then
+            EXISTING=$(curl -s \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_URL/api/v1/credentials")
+            CREDENTIAL_ID=$(echo "$EXISTING" | jq -r '.data[] | select(.type == "telegramApi") | .id')
+          fi
+
+          if [[ -z "$CREDENTIAL_ID" ]]; then
+            echo "❌ No Telegram credential found. Run create-credentials first."
+            exit 1
+          fi
+
+          echo "Using credential ID: $CREDENTIAL_ID"
+
+          # Check if workflow already exists
+          WORKFLOWS=$(curl -s \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+
+          EXISTING_WF=$(echo "$WORKFLOWS" | jq -r '.data[] | select(.name == "Telegram Echo Bot") | .id')
+
+          if [[ -n "$EXISTING_WF" ]]; then
+            echo "✅ Telegram Echo Bot workflow already exists (ID: $EXISTING_WF)"
+            echo "workflow_id=$EXISTING_WF" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Create workflow
+          WORKFLOW_JSON=$(cat <<'WORKFLOW_EOF'
+          {
+            "name": "Telegram Echo Bot",
+            "nodes": [
+              {
+                "parameters": {
+                  "updates": ["message"]
+                },
+                "id": "telegram-trigger",
+                "name": "Telegram Trigger",
+                "type": "n8n-nodes-base.telegramTrigger",
+                "typeVersion": 1.1,
+                "position": [250, 300],
+                "credentials": {
+                  "telegramApi": {
+                    "id": "CREDENTIAL_ID_PLACEHOLDER",
+                    "name": "Telegram Bot"
+                  }
+                }
+              },
+              {
+                "parameters": {
+                  "chatId": "={{ $json.message.chat.id }}",
+                  "text": "=🤖 Echo: {{ $json.message.text }}\n\n📍 From: {{ $json.message.from.first_name }}\n⏰ Time: {{ $now.format('HH:mm:ss') }}",
+                  "additionalFields": {}
+                },
+                "id": "telegram-send",
+                "name": "Send Reply",
+                "type": "n8n-nodes-base.telegram",
+                "typeVersion": 1.2,
+                "position": [500, 300],
+                "credentials": {
+                  "telegramApi": {
+                    "id": "CREDENTIAL_ID_PLACEHOLDER",
+                    "name": "Telegram Bot"
+                  }
+                }
+              }
+            ],
+            "connections": {
+              "Telegram Trigger": {
+                "main": [
+                  [
+                    {
+                      "node": "Send Reply",
+                      "type": "main",
+                      "index": 0
+                    }
+                  ]
+                ]
+              }
+            },
+            "active": false,
+            "settings": {
+              "executionOrder": "v1"
+            }
+          }
+          WORKFLOW_EOF
+          )
+
+          # Replace credential ID placeholder
+          WORKFLOW_JSON=$(echo "$WORKFLOW_JSON" | sed "s/CREDENTIAL_ID_PLACEHOLDER/$CREDENTIAL_ID/g")
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            "$N8N_URL/api/v1/workflows" \
+            -d "$WORKFLOW_JSON")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
+            WF_ID=$(echo "$BODY" | jq -r '.id')
+            echo "✅ Workflow created (ID: $WF_ID)"
+            echo "workflow_id=$WF_ID" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Failed to create workflow (HTTP $HTTP_CODE)"
+            echo "$BODY"
+            exit 1
+          fi
+
+      - name: Activate Workflow
+        if: inputs.action == 'full-setup'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          WORKFLOW_ID: ${{ steps.workflow.outputs.workflow_id }}
+          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+        run: |
+          if [[ -z "$WORKFLOW_ID" ]]; then
+            echo "⚠️ No workflow ID - skipping activation"
+            exit 0
+          fi
+
+          echo "Activating workflow $WORKFLOW_ID..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            "$N8N_URL/api/v1/workflows/$WORKFLOW_ID" \
+            -d '{"active": true}')
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+          if [[ "$HTTP_CODE" == "200" ]]; then
+            echo "✅ Workflow activated!"
+          else
+            echo "⚠️ Could not activate workflow (HTTP $HTTP_CODE)"
+            echo "You may need to activate it manually in n8n UI"
+          fi
+
+      - name: Post Results to Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTION: ${{ inputs.action }}
+          CREDENTIAL_ID: ${{ steps.credentials.outputs.credential_id }}
+          WORKFLOW_ID: ${{ steps.workflow.outputs.workflow_id }}
+        run: |
+          echo "## 🤖 n8n Telegram Configuration" > /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "**Action:** \`$ACTION\`" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+
+          if [[ -n "$CREDENTIAL_ID" ]]; then
+            echo "✅ **Telegram Credential:** ID \`$CREDENTIAL_ID\`" >> /tmp/comment.md
+          fi
+
+          if [[ -n "$WORKFLOW_ID" ]]; then
+            echo "✅ **Telegram Echo Bot Workflow:** ID \`$WORKFLOW_ID\`" >> /tmp/comment.md
+          fi
+
+          echo "" >> /tmp/comment.md
+          echo "### Next Steps" >> /tmp/comment.md
+          echo "1. Open n8n: https://n8n-production-ef6e2.up.railway.app" >> /tmp/comment.md
+          echo "2. Go to **Workflows** and find 'Telegram Echo Bot'" >> /tmp/comment.md
+          echo "3. If not active, click **Activate** to enable" >> /tmp/comment.md
+          echo "4. Send a message to your Telegram bot to test!" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "---" >> /tmp/comment.md
+          echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> /tmp/comment.md
+
+          gh issue comment 266 --repo ${{ github.repository }} --body-file /tmp/comment.md
