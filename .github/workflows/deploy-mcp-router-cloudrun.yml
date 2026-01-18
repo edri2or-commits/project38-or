@@ -108,28 +108,42 @@ jobs:
           echo ""
           echo "Deployment command completed with exit code: ${PIPESTATUS[0]}"
 
-      - name: Report Error if Failed
+      - name: Create Error Issue
         if: steps.deploy.outputs.exit_code != '0'
-        run: |
-          echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Error Output (Last 100 Lines):" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -100 /tmp/deploy-output.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          echo ""
-          echo "=== FULL DEPLOYMENT ERROR OUTPUT ==="
-          cat /tmp/deploy-output.log
-
-      - name: Upload Deployment Logs
-        if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/github-script@v7
         with:
-          name: deployment-logs
-          path: /tmp/deploy-output.log
-          retention-days: 7
-          if-no-files-found: ignore
+          script: |
+            const fs = require('fs');
+            let log = 'No log file found';
+            try {
+              log = fs.readFileSync('/tmp/deploy-output.log', 'utf8');
+              // Truncate to last 50KB if too long
+              if (log.length > 50000) {
+                log = '...(truncated)...\n' + log.slice(-50000);
+              }
+            } catch (e) {
+              log = `Error reading log: ${e.message}`;
+            }
+
+            const body = `## ❌ MCP Router Deployment Failed
+
+**Time:** ${new Date().toISOString()}
+**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+### Deployment Log:
+
+\`\`\`
+${log}
+\`\`\`
+`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '❌ MCP Router Deploy Error - ' + new Date().toISOString().slice(0, 16),
+              body: body,
+              labels: ['deployment-error']
+            });
 
       - name: Fail if deployment failed
         if: steps.deploy.outputs.exit_code != '0'
