@@ -29,29 +29,82 @@ jobs:
           echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
           echo "telegram_token=$TELEGRAM_BOT_TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Get n8n Service Info
-        id: service
+      - name: List All Services in Project
+        id: list-services
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
         run: |
-          SERVICE_ID="e1373500-e475-414a-aeb5-b93826c0616c"
-          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+          PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"
 
-          echo "=== Service Info ==="
-          echo "Service ID: $SERVICE_ID"
-          echo "Environment ID: $ENV_ID"
-
-          # Get service details
+          echo "=== All Services in Project ==="
           RESPONSE=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { service(id: \"'"$SERVICE_ID"'\") { id name domains { serviceDomains { domain } } } }"
+              "query": "query { project(id: \"'"$PROJECT_ID"'\") { id name services { edges { node { id name } } } environments { edges { node { id name } } } } }"
+            }')
+
+          echo "Project info:"
+          echo "$RESPONSE" | jq '.'
+
+          # Find n8n service
+          N8N_ID=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "n8n") | .node.id')
+          echo "n8n service ID from project: $N8N_ID"
+          echo "n8n_id=$N8N_ID" >> $GITHUB_OUTPUT
+
+          # Save all services
+          echo "All services:"
+          echo "$RESPONSE" | jq -r '.data.project.services.edges[].node | "  - \(.name): \(.id)"'
+
+      - name: Get n8n Service Info
+        id: service
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          N8N_ID: ${{ steps.list-services.outputs.n8n_id }}
+        run: |
+          # Use dynamic service ID from project list
+          SERVICE_ID="${N8N_ID:-e1373500-e475-414a-aeb5-b93826c0616c}"
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          echo "=== Service Info ==="
+          echo "Service ID: $SERVICE_ID"
+          echo "Environment ID: $ENV_ID"
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+
+          if [[ -z "$SERVICE_ID" || "$SERVICE_ID" == "null" ]]; then
+            echo "❌ n8n service not found in project!"
+            echo "domain=SERVICE_NOT_FOUND" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Get service details with more fields
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { service(id: \"'"$SERVICE_ID"'\") { id name deletedAt domains { serviceDomains { domain } customDomains { domain } } serviceInstances { edges { node { id environmentId domains { serviceDomains { domain } } } } } } }"
             }')
 
           echo "Service response:"
           echo "$RESPONSE" | jq '.'
+
+          # Check if service was deleted
+          DELETED=$(echo "$RESPONSE" | jq -r '.data.service.deletedAt // "null"')
+          if [[ "$DELETED" != "null" ]]; then
+            echo "❌ SERVICE WAS DELETED at $DELETED"
+            echo "domain=SERVICE_DELETED" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Try to get domain from service instance
+          INSTANCE_DOMAIN=$(echo "$RESPONSE" | jq -r '.data.service.serviceInstances.edges[].node | select(.environmentId == "'"$ENV_ID"'") | .domains.serviceDomains[0].domain // empty')
+          if [[ -n "$INSTANCE_DOMAIN" ]]; then
+            echo "Found domain from service instance: $INSTANCE_DOMAIN"
+            echo "domain=$INSTANCE_DOMAIN" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           DOMAIN=$(echo "$RESPONSE" | jq -r '.data.service.domains.serviceDomains[0].domain // "none"')
           echo "Current domain: $DOMAIN"
@@ -61,8 +114,9 @@ jobs:
         id: create-domain
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          N8N_ID: ${{ steps.list-services.outputs.n8n_id }}
         run: |
-          SERVICE_ID="e1373500-e475-414a-aeb5-b93826c0616c"
+          SERVICE_ID="${N8N_ID:-e1373500-e475-414a-aeb5-b93826c0616c}"
           ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
           EXISTING_DOMAIN="${{ steps.service.outputs.domain }}"
 
@@ -117,8 +171,9 @@ jobs:
       - name: Get Deployments
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          N8N_ID: ${{ steps.list-services.outputs.n8n_id }}
         run: |
-          SERVICE_ID="e1373500-e475-414a-aeb5-b93826c0616c"
+          SERVICE_ID="${N8N_ID:-e1373500-e475-414a-aeb5-b93826c0616c}"
 
           echo "=== Recent Deployments ==="
           RESPONSE=$(curl -s -X POST \
