@@ -27,11 +27,39 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Create Artifact Registry repository if needed
+        run: |
+          # Check if repository exists, create if not
+          if ! gcloud artifacts repositories describe cloud-run-source-deploy \
+            --location=us-central1 \
+            --project=$GCP_PROJECT_ID 2>/dev/null; then
+            echo "Creating Artifact Registry repository..."
+            gcloud artifacts repositories create cloud-run-source-deploy \
+              --repository-format=docker \
+              --location=us-central1 \
+              --description="Docker images for Cloud Run deployments" \
+              --project=$GCP_PROJECT_ID
+          else
+            echo "✅ Repository already exists"
+          fi
+
       - name: Deploy GCP MCP Server
         run: |
+          set -e  # Exit on error
+
           echo "🚀 Deploying GCP MCP Server to Cloud Run..."
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
+
+          echo "Checking src/gcp_mcp..."
+          ls -la src/
+          ls -la src/gcp_mcp/
 
           cd src/gcp_mcp
+          echo "✅ Changed to src/gcp_mcp"
+          echo "Contents:"
+          ls -la
 
           # Configure Docker for Artifact Registry
           gcloud auth configure-docker us-central1-docker.pkg.dev
