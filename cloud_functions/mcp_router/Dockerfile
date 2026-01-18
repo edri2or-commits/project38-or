@@ -1,7 +1,7 @@
 # MCP Router - Cloud Run Container
-# Python 3.12 with gunicorn for production
+# Use Python 3.11 (same as working gcp-mcp-gateway)
 
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
