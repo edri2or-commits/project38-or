@@ -49,36 +49,12 @@ logger = logging.getLogger(__name__)
 # GCP Configuration
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project38-483612")
 
-# Global singleton for Secret Manager client (lazy loaded)
-_secret_manager_client = None
-
-
-def _get_secret_manager_client():
-    """
-    Get Secret Manager client with lazy loading.
-
-    This prevents import errors from crashing the container at startup.
-    The client is only initialized when first needed.
-
-    Returns:
-        SecretManagerServiceClient instance
-    """
-    global _secret_manager_client
-    if _secret_manager_client is None:
-        try:
-            # Import inside function - only executes when called
-            from google.cloud import secretmanager
-            _secret_manager_client = secretmanager.SecretManagerServiceClient()
-            logger.info("Secret Manager client initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Secret Manager client: {e}")
-            raise
-    return _secret_manager_client
-
-
 def get_secret(secret_name: str) -> str | None:
     """
-    Fetch secret from GCP Secret Manager with lazy loading.
+    Fetch secret from GCP Secret Manager using gcloud CLI.
+
+    This approach avoids Python 3.12 compatibility issues with google-cloud-secret-manager.
+    The gcloud CLI is pre-installed in Cloud Functions Gen 2 and uses Application Default Credentials.
 
     Args:
         secret_name: Name of the secret to retrieve
@@ -87,10 +63,27 @@ def get_secret(secret_name: str) -> str | None:
         Secret value as string, or None if failed
     """
     try:
-        client = _get_secret_manager_client()
-        name = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}/versions/latest"
-        response = client.access_secret_version(request={"name": name})
-        return response.payload.data.decode("UTF-8")
+        import subprocess
+
+        cmd = [
+            "gcloud", "secrets", "versions", "access", "latest",
+            "--secret", secret_name,
+            "--project", GCP_PROJECT_ID,
+            "--format", "value(payload.data)",
+        ]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True
+        )
+
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to get secret {secret_name}: {e.stderr}")
+        return None
     except Exception as e:
         logger.error(f"Failed to get secret {secret_name}: {e}")
         return None
@@ -1193,13 +1186,19 @@ class MCPRouter:
     # ========================================================================
 
     def _secret_get(self, secret_name: str, version: str = "latest") -> dict:
-        """Get secret value from Secret Manager (lazy loaded)."""
+        """Get secret value from Secret Manager using gcloud CLI."""
         try:
-            client = _get_secret_manager_client()
-            name = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}/versions/{version}"
-            response = client.access_secret_version(request={"name": name})
+            import subprocess
 
-            value = response.payload.data.decode("UTF-8")
+            cmd = [
+                "gcloud", "secrets", "versions", "access", version,
+                "--secret", secret_name,
+                "--project", GCP_PROJECT_ID,
+                "--format", "value(payload.data)"
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)
+            value = result.stdout.strip()
             masked = value[:4] + "..." + value[-4:] if len(value) > 8 else "***"
 
             return {
@@ -1210,23 +1209,29 @@ class MCPRouter:
                 "message": "Secret retrieved (value masked for security)"
             }
 
+        except subprocess.CalledProcessError as e:
+            logger.error(f"secret_get failed: {e.stderr}")
+            return {"status": "error", "error": e.stderr}
         except Exception as e:
             logger.error(f"secret_get failed: {e}")
             return {"status": "error", "error": str(e)}
 
     def _secret_list(self) -> dict:
-        """List all secrets in Secret Manager (lazy loaded)."""
+        """List all secrets in Secret Manager using gcloud CLI."""
         try:
-            client = _get_secret_manager_client()
-            parent = f"projects/{GCP_PROJECT_ID}"
+            import subprocess
+            import json
 
-            secrets = []
-            for secret in client.list_secrets(request={"parent": parent}):
-                secrets.append({
-                    "name": secret.name.split("/")[-1],
-                    "created": str(secret.create_time),
-                    "labels": dict(secret.labels)
-                })
+            cmd = [
+                "gcloud", "secrets", "list",
+                "--project", GCP_PROJECT_ID,
+                "--format", "json"
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15, check=True)
+            secrets_data = json.loads(result.stdout)
+
+            secrets = [{"name": s["name"].split("/")[-1]} for s in secrets_data]
 
             return {
                 "status": "success",
@@ -1234,31 +1239,33 @@ class MCPRouter:
                 "count": len(secrets)
             }
 
+        except subprocess.CalledProcessError as e:
+            logger.error(f"secret_list failed: {e.stderr}")
+            return {"status": "error", "error": e.stderr}
         except Exception as e:
             logger.error(f"secret_list failed: {e}")
             return {"status": "error", "error": str(e)}
 
     def _secret_create(self, secret_name: str, secret_value: str) -> dict:
-        """Create a new secret (lazy loaded)."""
+        """Create a new secret using gcloud CLI."""
         try:
-            client = _get_secret_manager_client()
-            parent = f"projects/{GCP_PROJECT_ID}"
+            import subprocess
 
             # Create secret
-            secret = client.create_secret(
-                request={
-                    "parent": parent,
-                    "secret_id": secret_name,
-                    "secret": {"replication": {"automatic": {}}},
-                }
-            )
+            cmd = [
+                "gcloud", "secrets", "create", secret_name,
+                "--project", GCP_PROJECT_ID,
+                "--replication-policy", "automatic",
+                "--data-file", "-"
+            ]
 
-            # Add version
-            client.add_secret_version(
-                request={
-                    "parent": secret.name,
-                    "payload": {"data": secret_value.encode("UTF-8")},
-                }
+            result = subprocess.run(
+                cmd,
+                input=secret_value,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=True
             )
 
             return {
@@ -1267,30 +1274,42 @@ class MCPRouter:
                 "message": "Secret created successfully"
             }
 
+        except subprocess.CalledProcessError as e:
+            logger.error(f"secret_create failed: {e.stderr}")
+            return {"status": "error", "error": e.stderr}
         except Exception as e:
             logger.error(f"secret_create failed: {e}")
             return {"status": "error", "error": str(e)}
 
     def _secret_update(self, secret_name: str, secret_value: str) -> dict:
-        """Update secret (add new version) (lazy loaded)."""
+        """Update secret (add new version) using gcloud CLI."""
         try:
-            client = _get_secret_manager_client()
-            parent = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}"
+            import subprocess
 
-            version = client.add_secret_version(
-                request={
-                    "parent": parent,
-                    "payload": {"data": secret_value.encode("UTF-8")},
-                }
+            cmd = [
+                "gcloud", "secrets", "versions", "add", secret_name,
+                "--project", GCP_PROJECT_ID,
+                "--data-file", "-"
+            ]
+
+            result = subprocess.run(
+                cmd,
+                input=secret_value,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=True
             )
 
             return {
                 "status": "success",
                 "secret_name": secret_name,
-                "version": version.name.split("/")[-1],
                 "message": "Secret updated successfully"
             }
 
+        except subprocess.CalledProcessError as e:
+            logger.error(f"secret_update failed: {e.stderr}")
+            return {"status": "error", "error": e.stderr}
         except Exception as e:
             logger.error(f"secret_update failed: {e}")
             return {"status": "error", "error": str(e)}

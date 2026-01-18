@@ -3,15 +3,5 @@ functions-framework==3.5.0
 flask>=2.3.0
 httpx>=0.25.0
 
-# GCP Client Libraries (pinned for Python 3.12)
-google-cloud-secret-manager==2.18.0
-google-cloud-storage==2.14.0
-google-cloud-compute==1.14.0
-google-cloud-iam==2.12.0
-google-cloud-resource-manager==1.10.0
-
-# Core Dependencies (Python 3.12 compatible versions)
-protobuf>=4.21.6
-grpcio>=1.60.0
-google-api-core>=2.15.0
-google-auth>=2.23.0
+# GCP will be accessed via gcloud CLI (already installed in Cloud Functions)
+# This avoids Python 3.12 compatibility issues with heavy client libraries
