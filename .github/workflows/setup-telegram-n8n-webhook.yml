@@ -77,50 +77,29 @@ jobs:
             exit 0
           fi
 
-          # Create workflow JSON - simple webhook that echoes messages
-          # Using jq to properly construct JSON with variable substitution
-          jq -n \
-            --arg token "$TELEGRAM_TOKEN" \
-            '{
-              "name": "Telegram Webhook Bot",
-              "nodes": [
-                {
-                  "parameters": {
-                    "httpMethod": "POST",
-                    "path": "telegram-bot",
-                    "responseMode": "lastNode",
-                    "options": {}
-                  },
-                  "id": "webhook-node",
-                  "name": "Telegram Webhook",
-                  "type": "n8n-nodes-base.webhook",
-                  "typeVersion": 2,
-                  "position": [250, 300]
+          # Create minimal webhook workflow
+          # Using printf to write JSON (avoids jq expression issues)
+          printf '%s' '{
+            "name": "Telegram Webhook Bot",
+            "nodes": [
+              {
+                "parameters": {
+                  "httpMethod": "POST",
+                  "path": "telegram-bot",
+                  "responseMode": "onReceived",
+                  "options": {}
                 },
-                {
-                  "parameters": {
-                    "method": "POST",
-                    "url": ("https://api.telegram.org/bot" + $token + "/sendMessage"),
-                    "sendBody": true,
-                    "specifyBody": "json",
-                    "jsonBody": "={{\"chat_id\": {{ $json.body.message.chat.id }}, \"text\": \"n8n Echo: {{ $json.body.message.text }}\"}}",
-                    "options": {}
-                  },
-                  "id": "http-send",
-                  "name": "Send Telegram Reply",
-                  "type": "n8n-nodes-base.httpRequest",
-                  "typeVersion": 4.2,
-                  "position": [500, 300]
-                }
-              ],
-              "connections": {
-                "Telegram Webhook": {
-                  "main": [[{"node": "Send Telegram Reply", "type": "main", "index": 0}]]
-                }
-              },
-              "active": false,
-              "settings": {"executionOrder": "v1"}
-            }' > /tmp/workflow.json
+                "id": "webhook",
+                "name": "Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 1.1,
+                "position": [250, 300]
+              }
+            ],
+            "connections": {},
+            "active": false,
+            "settings": {"executionOrder": "v1"}
+          }' > /tmp/workflow.json
 
           echo "Workflow JSON:"
           cat /tmp/workflow.json
