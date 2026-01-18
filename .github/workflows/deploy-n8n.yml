@@ -38,9 +38,11 @@ jobs:
         run: |
           RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
           N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=project38-483612)
+          TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
           echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
           echo "n8n_api_key=$N8N_API_KEY" >> $GITHUB_OUTPUT
-          echo "✅ Secrets loaded"
+          echo "telegram_bot_token=$TELEGRAM_BOT_TOKEN" >> $GITHUB_OUTPUT
+          echo "✅ Secrets loaded (Railway, n8n, Telegram)"
 
       - name: Check for existing n8n service
         id: check
@@ -108,6 +110,7 @@ jobs:
           SERVICE_ID: ${{ steps.check.outputs.service_id || steps.create.outputs.service_id }}
           ENCRYPTION_KEY: ${{ steps.create.outputs.encryption_key }}
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          TELEGRAM_BOT_TOKEN: ${{ steps.secrets.outputs.telegram_bot_token }}
         run: |
           ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
 
@@ -162,16 +165,26 @@ jobs:
               "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_API_KEY\", value: \"'"$N8N_API_KEY"'\" }) }"
             }'
 
-          # External hooks URL (for Telegram)
+          # Telegram Bot Token for n8n Telegram integration
+          echo "Setting Telegram Bot Token..."
           curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"WEBHOOK_URL\", value: \"https://n8n-production.up.railway.app/\" }) }"
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'"$TELEGRAM_BOT_TOKEN"'\" }) }"
             }'
 
-          echo "✅ Environment variables configured"
+          # External hooks URL (for Telegram webhooks)
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"WEBHOOK_URL\", value: \"https://n8n-production-ef6e2.up.railway.app/\" }) }"
+            }'
+
+          echo "✅ Environment variables configured (including Telegram Bot Token)"
 
       - name: Deploy from Docker Image
         if: inputs.action == 'deploy'
