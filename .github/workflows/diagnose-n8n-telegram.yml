@@ -172,6 +172,89 @@ jobs:
           fi
           exit 0
 
+      - name: Try Creating Workflow via API
+        id: create-workflow
+        continue-on-error: true
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
+          set +e
+          echo "=== Attempting to Create Workflow via API ==="
+
+          # Generate unique node ID
+          NODE_ID=$(cat /proc/sys/kernel/random/uuid)
+
+          # Create minimal workflow JSON
+          cat > /tmp/workflow.json << EOF
+{
+  "name": "Telegram Webhook Bot",
+  "nodes": [
+    {
+      "id": "$NODE_ID",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-bot",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    }
+  ],
+  "connections": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+EOF
+
+          echo "Workflow JSON to send:"
+          cat /tmp/workflow.json
+          echo ""
+
+          echo "Sending POST to $N8N_URL/api/v1/workflows"
+          echo "API Key length: ${#N8N_API_KEY}"
+          echo ""
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            "$N8N_URL/api/v1/workflows" \
+            -d @/tmp/workflow.json 2>&1)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Full Response Body:"
+          echo "$BODY"
+
+          echo "create_http=$HTTP_CODE" >> $GITHUB_OUTPUT
+
+          if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
+            WORKFLOW_ID=$(echo "$BODY" | jq -r '.id' 2>/dev/null)
+            echo ""
+            echo "✅ Workflow created! ID: $WORKFLOW_ID"
+            echo "created_workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
+
+            # Activate it
+            echo "Activating workflow..."
+            ACTIVATE=$(curl -s -X PATCH \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              "$N8N_URL/api/v1/workflows/$WORKFLOW_ID" \
+              -d '{"active": true}')
+            echo "Activate response: $ACTIVATE"
+          else
+            echo ""
+            echo "❌ Failed to create workflow"
+            echo "created_workflow_id=" >> $GITHUB_OUTPUT
+          fi
+          exit 0
+
       - name: Test Webhook Endpoint Directly
         id: webhook-test
         continue-on-error: true
@@ -211,6 +294,8 @@ jobs:
           WORKFLOW_ID: ${{ steps.check-telegram-workflow.outputs.workflow_id }}
           WORKFLOW_ACTIVE: ${{ steps.check-telegram-workflow.outputs.workflow_active }}
           EXECUTIONS_FOUND: ${{ steps.executions.outputs.executions_found }}
+          CREATE_HTTP: ${{ steps.create-workflow.outputs.create_http }}
+          CREATED_WORKFLOW_ID: ${{ steps.create-workflow.outputs.created_workflow_id }}
           WEBHOOK_HTTP: ${{ steps.webhook-test.outputs.webhook_http_code }}
         run: |
           cat > /tmp/comment.md << 'COMMENT_EOF'
@@ -236,6 +321,8 @@ jobs:
           echo "| Workflow ID | \`$WORKFLOW_ID\` |" >> /tmp/comment.md
           echo "| Workflow Active | \`$WORKFLOW_ACTIVE\` |" >> /tmp/comment.md
           echo "| Recent Executions | \`$EXECUTIONS_FOUND\` |" >> /tmp/comment.md
+          echo "| **API Workflow Create** | **HTTP \`$CREATE_HTTP\`** |" >> /tmp/comment.md
+          echo "| **Created Workflow ID** | **\`$CREATED_WORKFLOW_ID\`** |" >> /tmp/comment.md
           echo "| Direct Webhook Test HTTP | \`$WEBHOOK_HTTP\` |" >> /tmp/comment.md
 
           echo "" >> /tmp/comment.md
