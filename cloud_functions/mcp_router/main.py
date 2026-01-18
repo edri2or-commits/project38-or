@@ -35,8 +35,9 @@ from typing import Any, Optional
 import functions_framework
 import httpx
 from flask import Request
-from google.cloud import secretmanager, storage, compute_v1
-# IAM imports temporarily disabled - will re-enable after testing
+from google.cloud import secretmanager
+# Temporarily disabled for minimal deployment testing:
+# from google.cloud import storage, compute_v1
 # from google.cloud.iam_admin_v1 import IAMClient
 # from google.cloud.resourcemanager_v3 import ProjectsClient
 
@@ -200,16 +201,16 @@ class MCPRouter:
         self.tools["secret_create"] = self._secret_create
         self.tools["secret_update"] = self._secret_update
 
-        # GCP Compute Engine tools
-        self.tools["compute_list"] = self._compute_list
-        self.tools["compute_get"] = self._compute_get
-        self.tools["compute_start"] = self._compute_start
-        self.tools["compute_stop"] = self._compute_stop
+        # GCP Compute Engine tools (temporarily disabled for testing)
+        # self.tools["compute_list"] = self._compute_list
+        # self.tools["compute_get"] = self._compute_get
+        # self.tools["compute_start"] = self._compute_start
+        # self.tools["compute_stop"] = self._compute_stop
 
-        # GCP Cloud Storage tools
-        self.tools["storage_list"] = self._storage_list
-        self.tools["storage_get"] = self._storage_get
-        self.tools["storage_upload"] = self._storage_upload
+        # GCP Cloud Storage tools (temporarily disabled for testing)
+        # self.tools["storage_list"] = self._storage_list
+        # self.tools["storage_get"] = self._storage_get
+        # self.tools["storage_upload"] = self._storage_upload
 
         # GCP IAM tools (temporarily disabled - API issues)
         # self.tools["iam_list_accounts"] = self._iam_list_accounts
