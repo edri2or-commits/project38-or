@@ -162,13 +162,22 @@ class WorkspaceAuth:
             return self._access_token
 
 
-# Global auth instance
-_auth = WorkspaceAuth()
+# Global auth instance (lazy-loaded)
+_auth: WorkspaceAuth | None = None
+
+
+def _get_auth_instance() -> WorkspaceAuth:
+    """Get or create the global WorkspaceAuth instance (lazy loading)."""
+    global _auth
+    if _auth is None:
+        _auth = WorkspaceAuth()
+    return _auth
 
 
 async def _get_workspace_headers() -> dict[str, str]:
     """Get authorization headers for Workspace APIs."""
-    token = await _auth.get_access_token()
+    auth = _get_auth_instance()
+    token = await auth.get_access_token()
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -1560,8 +1569,16 @@ class MCPRouter:
         except Exception as e:
             logger.error(f"iam_get_policy failed: {e}")
             return {"status": "error", "error": str(e)}
-# Global router instance
-router = MCPRouter()
+# Global router instance (lazy-loaded)
+_router: MCPRouter | None = None
+
+
+def _get_router_instance() -> MCPRouter:
+    """Get or create the global MCPRouter instance (lazy loading)."""
+    global _router
+    if _router is None:
+        _router = MCPRouter()
+    return _router
 
 
 def _validate_token(request: Request) -> bool:
@@ -1656,8 +1673,9 @@ def mcp_router(request: Request):
         # Decapsulate
         mcp_message = json.loads(data) if isinstance(data, str) else data
 
-        # Process
-        result = router.process_request(mcp_message)
+        # Process (lazy-load router)
+        router_instance = _get_router_instance()
+        result = router_instance.process_request(mcp_message)
 
         # Encapsulate response
         response = {"result": json.dumps(result)}
