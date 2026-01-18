@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Railway Diagnostics Workflow** (2026-01-17) - Autonomous Railway service diagnostics via GitHub Actions
+  - `.github/workflows/railway-diagnostics.yml` - Complete Railway diagnostic automation (250+ lines)
+  - **Triggers**: Manual (`workflow_dispatch`) or issue comment (`/diagnose <service_name>`)
+  - **Capabilities**:
+    - Fetches Railway deployment status (last 5 deployments)
+    - Retrieves deployment logs via GraphQL API
+    - Lists environment variables (names only, not values)
+    - Checks Telegram webhook status (for telegram-bot service)
+    - Generates comprehensive diagnostic report
+    - Posts results directly to GitHub issue
+    - Uploads artifacts (JSON data, report) for 30 days
+  - **Authentication**: Uses WIF (Workload Identity Federation) for GCP Secret Manager access
+  - **Autonomy**: Eliminates need for manual gcloud command execution
+  - **Use case**: Claude Code can now autonomously diagnose Railway issues without user intervention
+  - **Example**: Comment `/diagnose telegram-bot` on any issue to trigger full diagnostic scan
+  - **Output**: Markdown report with deployment status, env vars, logs, webhook status, recommendations
+  - **Solves**: Railway service debugging blocked by Anthropic proxy (Issue #242)
 - **Telegram Bot Service** (2026-01-17) - Multi-LLM Telegram bot using LiteLLM Gateway
   - `services/telegram-bot/` - FastAPI webhook-based Telegram bot
   - **main.py** - FastAPI application with webhook receiver (200+ lines)
