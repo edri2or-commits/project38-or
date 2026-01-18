@@ -77,97 +77,71 @@ jobs:
             exit 0
           fi
 
-          # Create workflow JSON - uses Webhook + HTTP Request (no credentials needed!)
-          WORKFLOW_JSON='{
-            "name": "Telegram Webhook Bot",
-            "nodes": [
-              {
-                "parameters": {
-                  "httpMethod": "POST",
-                  "path": "telegram-bot",
-                  "responseMode": "responseNode",
-                  "options": {}
-                },
-                "id": "webhook-node",
-                "name": "Telegram Webhook",
-                "type": "n8n-nodes-base.webhook",
-                "typeVersion": 2,
-                "position": [250, 300],
-                "webhookId": "telegram-bot-webhook"
-              },
-              {
-                "parameters": {
-                  "method": "POST",
-                  "url": "=https://api.telegram.org/bot'"$TELEGRAM_TOKEN"'/sendMessage",
-                  "sendHeaders": true,
-                  "headerParameters": {
-                    "parameters": [
-                      {
-                        "name": "Content-Type",
-                        "value": "application/json"
-                      }
-                    ]
-                  },
-                  "sendBody": true,
-                  "specifyBody": "json",
-                  "jsonBody": "={{ JSON.stringify({ chat_id: $json.body.message.chat.id, text: \"Echo from n8n: \" + $json.body.message.text + \"\\n\\nFrom: \" + $json.body.message.from.first_name }) }}",
-                  "options": {}
-                },
-                "id": "http-send",
-                "name": "Send Telegram Reply",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [500, 300]
-              },
-              {
-                "parameters": {
-                  "respondWith": "json",
-                  "responseBody": "={{ { ok: true } }}",
-                  "options": {}
-                },
-                "id": "respond-node",
-                "name": "Respond to Telegram",
-                "type": "n8n-nodes-base.respondToWebhook",
-                "typeVersion": 1.1,
-                "position": [750, 300]
-              }
-            ],
-            "connections": {
-              "Telegram Webhook": {
-                "main": [
-                  [
-                    {
-                      "node": "Send Telegram Reply",
-                      "type": "main",
-                      "index": 0
-                    }
-                  ]
-                ]
-              },
-              "Send Telegram Reply": {
-                "main": [
-                  [
-                    {
-                      "node": "Respond to Telegram",
-                      "type": "main",
-                      "index": 0
-                    }
-                  ]
-                ]
-              }
-            },
-            "active": true,
-            "settings": {
-              "executionOrder": "v1"
-            }
-          }'
+          # Create workflow JSON using heredoc with proper escaping
+          # This workflow: Webhook → HTTP Request to Telegram API (no credentials needed)
+          cat > /tmp/workflow.json << WFEOF
+{
+  "name": "Telegram Webhook Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-bot",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Telegram Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": {{ \$json.body.message.chat.id }}, \"text\": \"🤖 n8n Echo: {{ \$json.body.message.text }}\"}",
+        "options": {}
+      },
+      "id": "http-send",
+      "name": "Send Telegram Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "Telegram Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+WFEOF
 
+          echo "Workflow JSON:"
+          cat /tmp/workflow.json
+
+          echo ""
           echo "Sending workflow creation request..."
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             -H "Content-Type: application/json" \
             "$N8N_URL/api/v1/workflows" \
-            -d "$WORKFLOW_JSON")
+            -d @/tmp/workflow.json)
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | head -n -1)
