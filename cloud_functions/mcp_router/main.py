@@ -30,10 +30,24 @@ from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from typing import Any
 
-import functions_framework
+# functions_framework is optional - only needed for Cloud Functions deployment
+# For Cloud Run, we use Flask directly via app.py
+try:
+    import functions_framework
+    FUNCTIONS_FRAMEWORK_AVAILABLE = True
+except ImportError:
+    FUNCTIONS_FRAMEWORK_AVAILABLE = False
+
 import httpx
 from flask import Request
-from google.cloud import secretmanager
+
+# NOTE: google-cloud-secret-manager is imported LAZILY inside get_secret()
+# to prevent deployment failures. See ADR-005 and forensic analysis report.
+# Global import of secretmanager causes Python 3.12 build failures due to:
+# 1. Transitive dependency conflicts (protobuf/grpcio version resolution)
+# 2. Container crash on cold start if credentials are misconfigured
+# By importing only when needed, the container starts successfully and
+# errors are deferred to request-time (loggable 500 errors vs silent crash).
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -44,8 +58,17 @@ GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project38-483612")
 
 
 def get_secret(secret_name: str) -> str | None:
-    """Fetch secret from GCP Secret Manager."""
+    """Fetch secret from GCP Secret Manager.
+
+    Uses lazy import pattern to prevent deployment failures.
+    The google-cloud-secret-manager library is only imported when this
+    function is actually called, not at module load time.
+    """
     try:
+        # LAZY IMPORT: Import only when needed to prevent cold start crashes
+        # This is the recommended pattern for Cloud Functions Gen 2 on Python 3.12
+        from google.cloud import secretmanager
+
         client = secretmanager.SecretManagerServiceClient()
         name = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}/versions/latest"
         response = client.access_secret_version(request={"name": name})
@@ -280,8 +303,6 @@ class MCPRouter:
 
     def _railway_deploy(self, service_id: str = None) -> dict:
         """Trigger a Railway deployment."""
-        import httpx
-
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
         environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
@@ -319,8 +340,6 @@ class MCPRouter:
 
     def _railway_status(self) -> dict:
         """Get current Railway deployment status."""
-        import httpx
-
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
 
@@ -363,8 +382,6 @@ class MCPRouter:
 
     def _railway_service_info(self, service_name: str = "litellm-gateway") -> dict:
         """Get Railway service information including domains."""
-        import httpx
-
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
         environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
@@ -456,8 +473,6 @@ class MCPRouter:
 
     def _railway_list_services(self) -> dict:
         """List all Railway services in the project."""
-        import httpx
-
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
         environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
@@ -497,8 +512,6 @@ class MCPRouter:
 
     def _railway_create_domain(self, service_name: str = "litellm-gateway") -> dict:
         """Create a public domain for a Railway service."""
-        import httpx
-
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
         environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
@@ -564,8 +577,6 @@ class MCPRouter:
 
     def _n8n_trigger(self, workflow_id: str, data: dict = None) -> dict:
         """Trigger an n8n workflow."""
-        import httpx
-
         n8n_url = os.environ.get("N8N_BASE_URL")
         n8n_api_key = os.environ.get("N8N_API_KEY")
 
@@ -595,8 +606,6 @@ class MCPRouter:
 
     def _health_check(self) -> dict:
         """Check production health."""
-        import httpx
-
         try:
             response = httpx.get(
                 "https://or-infra.com/api/health",
@@ -1067,7 +1076,16 @@ def _validate_token(request: Request) -> bool:
     return hmac.compare_digest(provided_token, expected_token)
 
 
-@functions_framework.http
+# Decorator is conditional - only apply if functions_framework is available
+# For Cloud Run deployment, app.py calls mcp_router directly
+def _http_decorator(func):
+    """Conditional decorator for Cloud Functions compatibility."""
+    if FUNCTIONS_FRAMEWORK_AVAILABLE:
+        return functions_framework.http(func)
+    return func
+
+
+@_http_decorator
 def mcp_router(request: Request):
     """
     HTTP Cloud Function entry point.
