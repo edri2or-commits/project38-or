@@ -35,7 +35,8 @@ from typing import Any, Optional
 import functions_framework
 import httpx
 from flask import Request
-from google.cloud import secretmanager
+# Lazy load GCP libraries - import only when needed to prevent cold start crashes
+# from google.cloud import secretmanager  # <-- Moved to lazy loader
 # Temporarily disabled for minimal deployment testing:
 # from google.cloud import storage, compute_v1
 # from google.cloud.iam_admin_v1 import IAMClient
@@ -48,11 +49,45 @@ logger = logging.getLogger(__name__)
 # GCP Configuration
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "project38-483612")
 
+# Global singleton for Secret Manager client (lazy loaded)
+_secret_manager_client = None
+
+
+def _get_secret_manager_client():
+    """
+    Get Secret Manager client with lazy loading.
+
+    This prevents import errors from crashing the container at startup.
+    The client is only initialized when first needed.
+
+    Returns:
+        SecretManagerServiceClient instance
+    """
+    global _secret_manager_client
+    if _secret_manager_client is None:
+        try:
+            # Import inside function - only executes when called
+            from google.cloud import secretmanager
+            _secret_manager_client = secretmanager.SecretManagerServiceClient()
+            logger.info("Secret Manager client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Secret Manager client: {e}")
+            raise
+    return _secret_manager_client
+
 
 def get_secret(secret_name: str) -> str | None:
-    """Fetch secret from GCP Secret Manager."""
+    """
+    Fetch secret from GCP Secret Manager with lazy loading.
+
+    Args:
+        secret_name: Name of the secret to retrieve
+
+    Returns:
+        Secret value as string, or None if failed
+    """
     try:
-        client = secretmanager.SecretManagerServiceClient()
+        client = _get_secret_manager_client()
         name = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}/versions/latest"
         response = client.access_secret_version(request={"name": name})
         return response.payload.data.decode("UTF-8")
@@ -1158,9 +1193,9 @@ class MCPRouter:
     # ========================================================================
 
     def _secret_get(self, secret_name: str, version: str = "latest") -> dict:
-        """Get secret value from Secret Manager."""
+        """Get secret value from Secret Manager (lazy loaded)."""
         try:
-            client = secretmanager.SecretManagerServiceClient()
+            client = _get_secret_manager_client()
             name = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}/versions/{version}"
             response = client.access_secret_version(request={"name": name})
 
@@ -1180,9 +1215,9 @@ class MCPRouter:
             return {"status": "error", "error": str(e)}
 
     def _secret_list(self) -> dict:
-        """List all secrets in Secret Manager."""
+        """List all secrets in Secret Manager (lazy loaded)."""
         try:
-            client = secretmanager.SecretManagerServiceClient()
+            client = _get_secret_manager_client()
             parent = f"projects/{GCP_PROJECT_ID}"
 
             secrets = []
@@ -1204,9 +1239,9 @@ class MCPRouter:
             return {"status": "error", "error": str(e)}
 
     def _secret_create(self, secret_name: str, secret_value: str) -> dict:
-        """Create a new secret."""
+        """Create a new secret (lazy loaded)."""
         try:
-            client = secretmanager.SecretManagerServiceClient()
+            client = _get_secret_manager_client()
             parent = f"projects/{GCP_PROJECT_ID}"
 
             # Create secret
@@ -1237,9 +1272,9 @@ class MCPRouter:
             return {"status": "error", "error": str(e)}
 
     def _secret_update(self, secret_name: str, secret_value: str) -> dict:
-        """Update secret (add new version)."""
+        """Update secret (add new version) (lazy loaded)."""
         try:
-            client = secretmanager.SecretManagerServiceClient()
+            client = _get_secret_manager_client()
             parent = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}"
 
             version = client.add_secret_version(
