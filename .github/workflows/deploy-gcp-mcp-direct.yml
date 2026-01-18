@@ -1,0 +1,68 @@
+name: Deploy GCP MCP - Direct
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy GCP MCP Server
+        run: |
+          echo "🚀 Deploying GCP MCP Server to Cloud Run..."
+
+          cd src/gcp_mcp
+
+          # Configure Docker for Artifact Registry
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+
+          # Build image
+          echo "🏗️ Building Docker image..."
+          docker build -t us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest .
+
+          # Push image
+          echo "📤 Pushing to Artifact Registry..."
+          docker push us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest
+
+          # Deploy to Cloud Run
+          echo "☁️ Deploying to Cloud Run..."
+          gcloud run deploy gcp-mcp-gateway \
+            --image us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest \
+            --region us-central1 \
+            --platform managed \
+            --service-account claude-code-agent@$GCP_PROJECT_ID.iam.gserviceaccount.com \
+            --allow-unauthenticated \
+            --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID" \
+            --port 8080 \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 10 \
+            --min-instances 0 \
+            --timeout 300s
+
+          # Get service URL
+          URL=$(gcloud run services describe gcp-mcp-gateway --region us-central1 --format='value(status.url)')
+
+          echo ""
+          echo "✅ Deployment complete!"
+          echo "🌐 Service URL: $URL"
