@@ -45,25 +45,13 @@ jobs:
 
       - name: Deploy GCP MCP Server
         run: |
-          echo "🚀 Deploying GCP MCP Server to Cloud Run..."
+          echo "🚀 Deploying GCP MCP Server to Cloud Run using source deployment..."
 
           cd src/gcp_mcp
 
-          # Configure Docker for Artifact Registry
-          gcloud auth configure-docker us-central1-docker.pkg.dev
-
-          # Build image
-          echo "🏗️ Building Docker image..."
-          docker build -t us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest .
-
-          # Push image
-          echo "📤 Pushing to Artifact Registry..."
-          docker push us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest
-
-          # Deploy to Cloud Run
-          echo "☁️ Deploying to Cloud Run..."
+          # Deploy using --source (builds in Cloud)
           gcloud run deploy gcp-mcp-gateway \
-            --image us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest \
+            --source . \
             --region us-central1 \
             --platform managed \
             --service-account claude-code-agent@$GCP_PROJECT_ID.iam.gserviceaccount.com \
