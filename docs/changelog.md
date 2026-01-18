@@ -8,8 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **n8n Telegram Integration** (2026-01-18) - Connect Telegram bot to n8n workflows
+  - Updated `.github/workflows/deploy-n8n.yml` to include `TELEGRAM_BOT_TOKEN` from GCP Secret Manager
+  - **New Environment Variable**: `TELEGRAM_BOT_TOKEN` injected automatically during deployment
+  - **Use case**: Enable n8n workflows to send/receive Telegram messages
+  - **How to use**:
+    1. Run workflow with `configure-env` action to inject token
+    2. In n8n UI, create Telegram credential using `$TELEGRAM_BOT_TOKEN` env var
+    3. Create workflow with Telegram Trigger node
+  - **Documentation**: See setup guide in workflow comments
 - **n8n Deployment to Railway** (2026-01-18) - Self-hosted n8n workflow automation
-  - `.github/workflows/deploy-n8n.yml` - Complete n8n deployment workflow (330+ lines)
+  - `.github/workflows/deploy-n8n.yml` - Complete n8n deployment workflow (350+ lines)
   - **Production URL**: https://n8n-production-ef6e2.up.railway.app
   - **Service ID**: `e1373500-e475-414a-aeb5-b93826c0616c`
   - **Actions**: `deploy`, `status`, `configure-env`
@@ -19,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Configures environment variables from GCP Secret Manager
     - Posts status updates to GitHub issue #266
     - Includes domain and deployment status in issue comments
-  - **Environment Variables**: `N8N_API_KEY_AUTH_ENABLED`, `N8N_API_KEY`, `WEBHOOK_URL`
+  - **Environment Variables**: `N8N_API_KEY_AUTH_ENABLED`, `N8N_API_KEY`, `WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`
   - **Use case**: Telegram → n8n → Bot integration, workflow automation
   - **Evidence**: PRs #263, #267, #269, #271
 - **Email Assistant Skill** (2026-01-18) - Autonomous email agent for Gmail management
