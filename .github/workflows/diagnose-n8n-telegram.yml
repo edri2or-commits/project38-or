@@ -118,18 +118,15 @@ jobs:
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             "$N8N_URL/api/v1/workflows" 2>&1)
 
-          TELEGRAM_WF=$(echo "$RESPONSE" | jq -r '.data[] | select(.name == "Telegram Webhook Bot")' 2>/dev/null)
+          # Get first matching workflow (handle case of multiple workflows)
+          WF_ID=$(echo "$RESPONSE" | jq -r '[.data[] | select(.name == "Telegram Webhook Bot")][0].id // empty' 2>/dev/null)
+          ACTIVE=$(echo "$RESPONSE" | jq -r '[.data[] | select(.name == "Telegram Webhook Bot")][0].active // empty' 2>/dev/null)
 
-          if [[ -n "$TELEGRAM_WF" && "$TELEGRAM_WF" != "null" ]]; then
-            echo "✅ Found workflow:"
-            echo "$TELEGRAM_WF" | jq '.' 2>/dev/null || echo "$TELEGRAM_WF"
+          echo "Found workflow ID: $WF_ID"
+          echo "Workflow active: $ACTIVE"
 
-            WF_ID=$(echo "$TELEGRAM_WF" | jq -r '.id' 2>/dev/null || echo "unknown")
-            ACTIVE=$(echo "$TELEGRAM_WF" | jq -r '.active' 2>/dev/null || echo "unknown")
-
-            echo ""
-            echo "Workflow ID: $WF_ID"
-            echo "Active: $ACTIVE"
+          if [[ -n "$WF_ID" && "$WF_ID" != "null" ]]; then
+            echo "✅ Found 'Telegram Webhook Bot' workflow"
 
             echo "workflow_found=true" >> $GITHUB_OUTPUT
             echo "workflow_id=$WF_ID" >> $GITHUB_OUTPUT
@@ -139,7 +136,8 @@ jobs:
               echo ""
               echo "⚠️ WORKFLOW IS NOT ACTIVE! Attempting to activate..."
 
-              # Try to activate the workflow using POST (n8n API requirement)
+              # Try to activate using POST to /activate endpoint
+              echo "Trying POST /api/v1/workflows/$WF_ID/activate"
               ACTIVATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
                 -H "X-N8N-API-KEY: $N8N_API_KEY" \
                 -H "Content-Type: application/json" \
@@ -155,8 +153,29 @@ jobs:
                 echo "✅ Workflow activated successfully!"
                 echo "workflow_active=true" >> $GITHUB_OUTPUT
               else
-                echo "❌ Failed to activate workflow"
+                echo "Trying alternative: PATCH to update workflow"
+                # Alternative: try PATCH to update workflow
+                PATCH_RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
+                  -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                  -H "Content-Type: application/json" \
+                  "$N8N_URL/api/v1/workflows/$WF_ID" \
+                  -d '{"active":true}' 2>&1)
+
+                PATCH_HTTP=$(echo "$PATCH_RESPONSE" | tail -1)
+                PATCH_BODY=$(echo "$PATCH_RESPONSE" | head -n -1)
+
+                echo "PATCH HTTP: $PATCH_HTTP"
+                echo "PATCH response: $PATCH_BODY"
+
+                if [[ "$PATCH_HTTP" == "200" ]]; then
+                  echo "✅ Workflow activated via PATCH!"
+                  echo "workflow_active=true" >> $GITHUB_OUTPUT
+                else
+                  echo "❌ Failed to activate workflow via both methods"
+                fi
               fi
+            else
+              echo "✅ Workflow is already active!"
             fi
           else
             echo "❌ Workflow 'Telegram Webhook Bot' NOT FOUND!"
