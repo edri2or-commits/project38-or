@@ -137,8 +137,26 @@ jobs:
 
             if [[ "$ACTIVE" != "true" ]]; then
               echo ""
-              echo "⚠️ WORKFLOW IS NOT ACTIVE!"
-              echo "This is why the bot doesn't respond!"
+              echo "⚠️ WORKFLOW IS NOT ACTIVE! Attempting to activate..."
+
+              # Try to activate the workflow
+              ACTIVATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
+                -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                -H "Content-Type: application/json" \
+                "$N8N_URL/api/v1/workflows/$WF_ID/activate" 2>&1)
+
+              ACTIVATE_HTTP=$(echo "$ACTIVATE_RESPONSE" | tail -1)
+              ACTIVATE_BODY=$(echo "$ACTIVATE_RESPONSE" | head -n -1)
+
+              echo "Activate HTTP: $ACTIVATE_HTTP"
+              echo "Activate response: $ACTIVATE_BODY"
+
+              if [[ "$ACTIVATE_HTTP" == "200" ]]; then
+                echo "✅ Workflow activated successfully!"
+                echo "workflow_active=true" >> $GITHUB_OUTPUT
+              else
+                echo "❌ Failed to activate workflow"
+              fi
             fi
           else
             echo "❌ Workflow 'Telegram Webhook Bot' NOT FOUND!"
@@ -177,9 +195,21 @@ jobs:
         continue-on-error: true
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          WORKFLOW_FOUND: ${{ steps.check-telegram-workflow.outputs.workflow_found }}
+          EXISTING_WORKFLOW_ID: ${{ steps.check-telegram-workflow.outputs.workflow_id }}
         run: |
           set +e
           echo "=== Attempting to Create Workflow via API ==="
+
+          # Skip creation if workflow already exists
+          if [[ "$WORKFLOW_FOUND" == "true" ]]; then
+            echo "✅ Workflow already exists (ID: $EXISTING_WORKFLOW_ID)"
+            echo "Skipping creation..."
+            echo "create_http=skipped" >> $GITHUB_OUTPUT
+            echo "create_error=already_exists" >> $GITHUB_OUTPUT
+            echo "created_workflow_id=$EXISTING_WORKFLOW_ID" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           # Generate unique node ID
           NODE_ID=$(cat /proc/sys/kernel/random/uuid)
