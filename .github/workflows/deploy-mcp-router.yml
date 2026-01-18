@@ -292,8 +292,6 @@ jobs:
             --trigger-http \
             --allow-unauthenticated \
             --service-account=${{ env.SERVICE_ACCOUNT }} \
-            --min-instances=1 \
-            --max-instances=10 \
             --memory=512MB \
             --timeout=120s \
             --verbosity=debug \
