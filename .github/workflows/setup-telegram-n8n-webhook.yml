@@ -132,14 +132,17 @@ jobs:
               -d '{"active": true}'
             echo "✅ Workflow activated"
           else
-            echo "❌ Failed to create workflow (HTTP $HTTP_CODE)"
+            echo "❌ Failed to create workflow via API (HTTP $HTTP_CODE)"
+            echo "Response body: $BODY"
             echo "workflow_id=" >> $GITHUB_OUTPUT
-            exit 1
+            echo ""
+            echo "⚠️ Will continue to set Telegram webhook anyway"
+            echo "You may need to create the workflow manually in n8n UI"
           fi
 
       - name: Set Telegram Webhook
         id: set-webhook
-        if: inputs.action == 'full-setup' || inputs.action == 'set-webhook-only'
+        if: always() && (inputs.action == 'full-setup' || inputs.action == 'set-webhook-only')
         env:
           TELEGRAM_TOKEN: ${{ steps.secrets.outputs.telegram_token }}
         run: |
