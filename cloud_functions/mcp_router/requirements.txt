@@ -1,4 +1,24 @@
-functions-framework==3.*
+# Cloud Functions MCP Router Dependencies
+# Python 3.12 compatible - pinned for stable builds
+# See forensic analysis report for rationale
+
+# Host Framework - pinned for stability
+functions-framework==3.5.0
+
+# Web Framework
 flask>=2.0.0
+
+# HTTP Client (async)
 httpx>=0.25.0
-google-cloud-secret-manager>=2.18.0
+
+# Google Cloud Secret Manager - pinned for Python 3.12 compatibility
+google-cloud-secret-manager==2.18.0
+
+# Critical: Force Python 3.12 compatible versions of transitive dependencies
+# Without these pins, the pip resolver may select older versions that:
+# 1. Use the removed 'imp' module (Python 3.12 breaking change)
+# 2. Lack pre-built wheels for Python 3.12 (forcing source compilation)
+# 3. Cause protobuf version conflicts ("diamond dependency" problem)
+protobuf>=4.21.6
+grpcio>=1.60.0
+google-api-core>=2.15.0
