@@ -1,0 +1,248 @@
+name: Deploy GCP MCP Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        default: 'deploy'
+        options:
+          - deploy
+          - status
+          - generate-token
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: gcp-mcp-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: project38-483612
+  GCP_PROJECT_NUMBER: "979429709900"
+  SERVICE_NAME: gcp-mcp-gateway
+  REGION: us-central1
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+
+jobs:
+  deploy:
+    if: inputs.action == 'deploy'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for GCR
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build Docker image
+        working-directory: src/gcp_mcp
+        run: |
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+          docker tag ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+                     ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:latest
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/cloud-run-source-deploy/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --platform=managed \
+            --region=${{ env.REGION }} \
+            --service-account=${{ env.SERVICE_ACCOUNT }} \
+            --allow-unauthenticated \
+            --set-env-vars="GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }}" \
+            --port=8080 \
+            --memory=512Mi \
+            --cpu=1 \
+            --max-instances=10 \
+            --min-instances=0 \
+            --timeout=300s
+
+      - name: Get service URL
+        id: service-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "✅ GCP MCP Gateway deployed to: $URL"
+
+      - name: Test health endpoint
+        run: |
+          URL="${{ steps.service-url.outputs.url }}"
+          echo "Testing health endpoint: $URL/health"
+
+          # Wait for service to be ready (max 2 minutes)
+          for i in {1..24}; do
+            if curl -f -s "$URL/health" > /dev/null; then
+              echo "✅ Health check passed"
+              break
+            fi
+            echo "Waiting for service to be ready... ($i/24)"
+            sleep 5
+          done
+
+          # Final health check
+          curl -f "$URL/health" || (echo "❌ Health check failed" && exit 1)
+
+      - name: Report deployment status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          URL="${{ steps.service-url.outputs.url }}"
+
+          if [ "${{ job.status }}" = "success" ]; then
+            MESSAGE="## ✅ GCP MCP Gateway Deployment Success
+
+**Service URL:** $URL
+**Region:** ${{ env.REGION }}
+**Image:** \`${{ github.sha }}\`
+**Timestamp:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+### Available Tools:
+- \`gcloud_run()\` - Execute gcloud commands
+- \`secret_get()\`, \`secret_list()\`, \`secret_create()\`, \`secret_update()\` - Secret Manager
+- \`compute_list()\`, \`compute_start()\`, \`compute_stop()\` - Compute Engine
+- \`storage_list()\`, \`storage_upload()\` - Cloud Storage
+- \`iam_list_accounts()\`, \`iam_get_policy()\` - IAM
+
+### Next Steps:
+1. Configure Claude Code MCP:
+\`\`\`bash
+claude mcp add --transport http --header \"Authorization: Bearer YOUR_TOKEN\" --scope user gcp-gateway $URL
+\`\`\`
+
+2. Generate auth token (run workflow with action: generate-token)"
+          else
+            MESSAGE="## ❌ GCP MCP Gateway Deployment Failed
+
+**Error:** Deployment failed
+**Timestamp:** $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+Check workflow logs for details."
+          fi
+
+          # Comment on issue (if specified) or create new issue
+          echo "$MESSAGE" >> $GITHUB_STEP_SUMMARY
+
+  status:
+    if: inputs.action == 'status'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get service status
+        run: |
+          echo "## GCP MCP Gateway Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get service details
+          gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format=yaml > service-status.yaml
+
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)')
+
+          STATUS=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.conditions[0].status)')
+
+          echo "**URL:** $URL" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** $STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Test health endpoint
+          if curl -f -s "$URL/health"; then
+            echo "**Health:** ✅ Healthy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Health:** ❌ Unhealthy" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  generate-token:
+    if: inputs.action == 'generate-token'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Generate MCP Gateway Token
+        run: |
+          # Generate a random token
+          TOKEN=$(openssl rand -hex 32)
+
+          echo "Generated MCP Gateway authentication token"
+          echo "Token length: ${#TOKEN} characters"
+
+          # Store in Secret Manager
+          if ! gcloud secrets describe GCP-MCP-GATEWAY-TOKEN --project=${{ env.GCP_PROJECT_ID }} 2>/dev/null; then
+            gcloud secrets create GCP-MCP-GATEWAY-TOKEN \
+              --project=${{ env.GCP_PROJECT_ID }} \
+              --replication-policy=automatic
+          fi
+
+          echo -n "$TOKEN" | gcloud secrets versions add GCP-MCP-GATEWAY-TOKEN \
+            --data-file=- \
+            --project=${{ env.GCP_PROJECT_ID }}
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔐 MCP Gateway Token Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Token stored in Secret Manager as \`GCP-MCP-GATEWAY-TOKEN\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Token (save this securely):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "$TOKEN" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Configure Claude Code:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)' 2>/dev/null || echo "https://gcp-mcp-gateway-XXXXXX.run.app")
+          echo "claude mcp add --transport http \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --header \"Authorization: Bearer $TOKEN\" \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --scope user \\" >> $GITHUB_STEP_SUMMARY
+          echo "  gcp-gateway $URL" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
