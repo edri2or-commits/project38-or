@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **n8n Deployment to Railway** (2026-01-18) - Self-hosted n8n workflow automation
+  - `.github/workflows/deploy-n8n.yml` - Complete n8n deployment workflow (330+ lines)
+  - **Production URL**: https://n8n-production-ef6e2.up.railway.app
+  - **Service ID**: `e1373500-e475-414a-aeb5-b93826c0616c`
+  - **Actions**: `deploy`, `status`, `configure-env`
+  - **Features**:
+    - Deploys n8n Docker image (`n8nio/n8n:latest`) to Railway
+    - Generates public domain automatically
+    - Configures environment variables from GCP Secret Manager
+    - Posts status updates to GitHub issue #266
+    - Includes domain and deployment status in issue comments
+  - **Environment Variables**: `N8N_API_KEY_AUTH_ENABLED`, `N8N_API_KEY`, `WEBHOOK_URL`
+  - **Use case**: Telegram → n8n → Bot integration, workflow automation
+  - **Evidence**: PRs #263, #267, #269, #271
 - **Email Assistant Skill** (2026-01-18) - Autonomous email agent for Gmail management
   - `.claude/skills/email-assistant/SKILL.md` - Full skill definition (380+ lines)
   - **Capabilities**:
