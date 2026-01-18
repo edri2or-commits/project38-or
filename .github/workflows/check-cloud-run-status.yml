@@ -1,0 +1,70 @@
+name: Check Cloud Run Status
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+
+jobs:
+  check-status:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Check Existing Cloud Run Services
+        run: |
+          echo "## Cloud Run Services" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Listing all Cloud Run services in us-central1..."
+          gcloud run services list --region=us-central1 --format="table(name,status,url)" | tee -a $GITHUB_STEP_SUMMARY
+
+          echo ""
+          echo "Checking if gcp-mcp-gateway exists..."
+          if gcloud run services describe gcp-mcp-gateway --region=us-central1 2>&1 | grep -q "NOT_FOUND"; then
+            echo "✅ gcp-mcp-gateway does NOT exist - safe to create" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ gcp-mcp-gateway ALREADY EXISTS" | tee -a $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Service Details:" >> $GITHUB_STEP_SUMMARY
+            gcloud run services describe gcp-mcp-gateway --region=us-central1 --format="yaml(status)" | tee -a $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check Artifact Registry
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Artifact Registry" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Checking cloud-run-source-deploy repository..."
+          if gcloud artifacts repositories describe cloud-run-source-deploy --location=us-central1 2>&1 | grep -q "NOT_FOUND"; then
+            echo "❌ Repository NOT found" | tee -a $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Repository exists" | tee -a $GITHUB_STEP_SUMMARY
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Images in repository:" >> $GITHUB_STEP_SUMMARY
+            gcloud artifacts docker images list us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy 2>&1 | head -20 | tee -a $GITHUB_STEP_SUMMARY || echo "No images or cannot list"
+          fi
+
+      - name: Check Recent Cloud Build
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Recent Cloud Builds" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Last 5 Cloud Build runs:"
+          gcloud builds list --limit=5 --format="table(id,status,createTime,logUrl)" | tee -a $GITHUB_STEP_SUMMARY
