@@ -26,7 +26,6 @@ import json
 import logging
 import os
 import sys
-from typing import Optional
 
 # Configure logging to stderr (stdout is reserved for MCP protocol)
 logging.basicConfig(

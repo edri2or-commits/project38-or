@@ -134,7 +134,7 @@ async def get_instance_details(instance_name: str, zone: str) -> dict:
             "status": "success",
             "name": instance.name,
             "zone": zone,
-            "status": instance.status,
+            "instance_status": instance.status,
             "machine_type": instance.machine_type.split("/")[-1],
             "network_interfaces": network_interfaces,
             "created": str(instance.creation_timestamp),

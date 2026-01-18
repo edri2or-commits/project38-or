@@ -5,7 +5,6 @@ Provides safe execution of gcloud commands with proper authentication.
 """
 
 import asyncio
-import os
 import shutil
 from typing import Optional
 
