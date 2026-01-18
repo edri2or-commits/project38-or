@@ -1,0 +1,196 @@
+name: Fix n8n Domain
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  fix-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+          echo "telegram_token=$TELEGRAM_BOT_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Get n8n Service Info
+        id: service
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          SERVICE_ID="e1373500-e475-414a-aeb5-b93826c0616c"
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          echo "=== Service Info ==="
+          echo "Service ID: $SERVICE_ID"
+          echo "Environment ID: $ENV_ID"
+
+          # Get service details
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { service(id: \"'"$SERVICE_ID"'\") { id name domains { serviceDomains { domain } } } }"
+            }')
+
+          echo "Service response:"
+          echo "$RESPONSE" | jq '.'
+
+          DOMAIN=$(echo "$RESPONSE" | jq -r '.data.service.domains.serviceDomains[0].domain // "none"')
+          echo "Current domain: $DOMAIN"
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+
+      - name: Create Domain if Missing
+        id: create-domain
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          SERVICE_ID="e1373500-e475-414a-aeb5-b93826c0616c"
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+          EXISTING_DOMAIN="${{ steps.service.outputs.domain }}"
+
+          if [[ "$EXISTING_DOMAIN" != "none" && -n "$EXISTING_DOMAIN" ]]; then
+            echo "✅ Domain already exists: $EXISTING_DOMAIN"
+            echo "domain=$EXISTING_DOMAIN" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Creating new domain..."
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceDomainCreate(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\" }) { domain } }"
+            }')
+
+          echo "Create domain response:"
+          echo "$RESPONSE" | jq '.'
+
+          DOMAIN=$(echo "$RESPONSE" | jq -r '.data.serviceDomainCreate.domain // "failed"')
+          echo "Created domain: $DOMAIN"
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+
+      - name: Get Deployments
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          SERVICE_ID="e1373500-e475-414a-aeb5-b93826c0616c"
+
+          echo "=== Recent Deployments ==="
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { deployments(input: { serviceId: \"'"$SERVICE_ID"'\" }, first: 5) { edges { node { id status staticUrl createdAt } } } }"
+            }')
+
+          echo "$RESPONSE" | jq '.data.deployments.edges'
+
+      - name: Test n8n Health
+        id: test
+        run: |
+          DOMAIN="${{ steps.create-domain.outputs.domain }}"
+
+          if [[ -z "$DOMAIN" || "$DOMAIN" == "none" || "$DOMAIN" == "failed" ]]; then
+            echo "❌ No domain available"
+            echo "health=no_domain" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Testing https://$DOMAIN/healthz"
+          RESPONSE=$(curl -s -w "\n%{http_code}" "https://$DOMAIN/healthz" 2>&1 || echo "curl_failed")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response: $BODY"
+          echo "health=$HTTP_CODE" >> $GITHUB_OUTPUT
+
+      - name: Update Telegram Webhook
+        id: webhook
+        env:
+          TELEGRAM_TOKEN: ${{ steps.secrets.outputs.telegram_token }}
+        run: |
+          DOMAIN="${{ steps.create-domain.outputs.domain }}"
+
+          if [[ -z "$DOMAIN" || "$DOMAIN" == "none" || "$DOMAIN" == "failed" ]]; then
+            echo "❌ No domain to set webhook"
+            exit 0
+          fi
+
+          WEBHOOK_URL="https://$DOMAIN/webhook/telegram-bot"
+          echo "Setting Telegram webhook to: $WEBHOOK_URL"
+
+          # Delete old webhook
+          curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteWebhook"
+
+          # Set new webhook
+          RESPONSE=$(curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook?url=$WEBHOOK_URL")
+          echo "Set webhook response: $RESPONSE"
+
+          # Verify
+          INFO=$(curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getWebhookInfo")
+          echo "Webhook info: $INFO"
+
+          CURRENT_URL=$(echo "$INFO" | jq -r '.result.url')
+          echo "webhook_url=$CURRENT_URL" >> $GITHUB_OUTPUT
+
+      - name: Post Results
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOMAIN: ${{ steps.create-domain.outputs.domain }}
+          HEALTH: ${{ steps.test.outputs.health }}
+          WEBHOOK_URL: ${{ steps.webhook.outputs.webhook_url }}
+        run: |
+          cat > /tmp/comment.md << EOF
+          ## 🔧 n8n Domain Fix Results
+
+          ### Status
+
+          | Check | Result |
+          |-------|--------|
+          | Domain | \`$DOMAIN\` |
+          | Health HTTP | \`$HEALTH\` |
+          | Telegram Webhook | \`$WEBHOOK_URL\` |
+
+          ### Analysis
+
+          EOF
+
+          if [[ "$DOMAIN" == "none" || "$DOMAIN" == "failed" || -z "$DOMAIN" ]]; then
+            echo "❌ **Failed to create/get domain**" >> /tmp/comment.md
+          elif [[ "$HEALTH" != "200" ]]; then
+            echo "⚠️ **n8n not responding (HTTP $HEALTH)**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "Domain exists but n8n is not responding. May need to redeploy." >> /tmp/comment.md
+          else
+            echo "✅ **n8n is working!**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "Test by sending a message to your Telegram bot." >> /tmp/comment.md
+          fi
+
+          echo "" >> /tmp/comment.md
+          echo "---" >> /tmp/comment.md
+          echo "Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> /tmp/comment.md
+
+          gh issue comment 266 --repo ${{ github.repository }} --body-file /tmp/comment.md
