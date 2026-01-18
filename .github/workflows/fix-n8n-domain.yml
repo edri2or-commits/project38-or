@@ -84,6 +84,32 @@ jobs:
           echo "Create domain response:"
           echo "$RESPONSE" | jq '.'
 
+          # Check for errors
+          ERROR=$(echo "$RESPONSE" | jq -r '.errors[0].message // ""')
+          if [[ -n "$ERROR" ]]; then
+            echo "❌ Error: $ERROR"
+            echo "domain=error:$ERROR" >> $GITHUB_OUTPUT
+
+            # Try alternate approach - maybe we need serviceInstanceDomainCreate
+            echo ""
+            echo "Trying serviceInstanceDomainCreate..."
+            RESPONSE2=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "mutation { serviceInstanceDomainCreate(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\" }) { domain } }"
+              }')
+            echo "Alternate response:"
+            echo "$RESPONSE2" | jq '.'
+
+            DOMAIN2=$(echo "$RESPONSE2" | jq -r '.data.serviceInstanceDomainCreate.domain // "failed"')
+            if [[ "$DOMAIN2" != "failed" && -n "$DOMAIN2" ]]; then
+              echo "domain=$DOMAIN2" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+
           DOMAIN=$(echo "$RESPONSE" | jq -r '.data.serviceDomainCreate.domain // "failed"')
           echo "Created domain: $DOMAIN"
           echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
@@ -161,6 +187,7 @@ jobs:
           DOMAIN: ${{ steps.create-domain.outputs.domain }}
           HEALTH: ${{ steps.test.outputs.health }}
           WEBHOOK_URL: ${{ steps.webhook.outputs.webhook_url }}
+          EXISTING_DOMAIN: ${{ steps.service.outputs.domain }}
         run: |
           cat > /tmp/comment.md << EOF
           ## 🔧 n8n Domain Fix Results
@@ -169,7 +196,8 @@ jobs:
 
           | Check | Result |
           |-------|--------|
-          | Domain | \`$DOMAIN\` |
+          | Existing Domain | \`$EXISTING_DOMAIN\` |
+          | Final Domain | \`$DOMAIN\` |
           | Health HTTP | \`$HEALTH\` |
           | Telegram Webhook | \`$WEBHOOK_URL\` |
 
@@ -177,14 +205,25 @@ jobs:
 
           EOF
 
-          if [[ "$DOMAIN" == "none" || "$DOMAIN" == "failed" || -z "$DOMAIN" ]]; then
+          if [[ "$DOMAIN" == *"error:"* ]]; then
+            ERROR_MSG="${DOMAIN#error:}"
+            echo "❌ **Railway API Error:** \`$ERROR_MSG\`" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "The n8n service may be in a bad state or deleted." >> /tmp/comment.md
+            echo "Try creating a new n8n service from scratch." >> /tmp/comment.md
+          elif [[ "$DOMAIN" == "none" || "$DOMAIN" == "failed" || -z "$DOMAIN" ]]; then
             echo "❌ **Failed to create/get domain**" >> /tmp/comment.md
           elif [[ "$HEALTH" != "200" ]]; then
             echo "⚠️ **n8n not responding (HTTP $HEALTH)**" >> /tmp/comment.md
             echo "" >> /tmp/comment.md
-            echo "Domain exists but n8n is not responding. May need to redeploy." >> /tmp/comment.md
+            echo "Domain: \`$DOMAIN\`" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "The domain exists but n8n is not responding." >> /tmp/comment.md
+            echo "May need to redeploy the n8n service." >> /tmp/comment.md
           else
             echo "✅ **n8n is working!**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "Domain: https://$DOMAIN" >> /tmp/comment.md
             echo "" >> /tmp/comment.md
             echo "Test by sending a message to your Telegram bot." >> /tmp/comment.md
           fi
