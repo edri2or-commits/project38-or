@@ -303,27 +303,49 @@ jobs:
       - name: Test Webhook Endpoint Directly
         id: webhook-test
         continue-on-error: true
+        env:
+          WORKFLOW_ID: ${{ steps.check-telegram-workflow.outputs.workflow_id }}
         run: |
           set +e
-          echo "=== Testing Webhook Endpoint ==="
-          echo "Sending test POST to $N8N_URL/webhook/telegram-bot"
+          echo "=== Testing Multiple Webhook URLs ==="
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST \
-            -H "Content-Type: application/json" \
-            "$N8N_URL/webhook/telegram-bot" \
-            -d '{"test": true}' 2>&1)
+          # Try standard production webhook URL
+          echo "1. Testing $N8N_URL/webhook/telegram-bot"
+          R1=$(curl -s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" "$N8N_URL/webhook/telegram-bot" -d '{"test":1}' 2>&1)
+          H1=$(echo "$R1" | tail -1)
+          echo "   HTTP: $H1"
 
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
+          # Try test webhook URL
+          echo "2. Testing $N8N_URL/webhook-test/telegram-bot"
+          R2=$(curl -s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" "$N8N_URL/webhook-test/telegram-bot" -d '{"test":2}' 2>&1)
+          H2=$(echo "$R2" | tail -1)
+          echo "   HTTP: $H2"
 
-          echo "HTTP Code: $HTTP_CODE"
-          echo "Response: $BODY"
+          # Try with workflow ID prefix
+          echo "3. Testing $N8N_URL/webhook/$WORKFLOW_ID/telegram-bot"
+          R3=$(curl -s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" "$N8N_URL/webhook/$WORKFLOW_ID/telegram-bot" -d '{"test":3}' 2>&1)
+          H3=$(echo "$R3" | tail -1)
+          echo "   HTTP: $H3"
 
-          echo "webhook_http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
-          echo "webhook_response<<EOF" >> $GITHUB_OUTPUT
-          echo "$BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Try just the workflow ID as path
+          echo "4. Testing $N8N_URL/webhook/$WORKFLOW_ID"
+          R4=$(curl -s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" "$N8N_URL/webhook/$WORKFLOW_ID" -d '{"test":4}' 2>&1)
+          H4=$(echo "$R4" | tail -1)
+          echo "   HTTP: $H4"
+
+          # Choose the best result
+          BEST_HTTP="404"
+          for H in "$H1" "$H2" "$H3" "$H4"; do
+            if [[ "$H" == "200" ]]; then
+              BEST_HTTP="200"
+              break
+            fi
+          done
+
+          echo ""
+          echo "Best webhook HTTP code: $BEST_HTTP"
+          echo "webhook_http_code=$BEST_HTTP" >> $GITHUB_OUTPUT
+          echo "webhook_urls_tested=production:$H1,test:$H2,wf_prefix:$H3,wf_only:$H4" >> $GITHUB_OUTPUT
           exit 0
 
       - name: Post Diagnostic Results
@@ -344,6 +366,7 @@ jobs:
           CREATE_ERROR: ${{ steps.create-workflow.outputs.create_error }}
           WORKFLOW_WEBHOOK_PATH: ${{ steps.check-telegram-workflow.outputs.workflow_webhook_path }}
           WEBHOOK_HTTP: ${{ steps.webhook-test.outputs.webhook_http_code }}
+          WEBHOOK_URLS_TESTED: ${{ steps.webhook-test.outputs.webhook_urls_tested }}
         run: |
           cat > /tmp/comment.md << 'COMMENT_EOF'
           ## 🔍 n8n Telegram Diagnostic Results
@@ -373,6 +396,7 @@ jobs:
           echo "| **API Error** | **\`$CREATE_ERROR\`** |" >> /tmp/comment.md
           echo "| **Created Workflow ID** | **\`$CREATED_WORKFLOW_ID\`** |" >> /tmp/comment.md
           echo "| Direct Webhook Test HTTP | \`$WEBHOOK_HTTP\` |" >> /tmp/comment.md
+          echo "| Webhook URLs Tested | \`$WEBHOOK_URLS_TESTED\` |" >> /tmp/comment.md
 
           echo "" >> /tmp/comment.md
           echo "### 🔴 Root Cause Analysis" >> /tmp/comment.md
