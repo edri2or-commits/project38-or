@@ -1,0 +1,103 @@
+name: Test Docker Container Locally
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  test-container:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          cd src/gcp_mcp
+          docker build -t gcp-mcp-test:local .
+
+      - name: Test container startup
+        id: test
+        continue-on-error: true
+        run: |
+          cd src/gcp_mcp
+
+          echo "Starting container..."
+          docker run -d \
+            --name gcp-mcp-test \
+            -e PORT=8080 \
+            -e GCP_PROJECT_ID=project38-483612 \
+            -p 8080:8080 \
+            gcp-mcp-test:local
+
+          echo "Waiting 10 seconds for startup..."
+          sleep 10
+
+          echo ""
+          echo "=== CONTAINER LOGS ==="
+          docker logs gcp-mcp-test
+          echo "=== END LOGS ==="
+          echo ""
+
+          echo "Checking if port 8080 is listening..."
+          if docker exec gcp-mcp-test sh -c "curl -f http://localhost:8080/health 2>/dev/null" ; then
+            echo "✅ Container is responding on port 8080"
+            echo "result=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Container is NOT responding on port 8080"
+            echo "result=failed" >> $GITHUB_OUTPUT
+          fi
+
+          echo ""
+          echo "=== CONTAINER PROCESSES ==="
+          docker exec gcp-mcp-test ps aux
+          echo "=== END PROCESSES ==="
+
+          echo ""
+          echo "=== NETWORK PORTS ==="
+          docker exec gcp-mcp-test sh -c "netstat -tlnp 2>/dev/null || ss -tlnp" || echo "Could not check ports"
+          echo "=== END PORTS ==="
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop gcp-mcp-test 2>/dev/null || true
+          docker rm gcp-mcp-test 2>/dev/null || true
+
+      - name: Report results to issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const result = '${{ steps.test.outputs.result }}';
+
+            let report = `## 🐳 Docker Container Local Test\n\n`;
+            report += `**Timestamp:** ${new Date().toISOString()}\n\n`;
+            report += `**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n`;
+
+            if (result === 'success') {
+              report += `### ✅ Container Started Successfully\n\n`;
+              report += `The container responds on port 8080. The issue is elsewhere.\n\n`;
+            } else {
+              report += `### ❌ Container Failed to Start\n\n`;
+              report += `Check the logs in the workflow run for the exact error.\n\n`;
+            }
+
+            report += `### Key Findings:\n\n`;
+            report += `- Check "Container Logs" section in workflow\n`;
+            report += `- Check "Container Processes" section\n`;
+            report += `- Check "Network Ports" section\n\n`;
+            report += `This test runs the exact same Docker image that Cloud Run would run.\n`;
+
+            // Post to issue #250
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 250,
+              body: report
+            });
