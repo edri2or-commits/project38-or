@@ -119,9 +119,21 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
           echo ""
-          echo "=== DEPLOYMENT ERROR OUTPUT ==="
+          echo "=== FULL DEPLOYMENT ERROR OUTPUT ==="
           cat /tmp/deploy-output.log
-          exit 1
+
+      - name: Upload Deployment Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-logs
+          path: /tmp/deploy-output.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Fail if deployment failed
+        if: steps.deploy.outputs.exit_code != '0'
+        run: exit 1
 
       - name: Get Service URL
         if: steps.deploy.outputs.exit_code == '0'
