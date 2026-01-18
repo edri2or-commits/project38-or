@@ -31,9 +31,11 @@ jobs:
 
       - name: List All Services in Project
         id: list-services
+        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
         run: |
+          set +e
           PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"
 
           echo "=== All Services in Project ==="
@@ -59,10 +61,12 @@ jobs:
 
       - name: Get n8n Service Info
         id: service
+        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
           N8N_ID: ${{ steps.list-services.outputs.n8n_id }}
         run: |
+          set +e
           # Use dynamic service ID from project list
           SERVICE_ID="${N8N_ID:-e1373500-e475-414a-aeb5-b93826c0616c}"
           ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
@@ -112,10 +116,12 @@ jobs:
 
       - name: Create Domain if Missing
         id: create-domain
+        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
           N8N_ID: ${{ steps.list-services.outputs.n8n_id }}
         run: |
+          set +e
           SERVICE_ID="${N8N_ID:-e1373500-e475-414a-aeb5-b93826c0616c}"
           ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
           EXISTING_DOMAIN="${{ steps.service.outputs.domain }}"
@@ -169,10 +175,12 @@ jobs:
           echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
 
       - name: Get Deployments
+        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
           N8N_ID: ${{ steps.list-services.outputs.n8n_id }}
         run: |
+          set +e
           SERVICE_ID="${N8N_ID:-e1373500-e475-414a-aeb5-b93826c0616c}"
 
           echo "=== Recent Deployments ==="
