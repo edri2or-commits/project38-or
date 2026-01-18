@@ -45,37 +45,27 @@ jobs:
 
       - name: Deploy GCP MCP Server
         run: |
-          set -e  # Exit on error
+          echo "🚀 Deploying GCP MCP Server to Cloud Run using source deployment..."
 
-          echo "🚀 Deploying GCP MCP Server to Cloud Run..."
-          echo "Current directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
+          # Check APIs are enabled
+          echo "Checking required APIs..."
+          gcloud services list --enabled --filter="name:run.googleapis.com OR name:cloudbuild.googleapis.com" --format="value(name)"
 
-          echo "Checking src/gcp_mcp..."
-          ls -la src/
-          ls -la src/gcp_mcp/
+          # Enable if needed
+          gcloud services enable run.googleapis.com cloudbuild.googleapis.com --project=$GCP_PROJECT_ID || echo "APIs already enabled"
 
           cd src/gcp_mcp
-          echo "✅ Changed to src/gcp_mcp"
-          echo "Contents:"
+
+          echo "Current directory: $(pwd)"
+          echo "Files present:"
           ls -la
 
-          # Configure Docker for Artifact Registry
-          gcloud auth configure-docker us-central1-docker.pkg.dev
+          echo ""
+          echo "Starting deployment..."
 
-          # Build image
-          echo "🏗️ Building Docker image..."
-          docker build -t us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest .
-
-          # Push image
-          echo "📤 Pushing to Artifact Registry..."
-          docker push us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest
-
-          # Deploy to Cloud Run
-          echo "☁️ Deploying to Cloud Run..."
-          gcloud run deploy gcp-mcp-gateway \
-            --image us-central1-docker.pkg.dev/$GCP_PROJECT_ID/cloud-run-source-deploy/gcp-mcp-gateway:latest \
+          # Deploy with error capture
+          if ! gcloud run deploy gcp-mcp-gateway \
+            --source . \
             --region us-central1 \
             --platform managed \
             --service-account claude-code-agent@$GCP_PROJECT_ID.iam.gserviceaccount.com \
@@ -86,7 +76,13 @@ jobs:
             --cpu 1 \
             --max-instances 10 \
             --min-instances 0 \
-            --timeout 300s
+            --timeout 300s 2>&1 | tee /tmp/deploy-error.log; then
+
+            echo ""
+            echo "❌ Deployment failed! Error output:"
+            cat /tmp/deploy-error.log
+            exit 1
+          fi
 
           # Get service URL
           URL=$(gcloud run services describe gcp-mcp-gateway --region us-central1 --format='value(status.url)')
