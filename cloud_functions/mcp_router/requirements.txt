@@ -1,6 +1,6 @@
 # MCP Router Dependencies
-# Compatible with both Cloud Functions and Cloud Run
-# Python 3.12 compatible - pinned for stable builds
+# Deployed on Cloud Run with Python 3.11 (Dockerfile)
+# Migrated from Cloud Functions due to Python 3.12 compatibility issues
 # Updated: 2026-01-18
 
 # Web Framework
