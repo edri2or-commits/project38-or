@@ -1,0 +1,305 @@
+name: Railway Diagnostics (Autonomous)
+
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Service name to diagnose'
+        required: false
+        default: 'telegram-bot'
+      issue_number:
+        description: 'Issue number to post results (optional)'
+        required: false
+        default: ''
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    # Only run on issue comments that start with /diagnose
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       startsWith(github.event.comment.body, '/diagnose'))
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Secrets
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+          echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
+          echo "✅ Secrets loaded"
+
+      - name: Determine Service Name
+        id: service
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SERVICE_NAME="${{ github.event.inputs.service_name }}"
+          else
+            # Extract from comment: /diagnose <service_name>
+            COMMENT="${{ github.event.comment.body }}"
+            SERVICE_NAME=$(echo "$COMMENT" | awk '{print $2}')
+            if [[ -z "$SERVICE_NAME" ]]; then
+              SERVICE_NAME="telegram-bot"
+            fi
+          fi
+          echo "service_name=$SERVICE_NAME" >> $GITHUB_OUTPUT
+          echo "Service to diagnose: $SERVICE_NAME"
+
+      - name: Get Service Details
+        id: service_details
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_NAME: ${{ steps.service.outputs.service_name }}
+        run: |
+          PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          # Get service ID
+          SERVICES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { project(id: \\\"$PROJECT_ID\\\") { services { edges { node { id name } } } } }\"}")
+
+          SERVICE_ID=$(echo "$SERVICES" | jq -r ".data.project.services.edges[] | select(.node.name == \"$SERVICE_NAME\") | .node.id")
+
+          if [[ -z "$SERVICE_ID" ]]; then
+            echo "❌ Service '$SERVICE_NAME' not found"
+            exit 1
+          fi
+
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+          echo "✅ Found service ID: $SERVICE_ID"
+
+      - name: Get Deployments
+        id: deployments
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service_details.outputs.service_id }}
+        run: |
+          DEPLOYMENTS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { deployments(input: { serviceId: \\\"$SERVICE_ID\\\" }, first: 5) { edges { node { id status staticUrl createdAt updatedAt meta } } } }\"}")
+
+          echo "$DEPLOYMENTS" | jq '.' > /tmp/deployments.json
+
+          # Get latest deployment
+          LATEST=$(echo "$DEPLOYMENTS" | jq -r '.data.deployments.edges[0].node')
+          LATEST_ID=$(echo "$LATEST" | jq -r '.id')
+          LATEST_STATUS=$(echo "$LATEST" | jq -r '.status')
+
+          echo "latest_id=$LATEST_ID" >> $GITHUB_OUTPUT
+          echo "latest_status=$LATEST_STATUS" >> $GITHUB_OUTPUT
+
+          echo "📦 Latest deployment: $LATEST_ID"
+          echo "📊 Status: $LATEST_STATUS"
+
+      - name: Get Deployment Logs
+        id: logs
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          DEPLOYMENT_ID: ${{ steps.deployments.outputs.latest_id }}
+        run: |
+          # Try to get logs (note: Railway API for logs may be limited)
+          LOGS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { deploymentLogs(deploymentId: \\\"$DEPLOYMENT_ID\\\", limit: 100) { edges { node { timestamp message } } } }\"}" || echo '{"data": null}')
+
+          echo "$LOGS" | jq '.' > /tmp/logs.json
+
+          if [[ $(echo "$LOGS" | jq '.data') != "null" ]]; then
+            echo "✅ Logs retrieved"
+          else
+            echo "⚠️ Logs API not available or empty"
+          fi
+
+      - name: Get Environment Variables
+        id: env_vars
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service_details.outputs.service_id }}
+        run: |
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          VARIABLES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { variables(serviceId: \\\"$SERVICE_ID\\\", environmentId: \\\"$ENV_ID\\\") { edges { node { name } } } }\"}")
+
+          echo "$VARIABLES" | jq '.' > /tmp/variables.json
+
+          VAR_COUNT=$(echo "$VARIABLES" | jq '.data.variables.edges | length')
+          echo "📝 Environment variables: $VAR_COUNT"
+
+      - name: Check Telegram Webhook (if telegram-bot)
+        id: webhook
+        if: steps.service.outputs.service_name == 'telegram-bot'
+        env:
+          BOT_TOKEN: ${{ steps.secrets.outputs.bot_token }}
+        run: |
+          WEBHOOK=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo")
+          echo "$WEBHOOK" | jq '.' > /tmp/webhook.json
+
+          WEBHOOK_URL=$(echo "$WEBHOOK" | jq -r '.result.url')
+          PENDING=$(echo "$WEBHOOK" | jq -r '.result.pending_update_count')
+          LAST_ERROR=$(echo "$WEBHOOK" | jq -r '.result.last_error_message')
+
+          echo "webhook_url=$WEBHOOK_URL" >> $GITHUB_OUTPUT
+          echo "pending=$PENDING" >> $GITHUB_OUTPUT
+          echo "last_error=$LAST_ERROR" >> $GITHUB_OUTPUT
+
+          echo "🌐 Webhook URL: $WEBHOOK_URL"
+          echo "📬 Pending updates: $PENDING"
+          if [[ "$LAST_ERROR" != "null" ]]; then
+            echo "❌ Last error: $LAST_ERROR"
+          fi
+
+      - name: Generate Diagnostic Report
+        id: report
+        run: |
+          cat > /tmp/report.md << 'EOFMD'
+          ## 🔍 Railway Diagnostics Report
+
+          **Service**: `${{ steps.service.outputs.service_name }}`
+          **Service ID**: `${{ steps.service_details.outputs.service_id }}`
+          **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          ---
+
+          ### 📦 Recent Deployments
+
+          ```json
+          $(cat /tmp/deployments.json | jq '.data.deployments.edges[] | {id: .node.id, status: .node.status, created: .node.createdAt, updated: .node.updatedAt}')
+          ```
+
+          **Latest Status**: `${{ steps.deployments.outputs.latest_status }}`
+
+          ---
+
+          ### 📝 Environment Variables
+
+          ```json
+          $(cat /tmp/variables.json | jq '.data.variables.edges[] | .node.name')
+          ```
+
+          **Count**: $(cat /tmp/variables.json | jq '.data.variables.edges | length')
+
+          ---
+
+          ### 📋 Deployment Logs
+
+          ```json
+          $(cat /tmp/logs.json | jq '.')
+          ```
+
+          ---
+          EOFMD
+
+          # Add Telegram webhook info if applicable
+          if [[ "${{ steps.service.outputs.service_name }}" == "telegram-bot" ]]; then
+            cat >> /tmp/report.md << 'EOFMD'
+          ### 🌐 Telegram Webhook Status
+
+          ```json
+          $(cat /tmp/webhook.json | jq '{url: .result.url, pending: .result.pending_update_count, last_error: .result.last_error_message, last_error_date: .result.last_error_date}')
+          ```
+
+          **URL**: `${{ steps.webhook.outputs.webhook_url }}`
+          **Pending updates**: `${{ steps.webhook.outputs.pending }}`
+          **Last error**: `${{ steps.webhook.outputs.last_error }}`
+
+          ---
+          EOFMD
+          fi
+
+          cat >> /tmp/report.md << 'EOFMD'
+          ### 🎯 Recommendations
+
+          **If deployment status is FAILED/CRASHED:**
+          - Check deployment logs above for error messages
+          - Verify all required environment variables are set
+          - Check Dockerfile and build process
+          - Verify Railway service resources (memory/CPU limits)
+
+          **If deployment status is SUCCESS but service unreachable:**
+          - Check if PORT environment variable is set correctly
+          - Verify Railway service domain is accessible
+          - Check application startup logs
+          - Verify health check endpoint
+
+          **If Telegram webhook has errors:**
+          - Verify webhook URL is correct
+          - Check if Railway service is responding to HTTP requests
+          - Verify TELEGRAM_BOT_TOKEN is set correctly
+
+          ---
+
+          *Generated by Railway Diagnostics workflow*
+          EOFMD
+
+          echo "✅ Diagnostic report generated"
+
+      - name: Post Report to Issue
+        if: |
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.issue_number != '') ||
+          github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('/tmp/report.md', 'utf8');
+
+            // Determine issue number
+            let issueNumber;
+            if (context.eventName === 'workflow_dispatch') {
+              issueNumber = '${{ github.event.inputs.issue_number }}';
+            } else {
+              issueNumber = context.issue.number;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(issueNumber),
+              body: report
+            });
+
+            console.log(`Posted report to issue #${issueNumber}`);
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: railway-diagnostics-${{ steps.service.outputs.service_name }}-${{ github.run_number }}
+          path: |
+            /tmp/deployments.json
+            /tmp/variables.json
+            /tmp/logs.json
+            /tmp/webhook.json
+            /tmp/report.md
+          retention-days: 30
