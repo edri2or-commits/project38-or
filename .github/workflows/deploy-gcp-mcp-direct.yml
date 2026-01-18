@@ -47,10 +47,24 @@ jobs:
         run: |
           echo "🚀 Deploying GCP MCP Server to Cloud Run using source deployment..."
 
+          # Check APIs are enabled
+          echo "Checking required APIs..."
+          gcloud services list --enabled --filter="name:run.googleapis.com OR name:cloudbuild.googleapis.com" --format="value(name)"
+
+          # Enable if needed
+          gcloud services enable run.googleapis.com cloudbuild.googleapis.com --project=$GCP_PROJECT_ID || echo "APIs already enabled"
+
           cd src/gcp_mcp
 
-          # Deploy using --source (builds in Cloud)
-          gcloud run deploy gcp-mcp-gateway \
+          echo "Current directory: $(pwd)"
+          echo "Files present:"
+          ls -la
+
+          echo ""
+          echo "Starting deployment..."
+
+          # Deploy with error capture
+          if ! gcloud run deploy gcp-mcp-gateway \
             --source . \
             --region us-central1 \
             --platform managed \
@@ -62,7 +76,13 @@ jobs:
             --cpu 1 \
             --max-instances 10 \
             --min-instances 0 \
-            --timeout 300s
+            --timeout 300s 2>&1 | tee /tmp/deploy-error.log; then
+
+            echo ""
+            echo "❌ Deployment failed! Error output:"
+            cat /tmp/deploy-error.log
+            exit 1
+          fi
 
           # Get service URL
           URL=$(gcloud run services describe gcp-mcp-gateway --region us-central1 --format='value(status.url)')
