@@ -169,9 +169,7 @@ class MCPTunnelTransport:
 
 
 class MCPStdioServer:
-    """
-    Simple MCP server that bridges stdio to the Cloud Function tunnel.
-    """
+    """Simple MCP server that bridges stdio to the Cloud Function tunnel."""
 
     def __init__(self, transport: MCPTunnelTransport):
         """Initialize with transport."""
