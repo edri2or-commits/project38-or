@@ -33,53 +33,107 @@ jobs:
           echo "telegram_token=$TELEGRAM_BOT_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Check Telegram Webhook Info
+        id: telegram-webhook
+        continue-on-error: true
         env:
           TELEGRAM_TOKEN: ${{ steps.secrets.outputs.telegram_token }}
         run: |
+          set +e
           echo "=== Telegram Webhook Info ==="
-          curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getWebhookInfo" | jq '.'
+          RESPONSE=$(curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getWebhookInfo" 2>&1)
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          WEBHOOK_URL=$(echo "$RESPONSE" | jq -r '.result.url' 2>/dev/null || echo "unknown")
+          PENDING=$(echo "$RESPONSE" | jq -r '.result.pending_update_count' 2>/dev/null || echo "0")
+          LAST_ERROR=$(echo "$RESPONSE" | jq -r '.result.last_error_message // "none"' 2>/dev/null || echo "unknown")
+
+          echo "telegram_webhook_url=$WEBHOOK_URL" >> $GITHUB_OUTPUT
+          echo "telegram_pending=$PENDING" >> $GITHUB_OUTPUT
+          echo "telegram_last_error=$LAST_ERROR" >> $GITHUB_OUTPUT
+          exit 0
 
       - name: Check n8n Health
+        id: n8n-health
+        continue-on-error: true
         run: |
+          set +e
           echo "=== n8n Health ==="
-          curl -s -w "\nHTTP: %{http_code}" "$N8N_URL/healthz"
-          echo ""
+          RESPONSE=$(curl -s -w "\n%{http_code}" "$N8N_URL/healthz" 2>&1)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "HTTP: $HTTP_CODE"
+          echo "Response: $BODY"
+          echo "n8n_health_http=$HTTP_CODE" >> $GITHUB_OUTPUT
+          exit 0
 
       - name: List n8n Workflows
+        id: list-workflows
+        continue-on-error: true
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
         run: |
+          set +e
           echo "=== n8n Workflows ==="
-          RESPONSE=$(curl -s \
-            -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_URL/api/v1/workflows")
+          echo "API Key length: ${#N8N_API_KEY}"
 
-          echo "Total workflows: $(echo "$RESPONSE" | jq '.data | length')"
-          echo ""
-          echo "Workflows:"
-          echo "$RESPONSE" | jq -r '.data[] | "  - \(.name) (ID: \(.id), Active: \(.active))"'
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows" 2>&1)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response (first 500 chars): $(echo "$BODY" | head -c 500)"
+
+          # Save to output
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          if [[ "$HTTP_CODE" == "200" ]]; then
+            WORKFLOW_COUNT=$(echo "$BODY" | jq '.data | length' 2>/dev/null || echo '0')
+            echo ""
+            echo "Total workflows: $WORKFLOW_COUNT"
+            echo "workflow_count=$WORKFLOW_COUNT" >> $GITHUB_OUTPUT
+            echo ""
+            echo "Workflows:"
+            echo "$BODY" | jq -r '.data[]? | "  - \(.name) (ID: \(.id), Active: \(.active))"' 2>/dev/null || echo "Could not parse workflows"
+          else
+            echo "⚠️ n8n API returned HTTP $HTTP_CODE"
+            echo "workflow_count=error" >> $GITHUB_OUTPUT
+          fi
+          exit 0
 
       - name: Check for Telegram Webhook Bot Workflow
+        id: check-telegram-workflow
+        continue-on-error: true
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
         run: |
+          set +e
           echo "=== Looking for 'Telegram Webhook Bot' workflow ==="
           RESPONSE=$(curl -s \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_URL/api/v1/workflows")
+            "$N8N_URL/api/v1/workflows" 2>&1)
 
-          TELEGRAM_WF=$(echo "$RESPONSE" | jq -r '.data[] | select(.name == "Telegram Webhook Bot")')
+          TELEGRAM_WF=$(echo "$RESPONSE" | jq -r '.data[] | select(.name == "Telegram Webhook Bot")' 2>/dev/null)
 
-          if [[ -n "$TELEGRAM_WF" ]]; then
+          if [[ -n "$TELEGRAM_WF" && "$TELEGRAM_WF" != "null" ]]; then
             echo "✅ Found workflow:"
-            echo "$TELEGRAM_WF" | jq '.'
+            echo "$TELEGRAM_WF" | jq '.' 2>/dev/null || echo "$TELEGRAM_WF"
 
-            WF_ID=$(echo "$TELEGRAM_WF" | jq -r '.id')
-            ACTIVE=$(echo "$TELEGRAM_WF" | jq -r '.active')
+            WF_ID=$(echo "$TELEGRAM_WF" | jq -r '.id' 2>/dev/null || echo "unknown")
+            ACTIVE=$(echo "$TELEGRAM_WF" | jq -r '.active' 2>/dev/null || echo "unknown")
 
             echo ""
             echo "Workflow ID: $WF_ID"
             echo "Active: $ACTIVE"
+
+            echo "workflow_found=true" >> $GITHUB_OUTPUT
+            echo "workflow_id=$WF_ID" >> $GITHUB_OUTPUT
+            echo "workflow_active=$ACTIVE" >> $GITHUB_OUTPUT
 
             if [[ "$ACTIVE" != "true" ]]; then
               echo ""
@@ -89,41 +143,139 @@ jobs:
           else
             echo "❌ Workflow 'Telegram Webhook Bot' NOT FOUND!"
             echo "This is why the bot doesn't respond!"
+            echo "workflow_found=false" >> $GITHUB_OUTPUT
           fi
+          exit 0
 
       - name: Check Recent Executions
+        id: executions
+        continue-on-error: true
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
         run: |
+          set +e
           echo "=== Recent Executions ==="
           RESPONSE=$(curl -s \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
-            "$N8N_URL/api/v1/executions?limit=10")
+            "$N8N_URL/api/v1/executions?limit=10" 2>&1)
 
+          echo "Response: $(echo "$RESPONSE" | head -c 500)"
+          echo ""
           echo "Recent executions:"
-          echo "$RESPONSE" | jq -r '.data[]? | "  - \(.workflowName // "unknown") (\(.status)) at \(.startedAt)"' 2>/dev/null || echo "No executions found or API error"
+          EXECS=$(echo "$RESPONSE" | jq -r '.data[]? | "  - \(.workflowName // "unknown") (\(.status)) at \(.startedAt)"' 2>/dev/null)
+          if [[ -n "$EXECS" ]]; then
+            echo "$EXECS"
+            echo "executions_found=true" >> $GITHUB_OUTPUT
+          else
+            echo "No executions found or API error"
+            echo "executions_found=false" >> $GITHUB_OUTPUT
+          fi
+          exit 0
 
       - name: Test Webhook Endpoint Directly
+        id: webhook-test
+        continue-on-error: true
         run: |
+          set +e
           echo "=== Testing Webhook Endpoint ==="
           echo "Sending test POST to $N8N_URL/webhook/telegram-bot"
 
-          RESPONSE=$(curl -s -w "\nHTTP: %{http_code}" \
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST \
             -H "Content-Type: application/json" \
             "$N8N_URL/webhook/telegram-bot" \
-            -d '{"test": true}')
+            -d '{"test": true}' 2>&1)
 
-          echo "$RESPONSE"
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          echo "webhook_http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "webhook_response<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          exit 0
 
       - name: Post Diagnostic Results
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_WEBHOOK_URL: ${{ steps.telegram-webhook.outputs.telegram_webhook_url }}
+          TELEGRAM_PENDING: ${{ steps.telegram-webhook.outputs.telegram_pending }}
+          TELEGRAM_LAST_ERROR: ${{ steps.telegram-webhook.outputs.telegram_last_error }}
+          N8N_HEALTH_HTTP: ${{ steps.n8n-health.outputs.n8n_health_http }}
+          WORKFLOW_COUNT: ${{ steps.list-workflows.outputs.workflow_count }}
+          WORKFLOW_FOUND: ${{ steps.check-telegram-workflow.outputs.workflow_found }}
+          WORKFLOW_ID: ${{ steps.check-telegram-workflow.outputs.workflow_id }}
+          WORKFLOW_ACTIVE: ${{ steps.check-telegram-workflow.outputs.workflow_active }}
+          EXECUTIONS_FOUND: ${{ steps.executions.outputs.executions_found }}
+          WEBHOOK_HTTP: ${{ steps.webhook-test.outputs.webhook_http_code }}
         run: |
-          echo "## 🔍 n8n Telegram Diagnostic Results" > /tmp/comment.md
+          cat > /tmp/comment.md << 'COMMENT_EOF'
+          ## 🔍 n8n Telegram Diagnostic Results
+
+          ### Telegram Bot
+          COMMENT_EOF
+
+          echo "| Check | Result |" >> /tmp/comment.md
+          echo "|-------|--------|" >> /tmp/comment.md
+          echo "| Webhook URL | \`$TELEGRAM_WEBHOOK_URL\` |" >> /tmp/comment.md
+          echo "| Pending Updates | \`$TELEGRAM_PENDING\` |" >> /tmp/comment.md
+          echo "| Last Error | \`$TELEGRAM_LAST_ERROR\` |" >> /tmp/comment.md
+
           echo "" >> /tmp/comment.md
-          echo "Run completed. Check workflow logs for details." >> /tmp/comment.md
+          echo "### n8n Status" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "| Check | Result |" >> /tmp/comment.md
+          echo "|-------|--------|" >> /tmp/comment.md
+          echo "| Health HTTP | \`$N8N_HEALTH_HTTP\` |" >> /tmp/comment.md
+          echo "| Total Workflows | \`$WORKFLOW_COUNT\` |" >> /tmp/comment.md
+          echo "| 'Telegram Webhook Bot' Found | \`$WORKFLOW_FOUND\` |" >> /tmp/comment.md
+          echo "| Workflow ID | \`$WORKFLOW_ID\` |" >> /tmp/comment.md
+          echo "| Workflow Active | \`$WORKFLOW_ACTIVE\` |" >> /tmp/comment.md
+          echo "| Recent Executions | \`$EXECUTIONS_FOUND\` |" >> /tmp/comment.md
+          echo "| Direct Webhook Test HTTP | \`$WEBHOOK_HTTP\` |" >> /tmp/comment.md
+
+          echo "" >> /tmp/comment.md
+          echo "### 🔴 Root Cause Analysis" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+
+          if [[ "$TELEGRAM_WEBHOOK_URL" != *"n8n-production"* ]]; then
+            echo "❌ **Telegram webhook is NOT pointing to n8n!**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "Current URL: \`$TELEGRAM_WEBHOOK_URL\`" >> /tmp/comment.md
+            echo "Expected: \`https://n8n-production-ef6e2.up.railway.app/webhook/telegram-bot\`" >> /tmp/comment.md
+          elif [[ "$N8N_HEALTH_HTTP" != "200" ]]; then
+            echo "❌ **n8n is not responding (HTTP $N8N_HEALTH_HTTP)!**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "The n8n service may be down or not deployed." >> /tmp/comment.md
+          elif [[ "$WORKFLOW_FOUND" == "false" || -z "$WORKFLOW_FOUND" ]]; then
+            echo "❌ **The 'Telegram Webhook Bot' workflow does NOT exist in n8n!**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "This is why the bot doesn't respond - there's no workflow to handle incoming messages." >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "**Fix**: Run the 'Setup Telegram-n8n Webhook Integration' workflow with action=full-setup" >> /tmp/comment.md
+          elif [[ "$WORKFLOW_ACTIVE" != "true" ]]; then
+            echo "⚠️ **The 'Telegram Webhook Bot' workflow exists but is NOT active!**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "This is why the bot doesn't respond - the workflow needs to be activated." >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "**Fix**: Activate workflow ID \`$WORKFLOW_ID\` in n8n" >> /tmp/comment.md
+          elif [[ "$WEBHOOK_HTTP" != "200" ]]; then
+            echo "⚠️ **Webhook endpoint returned HTTP $WEBHOOK_HTTP instead of 200.**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "The workflow may have an error. Check n8n execution logs." >> /tmp/comment.md
+          else
+            echo "✅ **All checks passed!**" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "Configuration looks correct. If bot still doesn't respond:" >> /tmp/comment.md
+            echo "1. Check n8n execution logs for errors" >> /tmp/comment.md
+            echo "2. Verify the workflow is processing messages correctly" >> /tmp/comment.md
+            echo "3. Check if Telegram has pending updates that need to be cleared" >> /tmp/comment.md
+          fi
+
           echo "" >> /tmp/comment.md
           echo "---" >> /tmp/comment.md
           echo "Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> /tmp/comment.md
