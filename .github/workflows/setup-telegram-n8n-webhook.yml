@@ -77,50 +77,29 @@ jobs:
             exit 0
           fi
 
-          # Create workflow with echo response using envsubst for token substitution
-          export TELEGRAM_TOKEN
-          cat << 'WORKFLOW_EOF' | envsubst > /tmp/workflow.json
-          {
-            "name": "Telegram Webhook Bot",
-            "nodes": [
-              {
-                "parameters": {
-                  "httpMethod": "POST",
-                  "path": "telegram-bot",
-                  "responseMode": "onReceived",
-                  "options": {}
-                },
-                "id": "webhook",
-                "name": "Webhook",
-                "type": "n8n-nodes-base.webhook",
-                "typeVersion": 1.1,
-                "position": [250, 300]
-              },
-              {
-                "parameters": {
-                  "method": "POST",
-                  "url": "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage",
-                  "sendBody": true,
-                  "specifyBody": "json",
-                  "jsonBody": "={\"chat_id\": {{ $json.body.message.chat.id }}, \"text\": \"🤖 Echo: {{ $json.body.message.text }}\"}",
-                  "options": {}
-                },
-                "id": "send-reply",
-                "name": "Send Reply",
-                "type": "n8n-nodes-base.httpRequest",
-                "typeVersion": 4.2,
-                "position": [500, 300]
-              }
-            ],
-            "connections": {
-              "Webhook": {
-                "main": [[{"node": "Send Reply", "type": "main", "index": 0}]]
-              }
-            },
-            "active": false,
-            "settings": {"executionOrder": "v1"}
-          }
-          WORKFLOW_EOF
+          # Create minimal workflow - just webhook that returns 200
+          cat > /tmp/workflow.json << 'WORKFLOW_EOF'
+{
+  "name": "Telegram Webhook Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-bot",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    }
+  ],
+  "connections": {},
+  "active": false,
+  "settings": {}
+}
+WORKFLOW_EOF
 
           echo "Workflow JSON:"
           cat /tmp/workflow.json
