@@ -63,8 +63,8 @@ jobs:
           echo ""
           echo "Starting deployment..."
 
-          # Deploy with error capture
-          if ! gcloud run deploy gcp-mcp-gateway \
+          # Deploy with verbose debug output
+          gcloud run deploy gcp-mcp-gateway \
             --source . \
             --region us-central1 \
             --platform managed \
@@ -76,12 +76,20 @@ jobs:
             --cpu 1 \
             --max-instances 10 \
             --min-instances 0 \
-            --timeout 300s 2>&1 | tee /tmp/deploy-error.log; then
+            --timeout 300s \
+            --verbosity=debug 2>&1 | tee /tmp/deploy-output.log
 
+          # Capture exit code
+          DEPLOY_EXIT=${PIPESTATUS[0]}
+
+          if [ $DEPLOY_EXIT -ne 0 ]; then
             echo ""
-            echo "❌ Deployment failed! Error output:"
-            cat /tmp/deploy-error.log
-            exit 1
+            echo "❌ Deployment failed with exit code: $DEPLOY_EXIT"
+            echo ""
+            echo "=== LAST 100 LINES OF OUTPUT ==="
+            tail -100 /tmp/deploy-output.log
+            echo "=== END OUTPUT ==="
+            exit $DEPLOY_EXIT
           fi
 
           # Get service URL
