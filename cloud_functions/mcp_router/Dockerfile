@@ -1,22 +1,22 @@
 # MCP Router - Cloud Run Container
-# Use Python 3.11 (same as working gcp-mcp-gateway)
-
+# Matching working gcp-mcp-gateway pattern
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install dependencies first (for better caching)
+# Install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application
 COPY . .
 
-# Cloud Run sets PORT environment variable
+# Environment (matching working deployment)
+ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
+ENV GCP_PROJECT_ID=project38-483612
 
-# Run with gunicorn for production
-# workers=1 because Cloud Run handles scaling at container level
-# threads=8 for concurrent requests within the container
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 120 app:app
+EXPOSE 8080
+
+# Run Flask directly (same pattern as working gcp-mcp-gateway)
+CMD ["python", "app.py"]

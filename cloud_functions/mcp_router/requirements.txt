@@ -12,10 +12,7 @@ httpx>=0.25.0
 # Google Cloud Secret Manager - lazy loaded
 google-cloud-secret-manager>=2.18.0
 
-# Force Python 3.12 compatible versions
+# Force compatible versions
 protobuf>=4.21.6
 grpcio>=1.60.0
 google-api-core>=2.15.0
-
-# Production server (for Cloud Run)
-gunicorn>=21.0.0
