@@ -3072,5 +3072,61 @@ b98d5e9 feat(skills): Add email-assistant skill for Gmail automation
 
 ---
 
+## 2026-01-18: n8n Deploy Workflow Improvements
+
+### Context
+
+During production n8n deployments, several issues were discovered:
+1. YAML syntax errors causing workflow failures
+2. Issue comments missing deployment status information
+3. Domain discovery creating duplicate domains on re-deployments
+
+### Implementation (PRs #267, #269, #271)
+
+**PR #267: YAML Syntax Fix**
+- **Problem**: GitHub Actions workflow failing due to YAML parsing errors
+- **Root Cause**: Template literals (`${VAR}`) not properly escaped for shell execution
+- **Solution**: Changed to string concatenation and proper variable interpolation
+- **Files**: `.github/workflows/deploy-n8n.yml` (+15/-14 lines)
+
+**PR #269: Enhanced Issue Comments**
+- **Feature**: Issue comments now include deployment details
+- **Added Information**:
+  - Service ID
+  - Domain URL
+  - Deployment status (SUCCESS/DEPLOYING/FAILED)
+  - "Next Steps" instructions
+- **Target**: Issue #266 for n8n deployment tracking
+- **Files**: `.github/workflows/deploy-n8n.yml` (+23/-1 lines)
+
+**PR #271: Domain Discovery Improvement**
+- **Problem**: Re-deployments created duplicate domains
+- **Solution**: Query existing domain before creating new one
+- **Logic Flow**:
+  ```
+  1. Query service.domains.serviceDomains[0].domain
+  2. If exists → use existing domain
+  3. If null → create new domain via serviceDomainCreate mutation
+  ```
+- **Files**: `.github/workflows/deploy-n8n.yml` (+22/-2 lines)
+
+### 4-Layer Documentation Update
+
+| Layer | File | Action |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | ⏭️ Not required (workflow fix, not architecture) |
+| Layer 2 | `docs/decisions/` | ⏭️ Not required (bug fixes, not new decision) |
+| Layer 3 | `docs/JOURNEY.md` | ✅ This entry |
+| Layer 4 | `docs/changelog.md` | ✅ Added entry under "Fixed" section |
+
+### Key Learnings
+
+1. **YAML Syntax in GitHub Actions**: Template literals need proper escaping; string concatenation is safer
+2. **Railway GraphQL API**: Domain queries return nested structure requiring careful null handling
+3. **Idempotent Deployments**: Always check for existing resources before creating new ones
+4. **Observability**: Issue comments provide deployment audit trail without requiring log access
+
+---
+
 *Last Updated: 2026-01-18*
-*Status: **Email Assistant Skill Operational***
+*Status: **n8n Deploy Workflow Stable***

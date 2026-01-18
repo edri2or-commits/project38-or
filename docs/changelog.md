@@ -138,6 +138,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See ADR-005 for full architecture and deployment details
 
 ### Fixed
+- **n8n Deploy Workflow Domain Discovery** (2026-01-18) - Improved domain discovery and issue comments (PRs #267, #269, #271)
+  - **PR #267**: Fixed YAML syntax error causing workflow failures
+    - Changed template literals to string concatenation for GitHub Actions compatibility
+    - Fixed variable interpolation in shell scripts
+  - **PR #269**: Added domain and deployment status to issue comments
+    - Issue comments now include: service ID, domain URL, deployment status
+    - Added "Next Steps" section with deployment instructions
+    - Comments posted to Issue #266 for tracking
+  - **PR #271**: Improved domain discovery reliability
+    - Added check for existing domain before creating new one
+    - Prevents duplicate domain creation on re-deployments
+    - Better error handling for domain query responses
+  - **Workflow**: `.github/workflows/deploy-n8n.yml`
+  - **Impact**: More reliable n8n deployments with better visibility
+
 - **MCP Router Cloud Run Migration** (2026-01-18) - Switched from Cloud Functions to Cloud Run (PR #260)
   - **Problem**: Cloud Functions Gen 2 with Python 3.12 failed 24+ consecutive deployments
   - **Root Cause**: Python 3.12 removed `imp` module; google-cloud-secret-manager transitive dependencies (protobuf, grpcio) require it
