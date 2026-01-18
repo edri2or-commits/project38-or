@@ -4,8 +4,6 @@ Cloud Storage tools.
 Provides bucket and object management capabilities.
 """
 
-from typing import Optional
-
 try:
     from google.cloud import storage
 
@@ -15,7 +13,7 @@ except ImportError:
 
 
 async def list_storage(
-    bucket_name: Optional[str] = None, prefix: Optional[str] = None
+    bucket_name: str | None = None, prefix: str | None = None
 ) -> dict:
     """
     List Cloud Storage buckets or objects.

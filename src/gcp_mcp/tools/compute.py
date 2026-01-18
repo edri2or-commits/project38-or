@@ -5,7 +5,6 @@ Provides instance management capabilities.
 """
 
 import os
-from typing import Optional
 
 try:
     from google.cloud import compute_v1
@@ -15,7 +14,7 @@ except ImportError:
     COMPUTE_AVAILABLE = False
 
 
-async def list_instances(zone: Optional[str] = None) -> dict:
+async def list_instances(zone: str | None = None) -> dict:
     """
     List Compute Engine instances.
 

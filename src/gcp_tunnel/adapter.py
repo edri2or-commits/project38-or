@@ -92,7 +92,9 @@ class MCPTunnelTransport:
             self._http_client = httpx.AsyncClient(timeout=120.0)
             logger.info("Transport started successfully")
         except ImportError:
-            raise RuntimeError("httpx library required. Install with: pip install httpx")
+            raise RuntimeError(
+                "httpx library required. Install with: pip install httpx"
+            ) from None
 
     async def stop(self):
         """Close HTTP client."""

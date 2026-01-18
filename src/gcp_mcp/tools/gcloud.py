@@ -6,11 +6,10 @@ Provides safe execution of gcloud commands with proper authentication.
 
 import asyncio
 import shutil
-from typing import Optional
 
 
 async def execute_gcloud_command(
-    command: str, project_id: Optional[str] = None
+    command: str, project_id: str | None = None
 ) -> dict:
     """
     Execute a gcloud command safely.
