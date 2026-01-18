@@ -6,13 +6,13 @@ This module contains handlers for Telegram commands and messages.
 import logging
 from datetime import UTC, datetime
 
+from config import get_settings
+from database import async_session_maker
+from litellm_client import LiteLLMClient
 from sqlalchemy import select
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config import get_settings
-from database import async_session_maker
-from litellm_client import LiteLLMClient
 from models import ConversationMessage, ConversationStats
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         context: Telegram context object
     """
     user = update.effective_user
-    chat_id = update.effective_chat.id
 
     welcome_message = (
         f"👋 Hello {user.first_name}!\n\n"
@@ -81,7 +80,9 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     # Extract prompt from command
     if not context.args:
-        await update.message.reply_text("Please provide a prompt. Example: /generate Tell me a joke")
+        await update.message.reply_text(
+            "Please provide a prompt. Example: /generate Tell me a joke"
+        )
         return
 
     prompt = " ".join(context.args)
@@ -110,9 +111,7 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     except Exception as e:
         logger.error(f"Error generating response: {e}")
-        await update.message.reply_text(
-            "❌ Sorry, I encountered an error. Please try again later."
-        )
+        await update.message.reply_text("❌ Sorry, I encountered an error. Please try again later.")
 
 
 async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -158,9 +157,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     except Exception as e:
         logger.error(f"Error processing message: {e}")
-        await update.message.reply_text(
-            "❌ Sorry, I encountered an error. Please try again later."
-        )
+        await update.message.reply_text("❌ Sorry, I encountered an error. Please try again later.")
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -122,9 +122,7 @@ async def get_instance_details(instance_name: str, zone: str) -> dict:
                     "network": interface.network.split("/")[-1],
                     "internal_ip": interface.network_i_p,
                     "external_ip": (
-                        interface.access_configs[0].nat_i_p
-                        if interface.access_configs
-                        else None
+                        interface.access_configs[0].nat_i_p if interface.access_configs else None
                     ),
                 }
             )

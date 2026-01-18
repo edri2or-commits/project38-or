@@ -6,9 +6,7 @@ allowing deployment as a Cloud Run service instead of Cloud Functions.
 """
 
 from flask import Flask, request
-
-# Import the router logic from main.py
-from main import mcp_router as handle_mcp_request, router, logger
+from main import mcp_router as handle_mcp_request
 
 app = Flask(__name__)
 
@@ -27,5 +25,6 @@ def health():
 
 if __name__ == "__main__":
     import os
+
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)

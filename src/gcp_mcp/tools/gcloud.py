@@ -8,9 +8,7 @@ import asyncio
 import shutil
 
 
-async def execute_gcloud_command(
-    command: str, project_id: str | None = None
-) -> dict:
+async def execute_gcloud_command(command: str, project_id: str | None = None) -> dict:
     """
     Execute a gcloud command safely.
 

@@ -26,7 +26,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.mime.text import MIMEText
 from typing import Any
 
@@ -34,6 +34,7 @@ from typing import Any
 # For Cloud Run, we use Flask directly via app.py
 try:
     import functions_framework
+
     FUNCTIONS_FRAMEWORK_AVAILABLE = True
 except ImportError:
     FUNCTIONS_FRAMEWORK_AVAILABLE = False
@@ -84,7 +85,7 @@ CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 DRIVE_API = "https://www.googleapis.com/drive/v3"
 SHEETS_API = "https://sheets.googleapis.com/v4"
 DOCS_API = "https://docs.googleapis.com/v1"
-OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
+OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"  # noqa: S105
 
 
 class WorkspaceAuth:
@@ -241,10 +242,7 @@ class MCPRouter:
         return {
             "jsonrpc": jsonrpc,
             "id": request_id,
-            "error": {
-                "code": -32601,
-                "message": f"Method not found: {method}"
-            }
+            "error": {"code": -32601, "message": f"Method not found: {method}"},
         }
 
     def _handle_tools_list(self, request_id: Any) -> dict:
@@ -253,16 +251,12 @@ class MCPRouter:
             {
                 "name": name,
                 "description": f"Execute {name} operation",
-                "inputSchema": {"type": "object"}
+                "inputSchema": {"type": "object"},
             }
             for name in self.tools.keys()
         ]
 
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": {"tools": tools_list}
-        }
+        return {"jsonrpc": "2.0", "id": request_id, "result": {"tools": tools_list}}
 
     def _handle_tool_call(self, request_id: Any, tool_name: str, arguments: dict) -> dict:
         """Execute a tool and return result."""
@@ -270,10 +264,7 @@ class MCPRouter:
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
-                "error": {
-                    "code": -32602,
-                    "message": f"Unknown tool: {tool_name}"
-                }
+                "error": {"code": -32602, "message": f"Unknown tool: {tool_name}"},
             }
 
         try:
@@ -283,18 +274,15 @@ class MCPRouter:
                 "id": request_id,
                 "result": {
                     "content": [{"type": "text", "text": json.dumps(result)}],
-                    "isError": False
-                }
+                    "isError": False,
+                },
             }
         except Exception as e:
             logger.exception(f"Tool execution failed: {tool_name}")
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
-                "result": {
-                    "content": [{"type": "text", "text": str(e)}],
-                    "isError": True
-                }
+                "result": {"content": [{"type": "text", "text": str(e)}], "isError": True},
             }
 
     # =========================================================================
@@ -305,7 +293,9 @@ class MCPRouter:
         """Trigger a Railway deployment."""
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
-        environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
+        environment_id = os.environ.get(
+            "RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0"
+        )
 
         if not railway_token:
             return {"error": "RAILWAY_TOKEN not configured"}
@@ -319,21 +309,16 @@ class MCPRouter:
         }
         """
 
-        variables = {
-            "input": {
-                "projectId": project_id,
-                "environmentId": environment_id
-            }
-        }
+        variables = {"input": {"projectId": project_id, "environmentId": environment_id}}
 
         response = httpx.post(
             "https://backboard.railway.app/graphql/v2",
             headers={
                 "Authorization": f"Bearer {railway_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             },
             json={"query": query, "variables": variables},
-            timeout=30
+            timeout=30,
         )
 
         return response.json()
@@ -364,10 +349,10 @@ class MCPRouter:
             "https://backboard.railway.app/graphql/v2",
             headers={
                 "Authorization": f"Bearer {railway_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             },
             json={"query": query, "variables": {"projectId": project_id}},
-            timeout=30
+            timeout=30,
         )
 
         return response.json()
@@ -384,7 +369,6 @@ class MCPRouter:
         """Get Railway service information including domains."""
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
-        environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
 
         if not railway_token:
             return {"error": "RAILWAY_TOKEN not configured"}
@@ -420,15 +404,10 @@ class MCPRouter:
             "https://backboard.railway.app/graphql/v2",
             headers={
                 "Authorization": f"Bearer {railway_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             },
-            json={
-                "query": query,
-                "variables": {
-                    "projectId": project_id
-                }
-            },
-            timeout=30
+            json={"query": query, "variables": {"projectId": project_id}},
+            timeout=30,
         )
 
         data = response.json()
@@ -440,15 +419,15 @@ class MCPRouter:
         # Extract service matching the name
         if "data" in data and "project" in data["data"]:
             services = data["data"]["project"]["services"]["edges"]
-            
+
             # Debug: log all service names
-            all_names = [edge["node"]["name"] for edge in services]
-            
+            all_names = [edge["node"]["name"] for edge in services]  # noqa: F841
+
             for edge in services:
                 service = edge["node"]
                 if service["name"].lower() == service_name.lower():
                     domains = []
-                    
+
                     # Extract domains safely
                     if "serviceInstances" in service and "edges" in service["serviceInstances"]:
                         for instance_edge in service["serviceInstances"]["edges"]:
@@ -457,17 +436,14 @@ class MCPRouter:
                                 for domain_item in instance["domains"]["serviceDomains"]:
                                     if "domain" in domain_item:
                                         domains.append(domain_item["domain"])
-                    
+
                     return {
                         "service_id": service["id"],
                         "service_name": service["name"],
-                        "domains": domains
+                        "domains": domains,
                     }
-            
-            return {
-                "error": f"Service '{service_name}' not found",
-                "available_services": all_names
-            }
+
+            return {"error": f"Service '{service_name}' not found", "available_services": all_names}
 
         return {"error": "Invalid response from Railway API", "response": data}
 
@@ -475,7 +451,6 @@ class MCPRouter:
         """List all Railway services in the project."""
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
-        environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
 
         if not railway_token:
             return {"error": "RAILWAY_TOKEN not configured"}
@@ -499,13 +474,10 @@ class MCPRouter:
             "https://backboard.railway.app/graphql/v2",
             headers={
                 "Authorization": f"Bearer {railway_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             },
-            json={
-                "query": query,
-                "variables": {"projectId": project_id}
-            },
-            timeout=30
+            json={"query": query, "variables": {"projectId": project_id}},
+            timeout=30,
         )
 
         return response.json()
@@ -513,18 +485,19 @@ class MCPRouter:
     def _railway_create_domain(self, service_name: str = "litellm-gateway") -> dict:
         """Create a public domain for a Railway service."""
         railway_token = os.environ.get("RAILWAY_TOKEN")
-        project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
-        environment_id = os.environ.get("RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0")
+        environment_id = os.environ.get(
+            "RAILWAY_ENVIRONMENT_ID", "99c99a18-aea2-4d01-9360-6a93705102a0"
+        )
 
         if not railway_token:
             return {"error": "RAILWAY_TOKEN not configured"}
 
         # First, get the service ID
         service_info = self._railway_service_info(service_name)
-        
+
         if "error" in service_info:
             return service_info
-        
+
         service_id = service_info["service_id"]
 
         # Create domain using Railway GraphQL mutation
@@ -541,18 +514,13 @@ class MCPRouter:
             "https://backboard.railway.app/graphql/v2",
             headers={
                 "Authorization": f"Bearer {railway_token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             },
             json={
                 "query": mutation,
-                "variables": {
-                    "input": {
-                        "environmentId": environment_id,
-                        "serviceId": service_id
-                    }
-                }
+                "variables": {"input": {"environmentId": environment_id, "serviceId": service_id}},
             },
-            timeout=30
+            timeout=30,
         )
 
         data = response.json()
@@ -566,7 +534,7 @@ class MCPRouter:
                 "success": True,
                 "domain": domain_data["domain"],
                 "domain_id": domain_data["id"],
-                "url": f"https://{domain_data['domain']}"
+                "url": f"https://{domain_data['domain']}",
             }
 
         return {"error": "Unexpected response", "response": data}
@@ -587,7 +555,7 @@ class MCPRouter:
             f"{n8n_url}/webhook/{workflow_id}",
             headers={"Authorization": f"Bearer {n8n_api_key}"},
             json=data or {},
-            timeout=30
+            timeout=30,
         )
 
         return {"status": "triggered", "response": response.json()}
@@ -607,31 +575,21 @@ class MCPRouter:
     def _health_check(self) -> dict:
         """Check production health."""
         try:
-            response = httpx.get(
-                "https://or-infra.com/api/health",
-                timeout=10
-            )
+            response = httpx.get("https://or-infra.com/api/health", timeout=10)
             return response.json()
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
     def _get_metrics(self) -> dict:
         """Get system metrics."""
-        return {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "status": "operational"
-        }
+        return {"timestamp": datetime.now(UTC).isoformat(), "status": "operational"}
 
     def _deployment_health(self) -> dict:
         """Comprehensive deployment health check."""
         health = self._health_check()
         status = self._railway_status()
 
-        return {
-            "health": health,
-            "deployments": status,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+        return {"health": health, "deployments": status, "timestamp": datetime.now(UTC).isoformat()}
 
     # =========================================================================
     # Google Workspace Tools
@@ -641,7 +599,9 @@ class MCPRouter:
         """Send an email via Gmail."""
         return asyncio.run(self._gmail_send_async(to, subject, body, cc, bcc))
 
-    async def _gmail_send_async(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "") -> dict:
+    async def _gmail_send_async(
+        self, to: str, subject: str, body: str, cc: str = "", bcc: str = ""
+    ) -> dict:
         """Send an email via Gmail (async)."""
         try:
             headers = await _get_workspace_headers()
@@ -736,17 +696,21 @@ class MCPRouter:
             logger.error(f"gmail_list failed: {e}")
             return {"success": False, "error": str(e)}
 
-    def _calendar_list_events(self, calendar_id: str = "primary", max_results: int = 10, time_min: str = "") -> dict:
+    def _calendar_list_events(
+        self, calendar_id: str = "primary", max_results: int = 10, time_min: str = ""
+    ) -> dict:
         """List upcoming calendar events."""
         return asyncio.run(self._calendar_list_events_async(calendar_id, max_results, time_min))
 
-    async def _calendar_list_events_async(self, calendar_id: str = "primary", max_results: int = 10, time_min: str = "") -> dict:
+    async def _calendar_list_events_async(
+        self, calendar_id: str = "primary", max_results: int = 10, time_min: str = ""
+    ) -> dict:
         """List upcoming calendar events (async)."""
         try:
             headers = await _get_workspace_headers()
 
             if not time_min:
-                time_min = datetime.now(timezone.utc).isoformat()
+                time_min = datetime.now(UTC).isoformat()
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -785,11 +749,33 @@ class MCPRouter:
             logger.error(f"calendar_list_events failed: {e}")
             return {"success": False, "error": str(e)}
 
-    def _calendar_create_event(self, summary: str, start_time: str, end_time: str, calendar_id: str = "primary", description: str = "", location: str = "", attendees: str = "") -> dict:
+    def _calendar_create_event(
+        self,
+        summary: str,
+        start_time: str,
+        end_time: str,
+        calendar_id: str = "primary",
+        description: str = "",
+        location: str = "",
+        attendees: str = "",
+    ) -> dict:
         """Create a calendar event."""
-        return asyncio.run(self._calendar_create_event_async(summary, start_time, end_time, calendar_id, description, location, attendees))
+        return asyncio.run(
+            self._calendar_create_event_async(
+                summary, start_time, end_time, calendar_id, description, location, attendees
+            )
+        )
 
-    async def _calendar_create_event_async(self, summary: str, start_time: str, end_time: str, calendar_id: str = "primary", description: str = "", location: str = "", attendees: str = "") -> dict:
+    async def _calendar_create_event_async(
+        self,
+        summary: str,
+        start_time: str,
+        end_time: str,
+        calendar_id: str = "primary",
+        description: str = "",
+        location: str = "",
+        attendees: str = "",
+    ) -> dict:
         """Create a calendar event (async)."""
         try:
             headers = await _get_workspace_headers()
@@ -828,11 +814,15 @@ class MCPRouter:
             logger.error(f"calendar_create_event failed: {e}")
             return {"success": False, "error": str(e)}
 
-    def _drive_list_files(self, query: str = "", max_results: int = 10, folder_id: str = "") -> dict:
+    def _drive_list_files(
+        self, query: str = "", max_results: int = 10, folder_id: str = ""
+    ) -> dict:
         """List files in Google Drive."""
         return asyncio.run(self._drive_list_files_async(query, max_results, folder_id))
 
-    async def _drive_list_files_async(self, query: str = "", max_results: int = 10, folder_id: str = "") -> dict:
+    async def _drive_list_files_async(
+        self, query: str = "", max_results: int = 10, folder_id: str = ""
+    ) -> dict:
         """List files in Google Drive (async)."""
         try:
             headers = await _get_workspace_headers()
@@ -880,7 +870,9 @@ class MCPRouter:
         """Read data from Google Sheets."""
         return asyncio.run(self._sheets_read_async(spreadsheet_id, range_notation))
 
-    async def _sheets_read_async(self, spreadsheet_id: str, range_notation: str = "Sheet1!A1:Z100") -> dict:
+    async def _sheets_read_async(
+        self, spreadsheet_id: str, range_notation: str = "Sheet1!A1:Z100"
+    ) -> dict:
         """Read data from Google Sheets (async)."""
         try:
             headers = await _get_workspace_headers()
@@ -909,7 +901,9 @@ class MCPRouter:
         """Write data to Google Sheets."""
         return asyncio.run(self._sheets_write_async(spreadsheet_id, range_notation, values))
 
-    async def _sheets_write_async(self, spreadsheet_id: str, range_notation: str, values: list) -> dict:
+    async def _sheets_write_async(
+        self, spreadsheet_id: str, range_notation: str, values: list
+    ) -> dict:
         """Write data to Google Sheets (async)."""
         try:
             headers = await _get_workspace_headers()
@@ -1073,6 +1067,7 @@ def _validate_token(request: Request) -> bool:
 
     # Constant-time comparison to prevent timing attacks
     import hmac
+
     return hmac.compare_digest(provided_token, expected_token)
 
 
@@ -1109,7 +1104,7 @@ def mcp_router(request: Request):
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "3600"
+            "Access-Control-Max-Age": "3600",
         }
         return ("", 204, headers)
 
@@ -1118,31 +1113,19 @@ def mcp_router(request: Request):
     # Validate custom token (NOT GCP OAuth - this is our own token)
     if not _validate_token(request):
         logger.warning("Invalid or missing MCP tunnel token")
-        return (
-            json.dumps({"error": "Unauthorized - invalid MCP_TUNNEL_TOKEN"}),
-            401,
-            headers
-        )
+        return (json.dumps({"error": "Unauthorized - invalid MCP_TUNNEL_TOKEN"}), 401, headers)
 
     try:
         # Parse request
         request_json = request.get_json(silent=True)
 
         if not request_json:
-            return (
-                json.dumps({"error": "Invalid JSON payload"}),
-                400,
-                headers
-            )
+            return (json.dumps({"error": "Invalid JSON payload"}), 400, headers)
 
         # Extract encapsulated MCP message
         data = request_json.get("data")
         if not data:
-            return (
-                json.dumps({"error": "Missing 'data' field"}),
-                400,
-                headers
-            )
+            return (json.dumps({"error": "Missing 'data' field"}), 400, headers)
 
         # Decapsulate
         mcp_message = json.loads(data) if isinstance(data, str) else data
@@ -1153,20 +1136,12 @@ def mcp_router(request: Request):
         # Encapsulate response
         response = {"result": json.dumps(result)}
 
-        logger.info(f"Request processed successfully")
+        logger.info("Request processed successfully")
         return (json.dumps(response), 200, headers)
 
     except json.JSONDecodeError as e:
         logger.error(f"JSON decode error: {e}")
-        return (
-            json.dumps({"error": f"Invalid JSON: {e}"}),
-            400,
-            headers
-        )
+        return (json.dumps({"error": f"Invalid JSON: {e}"}), 400, headers)
     except Exception as e:
         logger.exception("Unexpected error")
-        return (
-            json.dumps({"error": str(e)}),
-            500,
-            headers
-        )
+        return (json.dumps({"error": str(e)}), 500, headers)

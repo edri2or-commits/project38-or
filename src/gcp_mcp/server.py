@@ -245,9 +245,7 @@ def create_mcp_server() -> Any | None:
         return await get_object_metadata(bucket_name, object_name)
 
     @mcp.tool
-    async def storage_upload(
-        bucket_name: str, source_path: str, destination_path: str
-    ) -> dict:
+    async def storage_upload(bucket_name: str, source_path: str, destination_path: str) -> dict:
         """
         Upload a file to Cloud Storage.
 
