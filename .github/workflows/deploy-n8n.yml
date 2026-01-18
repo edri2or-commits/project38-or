@@ -1,0 +1,309 @@
+name: Deploy n8n to Railway
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - status
+          - configure-env
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  deploy-n8n:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Secrets
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=project38-483612)
+          echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+          echo "n8n_api_key=$N8N_API_KEY" >> $GITHUB_OUTPUT
+          echo "✅ Secrets loaded"
+
+      - name: Check for existing n8n service
+        id: check
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"
+
+          SERVICES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { project(id: \\\"$PROJECT_ID\\\") { services { edges { node { id name } } } } }\"}")
+
+          N8N_SERVICE=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "n8n") | .node.id')
+
+          if [[ -n "$N8N_SERVICE" ]]; then
+            echo "service_id=$N8N_SERVICE" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ n8n service exists: $N8N_SERVICE"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ n8n service not found - will create new"
+          fi
+
+      - name: Create n8n Service
+        id: create
+        if: inputs.action == 'deploy' && steps.check.outputs.exists != 'true'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          echo "Creating n8n service..."
+
+          # Create service
+          CREATE_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceCreate(input: { name: \"n8n\", projectId: \"'"$PROJECT_ID"'\" }) { id name } }"
+            }')
+
+          SERVICE_ID=$(echo "$CREATE_RESPONSE" | jq -r '.data.serviceCreate.id')
+
+          if [[ -z "$SERVICE_ID" || "$SERVICE_ID" == "null" ]]; then
+            echo "❌ Failed to create service"
+            echo "$CREATE_RESPONSE" | jq '.'
+            exit 1
+          fi
+
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+          echo "✅ Created service: $SERVICE_ID"
+
+          # Generate encryption key
+          ENCRYPTION_KEY=$(openssl rand -hex 16)
+          echo "encryption_key=$ENCRYPTION_KEY" >> $GITHUB_OUTPUT
+
+      - name: Configure n8n Environment Variables
+        if: inputs.action == 'deploy' || inputs.action == 'configure-env'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.check.outputs.service_id || steps.create.outputs.service_id }}
+          ENCRYPTION_KEY: ${{ steps.create.outputs.encryption_key }}
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          echo "Setting environment variables for n8n..."
+
+          # Generate encryption key if not provided
+          if [[ -z "$ENCRYPTION_KEY" ]]; then
+            ENCRYPTION_KEY=$(openssl rand -hex 16)
+          fi
+
+          # Set variables
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_ENCRYPTION_KEY\", value: \"'"$ENCRYPTION_KEY"'\" }) }"
+            }'
+
+          # N8N basic settings
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_PORT\", value: \"5678\" }) }"
+            }'
+
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"PORT\", value: \"5678\" }) }"
+            }'
+
+          # Enable API
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_API_KEY_AUTH_ENABLED\", value: \"true\" }) }"
+            }'
+
+          # Set API key from GCP secrets
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_API_KEY\", value: \"'"$N8N_API_KEY"'\" }) }"
+            }'
+
+          # External hooks URL (for Telegram)
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"WEBHOOK_URL\", value: \"https://n8n-production.up.railway.app/\" }) }"
+            }'
+
+          echo "✅ Environment variables configured"
+
+      - name: Deploy from Docker Image
+        if: inputs.action == 'deploy'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.check.outputs.service_id || steps.create.outputs.service_id }}
+        run: |
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          echo "Deploying n8n from Docker image..."
+
+          # Set source to Docker image
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceInstanceUpdate(serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", input: { source: { image: \"n8nio/n8n:latest\" } }) }"
+            }')
+
+          echo "$DEPLOY_RESPONSE" | jq '.'
+
+          # Trigger deployment
+          TRIGGER_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceInstanceDeploy(serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\") { id status } }"
+            }')
+
+          DEPLOYMENT_ID=$(echo "$TRIGGER_RESPONSE" | jq -r '.data.serviceInstanceDeploy.id')
+
+          if [[ -n "$DEPLOYMENT_ID" && "$DEPLOYMENT_ID" != "null" ]]; then
+            echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+            echo "✅ Deployment triggered: $DEPLOYMENT_ID"
+          else
+            echo "⚠️ Deployment response:"
+            echo "$TRIGGER_RESPONSE" | jq '.'
+          fi
+
+      - name: Generate Public Domain
+        if: inputs.action == 'deploy'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.check.outputs.service_id || steps.create.outputs.service_id }}
+        run: |
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          echo "Generating public domain..."
+
+          DOMAIN_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceDomainCreate(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\" }) { domain } }"
+            }')
+
+          DOMAIN=$(echo "$DOMAIN_RESPONSE" | jq -r '.data.serviceDomainCreate.domain')
+
+          if [[ -n "$DOMAIN" && "$DOMAIN" != "null" ]]; then
+            echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+            echo "✅ Public URL: https://$DOMAIN"
+          else
+            echo "⚠️ Domain response:"
+            echo "$DOMAIN_RESPONSE" | jq '.'
+          fi
+
+      - name: Check Status
+        if: inputs.action == 'status'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.check.outputs.service_id }}
+        run: |
+          if [[ "${{ steps.check.outputs.exists }}" != "true" ]]; then
+            echo "❌ n8n service not found"
+            exit 0
+          fi
+
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          # Get latest deployment
+          DEPLOYMENTS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { deployments(input: { serviceId: \"'"$SERVICE_ID"'\" }, first: 3) { edges { node { id status staticUrl createdAt } } } }"
+            }')
+
+          echo "Recent deployments:"
+          echo "$DEPLOYMENTS" | jq '.data.deployments.edges'
+
+          # Get domains
+          DOMAINS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { service(id: \"'"$SERVICE_ID"'\") { domains { serviceDomains { domain } } } }"
+            }')
+
+          echo "Domains:"
+          echo "$DOMAINS" | jq '.data.service.domains'
+
+      - name: Post Results to Issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTION: ${{ inputs.action }}
+          SERVICE_ID: ${{ steps.check.outputs.service_id || steps.create.outputs.service_id }}
+          EXISTS: ${{ steps.check.outputs.exists }}
+        run: |
+          if [[ "$ACTION" == "deploy" ]]; then
+            STATUS_EMOJI="🚀"
+            STATUS_MSG="n8n deployment initiated"
+          else
+            STATUS_EMOJI="ℹ️"
+            STATUS_MSG="n8n status check"
+          fi
+
+          gh issue comment 266 --repo ${{ github.repository }} --body "## $STATUS_EMOJI $STATUS_MSG
+
+**Action**: \`$ACTION\`
+**Service ID**: \`$SERVICE_ID\`
+**Service Existed**: \`$EXISTS\`
+
+### Next Steps
+
+1. Wait 2-3 minutes for deployment to complete
+2. Check Railway dashboard for n8n URL
+3. Configure Telegram webhook to point to n8n
+
+---
+Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

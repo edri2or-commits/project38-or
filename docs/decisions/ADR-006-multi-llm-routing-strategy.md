@@ -412,9 +412,9 @@ LiteLLM logs every request with:
 
 ## Related Documents
 
-- [CLAUDE.md](../../CLAUDE.md) - Section: "LiteLLM Gateway (Multi-LLM Routing)"
+- **CLAUDE.md** - Section: "LiteLLM Gateway (Multi-LLM Routing)"
 - [docs/changelog.md](../changelog.md) - Version history
-- [services/litellm-gateway/README.md](../../services/litellm-gateway/README.md) - Usage guide
+- **services/litellm-gateway/README.md** - Usage guide
 - [PR #240](https://github.com/edri2or-commits/project38-or/pull/240) - Implementation PR
 - **Research Report**: "Production-Grade Multi-LLM Agentic System Architecture (2026)"
 

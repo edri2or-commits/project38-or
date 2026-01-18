@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Email Assistant Skill** (2026-01-18) - Autonomous email agent for Gmail management
+  - `.claude/skills/email-assistant/SKILL.md` - Full skill definition (380+ lines)
+  - **Capabilities**:
+    - Reading & Summarizing: Fetch unread emails, categorize by priority (P1-P4)
+    - Triage & Sorting: Apply rules, identify urgent items, flag for review
+    - Smart Replies: Draft contextual responses matching sender's tone
+    - Full Automation: Handle routine emails with user approval
+  - **Gmail Tools**: Uses `gmail_send`, `gmail_search`, `gmail_list` via MCP Gateway
+  - **Safety**: NEVER sends email without explicit user approval
+  - **Integration**: Works with existing Google Workspace OAuth (verified 2026-01-16)
+  - **Triggers**: Keywords `email`, `inbox`, `gmail`, `triage`, `reply`
+  - **Documentation**: Added to CLAUDE.md Available Skills section
 - **Railway Diagnostics Workflow** (2026-01-17) - Autonomous Railway service diagnostics via GitHub Actions
   - `.github/workflows/railway-diagnostics.yml` - Complete Railway diagnostic automation (250+ lines)
   - **Triggers**: Manual (`workflow_dispatch`) or issue comment (`/diagnose <service_name>`)

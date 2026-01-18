@@ -1267,6 +1267,62 @@ Manual merge (1-click, < 10 seconds)
 3. **Caching:** Avoid re-reading same files
 4. **Batching:** Group related operations
 
+### email-assistant (v1.0.0)
+
+**Purpose:** Autonomous email agent that reads, summarizes, triages, and responds to emails via Gmail. Use when user wants help managing their inbox or processing emails.
+
+**Triggers:**
+- Keywords: `email`, `emails`, `mail`, `inbox`, `gmail`, `unread`, `reply`, `triage`
+- Morning inbox check requests
+- Email management tasks
+
+**What it does:**
+1. **Reading & Summarizing** - Fetch unread emails, categorize by priority (P1-P4), extract action items
+2. **Triage & Sorting** - Apply rules to categorize emails, identify urgent items, flag for review
+3. **Smart Replies** - Draft contextual responses matching sender's tone
+4. **Full Automation** - Handle routine emails with user approval (NEVER sends without confirmation)
+
+**When to use:**
+```bash
+# Morning inbox check
+"Check my inbox"
+
+# Triage emails
+"Triage my last 50 emails"
+
+# Draft reply
+"Reply to the meeting request"
+
+# Summarize specific email
+"Summarize the email from [sender]"
+```
+
+**Available Gmail Tools (via MCP Gateway):**
+
+| Tool | Purpose |
+|------|---------|
+| `gmail_send` | Send email (to, subject, body, cc, bcc) |
+| `gmail_search` | Search with Gmail query syntax |
+| `gmail_list` | List recent emails by label |
+
+**Files:**
+- Skill definition: `.claude/skills/email-assistant/SKILL.md`
+- Gmail tools: `src/mcp_gateway/tools/workspace.py:112-224`
+- OAuth auth: `src/mcp_gateway/tools/workspace.py:31-94`
+
+**Safety:**
+- `plan_mode_required: false`
+- **NEVER sends email without explicit user approval**
+- Allowed tools: Read, Write, Edit, Bash(curl), Grep, Glob, WebFetch, AskUserQuestion
+- All sent emails logged for audit
+- Phishing/spam detection built-in
+
+**Success metrics:**
+- ✅ Inbox summary in < 30 seconds
+- ✅ Triage accuracy > 90%
+- ✅ Zero unauthorized sends
+- ✅ Complete audit trail maintained
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:

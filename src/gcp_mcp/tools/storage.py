@@ -4,9 +4,6 @@ Cloud Storage tools.
 Provides bucket and object management capabilities.
 """
 
-import os
-from typing import Optional
-
 try:
     from google.cloud import storage
 
@@ -15,9 +12,7 @@ except ImportError:
     STORAGE_AVAILABLE = False
 
 
-async def list_storage(
-    bucket_name: Optional[str] = None, prefix: Optional[str] = None
-) -> dict:
+async def list_storage(bucket_name: str | None = None, prefix: str | None = None) -> dict:
     """
     List Cloud Storage buckets or objects.
 
@@ -130,9 +125,7 @@ async def get_object_metadata(bucket_name: str, object_name: str) -> dict:
         }
 
 
-async def upload_file(
-    bucket_name: str, source_path: str, destination_path: str
-) -> dict:
+async def upload_file(bucket_name: str, source_path: str, destination_path: str) -> dict:
     """
     Upload a file to Cloud Storage.
 

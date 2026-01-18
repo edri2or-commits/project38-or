@@ -5,7 +5,6 @@ Provides safe access to GCP Secret Manager with proper security controls.
 """
 
 import os
-from typing import Optional
 
 try:
     from google.cloud import secretmanager
@@ -53,7 +52,7 @@ async def get_secret_value(secret_name: str, version: str = "latest") -> dict:
             "value_length": len(secret_value),
             "value_preview": secret_value[:10] + "..." if len(secret_value) > 10 else "[MASKED]",
             "message": "Secret retrieved successfully. Use value_length to verify.",
-            "security_note": "Full value not returned for security. Use gcloud to get full value if needed.",
+            "security_note": "Full value not returned for security. Use gcloud if needed.",
         }
 
     except Exception as e:

@@ -5,7 +5,6 @@ Provides instance management capabilities.
 """
 
 import os
-from typing import Optional
 
 try:
     from google.cloud import compute_v1
@@ -15,7 +14,7 @@ except ImportError:
     COMPUTE_AVAILABLE = False
 
 
-async def list_instances(zone: Optional[str] = None) -> dict:
+async def list_instances(zone: str | None = None) -> dict:
     """
     List Compute Engine instances.
 
@@ -123,9 +122,7 @@ async def get_instance_details(instance_name: str, zone: str) -> dict:
                     "network": interface.network.split("/")[-1],
                     "internal_ip": interface.network_i_p,
                     "external_ip": (
-                        interface.access_configs[0].nat_i_p
-                        if interface.access_configs
-                        else None
+                        interface.access_configs[0].nat_i_p if interface.access_configs else None
                     ),
                 }
             )
@@ -134,7 +131,7 @@ async def get_instance_details(instance_name: str, zone: str) -> dict:
             "status": "success",
             "name": instance.name,
             "zone": zone,
-            "status": instance.status,
+            "instance_status": instance.status,
             "machine_type": instance.machine_type.split("/")[-1],
             "network_interfaces": network_interfaces,
             "created": str(instance.creation_timestamp),

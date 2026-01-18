@@ -3,7 +3,7 @@
 **Status:** ✅ Implemented
 **Date:** 2026-01-18
 **Decision Makers:** Claude Code Agent, User (edri2or-commits)
-**Related:** [Research: GCP Authentication & Autonomy (Hebrew)](../../research/gcp-auth-autonomy-2026.md)
+**Related:** Research: GCP Authentication & Autonomy (Hebrew) - in progress
 
 ---
 
@@ -410,7 +410,7 @@ claude mcp add --transport http \
 ## References
 
 ### Documentation
-- **Hebrew Research Paper:** [GCP Authentication & Autonomy (2026)](../../research/gcp-auth-autonomy-2026.md)
+- **Hebrew Research Paper:** GCP Authentication & Autonomy (2026) - in progress
 - **Implementation:** `src/gcp_mcp/`
 - **Deployment Workflow:** `.github/workflows/deploy-gcp-mcp.yml`
 - **Usage Guide:** `src/gcp_mcp/README.md`

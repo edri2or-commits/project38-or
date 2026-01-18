@@ -26,13 +26,12 @@ import json
 import logging
 import os
 import sys
-from typing import Optional
 
 # Configure logging to stderr (stdout is reserved for MCP protocol)
 logging.basicConfig(
     level=logging.DEBUG if os.environ.get("DEBUG") else logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stderr
+    stream=sys.stderr,
 )
 logger = logging.getLogger("gcp_tunnel")
 
@@ -51,7 +50,7 @@ class MCPTunnelTransport:
         project_id: str = None,
         region: str = None,
         function_name: str = None,
-        token: str = None
+        token: str = None,
     ):
         """
         Initialize the MCP tunnel transport.
@@ -72,8 +71,7 @@ class MCPTunnelTransport:
         # HTTP trigger URL (publicly accessible, but requires our custom token)
         # Format: https://{region}-{project}.cloudfunctions.net/{function}
         self.http_url = (
-            f"https://{self.region}-{self.project_id}.cloudfunctions.net/"
-            f"{self.function_name}"
+            f"https://{self.region}-{self.project_id}.cloudfunctions.net/{self.function_name}"
         )
 
         self._http_client = None
@@ -90,10 +88,11 @@ class MCPTunnelTransport:
 
         try:
             import httpx
+
             self._http_client = httpx.AsyncClient(timeout=120.0)
             logger.info("Transport started successfully")
         except ImportError:
-            raise RuntimeError("httpx library required. Install with: pip install httpx")
+            raise RuntimeError("httpx library required. Install with: pip install httpx") from None
 
     async def stop(self):
         """Close HTTP client."""
@@ -125,31 +124,32 @@ class MCPTunnelTransport:
                 self.http_url,
                 headers={
                     "Authorization": f"Bearer {self.token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                json=payload
+                json=payload,
             )
 
             if response.status_code == 401:
                 logger.error("Authentication failed - check MCP_TUNNEL_TOKEN")
-                return json.dumps({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32001,
-                        "message": "Authentication failed - invalid MCP_TUNNEL_TOKEN"
+                return json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32001,
+                            "message": "Authentication failed - invalid MCP_TUNNEL_TOKEN",
+                        },
                     }
-                })
+                )
 
             if response.status_code != 200:
                 error_text = response.text
                 logger.error(f"HTTP error {response.status_code}: {error_text}")
-                return json.dumps({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32000,
-                        "message": f"HTTP error: {response.status_code}"
+                return json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "error": {"code": -32000, "message": f"HTTP error: {response.status_code}"},
                     }
-                })
+                )
 
             # Decapsulate the response
             response_json = response.json()
@@ -160,19 +160,16 @@ class MCPTunnelTransport:
 
         except Exception as e:
             logger.exception(f"Request failed: {e}")
-            return json.dumps({
-                "jsonrpc": "2.0",
-                "error": {
-                    "code": -32603,
-                    "message": f"Transport error: {str(e)}"
+            return json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32603, "message": f"Transport error: {str(e)}"},
                 }
-            })
+            )
 
 
 class MCPStdioServer:
-    """
-    Simple MCP server that bridges stdio to the Cloud Function tunnel.
-    """
+    """Simple MCP server that bridges stdio to the Cloud Function tunnel."""
 
     def __init__(self, transport: MCPTunnelTransport):
         """Initialize with transport."""
@@ -189,9 +186,7 @@ class MCPStdioServer:
         try:
             reader = asyncio.StreamReader()
             protocol = asyncio.StreamReaderProtocol(reader)
-            await asyncio.get_event_loop().connect_read_pipe(
-                lambda: protocol, sys.stdin
-            )
+            await asyncio.get_event_loop().connect_read_pipe(lambda: protocol, sys.stdin)
 
             while self.running:
                 line = await reader.readline()
@@ -229,7 +224,7 @@ async def main():
             "2. Click on Environment name (top left)\n"
             "3. Add environment variable: MCP_TUNNEL_TOKEN=your-token\n"
             "4. Start a new session\n",
-            file=sys.stderr
+            file=sys.stderr,
         )
         sys.exit(1)
 
