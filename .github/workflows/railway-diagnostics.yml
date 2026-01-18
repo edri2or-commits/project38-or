@@ -183,56 +183,68 @@ jobs:
       - name: Generate Diagnostic Report
         id: report
         run: |
-          cat > /tmp/report.md << 'EOFMD'
+          # Generate timestamp
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          # Extract JSON data
+          DEPLOYMENTS_DATA=$(cat /tmp/deployments.json | jq '.data.deployments.edges[] | {id: .node.id, status: .node.status, created: .node.createdAt, updated: .node.updatedAt}')
+          VARIABLES_DATA=$(cat /tmp/variables.json | jq '.data.variables.edges[] | .node.name')
+          VARIABLES_COUNT=$(cat /tmp/variables.json | jq '.data.variables.edges | length')
+          LOGS_DATA=$(cat /tmp/logs.json | jq '.')
+
+          # Build report
+          cat > /tmp/report.md << EOFMD
           ## 🔍 Railway Diagnostics Report
 
-          **Service**: `${{ steps.service.outputs.service_name }}`
-          **Service ID**: `${{ steps.service_details.outputs.service_id }}`
-          **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Service**: \`${{ steps.service.outputs.service_name }}\`
+          **Service ID**: \`${{ steps.service_details.outputs.service_id }}\`
+          **Generated**: ${TIMESTAMP}
 
           ---
 
           ### 📦 Recent Deployments
 
-          ```json
-          $(cat /tmp/deployments.json | jq '.data.deployments.edges[] | {id: .node.id, status: .node.status, created: .node.createdAt, updated: .node.updatedAt}')
-          ```
+          \`\`\`json
+          ${DEPLOYMENTS_DATA}
+          \`\`\`
 
-          **Latest Status**: `${{ steps.deployments.outputs.latest_status }}`
+          **Latest Status**: \`${{ steps.deployments.outputs.latest_status }}\`
 
           ---
 
           ### 📝 Environment Variables
 
-          ```json
-          $(cat /tmp/variables.json | jq '.data.variables.edges[] | .node.name')
-          ```
+          \`\`\`json
+          ${VARIABLES_DATA}
+          \`\`\`
 
-          **Count**: $(cat /tmp/variables.json | jq '.data.variables.edges | length')
+          **Count**: ${VARIABLES_COUNT}
 
           ---
 
           ### 📋 Deployment Logs
 
-          ```json
-          $(cat /tmp/logs.json | jq '.')
-          ```
+          \`\`\`json
+          ${LOGS_DATA}
+          \`\`\`
 
           ---
           EOFMD
 
           # Add Telegram webhook info if applicable
           if [[ "${{ steps.service.outputs.service_name }}" == "telegram-bot" ]]; then
-            cat >> /tmp/report.md << 'EOFMD'
+            WEBHOOK_DATA=$(cat /tmp/webhook.json | jq '{url: .result.url, pending: .result.pending_update_count, last_error: .result.last_error_message, last_error_date: .result.last_error_date}')
+
+            cat >> /tmp/report.md << EOFMD
           ### 🌐 Telegram Webhook Status
 
-          ```json
-          $(cat /tmp/webhook.json | jq '{url: .result.url, pending: .result.pending_update_count, last_error: .result.last_error_message, last_error_date: .result.last_error_date}')
-          ```
+          \`\`\`json
+          ${WEBHOOK_DATA}
+          \`\`\`
 
-          **URL**: `${{ steps.webhook.outputs.webhook_url }}`
-          **Pending updates**: `${{ steps.webhook.outputs.pending }}`
-          **Last error**: `${{ steps.webhook.outputs.last_error }}`
+          **URL**: \`${{ steps.webhook.outputs.webhook_url }}\`
+          **Pending updates**: \`${{ steps.webhook.outputs.pending }}\`
+          **Last error**: \`${{ steps.webhook.outputs.last_error }}\`
 
           ---
           EOFMD
