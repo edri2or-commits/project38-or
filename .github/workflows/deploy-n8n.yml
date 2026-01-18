@@ -293,17 +293,18 @@ jobs:
             STATUS_MSG="n8n status check"
           fi
 
-          gh issue comment 266 --repo ${{ github.repository }} --body "## $STATUS_EMOJI $STATUS_MSG
-
-**Action**: \`$ACTION\`
-**Service ID**: \`$SERVICE_ID\`
-**Service Existed**: \`$EXISTS\`
-
-### Next Steps
-
-1. Wait 2-3 minutes for deployment to complete
-2. Check Railway dashboard for n8n URL
-3. Configure Telegram webhook to point to n8n
-
----
-Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "## $STATUS_EMOJI $STATUS_MSG" > /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "- Action: \`$ACTION\`" >> /tmp/comment.md
+          echo "- Service ID: \`$SERVICE_ID\`" >> /tmp/comment.md
+          echo "- Service Existed: \`$EXISTS\`" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "### Next Steps" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "1. Wait 2-3 minutes for deployment to complete" >> /tmp/comment.md
+          echo "2. Check Railway dashboard for n8n URL" >> /tmp/comment.md
+          echo "3. Configure Telegram webhook to point to n8n" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "---" >> /tmp/comment.md
+          echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> /tmp/comment.md
+          gh issue comment 266 --repo ${{ github.repository }} --body-file /tmp/comment.md
