@@ -1,4 +1,5 @@
 name: Setup Telegram-n8n Webhook Integration
+# Creates Telegram webhook workflow in n8n and configures Telegram Bot API
 
 on:
   workflow_dispatch:
