@@ -604,3 +604,53 @@ Phase 3 code merged to main (PR #237) and deployed to production Cloud Function.
 - ✅ All 4 tool categories functional: Railway, n8n, Monitoring, Google Workspace
 - ✅ Production-ready for autonomous operations
 
+
+---
+
+### 2026-01-18: Cloud Run Migration - Cloud Functions Python 3.12 Issues
+
+**Context:**
+Cloud Functions Gen 2 deployments with Python 3.12 and google-cloud-secret-manager consistently failed (24+ consecutive failures). Root cause analysis identified incompatibility between Python 3.12's removal of the `imp` module and older transitive dependencies.
+
+**Problem Analysis:**
+- Cloud Functions buildpack installs dependencies during build
+- google-cloud-secret-manager has transitive dependencies (protobuf, grpcio)
+- Some versions of these require the deprecated `imp` module
+- Python 3.12 removed `imp` module completely
+- Build failures occur during dependency installation phase
+
+**Solution: Migrate to Cloud Run**
+Cloud Run allows custom Dockerfiles, giving full control over:
+1. Python version (3.11 instead of 3.12)
+2. Dependency versions
+3. Build process
+
+**Implementation (PR #260, 2026-01-18):**
+- Created `cloud_functions/mcp_router/Dockerfile` with Python 3.11
+- Created `cloud_functions/mcp_router/app.py` Flask wrapper
+- Updated `.github/workflows/deploy-mcp-router-cloudrun.yml`
+- Added `--clear-base-image` flag for buildpack-to-Dockerfile transition
+
+**Deployment (2026-01-18 16:55 UTC):**
+- ✅ Workflow run #21115303316 completed successfully
+- ✅ Cloud Run service deployed
+- ✅ Health check passed
+- ✅ MCP endpoint responding with all 20 tools
+
+**New Deployment Details:**
+- **URL**: `https://mcp-router-3e7yyrd7xq-uc.a.run.app`
+- **Platform**: Cloud Run (Gen 2)
+- **Region**: us-central1
+- **Python**: 3.11-slim
+- **Duration**: 1m 41s
+
+**Evidence:**
+- PR #260: Merged to main
+- Workflow: https://github.com/edri2or-commits/project38-or/actions/runs/21115303316
+- Service URL verified via workflow test step
+
+**Result:**
+- ✅ MCP Router operational on Cloud Run
+- ✅ All 20 tools functional
+- ✅ Bypasses Python 3.12 compatibility issues
+- ✅ Production-ready

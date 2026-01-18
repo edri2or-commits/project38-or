@@ -1450,16 +1450,17 @@ MCP Gateway (Railway) ← Bearer Token Auth
 |-----------|--------|----------|
 | Cloud Function Code | ✅ Complete | `cloud_functions/mcp_router/main.py` (953 lines) |
 | Local Adapter | ✅ Complete | `src/gcp_tunnel/adapter.py` (250+ lines) |
-| Deployment Workflow | ✅ Complete | `.github/workflows/deploy-mcp-router.yml` |
-| Function Deployment | ✅ Deployed | Workflow #21098783553 (2026-01-17 18:18 UTC) |
+| Deployment Workflow | ✅ Complete | `.github/workflows/deploy-mcp-router-cloudrun.yml` |
+| Cloud Run Deployment | ✅ Deployed | Workflow #21115303316 (2026-01-18 16:55 UTC) |
 | Phase 3 Migration | ✅ Complete | Google Workspace tools migrated (PR #237, 2026-01-17) |
 | End-to-End Test | ✅ Verified | 20 tools accessible via Protocol Encapsulation |
 
 **Deployment Details**:
 
-- **URL**: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
+- **URL**: `https://mcp-router-3e7yyrd7xq-uc.a.run.app`
+- **Platform**: Cloud Run (migrated from Cloud Functions due to Python 3.12 compatibility issues)
 - **Status**: HTTP 200 (deployed and responding)
-- **Verified**: 2026-01-17 18:20 UTC (Phase 3 complete)
+- **Verified**: 2026-01-18 16:55 UTC (PR #260)
 - **Authentication**: MCP_TUNNEL_TOKEN (stored in GCP Secret Manager)
 - **Tools Available**: 20 tools across 4 categories
   - **Railway (4)**: deploy, status, rollback, deployments

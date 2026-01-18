@@ -112,6 +112,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See ADR-005 for full architecture and deployment details
 
 ### Fixed
+- **MCP Router Cloud Run Migration** (2026-01-18) - Switched from Cloud Functions to Cloud Run (PR #260)
+  - **Problem**: Cloud Functions Gen 2 with Python 3.12 failed 24+ consecutive deployments
+  - **Root Cause**: Python 3.12 removed `imp` module; google-cloud-secret-manager transitive dependencies (protobuf, grpcio) require it
+  - **Failed Attempts**: Lazy loading, pinned versions, functions-framework update, Gen 1 deployment
+  - **Solution**: Migrate to Cloud Run with custom Dockerfile using Python 3.11
+  - **Implementation**:
+    - `cloud_functions/mcp_router/Dockerfile` - Python 3.11-slim base
+    - `cloud_functions/mcp_router/app.py` - Flask wrapper for Cloud Run
+    - `.github/workflows/deploy-mcp-router-cloudrun.yml` - Deployment workflow
+    - `--clear-base-image` flag for buildpack-to-Dockerfile transition
+    - YAML syntax fix (template literals → string concatenation)
+  - **Deployment**: Workflow #21115303316 succeeded in 1m 41s (2026-01-18)
+  - **New URL**: `https://mcp-router-3e7yyrd7xq-uc.a.run.app`
+  - **Status**: All 20 MCP tools operational
+  - See ADR-005 and JOURNEY.md for full details
+
 - **GCP Tunnel Deployment** (2026-01-17) - Resolved IAM permission issues and deployed Cloud Function successfully
   - **Problem**: Deployment workflow reported "success" but function returned HTTP 404
   - **Root Cause**: Service account lacked required IAM permissions (cloudfunctions.developer, serviceusage.serviceUsageAdmin, iam.serviceAccountUser)
