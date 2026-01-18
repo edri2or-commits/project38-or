@@ -1,0 +1,293 @@
+name: Setup Telegram-n8n Webhook Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - full-setup
+          - create-workflow-only
+          - set-webhook-only
+          - test-webhook
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+  WEBHOOK_PATH: "telegram-bot"
+
+jobs:
+  setup-telegram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Secrets
+        id: secrets
+        run: |
+          N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=project38-483612)
+          TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "n8n_api_key=$N8N_API_KEY" >> $GITHUB_OUTPUT
+          echo "telegram_token=$TELEGRAM_BOT_TOKEN" >> $GITHUB_OUTPUT
+          echo "✅ Secrets loaded"
+
+      - name: Create Webhook-based Telegram Workflow
+        id: create-workflow
+        if: inputs.action == 'full-setup' || inputs.action == 'create-workflow-only'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          TELEGRAM_TOKEN: ${{ steps.secrets.outputs.telegram_token }}
+        run: |
+          echo "Creating webhook-based Telegram workflow in n8n..."
+
+          # Check if workflow already exists
+          EXISTING=$(curl -s \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data[]? | select(.name == "Telegram Webhook Bot") | .id' 2>/dev/null)
+
+          if [[ -n "$EXISTING_ID" && "$EXISTING_ID" != "null" ]]; then
+            echo "✅ Workflow already exists (ID: $EXISTING_ID)"
+            echo "workflow_id=$EXISTING_ID" >> $GITHUB_OUTPUT
+
+            # Make sure it's active
+            curl -s -X PATCH \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              "$N8N_URL/api/v1/workflows/$EXISTING_ID" \
+              -d '{"active": true}'
+            echo "Workflow activated"
+            exit 0
+          fi
+
+          # Create workflow JSON - uses Webhook + HTTP Request (no credentials needed!)
+          WORKFLOW_JSON='{
+            "name": "Telegram Webhook Bot",
+            "nodes": [
+              {
+                "parameters": {
+                  "httpMethod": "POST",
+                  "path": "telegram-bot",
+                  "responseMode": "responseNode",
+                  "options": {}
+                },
+                "id": "webhook-node",
+                "name": "Telegram Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 2,
+                "position": [250, 300],
+                "webhookId": "telegram-bot-webhook"
+              },
+              {
+                "parameters": {
+                  "method": "POST",
+                  "url": "=https://api.telegram.org/bot'"$TELEGRAM_TOKEN"'/sendMessage",
+                  "sendHeaders": true,
+                  "headerParameters": {
+                    "parameters": [
+                      {
+                        "name": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ]
+                  },
+                  "sendBody": true,
+                  "specifyBody": "json",
+                  "jsonBody": "={{ JSON.stringify({ chat_id: $json.body.message.chat.id, text: \"Echo from n8n: \" + $json.body.message.text + \"\\n\\nFrom: \" + $json.body.message.from.first_name }) }}",
+                  "options": {}
+                },
+                "id": "http-send",
+                "name": "Send Telegram Reply",
+                "type": "n8n-nodes-base.httpRequest",
+                "typeVersion": 4.2,
+                "position": [500, 300]
+              },
+              {
+                "parameters": {
+                  "respondWith": "json",
+                  "responseBody": "={{ { ok: true } }}",
+                  "options": {}
+                },
+                "id": "respond-node",
+                "name": "Respond to Telegram",
+                "type": "n8n-nodes-base.respondToWebhook",
+                "typeVersion": 1.1,
+                "position": [750, 300]
+              }
+            ],
+            "connections": {
+              "Telegram Webhook": {
+                "main": [
+                  [
+                    {
+                      "node": "Send Telegram Reply",
+                      "type": "main",
+                      "index": 0
+                    }
+                  ]
+                ]
+              },
+              "Send Telegram Reply": {
+                "main": [
+                  [
+                    {
+                      "node": "Respond to Telegram",
+                      "type": "main",
+                      "index": 0
+                    }
+                  ]
+                ]
+              }
+            },
+            "active": true,
+            "settings": {
+              "executionOrder": "v1"
+            }
+          }'
+
+          echo "Sending workflow creation request..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            "$N8N_URL/api/v1/workflows" \
+            -d "$WORKFLOW_JSON")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response: $(echo "$BODY" | head -c 1000)"
+
+          if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
+            WORKFLOW_ID=$(echo "$BODY" | jq -r '.id' 2>/dev/null)
+            echo "✅ Workflow created (ID: $WORKFLOW_ID)"
+            echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
+
+            # Activate the workflow
+            echo "Activating workflow..."
+            curl -s -X PATCH \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              "$N8N_URL/api/v1/workflows/$WORKFLOW_ID" \
+              -d '{"active": true}'
+            echo "✅ Workflow activated"
+          else
+            echo "❌ Failed to create workflow (HTTP $HTTP_CODE)"
+            echo "workflow_id=" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Set Telegram Webhook
+        id: set-webhook
+        if: inputs.action == 'full-setup' || inputs.action == 'set-webhook-only'
+        env:
+          TELEGRAM_TOKEN: ${{ steps.secrets.outputs.telegram_token }}
+        run: |
+          WEBHOOK_URL="${N8N_URL}/webhook/${WEBHOOK_PATH}"
+          echo "Setting Telegram webhook to: $WEBHOOK_URL"
+
+          # Delete existing webhook first
+          echo "Deleting old webhook..."
+          curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteWebhook"
+
+          # Set new webhook
+          echo ""
+          echo "Setting new webhook..."
+          RESPONSE=$(curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook?url=${WEBHOOK_URL}")
+
+          echo "Response: $RESPONSE"
+
+          OK=$(echo "$RESPONSE" | jq -r '.ok')
+          if [[ "$OK" == "true" ]]; then
+            echo "✅ Telegram webhook set successfully!"
+            echo "webhook_url=$WEBHOOK_URL" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Failed to set webhook"
+            echo "$RESPONSE"
+            exit 1
+          fi
+
+          # Verify webhook
+          echo ""
+          echo "Verifying webhook..."
+          INFO=$(curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getWebhookInfo")
+          echo "$INFO" | jq '.'
+
+      - name: Test Webhook
+        if: inputs.action == 'test-webhook'
+        env:
+          TELEGRAM_TOKEN: ${{ steps.secrets.outputs.telegram_token }}
+        run: |
+          echo "Getting webhook info..."
+          INFO=$(curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getWebhookInfo")
+          echo "$INFO" | jq '.'
+
+          WEBHOOK_URL=$(echo "$INFO" | jq -r '.result.url')
+          PENDING=$(echo "$INFO" | jq -r '.result.pending_update_count')
+          LAST_ERROR=$(echo "$INFO" | jq -r '.result.last_error_message // "none"')
+
+          echo ""
+          echo "📊 Webhook Status:"
+          echo "  URL: $WEBHOOK_URL"
+          echo "  Pending updates: $PENDING"
+          echo "  Last error: $LAST_ERROR"
+
+          if [[ "$WEBHOOK_URL" == *"n8n-production"* ]]; then
+            echo ""
+            echo "✅ Webhook is correctly configured to n8n!"
+          else
+            echo ""
+            echo "⚠️ Webhook not pointing to n8n"
+          fi
+
+      - name: Post Results
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTION: ${{ inputs.action }}
+          WORKFLOW_ID: ${{ steps.create-workflow.outputs.workflow_id }}
+          WEBHOOK_URL: ${{ steps.set-webhook.outputs.webhook_url }}
+        run: |
+          echo "## 🤖 Telegram-n8n Webhook Setup" > /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "**Action:** \`$ACTION\`" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+
+          if [[ -n "$WORKFLOW_ID" ]]; then
+            echo "✅ **n8n Workflow Created:** ID \`$WORKFLOW_ID\`" >> /tmp/comment.md
+          fi
+
+          if [[ -n "$WEBHOOK_URL" ]]; then
+            echo "✅ **Telegram Webhook Set:** \`$WEBHOOK_URL\`" >> /tmp/comment.md
+          fi
+
+          echo "" >> /tmp/comment.md
+          echo "### Architecture" >> /tmp/comment.md
+          echo '```' >> /tmp/comment.md
+          echo "Telegram User → Bot API → n8n Webhook → HTTP Reply → Telegram" >> /tmp/comment.md
+          echo '```' >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "### Test" >> /tmp/comment.md
+          echo "Send any message to your Telegram bot - it should echo back!" >> /tmp/comment.md
+          echo "" >> /tmp/comment.md
+          echo "---" >> /tmp/comment.md
+          echo "Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> /tmp/comment.md
+
+          gh issue comment 266 --repo ${{ github.repository }} --body-file /tmp/comment.md
