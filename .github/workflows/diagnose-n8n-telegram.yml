@@ -128,6 +128,21 @@ jobs:
           if [[ -n "$WF_ID" && "$WF_ID" != "null" ]]; then
             echo "✅ Found 'Telegram Webhook Bot' workflow"
 
+            # Get full workflow details
+            echo ""
+            echo "Getting full workflow details..."
+            WORKFLOW_DETAILS=$(curl -s \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_URL/api/v1/workflows/$WF_ID" 2>&1)
+
+            echo "Workflow nodes:"
+            echo "$WORKFLOW_DETAILS" | jq '.nodes[]? | {name: .name, type: .type, parameters: .parameters}' 2>/dev/null || echo "Could not parse nodes"
+
+            # Check if webhook path is correct
+            WEBHOOK_PATH=$(echo "$WORKFLOW_DETAILS" | jq -r '.nodes[]? | select(.type == "n8n-nodes-base.webhook") | .parameters.path // empty' 2>/dev/null)
+            echo "Webhook path in workflow: $WEBHOOK_PATH"
+            echo "workflow_webhook_path=$WEBHOOK_PATH" >> $GITHUB_OUTPUT
+
             echo "workflow_found=true" >> $GITHUB_OUTPUT
             echo "workflow_id=$WF_ID" >> $GITHUB_OUTPUT
             echo "workflow_active=$ACTIVE" >> $GITHUB_OUTPUT
@@ -327,6 +342,7 @@ jobs:
           CREATE_HTTP: ${{ steps.create-workflow.outputs.create_http }}
           CREATED_WORKFLOW_ID: ${{ steps.create-workflow.outputs.created_workflow_id }}
           CREATE_ERROR: ${{ steps.create-workflow.outputs.create_error }}
+          WORKFLOW_WEBHOOK_PATH: ${{ steps.check-telegram-workflow.outputs.workflow_webhook_path }}
           WEBHOOK_HTTP: ${{ steps.webhook-test.outputs.webhook_http_code }}
         run: |
           cat > /tmp/comment.md << 'COMMENT_EOF'
@@ -351,6 +367,7 @@ jobs:
           echo "| 'Telegram Webhook Bot' Found | \`$WORKFLOW_FOUND\` |" >> /tmp/comment.md
           echo "| Workflow ID | \`$WORKFLOW_ID\` |" >> /tmp/comment.md
           echo "| Workflow Active | \`$WORKFLOW_ACTIVE\` |" >> /tmp/comment.md
+          echo "| Workflow Webhook Path | \`$WORKFLOW_WEBHOOK_PATH\` |" >> /tmp/comment.md
           echo "| Recent Executions | \`$EXECUTIONS_FOUND\` |" >> /tmp/comment.md
           echo "| **API Workflow Create** | **HTTP \`$CREATE_HTTP\`** |" >> /tmp/comment.md
           echo "| **API Error** | **\`$CREATE_ERROR\`** |" >> /tmp/comment.md
