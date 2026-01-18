@@ -1,23 +1,27 @@
-# GCP MCP Server Dockerfile
-FROM google/cloud-sdk:alpine
+# GCP MCP Server Dockerfile - Debian-based with gcloud
+FROM python:3.11-slim
 
-# Install Python 3.11
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    curl
+# Install gcloud SDK properly
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    lsb-release \
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && apt-get update && apt-get install -y google-cloud-cli \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
+# Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application
 COPY . .
 
-# Set environment variables
+# Environment
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
 ENV GCP_PROJECT_ID=project38-483612
@@ -25,5 +29,5 @@ ENV GCP_PROJECT_ID=project38-483612
 # Expose port
 EXPOSE 8080
 
-# Run the server
-CMD ["python3", "server.py"]
+# Run
+CMD ["python", "server.py"]
