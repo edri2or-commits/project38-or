@@ -1,18 +1,18 @@
 # GCP MCP Server Dockerfile
-FROM python:3.11-slim
+FROM google/cloud-sdk:alpine
 
-# Install minimal system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Install Python 3.11
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    curl
 
 # Set working directory
 WORKDIR /app
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
@@ -26,4 +26,4 @@ ENV GCP_PROJECT_ID=project38-483612
 EXPOSE 8080
 
 # Run the server
-CMD ["python", "server.py"]
+CMD ["python3", "server.py"]
