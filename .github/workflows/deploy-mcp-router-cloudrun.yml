@@ -101,6 +101,7 @@ jobs:
             --max-instances 10 \
             --min-instances 0 \
             --timeout 120s \
+            --clear-base-image \
             --verbosity=debug \
             --set-env-vars="MCP_TUNNEL_TOKEN=${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }},RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0,GCP_PROJECT_ID=${{ env.PROJECT_ID }}" 2>&1 | tee /tmp/deploy-output.log
 
@@ -117,30 +118,22 @@ jobs:
             let log = 'No log file found';
             try {
               log = fs.readFileSync('/tmp/deploy-output.log', 'utf8');
-              // Truncate to last 50KB if too long
               if (log.length > 50000) {
                 log = '...(truncated)...\n' + log.slice(-50000);
               }
             } catch (e) {
-              log = `Error reading log: ${e.message}`;
+              log = 'Error reading log: ' + e.message;
             }
-
-            const body = `## ❌ MCP Router Deployment Failed
-
-**Time:** ${new Date().toISOString()}
-**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-### Deployment Log:
-
-\`\`\`
-${log}
-\`\`\`
-`;
-
+            const runUrl = 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+            const body = '## MCP Router Deployment Failed\n\n' +
+              'Time: ' + new Date().toISOString() + '\n' +
+              'Run: ' + runUrl + '\n\n' +
+              '### Deployment Log:\n\n' +
+              '```\n' + log + '\n```';
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '❌ MCP Router Deploy Error - ' + new Date().toISOString().slice(0, 16),
+              title: 'MCP Router Deploy Error - ' + new Date().toISOString().slice(0, 16),
               body: body,
               labels: ['deployment-error']
             });
