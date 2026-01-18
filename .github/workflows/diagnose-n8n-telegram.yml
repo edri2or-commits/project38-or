@@ -210,6 +210,10 @@ jobs:
 
           echo "create_http=$HTTP_CODE" >> $GITHUB_OUTPUT
 
+          # Capture error message for display
+          ERROR_MSG=$(echo "$BODY" | jq -r '.message // .error // "unknown"' 2>/dev/null || echo "$BODY" | head -c 200)
+          echo "create_error=$ERROR_MSG" >> $GITHUB_OUTPUT
+
           if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
             WORKFLOW_ID=$(echo "$BODY" | jq -r '.id' 2>/dev/null)
             echo ""
@@ -226,7 +230,7 @@ jobs:
             echo "Activate response: $ACTIVATE"
           else
             echo ""
-            echo "❌ Failed to create workflow"
+            echo "❌ Failed to create workflow: $ERROR_MSG"
             echo "created_workflow_id=" >> $GITHUB_OUTPUT
           fi
           exit 0
@@ -272,6 +276,7 @@ jobs:
           EXECUTIONS_FOUND: ${{ steps.executions.outputs.executions_found }}
           CREATE_HTTP: ${{ steps.create-workflow.outputs.create_http }}
           CREATED_WORKFLOW_ID: ${{ steps.create-workflow.outputs.created_workflow_id }}
+          CREATE_ERROR: ${{ steps.create-workflow.outputs.create_error }}
           WEBHOOK_HTTP: ${{ steps.webhook-test.outputs.webhook_http_code }}
         run: |
           cat > /tmp/comment.md << 'COMMENT_EOF'
@@ -298,6 +303,7 @@ jobs:
           echo "| Workflow Active | \`$WORKFLOW_ACTIVE\` |" >> /tmp/comment.md
           echo "| Recent Executions | \`$EXECUTIONS_FOUND\` |" >> /tmp/comment.md
           echo "| **API Workflow Create** | **HTTP \`$CREATE_HTTP\`** |" >> /tmp/comment.md
+          echo "| **API Error** | **\`$CREATE_ERROR\`** |" >> /tmp/comment.md
           echo "| **Created Workflow ID** | **\`$CREATED_WORKFLOW_ID\`** |" >> /tmp/comment.md
           echo "| Direct Webhook Test HTTP | \`$WEBHOOK_HTTP\` |" >> /tmp/comment.md
 
