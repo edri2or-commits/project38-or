@@ -181,7 +181,7 @@ jobs:
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"WEBHOOK_URL\", value: \"https://n8n-production-ef6e2.up.railway.app/\" }) }"
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"WEBHOOK_URL\", value: \"https://n8n-production-2fe0.up.railway.app/\" }) }"
             }'
 
           echo "✅ Environment variables configured (including Telegram Bot Token)"

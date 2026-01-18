@@ -9,7 +9,7 @@ permissions:
   issues: write
 
 env:
-  N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+  N8N_URL: "https://n8n-production-2fe0.up.railway.app"
 
 jobs:
   diagnose:
@@ -246,7 +246,7 @@ jobs:
             echo "❌ **Telegram webhook is NOT pointing to n8n!**" >> /tmp/comment.md
             echo "" >> /tmp/comment.md
             echo "Current URL: \`$TELEGRAM_WEBHOOK_URL\`" >> /tmp/comment.md
-            echo "Expected: \`https://n8n-production-ef6e2.up.railway.app/webhook/telegram-bot\`" >> /tmp/comment.md
+            echo "Expected: \`https://n8n-production-2fe0.up.railway.app/webhook/telegram-bot\`" >> /tmp/comment.md
           elif [[ "$N8N_HEALTH_HTTP" != "200" ]]; then
             echo "❌ **n8n is not responding (HTTP $N8N_HEALTH_HTTP)!**" >> /tmp/comment.md
             echo "" >> /tmp/comment.md
