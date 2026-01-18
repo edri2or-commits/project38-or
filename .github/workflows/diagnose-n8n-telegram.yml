@@ -184,32 +184,8 @@ jobs:
           # Generate unique node ID
           NODE_ID=$(cat /proc/sys/kernel/random/uuid)
 
-          # Create minimal workflow JSON
-          cat > /tmp/workflow.json << EOF
-{
-  "name": "Telegram Webhook Bot",
-  "nodes": [
-    {
-      "id": "$NODE_ID",
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "telegram-bot",
-        "responseMode": "onReceived",
-        "options": {}
-      },
-      "name": "Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [250, 300]
-    }
-  ],
-  "connections": {},
-  "active": false,
-  "settings": {
-    "executionOrder": "v1"
-  }
-}
-EOF
+          # Create minimal workflow JSON using printf to avoid YAML parsing issues
+          printf '{"name":"Telegram Webhook Bot","nodes":[{"id":"%s","parameters":{"httpMethod":"POST","path":"telegram-bot","responseMode":"onReceived","options":{}},"name":"Webhook","type":"n8n-nodes-base.webhook","typeVersion":1,"position":[250,300]}],"connections":{},"active":false,"settings":{"executionOrder":"v1"}}' "$NODE_ID" > /tmp/workflow.json
 
           echo "Workflow JSON to send:"
           cat /tmp/workflow.json
