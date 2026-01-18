@@ -30,7 +30,14 @@ from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from typing import Any
 
-import functions_framework
+# functions_framework is optional - only needed for Cloud Functions deployment
+# For Cloud Run, we use Flask directly via app.py
+try:
+    import functions_framework
+    FUNCTIONS_FRAMEWORK_AVAILABLE = True
+except ImportError:
+    FUNCTIONS_FRAMEWORK_AVAILABLE = False
+
 import httpx
 from flask import Request
 
@@ -1069,7 +1076,16 @@ def _validate_token(request: Request) -> bool:
     return hmac.compare_digest(provided_token, expected_token)
 
 
-@functions_framework.http
+# Decorator is conditional - only apply if functions_framework is available
+# For Cloud Run deployment, app.py calls mcp_router directly
+def _http_decorator(func):
+    """Conditional decorator for Cloud Functions compatibility."""
+    if FUNCTIONS_FRAMEWORK_AVAILABLE:
+        return functions_framework.http(func)
+    return func
+
+
+@_http_decorator
 def mcp_router(request: Request):
     """
     HTTP Cloud Function entry point.

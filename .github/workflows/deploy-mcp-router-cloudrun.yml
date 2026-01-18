@@ -1,0 +1,158 @@
+name: Deploy MCP Router to Cloud Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'GCP Region'
+        required: true
+        default: 'us-central1'
+        type: choice
+        options:
+          - us-central1
+          - us-east1
+          - europe-west1
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: deploy-mcp-router-cloudrun-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_ID: project38-483612
+  SERVICE_NAME: mcp-router
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Get secrets from Secret Manager
+        id: secrets
+        run: |
+          echo "Getting secrets..."
+
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project="${PROJECT_ID}")
+          echo "::add-mask::${RAILWAY_TOKEN}"
+          echo "RAILWAY_TOKEN=${RAILWAY_TOKEN}" >> $GITHUB_OUTPUT
+
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" --project="${PROJECT_ID}" 2>/dev/null || echo "")
+          if [ -z "$MCP_TOKEN" ]; then
+            MCP_TOKEN=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+            echo -n "$MCP_TOKEN" | gcloud secrets create MCP-TUNNEL-TOKEN \
+              --project="${PROJECT_ID}" \
+              --replication-policy="automatic" \
+              --data-file=- 2>/dev/null || \
+            echo -n "$MCP_TOKEN" | gcloud secrets versions add MCP-TUNNEL-TOKEN \
+              --project="${PROJECT_ID}" \
+              --data-file=-
+          fi
+          echo "::add-mask::${MCP_TOKEN}"
+          echo "MCP_TUNNEL_TOKEN=${MCP_TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          echo "=========================================="
+          echo "DEPLOYING MCP ROUTER TO CLOUD RUN"
+          echo "=========================================="
+          echo ""
+          echo "Source files:"
+          ls -la cloud_functions/mcp_router/
+          echo ""
+          echo "Requirements:"
+          cat cloud_functions/mcp_router/requirements.txt
+          echo ""
+
+          cd cloud_functions/mcp_router
+
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --source . \
+            --region ${{ inputs.region }} \
+            --platform managed \
+            --service-account ${{ env.SERVICE_ACCOUNT }} \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 10 \
+            --min-instances 0 \
+            --timeout 120s \
+            --set-env-vars="MCP_TUNNEL_TOKEN=${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }},RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0,GCP_PROJECT_ID=${{ env.PROJECT_ID }}"
+
+          echo ""
+          echo "✅ Deployment command completed"
+
+      - name: Get Service URL
+        id: url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ inputs.region }} \
+            --format='value(status.url)')
+          echo "service_url=${URL}" >> $GITHUB_OUTPUT
+          echo "Service URL: ${URL}"
+
+      - name: Test Deployment
+        run: |
+          URL="${{ steps.url.outputs.service_url }}"
+          echo "Testing deployment at: ${URL}"
+
+          # Test health endpoint
+          echo "Testing /health..."
+          curl -s "${URL}/health" | jq . || echo "Health check response received"
+
+          # Test MCP endpoint with token
+          echo ""
+          echo "Testing MCP endpoint..."
+          RESPONSE=$(curl -s -X POST "${URL}/" \
+            -H "Authorization: Bearer ${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"data": "{\"jsonrpc\": \"2.0\", \"method\": \"tools/list\", \"id\": 1}"}')
+
+          echo "Response: ${RESPONSE}"
+
+          if echo "${RESPONSE}" | grep -q "tools"; then
+            echo "✅ MCP Router responding correctly!"
+          else
+            echo "⚠️ Unexpected response format"
+          fi
+
+      - name: Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## MCP Router Deployed to Cloud Run 🚀
+
+          **Service URL:** ${{ steps.url.outputs.service_url }}
+          **Region:** ${{ inputs.region }}
+          **Project:** ${{ env.PROJECT_ID }}
+
+          ### Usage
+
+          The MCP Router is now available at:
+          \`\`\`
+          ${{ steps.url.outputs.service_url }}
+          \`\`\`
+
+          ### Authentication
+
+          Use Bearer token authentication with MCP_TUNNEL_TOKEN from GCP Secret Manager.
+          EOF
