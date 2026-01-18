@@ -47,7 +47,7 @@ jobs:
         if: inputs.action == 'test-connection' || inputs.action == 'full-setup'
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
-          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+          N8N_URL: "https://n8n-production-2fe0.up.railway.app"
         run: |
           echo "Testing n8n connection..."
           echo "URL: $N8N_URL"
@@ -89,7 +89,7 @@ jobs:
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
           TELEGRAM_BOT_TOKEN: ${{ steps.secrets.outputs.telegram_bot_token }}
-          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+          N8N_URL: "https://n8n-production-2fe0.up.railway.app"
         run: |
           echo "Creating Telegram credentials in n8n..."
           echo "Bot token length: ${#TELEGRAM_BOT_TOKEN} characters"
@@ -168,7 +168,7 @@ jobs:
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
           CREDENTIAL_ID: ${{ steps.credentials.outputs.credential_id }}
-          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+          N8N_URL: "https://n8n-production-2fe0.up.railway.app"
         run: |
           echo "Creating Telegram Echo workflow..."
 
@@ -290,7 +290,7 @@ jobs:
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
           WORKFLOW_ID: ${{ steps.workflow.outputs.workflow_id }}
-          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+          N8N_URL: "https://n8n-production-2fe0.up.railway.app"
         run: |
           if [[ -z "$WORKFLOW_ID" ]]; then
             echo "⚠️ No workflow ID - skipping activation"
@@ -322,7 +322,7 @@ jobs:
           CREDENTIAL_ID: ${{ steps.credentials.outputs.credential_id }}
           CREDENTIAL_CREATED: ${{ steps.credentials.outputs.created }}
           WORKFLOW_ID: ${{ steps.workflow.outputs.workflow_id }}
-          N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+          N8N_URL: "https://n8n-production-2fe0.up.railway.app"
         run: |
           echo "## 🤖 n8n Telegram Configuration" > /tmp/comment.md
           echo "" >> /tmp/comment.md

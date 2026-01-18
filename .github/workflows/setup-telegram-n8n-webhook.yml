@@ -19,7 +19,7 @@ permissions:
   issues: write
 
 env:
-  N8N_URL: "https://n8n-production-ef6e2.up.railway.app"
+  N8N_URL: "https://n8n-production-2fe0.up.railway.app"
   WEBHOOK_PATH: "telegram-bot"
 
 jobs:
