@@ -1,0 +1,171 @@
+name: Deploy GCP MCP with Error Reporting
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Create Artifact Registry repository if needed
+        run: |
+          if ! gcloud artifacts repositories describe cloud-run-source-deploy \
+            --location=us-central1 \
+            --project=$GCP_PROJECT_ID 2>/dev/null; then
+            gcloud artifacts repositories create cloud-run-source-deploy \
+              --repository-format=docker \
+              --location=us-central1 \
+              --description="Docker images for Cloud Run deployments" \
+              --project=$GCP_PROJECT_ID
+          fi
+
+      - name: Deploy GCP MCP Server
+        id: deploy
+        continue-on-error: true
+        run: |
+          cd src/gcp_mcp
+
+          gcloud run deploy gcp-mcp-gateway \
+            --source . \
+            --region us-central1 \
+            --platform managed \
+            --service-account claude-code-agent@$GCP_PROJECT_ID.iam.gserviceaccount.com \
+            --allow-unauthenticated \
+            --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID" \
+            --port 8080 \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 10 \
+            --min-instances 0 \
+            --timeout 300s \
+            --verbosity=debug 2>&1 | tee /tmp/deploy-output.log
+
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Report deployment result
+        if: always()
+        run: |
+          EXIT_CODE="${{ steps.deploy.outputs.exit_code }}"
+
+          if [ "$EXIT_CODE" == "0" ]; then
+            # Success
+            URL=$(gcloud run services describe gcp-mcp-gateway --region us-central1 --format='value(status.url)')
+
+            cat > /tmp/report.md <<EOF
+          ## ✅ Deployment Successful
+
+          **Service URL:** $URL
+
+          **Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+
+            echo "DEPLOYMENT_STATUS=success" >> $GITHUB_ENV
+          else
+            # Failed - capture full error output
+            cat > /tmp/report.md <<EOF
+          ## ❌ Deployment Failed
+
+          **Exit Code:** $EXIT_CODE
+
+          **Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ### Error Output (Last 200 Lines):
+
+          \`\`\`
+          $(tail -200 /tmp/deploy-output.log)
+          \`\`\`
+
+          ### Environment Info:
+
+          - **GCP Project:** $GCP_PROJECT_ID
+          - **Region:** us-central1
+          - **Service Account:** claude-code-agent@$GCP_PROJECT_ID.iam.gserviceaccount.com
+
+          ### Next Steps:
+
+          1. Review error output above
+          2. Check Cloud Build logs: https://console.cloud.google.com/cloud-build/builds?project=$GCP_PROJECT_ID
+          3. Verify Dockerfile builds locally
+          EOF
+
+            echo "DEPLOYMENT_STATUS=failed" >> $GITHUB_ENV
+          fi
+
+      - name: Create/Update GitHub Issue with Report
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('/tmp/report.md', 'utf8');
+            const status = process.env.DEPLOYMENT_STATUS;
+
+            // Find existing issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'gcp-deployment'
+            });
+
+            const title = status === 'success'
+              ? '✅ GCP MCP Deployment - SUCCESS'
+              : '❌ GCP MCP Deployment - ERROR REPORT';
+
+            if (issues.data.length > 0) {
+              // Update existing issue
+              const issue = issues.data[0];
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: report
+              });
+
+              // Update title and close if success
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                title: title,
+                state: status === 'success' ? 'closed' : 'open'
+              });
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: report,
+                labels: ['gcp-deployment']
+              });
+            }
+
+      - name: Fail if deployment failed
+        if: env.DEPLOYMENT_STATUS == 'failed'
+        run: exit 1
