@@ -242,6 +242,7 @@ jobs:
           fi
 
       - name: Check Status
+        id: status
         if: inputs.action == 'status'
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
@@ -249,6 +250,8 @@ jobs:
         run: |
           if [[ "${{ steps.check.outputs.exists }}" != "true" ]]; then
             echo "❌ n8n service not found"
+            echo "domain=not_found" >> $GITHUB_OUTPUT
+            echo "deployment_status=not_found" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -266,6 +269,10 @@ jobs:
           echo "Recent deployments:"
           echo "$DEPLOYMENTS" | jq '.data.deployments.edges'
 
+          # Extract latest deployment status
+          DEPLOYMENT_STATUS=$(echo "$DEPLOYMENTS" | jq -r '.data.deployments.edges[0].node.status // "UNKNOWN"')
+          echo "deployment_status=$DEPLOYMENT_STATUS" >> $GITHUB_OUTPUT
+
           # Get domains
           DOMAINS=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
@@ -278,12 +285,19 @@ jobs:
           echo "Domains:"
           echo "$DOMAINS" | jq '.data.service.domains'
 
+          # Extract first domain
+          DOMAIN=$(echo "$DOMAINS" | jq -r '.data.service.domains.serviceDomains[0].domain // "no_domain"')
+          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+          echo "✅ n8n URL: https://$DOMAIN"
+
       - name: Post Results to Issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTION: ${{ inputs.action }}
           SERVICE_ID: ${{ steps.check.outputs.service_id || steps.create.outputs.service_id }}
           EXISTS: ${{ steps.check.outputs.exists }}
+          DOMAIN: ${{ steps.status.outputs.domain || 'pending' }}
+          DEPLOYMENT_STATUS: ${{ steps.status.outputs.deployment_status || 'pending' }}
         run: |
           if [[ "$ACTION" == "deploy" ]]; then
             STATUS_EMOJI="🚀"
@@ -298,11 +312,19 @@ jobs:
           echo "- Action: \`$ACTION\`" >> /tmp/comment.md
           echo "- Service ID: \`$SERVICE_ID\`" >> /tmp/comment.md
           echo "- Service Existed: \`$EXISTS\`" >> /tmp/comment.md
+          echo "- Domain: \`$DOMAIN\`" >> /tmp/comment.md
+          echo "- Deployment Status: \`$DEPLOYMENT_STATUS\`" >> /tmp/comment.md
           echo "" >> /tmp/comment.md
+          if [[ "$DOMAIN" != "pending" && "$DOMAIN" != "no_domain" && "$DOMAIN" != "not_found" ]]; then
+            echo "### n8n URL" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "https://$DOMAIN" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+          fi
           echo "### Next Steps" >> /tmp/comment.md
           echo "" >> /tmp/comment.md
           echo "1. Wait 2-3 minutes for deployment to complete" >> /tmp/comment.md
-          echo "2. Check Railway dashboard for n8n URL" >> /tmp/comment.md
+          echo "2. Access n8n at the URL above" >> /tmp/comment.md
           echo "3. Configure Telegram webhook to point to n8n" >> /tmp/comment.md
           echo "" >> /tmp/comment.md
           echo "---" >> /tmp/comment.md
