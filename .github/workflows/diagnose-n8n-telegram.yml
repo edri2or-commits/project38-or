@@ -139,8 +139,8 @@ jobs:
               echo ""
               echo "⚠️ WORKFLOW IS NOT ACTIVE! Attempting to activate..."
 
-              # Try to activate the workflow
-              ACTIVATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
+              # Try to activate the workflow using POST (n8n API requirement)
+              ACTIVATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
                 -H "X-N8N-API-KEY: $N8N_API_KEY" \
                 -H "Content-Type: application/json" \
                 "$N8N_URL/api/v1/workflows/$WF_ID/activate" 2>&1)
