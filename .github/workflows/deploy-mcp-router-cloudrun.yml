@@ -71,6 +71,7 @@ jobs:
 
       - name: Deploy to Cloud Run
         id: deploy
+        continue-on-error: true
         run: |
           echo "=========================================="
           echo "DEPLOYING MCP ROUTER TO CLOUD RUN"
@@ -81,6 +82,9 @@ jobs:
           echo ""
           echo "Requirements:"
           cat cloud_functions/mcp_router/requirements.txt
+          echo ""
+          echo "Dockerfile:"
+          cat cloud_functions/mcp_router/Dockerfile
           echo ""
 
           cd cloud_functions/mcp_router
@@ -97,12 +101,30 @@ jobs:
             --max-instances 10 \
             --min-instances 0 \
             --timeout 120s \
-            --set-env-vars="MCP_TUNNEL_TOKEN=${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }},RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0,GCP_PROJECT_ID=${{ env.PROJECT_ID }}"
+            --verbosity=debug \
+            --set-env-vars="MCP_TUNNEL_TOKEN=${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }},RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0,GCP_PROJECT_ID=${{ env.PROJECT_ID }}" 2>&1 | tee /tmp/deploy-output.log
+
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          echo ""
+          echo "Deployment command completed with exit code: ${PIPESTATUS[0]}"
+
+      - name: Report Error if Failed
+        if: steps.deploy.outputs.exit_code != '0'
+        run: |
+          echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Error Output (Last 100 Lines):" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -100 /tmp/deploy-output.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
           echo ""
-          echo "✅ Deployment command completed"
+          echo "=== DEPLOYMENT ERROR OUTPUT ==="
+          cat /tmp/deploy-output.log
+          exit 1
 
       - name: Get Service URL
+        if: steps.deploy.outputs.exit_code == '0'
         id: url
         run: |
           URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
@@ -112,6 +134,7 @@ jobs:
           echo "Service URL: ${URL}"
 
       - name: Test Deployment
+        if: steps.deploy.outputs.exit_code == '0'
         run: |
           URL="${{ steps.url.outputs.service_url }}"
           echo "Testing deployment at: ${URL}"
@@ -137,6 +160,7 @@ jobs:
           fi
 
       - name: Summary
+        if: steps.deploy.outputs.exit_code == '0'
         run: |
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## MCP Router Deployed to Cloud Run 🚀
