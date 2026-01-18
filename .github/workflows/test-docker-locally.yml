@@ -39,7 +39,7 @@ jobs:
 
           echo ""
           echo "=== CONTAINER LOGS ==="
-          docker logs gcp-mcp-test
+          docker logs gcp-mcp-test 2>&1 | tee /tmp/container-logs.txt
           echo "=== END LOGS ==="
           echo ""
 
@@ -54,12 +54,12 @@ jobs:
 
           echo ""
           echo "=== CONTAINER PROCESSES ==="
-          docker exec gcp-mcp-test ps aux
+          docker exec gcp-mcp-test ps aux 2>&1 | tee /tmp/container-processes.txt || echo "Could not get processes"
           echo "=== END PROCESSES ==="
 
           echo ""
           echo "=== NETWORK PORTS ==="
-          docker exec gcp-mcp-test sh -c "netstat -tlnp 2>/dev/null || ss -tlnp" || echo "Could not check ports"
+          docker exec gcp-mcp-test sh -c "netstat -tlnp 2>/dev/null || ss -tlnp" 2>&1 | tee /tmp/container-ports.txt || echo "Could not check ports"
           echo "=== END PORTS ==="
 
       - name: Cleanup
@@ -85,14 +85,31 @@ jobs:
               report += `The container responds on port 8080. The issue is elsewhere.\n\n`;
             } else {
               report += `### ❌ Container Failed to Start\n\n`;
-              report += `Check the logs in the workflow run for the exact error.\n\n`;
             }
 
-            report += `### Key Findings:\n\n`;
-            report += `- Check "Container Logs" section in workflow\n`;
-            report += `- Check "Container Processes" section\n`;
-            report += `- Check "Network Ports" section\n\n`;
-            report += `This test runs the exact same Docker image that Cloud Run would run.\n`;
+            // Read container logs
+            try {
+              const containerLogs = fs.readFileSync('/tmp/container-logs.txt', 'utf8');
+              report += `### Container Logs:\n\n\`\`\`\n${containerLogs.slice(-5000)}\n\`\`\`\n\n`;
+            } catch (e) {
+              report += `### Container Logs:\n\nCould not read logs: ${e.message}\n\n`;
+            }
+
+            // Read processes
+            try {
+              const processes = fs.readFileSync('/tmp/container-processes.txt', 'utf8');
+              report += `### Container Processes:\n\n\`\`\`\n${processes}\n\`\`\`\n\n`;
+            } catch (e) {
+              report += `### Container Processes:\n\nCould not read processes: ${e.message}\n\n`;
+            }
+
+            // Read ports
+            try {
+              const ports = fs.readFileSync('/tmp/container-ports.txt', 'utf8');
+              report += `### Network Ports:\n\n\`\`\`\n${ports}\n\`\`\`\n\n`;
+            } catch (e) {
+              report += `### Network Ports:\n\nCould not read ports: ${e.message}\n\n`;
+            }
 
             // Post to issue #250
             await github.rest.issues.createComment({
