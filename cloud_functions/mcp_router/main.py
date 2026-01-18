@@ -35,7 +35,9 @@ from typing import Any, Optional
 import functions_framework
 import httpx
 from flask import Request
-from google.cloud import secretmanager, storage, compute_v1, iam_v1, resourcemanager_v3
+from google.cloud import secretmanager, storage, compute_v1
+from google.cloud.iam_admin_v1 import IAMClient
+from google.cloud.resourcemanager_v3 import ProjectsClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1458,7 +1460,7 @@ class MCPRouter:
     def _iam_list_accounts(self) -> dict:
         """List service accounts."""
         try:
-            client = iam_v1.IAMClient()
+            client = IAMClient()
             parent = f"projects/{GCP_PROJECT_ID}"
 
             accounts = []
@@ -1482,7 +1484,7 @@ class MCPRouter:
     def _iam_get_policy(self, resource: str) -> dict:
         """Get IAM policy for a resource."""
         try:
-            client = resourcemanager_v3.ProjectsClient()
+            client = ProjectsClient()
             policy = client.get_iam_policy(resource=f"projects/{resource}")
 
             bindings = []
