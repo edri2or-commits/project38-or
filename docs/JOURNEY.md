@@ -2968,5 +2968,49 @@ MCP Gateway (Railway/n8n/Workspace operations)
 
 ---
 
-*Last Updated: 2026-01-17*
-*Status: **Telegram Bot Implementation Complete, Deployment Pending***
+## 2026-01-18: MCP Router Cloud Run Migration
+
+### Problem: Cloud Functions Python 3.12 Failures
+
+After 24+ consecutive Cloud Functions Gen 2 deployment failures, forensic analysis revealed:
+
+1. **Root Cause**: Python 3.12 removed the `imp` module
+2. **Impact**: google-cloud-secret-manager transitive dependencies (protobuf, grpcio) fail during build
+3. **Symptoms**: Build timeout, import errors, version conflicts
+
+**Failed Approaches**:
+- Lazy loading for secretmanager (still failed)
+- Pinned dependency versions (still failed)
+- Updated functions-framework to >=3.8.0 (still failed)
+- Gen 1 deployment (still failed)
+
+### Solution: Migrate to Cloud Run
+
+Cloud Run allows custom Dockerfiles, providing full control over:
+- Python version (3.11 instead of 3.12)
+- Dependency installation
+- Build process
+
+**Implementation** (PR #260):
+- `cloud_functions/mcp_router/Dockerfile` - Python 3.11-slim base
+- `cloud_functions/mcp_router/app.py` - Flask wrapper for Cloud Run
+- `.github/workflows/deploy-mcp-router-cloudrun.yml` - Deployment workflow
+- `--clear-base-image` flag - Required for buildpack-to-Dockerfile transition
+
+### Result
+
+- **Deployment**: Workflow #21115303316 succeeded in 1m 41s
+- **URL**: `https://mcp-router-3e7yyrd7xq-uc.a.run.app`
+- **Status**: All 20 MCP tools operational
+
+### Key Learnings
+
+1. **Cloud Functions buildpacks are opaque** - No control over Python version or dependencies
+2. **Cloud Run provides escape hatch** - Dockerfile gives full control
+3. **Error reporting is critical** - GitHub issue creation in workflow enabled debugging
+4. **YAML syntax matters** - `**bold**` markdown breaks YAML parsing (interpreted as alias)
+
+---
+
+*Last Updated: 2026-01-18*
+*Status: **MCP Router Operational on Cloud Run***
