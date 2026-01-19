@@ -237,6 +237,33 @@ jobs:
               "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_USER_MANAGEMENT_DISABLED\", value: \"true\" }) }"
             }'
 
+          # Listen on all interfaces (critical for Railway containers)
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_LISTEN_ADDRESS\", value: \"0.0.0.0\" }) }"
+            }'
+
+          # Webhook tunnel URL (some n8n versions need this instead of WEBHOOK_URL)
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"WEBHOOK_TUNNEL_URL\", value: \"https://n8n-production-2fe0.up.railway.app/\" }) }"
+            }'
+
+          # Generic Timezone configuration
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"GENERIC_TIMEZONE\", value: \"UTC\" }) }"
+            }'
+
           echo "✅ Environment variables configured (including Telegram Bot Token and webhook config)"
 
       - name: Force Restart n8n
