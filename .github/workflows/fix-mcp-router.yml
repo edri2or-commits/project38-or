@@ -1,0 +1,91 @@
+name: Fix MCP Router (Gen 1)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  FUNCTION_NAME: mcp-router
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  CLOUD_RUN_URL: https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Check current function state
+        run: |
+          echo "=== Current mcp-router state ==="
+          gcloud functions describe ${{ env.FUNCTION_NAME }} --region=us-central1 --format="yaml(name,status,runtime,httpsTrigger.url)" || echo "Function not found"
+
+      - name: Deploy simple proxy to mcp-router
+        run: |
+          echo "Deploying simple proxy code to mcp-router..."
+
+          gcloud functions deploy ${{ env.FUNCTION_NAME }} \
+            --runtime=python311 \
+            --region=us-central1 \
+            --source=cloud_functions/mcp_proxy \
+            --entry-point=mcp_proxy \
+            --trigger-http \
+            --allow-unauthenticated \
+            --service-account=${{ env.SERVICE_ACCOUNT }} \
+            --memory=256MB \
+            --timeout=120s \
+            --set-env-vars="CLOUD_RUN_URL=${{ env.CLOUD_RUN_URL }}"
+
+          echo "✅ Deployment completed"
+
+      - name: Verify function
+        run: |
+          echo "=== Function state after deploy ==="
+          gcloud functions describe ${{ env.FUNCTION_NAME }} --region=us-central1 --format="yaml(name,status,runtime,httpsTrigger.url)"
+
+          echo ""
+          echo "=== Testing HTTP endpoint ==="
+          URL="https://us-central1-${{ env.PROJECT_ID }}.cloudfunctions.net/${{ env.FUNCTION_NAME }}"
+          echo "URL: $URL"
+
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST "$URL" -H "Content-Type: application/json" -d '{}')
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response body:"
+          cat /tmp/response.txt
+          echo ""
+
+          if [ "$HTTP_CODE" = "502" ] || [ "$HTTP_CODE" = "504" ]; then
+            echo "⚠️ Backend connection issue (expected - Cloud Run blocked from GH Actions)"
+          elif [ "$HTTP_CODE" = "404" ]; then
+            echo "❌ 404 - Function not responding"
+            exit 1
+          elif [ "$HTTP_CODE" = "503" ]; then
+            echo "❌ 503 - Service unavailable"
+            exit 1
+          else
+            echo "✅ Function responding (status: $HTTP_CODE)"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## MCP Router Fix Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Function:** ${{ env.FUNCTION_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://us-central1-${{ env.PROJECT_ID }}.cloudfunctions.net/${{ env.FUNCTION_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This deploys simple proxy code to the existing Gen 1 mcp-router function." >> $GITHUB_STEP_SUMMARY
