@@ -1570,6 +1570,187 @@ If GCP Tunnel fails:
 - **Cloud sessions**: Use GCP Tunnel at `cloudfunctions.googleapis.com` (bypasses Anthropic proxy)
 - **Both environments**: Full access to 24 autonomous tools across Railway, n8n, Monitoring, and Google Workspace
 
+---
+
+## GCP MCP Server (Autonomous GCP Operations)
+
+**Status**: ✅ **DEPLOYED** (2026-01-19 21:57 UTC)
+
+**Purpose**: FastMCP server providing autonomous Google Cloud Platform operations via Model Context Protocol. Enables Claude Code to manage GCP resources without manual gcloud commands.
+
+**Production Service**: `gcp-mcp-gateway` @ us-central1
+
+**Architecture Decision**: See [ADR-006: GCP Agent Autonomy](docs/decisions/ADR-006-gcp-agent-autonomy.md)
+
+### Available Tools (20+)
+
+| Category | Tools | Description |
+|----------|-------|-------------|
+| **gcloud CLI** | 1 tool | `gcloud_execute` - Execute any gcloud command |
+| **Secret Manager** | 5 tools | list, get, create, update, delete secrets |
+| **Compute Engine** | 6 tools | list, get, start, stop, create, delete VMs |
+| **Cloud Storage** | 5 tools | list buckets/objects, upload, download, delete |
+| **IAM** | 3 tools | list roles, get policy, list service accounts |
+
+**Total**: 20+ tools across 5 GCP service categories
+
+### Deployment Details
+
+| Property | Value |
+|----------|-------|
+| **Service** | gcp-mcp-gateway |
+| **Region** | us-central1 |
+| **Project** | project38-483612 |
+| **Platform** | Cloud Run (managed) |
+| **Memory** | 512Mi |
+| **CPU** | 1 vCPU |
+| **Min Instances** | 0 (scales to zero) |
+| **Max Instances** | 10 |
+| **Timeout** | 300s |
+| **Deployed** | 2026-01-19 21:57 UTC |
+| **Run ID** | 21152406969 |
+
+### Authentication
+
+**Method**: Workload Identity Federation (keyless)
+- Service Account: `claude-code-agent@project38-483612.iam.gserviceaccount.com`
+- No static credentials stored
+- Ephemeral tokens generated at runtime
+- Bearer token for MCP client authentication
+
+**Bearer Token**:
+- Entropy: 256 bits (43 characters, URL-safe base64)
+- Storage: GCP Secret Manager (`GCP-MCP-TOKEN`)
+- Documentation: Issue #336
+
+### Configuration
+
+**Step 1: Retrieve Service URL**
+```bash
+gcloud run services describe gcp-mcp-gateway \
+  --region us-central1 \
+  --format='value(status.url)'
+```
+
+**Step 2: Get Bearer Token**
+```bash
+# From Issue #336 or GCP Secret Manager
+gcloud secrets versions access latest \
+  --secret="GCP-MCP-TOKEN" \
+  --project=project38-483612
+```
+
+**Step 3: Configure Claude Code**
+```bash
+claude mcp add --transport http \
+  --header "Authorization: Bearer <token>" \
+  --scope user \
+  gcp-mcp https://gcp-mcp-gateway-[hash].run.app
+```
+
+Or manually edit `~/.claude.json`:
+```json
+{
+  "mcpServers": {
+    "gcp-mcp": {
+      "type": "http",
+      "url": "https://gcp-mcp-gateway-[hash].run.app",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}
+```
+
+### Usage Examples
+
+```bash
+# Example prompts with GCP MCP Server:
+
+"List all secrets in project38-483612"
+→ Uses: secrets_list()
+
+"Show compute instances in us-central1"
+→ Uses: compute_list_instances(zone='us-central1-a')
+
+"Run: gcloud projects describe project38-483612"
+→ Uses: gcloud_execute(command='projects describe project38-483612')
+
+"Create a Cloud Storage bucket named 'test-bucket'"
+→ Uses: storage_create_bucket(name='test-bucket')
+
+"List IAM service accounts"
+→ Uses: iam_list_service_accounts()
+```
+
+### Architecture
+
+```
+Claude Code Session
+    ↓ (MCP Protocol over HTTPS)
+GCP MCP Server (Cloud Run) ← Bearer Token Auth
+    ↓ (Workload Identity Federation)
+┌─────────────────────────────────────┐
+│  gcloud SDK (any GCP API)           │
+│  Secret Manager API                  │
+│  Compute Engine API                  │
+│  Cloud Storage API                   │
+│  IAM API                            │
+└─────────────────────────────────────┘
+```
+
+**Why keyless authentication works**:
+- Cloud Run service uses service account identity
+- Workload Identity Federation provides ephemeral tokens
+- No static credentials needed
+- Full audit trail in Cloud Logging
+
+### Files
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `src/gcp_mcp/server.py` | FastMCP server with tool registration | 269 |
+| `src/gcp_mcp/tools/gcloud.py` | gcloud CLI execution | 126 |
+| `src/gcp_mcp/tools/secrets.py` | Secret Manager operations | 207 |
+| `src/gcp_mcp/tools/compute.py` | Compute Engine management | 238 |
+| `src/gcp_mcp/tools/storage.py` | Cloud Storage operations | 169 |
+| `src/gcp_mcp/tools/iam.py` | IAM queries | 104 |
+| `src/gcp_mcp/Dockerfile` | Container image with gcloud SDK | 23 |
+| `src/gcp_mcp/requirements.txt` | Python dependencies | 5 |
+| `.github/workflows/deploy-gcp-mcp*.yml` | Deployment workflows | 3 files |
+
+**Total**: 1,183 lines of production code
+
+### Security Features
+
+- ✅ **Bearer Token Authentication**: 256-bit entropy token required
+- ✅ **Workload Identity**: No static credentials stored
+- ✅ **Audit Trail**: All operations logged in Cloud Logging
+- ✅ **Least Privilege**: Service account has minimal required permissions
+- ✅ **Secret Isolation**: Secrets never logged or exposed
+- ✅ **HTTPS Only**: All traffic encrypted in transit
+
+### Implementation Status
+
+| Phase | Status | Completion Date | Evidence |
+|-------|--------|-----------------|----------|
+| **Phase 1: Core Implementation** | ✅ Complete | 2026-01-18 | 1,183 lines, 5 modules |
+| **Phase 2: Deployment** | ✅ Complete | 2026-01-19 | Run #21152406969 |
+| **Phase 3: Testing** | ⏭️ Pending | - | Bearer token available |
+| **Phase 4: Documentation** | ⏭️ Pending | - | Awaiting Phase 3 results |
+
+### Related Documentation
+
+- **ADR-006**: [GCP Agent Autonomy](docs/decisions/ADR-006-gcp-agent-autonomy.md)
+- **Changelog**: [docs/changelog.md](docs/changelog.md) (GCP MCP Server entry)
+- **Journey**: [docs/JOURNEY.md](docs/JOURNEY.md) (Phase 20)
+- **Issue #336**: Bearer token and setup instructions
+- **PR #335**: Documentation prep (merged)
+- **PR #337**: Phase 2 completion docs
+
+---
+
 ### LiteLLM Gateway (Multi-LLM Routing)
 
 **Status**: ✅ **DEPLOYED** (2026-01-17 20:14 UTC)

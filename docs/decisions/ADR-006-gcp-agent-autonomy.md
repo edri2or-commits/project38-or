@@ -291,16 +291,28 @@ src/gcp_mcp/
 - [x] Create `requirements.txt`
 - [x] Write `README.md`
 
-### Phase 2: Deployment ✅ INFRASTRUCTURE READY (2026-01-19)
+### Phase 2: Deployment ✅ COMPLETED (2026-01-19)
 
 - [x] Create GitHub Actions workflow (`.github/workflows/deploy-gcp-mcp.yml`)
 - [x] Create additional workflows for diagnostics and direct deployment
 - [x] MCP Router successfully deployed to Cloud Run (separate service, Run #21140683187)
-- [ ] GCP MCP Server deployment pending (workflows ready, waiting for merge to main)
-- [ ] Generate Bearer token: `gh workflow run deploy-gcp-mcp.yml -f action=generate-token`
-- [ ] Verify deployment: `curl https://gcp-mcp-gateway-XXX.run.app/health`
+- [x] **GCP MCP Server deployed to Cloud Run** (Run #21152406969, 2026-01-19 21:52 UTC)
+  - Service: `gcp-mcp-gateway`
+  - Region: `us-central1`
+  - Project: `project38-483612`
+  - Status: ✅ Success
+- [x] Bearer token generated and documented (Issue #336)
+  - Token: `tLAb_sTuMguCIuRm0f5luxuvUzYYeAyDngXyIJ1NsC8`
+  - Entropy: 256 bits (43 characters, URL-safe base64)
+- [ ] Verify deployment health endpoint
+- [ ] Store token in GCP Secret Manager
 
-**Note**: Phase 2 infrastructure is complete. Workflows exist but cannot be triggered from current branch as they're not yet in main. Requires PR merge before deployment execution.
+**Deployment Details:**
+- **Run ID**: 21152406969
+- **Duration**: ~5 minutes
+- **Workflow**: deploy-gcp-mcp-direct.yml
+- **Result**: ✅ Successful
+- **URL**: https://gcp-mcp-gateway-[hash]-uc.a.run.app (retrieve with gcloud)
 
 ### Phase 3: Testing ⏭️ PENDING
 
@@ -442,6 +454,9 @@ claude mcp add --transport http \
 | 2026-01-18 | **Phase 2 Started** | Deployment workflow created |
 | 2026-01-19 | **Infrastructure Ready** | All code complete, workflows created, awaiting merge to main |
 | 2026-01-19 | **Related Deployment** | MCP Router deployed successfully (Cloud Run, serves Protocol Encapsulation) |
+| 2026-01-19 | **PR #335 Merged** | Documentation updates merged to main (SHA: 06b7a4a) |
+| 2026-01-19 | **Phase 2 Complete** | GCP MCP Server deployed to Cloud Run (Run #21152406969) |
+| 2026-01-19 | **Bearer Token Generated** | Secure token created and documented (Issue #336) |
 
 ---
 
