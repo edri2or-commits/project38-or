@@ -38,10 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Create GitHub Issue with configuration instructions
   - **Test Features**:
     - Test MCP protocol (tools/list)
-    - Test individual tools (secrets_list, gcloud_execute, iam_list_service_accounts)
-    - Create GitHub Issue with test results
+    - Test individual tools (secret_list, gcloud_run, iam_list_accounts)
+    - Enhanced endpoint discovery for debugging
+    - Create GitHub Issue with diagnostic results
   - **Deployment**: PR #338 (2026-01-19), Run #21153100309 (setup ✅ success, tests ⚠️ partial)
-  - **Evidence**: PR #338, Run #21153100309, Issues #339/#340
+  - **Test Fix**: PR #343 - Fixed tool name mismatches and added comprehensive diagnostics
+  - **Evidence**: PR #338, PR #343, Run #21153100309, Issues #339/#340
 
 - **GitHub API Module** (2026-01-19) - Universal GitHub API client for all environments
   - `src/github_api.py` - Python-based GitHub API client (265 lines)

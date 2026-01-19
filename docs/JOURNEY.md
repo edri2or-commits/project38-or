@@ -3909,21 +3909,39 @@ claude mcp add --transport http \
 - Reproducible across environments
 - Self-documenting (Issues with results)
 
+### Phase 3 Test Fix (2026-01-19)
+
+**Root Cause of Test Failures** (PR #343):
+The automated test script used incorrect tool names:
+- `secrets_list` → should be `secret_list`
+- `gcloud_execute` → should be `gcloud_run`
+- `iam_list_service_accounts` → should be `iam_list_accounts`
+
+**Fix Applied**:
+- Corrected tool name mappings
+- Added comprehensive endpoint discovery phase
+- Enhanced diagnostic output for debugging
+- Updated issue template for diagnostic reporting
+
+**PR #343**: https://github.com/edri2or-commits/project38-or/pull/343
+
 ### Next Steps (Phase 4)
 
-1. **Debug Tool Tests**: Fix test-tools job failures
-2. **Test All 20+ Tools**: Verify secrets, compute, storage, IAM categories
-3. **Update CLAUDE.md**: Add Phase 3 Service URL and configuration (Layer 1)
-4. **Complete Documentation**: Finalize ADR-006 Phase 4
-5. **Integration Testing**: Test with actual Claude Code session
+1. ~~Debug Tool Tests~~: ✅ Fixed (PR #343)
+2. **Re-run Tests**: Execute fixed workflow to verify tools
+3. **Test All 20+ Tools**: Verify secrets, compute, storage, IAM categories
+4. **Update CLAUDE.md**: Add Phase 3 Service URL and configuration (Layer 1)
+5. **Complete Documentation**: Finalize ADR-006 Phase 4
+6. **Integration Testing**: Test with actual Claude Code session
 
 ### Evidence
 
-- **Workflow**: `.github/workflows/gcp-mcp-phase3-setup.yml` (318 lines)
+- **Workflow**: `.github/workflows/gcp-mcp-phase3-setup.yml` (380+ lines)
 - **Run #21153100309**: https://github.com/edri2or-commits/project38-or/actions/runs/21153100309
 - **Issue #339**: Setup Complete - https://github.com/edri2or-commits/project38-or/issues/339
 - **Issue #340**: Test Results - https://github.com/edri2or-commits/project38-or/issues/340
 - **PR #341**: Merged (Phase 3 workflow)
+- **PR #343**: Merged (Test fix - tool name corrections)
 - **ADR-006**: Updated with Phase 3 status
 
 ### Current Status
@@ -3947,5 +3965,5 @@ claude mcp add --transport http \
 
 ---
 
-*Last Updated: 2026-01-19 22:30 UTC*
-*Status: **GCP MCP Server Phase 3 Setup Complete - Testing Pending***
+*Last Updated: 2026-01-19 23:00 UTC*
+*Status: **GCP MCP Server Phase 3 - Test Fix Applied (PR #343), Awaiting Re-test***

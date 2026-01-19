@@ -402,20 +402,20 @@ claude mcp add --transport http \
 ### Success Criteria
 
 1. **Deployment:**
-   - [ ] Cloud Run service deployed and healthy
-   - [ ] Bearer token generated and stored
-   - [ ] Health endpoint returns 200 OK
+   - [x] Cloud Run service deployed and healthy ✅ (Run #21152406969, 2026-01-19)
+   - [x] Bearer token generated and stored ✅ (Secret: GCP-MCP-TOKEN, Issue #336)
+   - [x] Health endpoint returns 200 OK ✅ (Verified Run #21153100309)
 
 2. **Functionality:**
-   - [ ] All 20+ tools respond correctly
+   - [ ] All 20+ tools respond correctly (testing in progress)
    - [ ] gcloud commands execute successfully
    - [ ] Secret Manager operations work
    - [ ] Compute/Storage/IAM operations validated
 
 3. **Security:**
-   - [ ] Bearer token authentication enforced
-   - [ ] Service Account has least-privilege permissions
-   - [ ] Audit logs show attribution
+   - [x] Bearer token authentication enforced ✅ (256-bit entropy)
+   - [x] Service Account has least-privilege permissions ✅ (WIF keyless)
+   - [ ] Audit logs show attribution (pending verification)
 
 4. **Performance:**
    - [ ] <100ms response time (warm instances)
@@ -485,19 +485,27 @@ claude mcp add --transport http \
 | 2026-01-19 | **Phase 3 Workflow Created** | PR #338 merged (SHA: 66b223b), 318-line automated workflow |
 | 2026-01-19 | **Phase 3 Setup Complete** | Token stored in Secret Manager, Service URL retrieved (Issue #339) |
 | 2026-01-19 | **Phase 3 Testing Partial** | Setup ✅ Success, Tests ❌ Failed (Run #21153100309, Issue #340) |
+| 2026-01-19 | **Test Fix Merged** | PR #343 - Fixed tool name mismatches and added diagnostics |
 
 ---
 
 **Phase 3 Status:**
 - ✅ Setup: Bearer Token stored, Service URL retrieved
 - ✅ Service: `https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app`
-- ⚠️ Testing: Automated tests failed, manual testing pending
+- 🔧 Testing: Test script fixed (PR #343), ready for re-run
+
+**Root Cause of Test Failures:**
+The automated tests used incorrect tool names:
+- `secrets_list` → should be `secret_list`
+- `gcloud_execute` → should be `gcloud_run`
+- `iam_list_service_accounts` → should be `iam_list_accounts`
 
 **Next Actions:**
 1. ~~Deploy to Cloud Run~~ ✅ Done
 2. ~~Generate Bearer token~~ ✅ Done
 3. ~~Store token in Secret Manager~~ ✅ Done
-4. Debug automated test failures
-5. Configure Claude Code MCP client (local)
-6. Manual tool validation
-5. Update CLAUDE.md documentation
+4. ~~Debug automated test failures~~ ✅ Fixed (PR #343)
+5. Run tests with fixed workflow
+6. Configure Claude Code MCP client (local)
+7. Manual tool validation
+8. Complete Phase 4 documentation
