@@ -59,7 +59,9 @@ class GitHubAPI:
         """
         self.token = token or os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
         if not self.token:
-            raise ValueError("No GitHub token found. Set GH_TOKEN or GITHUB_TOKEN environment variable.")
+            raise ValueError(
+                "No GitHub token found. Set GH_TOKEN or GITHUB_TOKEN environment variable."
+            )
 
         self.repo = repo
         self.base_url = f"https://api.github.com/repos/{repo}"
@@ -317,8 +319,15 @@ if __name__ == "__main__":
             if command == "runs":
                 runs = api.get_workflow_runs(limit=5)
                 for run in runs:
-                    status_icon = "✅" if run.get('conclusion') == 'success' else "❌" if run.get('conclusion') == 'failure' else "🔄"
-                    print(f"{status_icon} {run['name']}: {run['status']} ({run.get('conclusion', 'running')})")
+                    conclusion = run.get('conclusion')
+                    if conclusion == 'success':
+                        status_icon = "✅"
+                    elif conclusion == 'failure':
+                        status_icon = "❌"
+                    else:
+                        status_icon = "🔄"
+                    status = run.get('conclusion', 'running')
+                    print(f"{status_icon} {run['name']}: {run['status']} ({status})")
 
             elif command == "trigger" and len(sys.argv) > 2:
                 workflow = sys.argv[2]
@@ -338,7 +347,7 @@ if __name__ == "__main__":
         else:
             # Default: show recent runs
             runs = api.get_workflow_runs(limit=3)
-            print(f"Recent workflow runs:")
+            print("Recent workflow runs:")
             for run in runs:
                 print(f"  - {run['name']}: {run.get('conclusion', run['status'])}")
 
