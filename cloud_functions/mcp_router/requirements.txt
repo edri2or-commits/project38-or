@@ -1,7 +1,9 @@
 # MCP Router Dependencies
-# Deployed on Cloud Run with Python 3.11 (Dockerfile)
-# Migrated from Cloud Functions due to Python 3.12 compatibility issues
-# Updated: 2026-01-18
+# Supports both Cloud Functions and Cloud Run
+# Updated: 2026-01-19
+
+# Cloud Functions Framework (required for gcloud functions deploy)
+functions-framework>=3.0.0
 
 # Web Framework
 flask>=2.0.0
