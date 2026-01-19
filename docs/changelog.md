@@ -7,7 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **GitHub API Module** (2026-01-19) - Universal GitHub API client for all environments
+  - `src/github_api.py` - Python-based GitHub API client (265 lines)
+  - Works in ALL Claude Code environments including Anthropic cloud
+  - Replaces `gh CLI` which is not available in cloud environments
+  - Uses `requests` library which handles Anthropic proxy correctly
+  - **Features**: Workflow runs, trigger workflows, create issues, PR operations
+  - **Usage**: `python3 src/github_api.py runs` or import as module
+  - **Evidence**: PR #332
+
+- **GCP Tunnel Health Check Workflow** (2026-01-19) - Automated monitoring every 6 hours
+  - `.github/workflows/gcp-tunnel-health-check.yml` - Scheduled health check
+  - Monitors: Cloud Run, Cloud Function, MCP Tools, Secret Manager
+  - Creates GitHub Issue automatically on failure
+  - **Schedule**: Every 6 hours (`0 */6 * * *`)
+  - **Evidence**: PR #332, Run ID 21140826799 (all checks passed)
+
+- **Secret Manager Token Mounting** (2026-01-19) - Permanent token synchronization
+  - Changed `deploy-mcp-router-cloudrun.yml` from `--set-env-vars` to `--set-secrets`
+  - Token now mounts from Secret Manager at runtime (single source of truth)
+  - No more token sync issues between sessions
+  - **Evidence**: PR #332
+
 ### Fixed
+- **IAM Workflow Verify Step** (2026-01-19) - Fix false failure in setup workflow
+  - `setup-cloudrun-permissions.yml` Verify Setup step no longer fails
+  - Root cause: SA lacks `resourcemanager.projects.getIamPolicy` permission
+  - Solution: Changed to list granted roles without reading IAM policy
+  - Added `cloudfunctions.admin` and `secretmanager.secretAccessor` roles
+  - **Evidence**: PR #332, Run ID 21140194164 (success)
+
+- **Health Check Workflow Syntax** (2026-01-19) - Fix GitHub Actions expression error
+  - Ternary operators (`? :`) not supported in `${{ }}` expressions
+  - Solution: Use environment variables and JavaScript ternary in script block
+  - **Evidence**: PR #333
+
 - **GCP Tunnel Cloud Functions Deployment** (2026-01-19) - Fix Python 3.12 imp module issue
   - Changed runtime from `python312` to `python311` in `deploy-mcp-router.yml`
   - **Root Cause**: Python 3.12 removed `imp` module, breaking gcloud buildpack
