@@ -219,7 +219,53 @@ jobs:
               "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"EXECUTIONS_MODE\", value: \"regular\" }) }"
             }'
 
+          # N8N Editor base URL (required for webhooks in some versions)
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_EDITOR_BASE_URL\", value: \"https://n8n-production-2fe0.up.railway.app\" }) }"
+            }'
+
+          # Disable user management (not needed for webhook-only usage)
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_USER_MANAGEMENT_DISABLED\", value: \"true\" }) }"
+            }'
+
           echo "✅ Environment variables configured (including Telegram Bot Token and webhook config)"
+
+      - name: Force Restart n8n
+        if: inputs.action == 'deploy' || inputs.action == 'configure-env'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.check.outputs.service_id || steps.create.outputs.service_id }}
+        run: |
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          echo "Forcing n8n restart..."
+
+          # First trigger a redeploy to apply environment variable changes
+          RESTART_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceInstanceRedeploy(serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\") { id status } }"
+            }')
+
+          echo "Restart response: $RESTART_RESPONSE"
+
+          DEPLOYMENT_ID=$(echo "$RESTART_RESPONSE" | jq -r '.data.serviceInstanceRedeploy.id // "null"')
+          if [[ "$DEPLOYMENT_ID" != "null" && -n "$DEPLOYMENT_ID" ]]; then
+            echo "✅ Restart triggered: $DEPLOYMENT_ID"
+          else
+            echo "⚠️ Restart response: $RESTART_RESPONSE"
+          fi
 
       - name: Deploy from Docker Image
         if: inputs.action == 'deploy'
