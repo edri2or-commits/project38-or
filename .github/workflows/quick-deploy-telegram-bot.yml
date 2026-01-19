@@ -1,0 +1,106 @@
+name: Quick Deploy Telegram Bot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  RAILWAY_PROJECT_ID: "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+  RAILWAY_ENVIRONMENT_ID: "99c99a18-aea2-4d01-9360-6a93705102a0"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Secrets
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "::add-mask::$BOT_TOKEN"
+          echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+          echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Find or Create Telegram Bot Service
+        id: service
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          # Find existing telegram-bot service
+          SERVICES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { services { edges { node { id name } } } } }"
+            }')
+
+          echo "Services response:"
+          echo "$SERVICES" | jq '.data.project.services.edges[].node'
+
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.id' | head -1)
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "Creating new telegram-bot service..."
+            CREATE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "mutation { serviceCreate(input: { name: \"telegram-bot\", projectId: \"'"$RAILWAY_PROJECT_ID"'\" }) { id name } }"
+              }')
+            echo "Create response: $CREATE"
+            SERVICE_ID=$(echo "$CREATE" | jq -r '.data.serviceCreate.id')
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+
+      - name: Trigger Deployment
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          echo "Triggering deployment for service $SERVICE_ID..."
+
+          # First, connect the service to the GitHub repo if not already
+          # Then trigger a deployment from the services/telegram-bot directory
+
+          DEPLOY=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceInstanceRedeploy(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\") }"
+            }')
+
+          echo "Deploy response: $DEPLOY"
+
+          # Wait a bit and check status
+          sleep 10
+
+          STATUS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { service(id: \"'"$SERVICE_ID"'\") { name deployments(first: 1) { edges { node { id status } } } } }"
+            }')
+
+          echo "Status: $STATUS" | jq '.'
