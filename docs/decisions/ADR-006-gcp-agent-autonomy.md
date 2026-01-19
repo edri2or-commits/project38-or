@@ -304,19 +304,33 @@ src/gcp_mcp/
 - [x] Bearer token generated and documented (Issue #336)
   - Token: `tLAb_sTuMguCIuRm0f5luxuvUzYYeAyDngXyIJ1NsC8`
   - Entropy: 256 bits (43 characters, URL-safe base64)
-- [ ] Verify deployment health endpoint
-- [ ] Store token in GCP Secret Manager
+- [x] Verify deployment health endpoint ✅ (Workflow Run #21153100309)
+- [x] Store token in GCP Secret Manager ✅ (Secret: `GCP-MCP-TOKEN`)
 
 **Deployment Details:**
 - **Run ID**: 21152406969
 - **Duration**: ~5 minutes
 - **Workflow**: deploy-gcp-mcp-direct.yml
 - **Result**: ✅ Successful
-- **URL**: https://gcp-mcp-gateway-[hash]-uc.a.run.app (retrieve with gcloud)
+- **URL**: `https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app`
 
-### Phase 3: Testing ⏭️ PENDING
+### Phase 3: Testing 🔄 IN PROGRESS (2026-01-19)
 
-- [ ] Configure Claude Code MCP client
+**Setup Completed** ✅ (Workflow Run #21153100309):
+- [x] Created Phase 3 workflow (`.github/workflows/gcp-mcp-phase3-setup.yml`, 318 lines)
+- [x] Stored Bearer Token in GCP Secret Manager (Secret: `GCP-MCP-TOKEN`)
+- [x] Retrieved Service URL: `https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app`
+- [x] Verified health endpoint (HTTP 200)
+- [x] Created setup instructions (Issue #339)
+
+**Testing Results** ⚠️ (Partial):
+- [x] Workflow created and executed
+- [x] Setup job: ✅ Success
+- [ ] Test job: ❌ Failed (MCP tools test step)
+- [ ] Tool tests pending manual verification
+
+**Pending**:
+- [ ] Configure Claude Code MCP client (local)
 - [ ] Test each tool category:
   - [ ] gcloud commands
   - [ ] Secret Manager operations
@@ -325,6 +339,16 @@ src/gcp_mcp/
   - [ ] IAM queries
 - [ ] Verify security (bearer token auth)
 - [ ] Check audit logs in Cloud Logging
+- [ ] Debug and fix automated test failures
+
+**Configuration Details:**
+```bash
+# Add to Claude Code
+claude mcp add --transport http \
+  --header "Authorization: Bearer tLAb_sTuMguCIuRm0f5luxuvUzYYeAyDngXyIJ1NsC8" \
+  --scope user \
+  gcp-mcp https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app
+```
 
 ### Phase 4: Documentation ⏭️ PENDING
 
@@ -457,12 +481,23 @@ claude mcp add --transport http \
 | 2026-01-19 | **PR #335 Merged** | Documentation updates merged to main (SHA: 06b7a4a) |
 | 2026-01-19 | **Phase 2 Complete** | GCP MCP Server deployed to Cloud Run (Run #21152406969) |
 | 2026-01-19 | **Bearer Token Generated** | Secure token created and documented (Issue #336) |
+| 2026-01-19 | **4-Layer Documentation Complete** | PR #337 merged (SHA: 93d79b9), all 4 layers updated |
+| 2026-01-19 | **Phase 3 Workflow Created** | PR #338 merged (SHA: 66b223b), 318-line automated workflow |
+| 2026-01-19 | **Phase 3 Setup Complete** | Token stored in Secret Manager, Service URL retrieved (Issue #339) |
+| 2026-01-19 | **Phase 3 Testing Partial** | Setup ✅ Success, Tests ❌ Failed (Run #21153100309, Issue #340) |
 
 ---
 
+**Phase 3 Status:**
+- ✅ Setup: Bearer Token stored, Service URL retrieved
+- ✅ Service: `https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app`
+- ⚠️ Testing: Automated tests failed, manual testing pending
+
 **Next Actions:**
-1. Deploy to Cloud Run (run workflow)
-2. Generate Bearer token
-3. Configure Claude Code MCP client
-4. Validate all tools
+1. ~~Deploy to Cloud Run~~ ✅ Done
+2. ~~Generate Bearer token~~ ✅ Done
+3. ~~Store token in Secret Manager~~ ✅ Done
+4. Debug automated test failures
+5. Configure Claude Code MCP client (local)
+6. Manual tool validation
 5. Update CLAUDE.md documentation
