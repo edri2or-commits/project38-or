@@ -190,7 +190,30 @@ jobs:
                 fi
               fi
             else
-              echo "✅ Workflow is already active!"
+              echo "Workflow is already active, but let's toggle it to force webhook re-registration..."
+
+              # Deactivate
+              echo "Deactivating workflow..."
+              DEACTIVATE=$(curl -s -X PATCH \
+                -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                -H "Content-Type: application/json" \
+                "$N8N_URL/api/v1/workflows/$WF_ID" \
+                -d '{"active":false}' 2>&1)
+              echo "Deactivate response: $DEACTIVATE"
+
+              # Wait a moment
+              sleep 2
+
+              # Reactivate
+              echo "Reactivating workflow..."
+              REACTIVATE=$(curl -s -X PATCH \
+                -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                -H "Content-Type: application/json" \
+                "$N8N_URL/api/v1/workflows/$WF_ID" \
+                -d '{"active":true}' 2>&1)
+              echo "Reactivate response: $REACTIVATE"
+
+              echo "✅ Workflow toggled to force webhook re-registration"
             fi
           else
             echo "❌ Workflow 'Telegram Webhook Bot' NOT FOUND!"
