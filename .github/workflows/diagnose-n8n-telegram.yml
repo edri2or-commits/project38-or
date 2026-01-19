@@ -2,6 +2,15 @@ name: Diagnose n8n Telegram
 
 on:
   workflow_dispatch:
+    inputs:
+      update_webhook:
+        description: 'Update webhook to FastAPI bot (for AI responses)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: read
@@ -50,6 +59,45 @@ jobs:
           echo "telegram_webhook_url=$WEBHOOK_URL" >> $GITHUB_OUTPUT
           echo "telegram_pending=$PENDING" >> $GITHUB_OUTPUT
           echo "telegram_last_error=$LAST_ERROR" >> $GITHUB_OUTPUT
+          exit 0
+
+      - name: Update Webhook to FastAPI Bot
+        id: update-webhook
+        if: inputs.update_webhook == 'true'
+        env:
+          TELEGRAM_TOKEN: ${{ steps.secrets.outputs.telegram_token }}
+        run: |
+          set +e
+          FASTAPI_URL="https://telegram-bot-production-053d.up.railway.app/webhook"
+
+          echo "=== Updating Telegram Webhook to FastAPI Bot ==="
+          echo "Target URL: $FASTAPI_URL"
+          echo ""
+
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook" \
+            -d "url=$FASTAPI_URL" \
+            -d "max_connections=40" \
+            -d "drop_pending_updates=false")
+
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.ok' 2>/dev/null || echo "false")
+
+          if [ "$SUCCESS" = "true" ]; then
+            echo ""
+            echo "✅ Webhook updated to FastAPI bot!"
+            echo ""
+            echo "Verifying..."
+            VERIFY=$(curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getWebhookInfo")
+            NEW_URL=$(echo "$VERIFY" | jq -r '.result.url')
+            echo "New webhook URL: $NEW_URL"
+            echo "webhook_updated=true" >> $GITHUB_OUTPUT
+            echo "new_webhook_url=$NEW_URL" >> $GITHUB_OUTPUT
+          else
+            echo ""
+            echo "❌ Failed to update webhook"
+            echo "webhook_updated=false" >> $GITHUB_OUTPUT
+          fi
           exit 0
 
       - name: Check n8n Health
@@ -442,6 +490,8 @@ jobs:
           TELEGRAM_WEBHOOK_URL: ${{ steps.telegram-webhook.outputs.telegram_webhook_url }}
           TELEGRAM_PENDING: ${{ steps.telegram-webhook.outputs.telegram_pending }}
           TELEGRAM_LAST_ERROR: ${{ steps.telegram-webhook.outputs.telegram_last_error }}
+          WEBHOOK_UPDATED: ${{ steps.update-webhook.outputs.webhook_updated }}
+          NEW_WEBHOOK_URL: ${{ steps.update-webhook.outputs.new_webhook_url }}
           N8N_HEALTH_HTTP: ${{ steps.n8n-health.outputs.n8n_health_http }}
           WORKFLOW_COUNT: ${{ steps.list-workflows.outputs.workflow_count }}
           WORKFLOW_FOUND: ${{ steps.check-telegram-workflow.outputs.workflow_found }}
@@ -468,6 +518,16 @@ jobs:
           echo "| Webhook URL | \`$TELEGRAM_WEBHOOK_URL\` |" >> /tmp/comment.md
           echo "| Pending Updates | \`$TELEGRAM_PENDING\` |" >> /tmp/comment.md
           echo "| Last Error | \`$TELEGRAM_LAST_ERROR\` |" >> /tmp/comment.md
+
+          # Show webhook update status if it was requested
+          if [[ "$WEBHOOK_UPDATED" == "true" ]]; then
+            echo "" >> /tmp/comment.md
+            echo "### ✅ Webhook Updated to FastAPI Bot" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "**New URL**: \`$NEW_WEBHOOK_URL\`" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo "The bot should now respond to messages with AI-generated responses via LiteLLM Gateway." >> /tmp/comment.md
+          fi
 
           echo "" >> /tmp/comment.md
           echo "### n8n Status" >> /tmp/comment.md
