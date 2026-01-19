@@ -323,14 +323,39 @@ jobs:
             echo "✅ Workflow created! ID: $WORKFLOW_ID"
             echo "created_workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
 
-            # Activate it
-            echo "Activating workflow..."
-            ACTIVATE=$(curl -s -X PATCH \
+            # Activate it using POST /activate endpoint (more reliable for webhook registration)
+            echo "Activating workflow using POST /activate..."
+            ACTIVATE1=$(curl -s -w "\n%{http_code}" -X POST \
               -H "X-N8N-API-KEY: $N8N_API_KEY" \
               -H "Content-Type: application/json" \
-              "$N8N_URL/api/v1/workflows/$WORKFLOW_ID" \
-              -d '{"active": true}')
-            echo "Activate response: $ACTIVATE"
+              "$N8N_URL/api/v1/workflows/$WORKFLOW_ID/activate" 2>&1)
+            ACTIVATE1_HTTP=$(echo "$ACTIVATE1" | tail -1)
+            ACTIVATE1_BODY=$(echo "$ACTIVATE1" | head -n -1)
+            echo "POST /activate HTTP: $ACTIVATE1_HTTP"
+            echo "POST /activate response: $ACTIVATE1_BODY"
+
+            # If POST fails, try PATCH as fallback
+            if [[ "$ACTIVATE1_HTTP" != "200" ]]; then
+              echo "POST /activate failed, trying PATCH..."
+              ACTIVATE2=$(curl -s -X PATCH \
+                -H "X-N8N-API-KEY: $N8N_API_KEY" \
+                -H "Content-Type: application/json" \
+                "$N8N_URL/api/v1/workflows/$WORKFLOW_ID" \
+                -d '{"active": true}')
+              echo "PATCH response: $ACTIVATE2"
+            fi
+
+            # Wait for webhook to be registered
+            echo "Waiting 5 seconds for webhook registration..."
+            sleep 5
+
+            # Test webhook immediately after activation
+            echo "Testing webhook immediately after activation..."
+            TEST_AFTER=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "Content-Type: application/json" \
+              "$N8N_URL/webhook/telegram-bot" -d '{"test":"after_activation"}' 2>&1)
+            TEST_AFTER_HTTP=$(echo "$TEST_AFTER" | tail -1)
+            echo "Immediate test HTTP: $TEST_AFTER_HTTP"
           else
             echo ""
             echo "❌ Failed to create workflow: $ERROR_MSG"
