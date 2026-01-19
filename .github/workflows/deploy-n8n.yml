@@ -181,10 +181,45 @@ jobs:
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"WEBHOOK_URL\", value: \"https://n8n-production-2fe0.up.railway.app/\" }) }"
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"WEBHOOK_URL\", value: \"https://n8n-production-2fe0.up.railway.app\" }) }"
             }'
 
-          echo "✅ Environment variables configured (including Telegram Bot Token)"
+          # N8N Host/Protocol configuration for webhooks
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_HOST\", value: \"n8n-production-2fe0.up.railway.app\" }) }"
+            }'
+
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_PROTOCOL\", value: \"https\" }) }"
+            }'
+
+          # Ensure webhook endpoint is configured
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"N8N_ENDPOINT_WEBHOOK\", value: \"webhook\" }) }"
+            }'
+
+          # Enable production webhook registration
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$ENV_ID"'\", name: \"EXECUTIONS_MODE\", value: \"regular\" }) }"
+            }'
+
+          echo "✅ Environment variables configured (including Telegram Bot Token and webhook config)"
 
       - name: Deploy from Docker Image
         if: inputs.action == 'deploy'
