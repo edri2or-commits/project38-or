@@ -591,6 +591,18 @@ class MCPRouter:
 
         return {"health": health, "deployments": status, "timestamp": datetime.now(UTC).isoformat()}
 
+    def _http_get(self, url: str, headers: dict = None) -> dict:
+        """Perform HTTP GET request to a URL."""
+        try:
+            response = httpx.get(url, headers=headers or {}, timeout=30)
+            return {
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "body": response.text[:5000],  # Limit response size
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
     # =========================================================================
     # Google Workspace Tools
     # =========================================================================
