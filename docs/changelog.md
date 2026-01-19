@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Telegram Webhook Update Feature** (2026-01-19) - Enable AI responses via FastAPI bot
+  - Added `update_webhook` input to `diagnose-n8n-telegram.yml` workflow
+  - Allows switching Telegram webhook from n8n to FastAPI bot
+  - FastAPI bot URL: `telegram-bot-production-053d.up.railway.app/webhook`
+  - **AI Response Flow**: User → Telegram → FastAPI Bot → LiteLLM Gateway → Claude/GPT-4/Gemini → Response
+  - **How to use**: Trigger workflow with `update_webhook: true`
+  - **Evidence**: PRs #312, #313
+- **Set Telegram Webhook Workflow** (2026-01-19) - Dedicated webhook configuration
+  - `.github/workflows/set-telegram-webhook-fastapi.yml` - Standalone webhook configuration
+  - Sets webhook to FastAPI bot for AI responses
+  - Posts results to issue #266
+  - **Evidence**: PR #312
 - **n8n Telegram Integration** (2026-01-18) - Connect Telegram bot to n8n workflows
   - Updated `.github/workflows/deploy-n8n.yml` to include `TELEGRAM_BOT_TOKEN` from GCP Secret Manager
   - **New Environment Variable**: `TELEGRAM_BOT_TOKEN` injected automatically during deployment
