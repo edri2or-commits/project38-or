@@ -24,7 +24,7 @@ env:
   PROJECT_ID: project38-483612
   FUNCTION_NAME: mcp-proxy
   SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
-  CLOUD_RUN_URL: https://mcp-router-3e7yyrd7xq-uc.a.run.app
+  CLOUD_RUN_URL: https://mcp-router-979429709900.us-central1.run.app
 
 jobs:
   deploy:
