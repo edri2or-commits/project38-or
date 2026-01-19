@@ -4,8 +4,9 @@ Tests for the Automation Orchestrator.
 Tests the multi-path execution strategy from ADR-008.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.automation.orchestrator import (
     AutomationOrchestrator,

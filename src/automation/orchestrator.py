@@ -17,10 +17,10 @@ Path Order:
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable
 
 import requests
 
@@ -109,7 +109,9 @@ class AutomationOrchestrator:
         self.n8n_url = n8n_url or os.environ.get(
             "N8N_WEBHOOK_URL", "https://n8n-production-2fe0.up.railway.app/webhook"
         )
-        self.github_token = github_token or os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        self.github_token = (
+            github_token or os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        )
         self.github_repo = github_repo
 
         # Path configurations
@@ -223,7 +225,7 @@ class AutomationOrchestrator:
                 handler(action, params),
                 timeout=config.timeout_seconds,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return AutomationResult(
                 success=False,
                 path=path,
@@ -282,8 +284,14 @@ class AutomationOrchestrator:
         # Map actions to MCP tool calls
         action_mapping = {
             "test-gcp-tools": {"method": "tools/list", "params": {}},
-            "list-secrets": {"method": "tools/call", "params": {"name": "secret_list", "arguments": {}}},
-            "gcloud-version": {"method": "tools/call", "params": {"name": "gcloud_version", "arguments": {}}},
+            "list-secrets": {
+                "method": "tools/call",
+                "params": {"name": "secret_list", "arguments": {}},
+            },
+            "gcloud-version": {
+                "method": "tools/call",
+                "params": {"name": "gcloud_version", "arguments": {}},
+            },
         }
 
         mcp_request = action_mapping.get(action, {"method": action, "params": params})
@@ -316,7 +324,8 @@ class AutomationOrchestrator:
                             path=ExecutionPath.CLOUD_RUN,
                             data={"endpoint": endpoint, "response": data},
                         )
-                    except Exception:
+                    except Exception as e:
+                        logger.debug(f"Failed to parse response from {endpoint}: {e}")
                         continue
 
             return AutomationResult(
@@ -427,7 +436,10 @@ class AutomationOrchestrator:
                 return AutomationResult(
                     success=True,
                     path=ExecutionPath.GITHUB_API,
-                    data={"workflow": workflow, "note": "No run ID returned (GitHub API limitation)"},
+                    data={
+                        "workflow": workflow,
+                        "note": "No run ID returned (GitHub API limitation)",
+                    },
                 )
 
             return AutomationResult(
