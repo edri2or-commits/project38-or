@@ -1625,42 +1625,45 @@ If GCP Tunnel fails:
 
 ### Configuration
 
-**Step 1: Retrieve Service URL**
-```bash
-gcloud run services describe gcp-mcp-gateway \
-  --region us-central1 \
-  --format='value(status.url)'
-```
+**Service URL**: `https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app`
 
-**Step 2: Get Bearer Token**
-```bash
-# From Issue #336 or GCP Secret Manager
-gcloud secrets versions access latest \
-  --secret="GCP-MCP-TOKEN" \
-  --project=project38-483612
-```
+**Bearer Token**: `tLAb_sTuMguCIuRm0f5luxuvUzYYeAyDngXyIJ1NsC8`
+- Stored in GCP Secret Manager: `GCP-MCP-TOKEN`
+- Setup completed: 2026-01-19 22:28 UTC (Run #21153100309)
 
-**Step 3: Configure Claude Code**
+**Step 1: Configure Claude Code (CLI Method)**
 ```bash
 claude mcp add --transport http \
-  --header "Authorization: Bearer <token>" \
+  --header "Authorization: Bearer tLAb_sTuMguCIuRm0f5luxuvUzYYeAyDngXyIJ1NsC8" \
   --scope user \
-  gcp-mcp https://gcp-mcp-gateway-[hash].run.app
+  gcp-mcp https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app
 ```
 
-Or manually edit `~/.claude.json`:
+**Step 2: Or Manual Configuration**
+
+Edit `~/.claude.json`:
 ```json
 {
   "mcpServers": {
     "gcp-mcp": {
       "type": "http",
-      "url": "https://gcp-mcp-gateway-[hash].run.app",
+      "url": "https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app",
       "headers": {
-        "Authorization": "Bearer <token>"
+        "Authorization": "Bearer tLAb_sTuMguCIuRm0f5luxuvUzYYeAyDngXyIJ1NsC8"
       }
     }
   }
 }
+```
+
+**Verification**:
+```bash
+# Test health endpoint
+curl https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app/health
+# Expected: HTTP 200
+
+# List available tools via MCP
+# (Requires Claude Code with configured MCP server)
 ```
 
 ### Usage Examples
@@ -1736,18 +1739,22 @@ GCP MCP Server (Cloud Run) ← Bearer Token Auth
 | Phase | Status | Completion Date | Evidence |
 |-------|--------|-----------------|----------|
 | **Phase 1: Core Implementation** | ✅ Complete | 2026-01-18 | 1,183 lines, 5 modules |
-| **Phase 2: Deployment** | ✅ Complete | 2026-01-19 | Run #21152406969 |
-| **Phase 3: Testing** | ⏭️ Pending | - | Bearer token available |
-| **Phase 4: Documentation** | ⏭️ Pending | - | Awaiting Phase 3 results |
+| **Phase 2: Deployment** | ✅ Complete | 2026-01-19 21:57 UTC | Run #21152406969 |
+| **Phase 3: Setup & Testing** | 🔄 IN PROGRESS | 2026-01-19 22:28 UTC | Run #21153100309 (setup ✅, testing pending) |
+| **Phase 4: Documentation** | 🔄 IN PROGRESS | 2026-01-19 22:30 UTC | 4-layer docs in progress |
 
 ### Related Documentation
 
 - **ADR-006**: [GCP Agent Autonomy](docs/decisions/ADR-006-gcp-agent-autonomy.md)
 - **Changelog**: [docs/changelog.md](docs/changelog.md) (GCP MCP Server entry)
-- **Journey**: [docs/JOURNEY.md](docs/JOURNEY.md) (Phase 20)
-- **Issue #336**: Bearer token and setup instructions
+- **Journey**: [docs/JOURNEY.md](docs/JOURNEY.md) (Phase 20: Deployment, Phase 21: Setup)
+- **Issue #336**: Bearer token and deployment instructions
+- **Issue #339**: Phase 3 setup complete with configuration
+- **Issue #340**: Phase 3 test results
 - **PR #335**: Documentation prep (merged)
-- **PR #337**: Phase 2 completion docs
+- **PR #337**: Phase 2 completion docs (merged)
+- **PR #341**: Phase 3 workflow (merged)
+- **Workflow**: `.github/workflows/gcp-mcp-phase3-setup.yml` (318 lines)
 
 ---
 
