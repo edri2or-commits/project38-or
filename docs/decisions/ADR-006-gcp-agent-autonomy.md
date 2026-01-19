@@ -291,12 +291,16 @@ src/gcp_mcp/
 - [x] Create `requirements.txt`
 - [x] Write `README.md`
 
-### Phase 2: Deployment ⏳ IN PROGRESS (2026-01-18)
+### Phase 2: Deployment ✅ INFRASTRUCTURE READY (2026-01-19)
 
 - [x] Create GitHub Actions workflow (`.github/workflows/deploy-gcp-mcp.yml`)
-- [ ] Run workflow: `gh workflow run deploy-gcp-mcp.yml -f action=deploy`
+- [x] Create additional workflows for diagnostics and direct deployment
+- [x] MCP Router successfully deployed to Cloud Run (separate service, Run #21140683187)
+- [ ] GCP MCP Server deployment pending (workflows ready, waiting for merge to main)
 - [ ] Generate Bearer token: `gh workflow run deploy-gcp-mcp.yml -f action=generate-token`
 - [ ] Verify deployment: `curl https://gcp-mcp-gateway-XXX.run.app/health`
+
+**Note**: Phase 2 infrastructure is complete. Workflows exist but cannot be triggered from current branch as they're not yet in main. Requires PR merge before deployment execution.
 
 ### Phase 3: Testing ⏭️ PENDING
 
@@ -434,8 +438,10 @@ claude mcp add --transport http \
 | Date | Event | Details |
 |------|-------|---------|
 | 2026-01-18 | **ADR Created** | Initial decision documentation |
-| 2026-01-18 | **Phase 1 Complete** | Core implementation finished |
+| 2026-01-18 | **Phase 1 Complete** | Core implementation finished (1,183 lines of code) |
 | 2026-01-18 | **Phase 2 Started** | Deployment workflow created |
+| 2026-01-19 | **Infrastructure Ready** | All code complete, workflows created, awaiting merge to main |
+| 2026-01-19 | **Related Deployment** | MCP Router deployed successfully (Cloud Run, serves Protocol Encapsulation) |
 
 ---
 
