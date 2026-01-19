@@ -1,0 +1,136 @@
+name: Set Telegram Webhook to FastAPI Bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      webhook_url:
+        description: 'Telegram webhook URL (leave empty for default FastAPI bot URL)'
+        required: false
+        default: 'https://telegram-bot-production-053d.up.railway.app/webhook'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  set-webhook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Telegram Bot Token
+        id: telegram-token
+        run: |
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "::add-mask::$BOT_TOKEN"
+          echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check Current Webhook
+        id: check-current
+        env:
+          BOT_TOKEN: ${{ steps.telegram-token.outputs.bot_token }}
+        run: |
+          echo "=== Current Webhook Configuration ==="
+          RESPONSE=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo")
+          echo "$RESPONSE" | jq '.'
+
+          CURRENT_URL=$(echo "$RESPONSE" | jq -r '.result.url // "not set"')
+          echo "current_url=$CURRENT_URL" >> $GITHUB_OUTPUT
+          echo ""
+          echo "Current webhook URL: $CURRENT_URL"
+
+      - name: Set New Webhook
+        id: set-webhook
+        env:
+          BOT_TOKEN: ${{ steps.telegram-token.outputs.bot_token }}
+          WEBHOOK_URL: ${{ inputs.webhook_url }}
+        run: |
+          echo "=== Setting New Webhook ==="
+          echo "Target URL: $WEBHOOK_URL"
+
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
+            -d "url=$WEBHOOK_URL" \
+            -d "max_connections=40" \
+            -d "drop_pending_updates=false")
+
+          echo "$RESPONSE" | jq '.'
+
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.ok')
+
+          if [ "$SUCCESS" = "true" ]; then
+            echo "set_success=true" >> $GITHUB_OUTPUT
+            echo ""
+            echo "✅ Webhook updated successfully!"
+          else
+            echo "set_success=false" >> $GITHUB_OUTPUT
+            echo ""
+            echo "❌ Failed to update webhook"
+            exit 1
+          fi
+
+      - name: Verify New Webhook
+        id: verify
+        env:
+          BOT_TOKEN: ${{ steps.telegram-token.outputs.bot_token }}
+        run: |
+          echo "=== Verifying New Webhook ==="
+          sleep 2
+
+          RESPONSE=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo")
+          echo "$RESPONSE" | jq '.'
+
+          NEW_URL=$(echo "$RESPONSE" | jq -r '.result.url')
+          PENDING=$(echo "$RESPONSE" | jq -r '.result.pending_update_count')
+
+          echo "new_url=$NEW_URL" >> $GITHUB_OUTPUT
+          echo "pending=$PENDING" >> $GITHUB_OUTPUT
+          echo ""
+          echo "New webhook URL: $NEW_URL"
+          echo "Pending updates: $PENDING"
+
+      - name: Post Results to Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const currentUrl = '${{ steps.check-current.outputs.current_url }}';
+            const newUrl = '${{ steps.verify.outputs.new_url }}';
+            const pending = '${{ steps.verify.outputs.pending }}';
+            const success = '${{ steps.set-webhook.outputs.set_success }}' === 'true';
+
+            const statusEmoji = success ? '✅' : '❌';
+
+            const body = `## ${statusEmoji} Telegram Webhook Updated
+
+**Previous URL**: \`${currentUrl || 'not set'}\`
+
+**New URL**: \`${newUrl}\`
+
+**Pending Updates**: ${pending}
+
+**Status**: ${success ? '✅ Webhook successfully updated to FastAPI bot!' : '❌ Failed to update webhook'}
+
+${success ? `
+### Next Steps
+1. Send a message to the Telegram bot
+2. The FastAPI bot will receive it and respond via LiteLLM Gateway
+3. Expected response time: 2-5 seconds (depending on LLM latency)
+` : ''}
+
+---
+Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 266,
+              body: body
+            });
