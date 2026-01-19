@@ -397,7 +397,17 @@ jobs:
           echo ""
           echo "Best webhook HTTP code: $BEST_HTTP"
           echo "webhook_http_code=$BEST_HTTP" >> $GITHUB_OUTPUT
-          echo "webhook_urls_tested=production:$H1,test:$H2,wf_prefix:$H3,wf_only:$H4" >> $GITHUB_OUTPUT
+          echo "webhook_urls_tested=production:$H1,test:$H2,wf_prefix:$H3,wf_only:$H4,root_webhook:$H5,root:$H6" >> $GITHUB_OUTPUT
+          echo "root_webhook_body=$B5" >> $GITHUB_OUTPUT
+
+          # Show the actual response body from the 404
+          echo ""
+          echo "=== Response body from /webhook/telegram-bot ==="
+          R1_BODY=$(echo "$R1" | head -n -1)
+          echo "$R1_BODY"
+          echo "webhook_error_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$R1_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           exit 0
 
       - name: Post Diagnostic Results
@@ -419,6 +429,8 @@ jobs:
           WORKFLOW_WEBHOOK_PATH: ${{ steps.check-telegram-workflow.outputs.workflow_webhook_path }}
           WEBHOOK_HTTP: ${{ steps.webhook-test.outputs.webhook_http_code }}
           WEBHOOK_URLS_TESTED: ${{ steps.webhook-test.outputs.webhook_urls_tested }}
+          WEBHOOK_ERROR_BODY: ${{ steps.webhook-test.outputs.webhook_error_body }}
+          ROOT_WEBHOOK_BODY: ${{ steps.webhook-test.outputs.root_webhook_body }}
         run: |
           cat > /tmp/comment.md << 'COMMENT_EOF'
           ## 🔍 n8n Telegram Diagnostic Results
@@ -449,6 +461,15 @@ jobs:
           echo "| **Created Workflow ID** | **\`$CREATED_WORKFLOW_ID\`** |" >> /tmp/comment.md
           echo "| Direct Webhook Test HTTP | \`$WEBHOOK_HTTP\` |" >> /tmp/comment.md
           echo "| Webhook URLs Tested | \`$WEBHOOK_URLS_TESTED\` |" >> /tmp/comment.md
+
+          if [[ -n "$WEBHOOK_ERROR_BODY" ]]; then
+            echo "" >> /tmp/comment.md
+            echo "### Webhook Response Body" >> /tmp/comment.md
+            echo "" >> /tmp/comment.md
+            echo '```' >> /tmp/comment.md
+            echo "$WEBHOOK_ERROR_BODY" | head -c 500 >> /tmp/comment.md
+            echo '```' >> /tmp/comment.md
+          fi
 
           echo "" >> /tmp/comment.md
           echo "### 🔴 Root Cause Analysis" >> /tmp/comment.md
