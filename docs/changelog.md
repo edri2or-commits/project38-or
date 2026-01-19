@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Security**: Bearer token auth, ephemeral GCP tokens, audit trail via Cloud Logging
   - **Workflows**: `deploy-gcp-mcp.yml`, `deploy-gcp-mcp-direct.yml`, `deploy-gcp-mcp-with-diagnostics.yml`
   - **Status**: Phase 1 & 2 complete, awaiting merge to main for deployment
-  - **Evidence**: ADR-006, Dockerfile, requirements.txt, README.md
+  - **Evidence**: ADR-008, Dockerfile, requirements.txt, README.md
 
 - **GitHub API Module** (2026-01-19) - Universal GitHub API client for all environments
   - `src/github_api.py` - Python-based GitHub API client (265 lines)

@@ -1,4 +1,4 @@
-# ADR-006: GCP Agent Autonomy via MCP Server
+# ADR-008: GCP Agent Autonomy via MCP Server
 
 **Status:** ✅ Implemented
 **Date:** 2026-01-18

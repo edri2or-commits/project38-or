@@ -230,7 +230,7 @@ docker run -p 8080:8080 \
 
 ## Architecture Decisions
 
-See [ADR-006: GCP Agent Autonomy](../../docs/decisions/ADR-006-gcp-agent-autonomy.md) for:
+See [ADR-008: GCP Agent Autonomy](../../docs/decisions/ADR-008-gcp-agent-autonomy.md) for:
 - Why MCP over other protocols
 - Authentication strategy (WIF vs Service Account Keys)
 - Security considerations
