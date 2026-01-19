@@ -1,0 +1,71 @@
+name: Check Function Status
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: List All Cloud Functions
+        run: |
+          echo "=== All Cloud Functions (Gen 1) ==="
+          gcloud functions list --format="table(name,status,runtime,entryPoint,httpsTrigger.url)" || echo "No Gen 1 functions"
+
+          echo ""
+          echo "=== All Cloud Functions (Gen 2) ==="
+          gcloud functions list --gen2 --format="table(name,state,runtime,serviceConfig.uri)" || echo "No Gen 2 functions"
+
+      - name: Check mcp-proxy Details
+        run: |
+          echo "=== mcp-proxy Gen 1 Details ==="
+          gcloud functions describe mcp-proxy --region=us-central1 --format=yaml 2>&1 || echo "Not found as Gen 1"
+
+          echo ""
+          echo "=== mcp-proxy Gen 2 Details ==="
+          gcloud functions describe mcp-proxy --region=us-central1 --gen2 --format=yaml 2>&1 || echo "Not found as Gen 2"
+
+      - name: Check mcp-router Details
+        run: |
+          echo "=== mcp-router Gen 1 Details ==="
+          gcloud functions describe mcp-router --region=us-central1 --format=yaml 2>&1 || echo "Not found as Gen 1"
+
+          echo ""
+          echo "=== mcp-router Gen 2 Details ==="
+          gcloud functions describe mcp-router --region=us-central1 --gen2 --format=yaml 2>&1 || echo "Not found as Gen 2"
+
+      - name: List Cloud Run Services
+        run: |
+          echo "=== Cloud Run Services ==="
+          gcloud run services list --region=us-central1 --format="table(name,status,url)" || echo "No Cloud Run services"
+
+      - name: Test HTTP URLs
+        run: |
+          echo "=== Testing URLs ==="
+
+          # Gen 1 URL pattern
+          GEN1_URL="https://us-central1-${{ env.PROJECT_ID }}.cloudfunctions.net/mcp-proxy"
+          echo "Testing Gen 1 URL: $GEN1_URL"
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" "$GEN1_URL" || echo "Failed"
+
+          # Try mcp-router too
+          ROUTER_URL="https://us-central1-${{ env.PROJECT_ID }}.cloudfunctions.net/mcp-router"
+          echo "Testing mcp-router URL: $ROUTER_URL"
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}\n" "$ROUTER_URL" || echo "Failed"
