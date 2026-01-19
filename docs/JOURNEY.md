@@ -3128,5 +3128,175 @@ During production n8n deployments, several issues were discovered:
 
 ---
 
-*Last Updated: 2026-01-18*
-*Status: **n8n Deploy Workflow Stable***
+## Phase 12: n8n Telegram Webhook Integration (2026-01-18 to 2026-01-19)
+
+### The Challenge
+
+**Date**: 2026-01-18 to 2026-01-19
+**Context**: Telegram bot connected to n8n for automated responses. Webhooks returning 404 despite workflow being marked "active".
+
+**Problem Statement**:
+- Telegram webhook info showed: `Wrong response from the webhook: 404 Not Found`
+- n8n health endpoint responded with HTTP 200 (server was running)
+- n8n API worked (could create/update/list workflows)
+- Workflow existed and was marked `active: true`
+- But `/webhook/telegram-bot` returned 404
+
+### Investigation (18 PRs: #292-#310)
+
+**Hypothesis Testing**:
+
+| PR | Hypothesis | Result |
+|----|-----------|--------|
+| #292 | Simplified workflow JSON | ❌ Still 404 |
+| #297-#298 | "active" field is read-only in API | ✅ Confirmed, removed from JSON |
+| #299-#300 | Need to call activate endpoint | Partial - PATCH didn't register webhooks |
+| #304 | Missing webhook env vars | Added N8N_HOST, N8N_PROTOCOL, etc. |
+| #305 | Toggle workflow to force re-registration | ❌ Still 404 |
+| #306 | Delete/recreate with webhookId | ❌ Still 404 |
+| #307 | Force Railway restart | Added serviceInstanceRedeploy |
+| #308 | Listen on all interfaces | Added N8N_LISTEN_ADDRESS=0.0.0.0 |
+| #309 | Need response body for debugging | Improved diagnostic output |
+| #310 | **POST /activate vs PATCH** | ✅ **ROOT CAUSE FOUND** |
+
+### Root Cause Discovery
+
+**Key Insight**: n8n has TWO ways to activate a workflow:
+
+1. `PATCH /api/v1/workflows/{id}` with `{"active": true}`
+   - Updates database field `active = true`
+   - **Does NOT register webhooks with the internal router**
+
+2. `POST /api/v1/workflows/{id}/activate`
+   - Updates database field
+   - **Registers webhooks with the internal webhook router**
+   - Required for webhooks to actually receive traffic
+
+**Evidence** (from n8n source code behavior):
+- Root webhook path `/webhook/` returned 200 (webhook server running)
+- Specific path `/webhook/telegram-bot` returned 404 (route not registered)
+- After POST /activate: specific path returned 200
+
+### Solution Implementation
+
+**Final Fix** (PR #310):
+
+```bash
+# Use POST /activate endpoint (not PATCH)
+curl -X POST \
+  -H "X-N8N-API-KEY: $N8N_API_KEY" \
+  "$N8N_URL/api/v1/workflows/$WORKFLOW_ID/activate"
+
+# Wait for webhook registration
+sleep 5
+```
+
+**Complete Environment Variables** (`.github/workflows/deploy-n8n.yml`):
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `N8N_HOST` | n8n-production-2fe0.up.railway.app | External hostname |
+| `N8N_PROTOCOL` | https | HTTPS for production |
+| `N8N_ENDPOINT_WEBHOOK` | webhook | Webhook path prefix |
+| `EXECUTIONS_MODE` | regular | Production execution mode |
+| `N8N_EDITOR_BASE_URL` | https://n8n-production-2fe0.up.railway.app | Editor URL |
+| `N8N_USER_MANAGEMENT_DISABLED` | true | Webhook-only usage |
+| `N8N_LISTEN_ADDRESS` | 0.0.0.0 | Listen on all interfaces |
+| `WEBHOOK_TUNNEL_URL` | https://n8n-production-2fe0.up.railway.app/ | External webhook URL |
+| `GENERIC_TIMEZONE` | UTC | Consistent timezone |
+
+### Diagnostic Workflow
+
+**Enhanced** `.github/workflows/diagnose-n8n-telegram.yml`:
+
+```
+1. Get Telegram webhook info (URL, pending updates, last error)
+2. Check n8n health endpoint
+3. List n8n workflows
+4. Find "Telegram Webhook Bot" workflow
+5. Auto-activate if not active (using POST /activate)
+6. Delete and recreate if needed
+7. Test multiple webhook URL patterns:
+   - /webhook/telegram-bot (production)
+   - /webhook-test/telegram-bot (test mode)
+   - /webhook/{workflow-id}/telegram-bot
+   - /webhook/{workflow-id}
+8. Wait 5 seconds for webhook registration
+9. Post diagnostic results to Issue #266
+```
+
+### Final Verification
+
+**Diagnostic Results** (2026-01-19 08:48 UTC):
+
+| Check | Result |
+|-------|--------|
+| Webhook URL | `https://n8n-production-2fe0.up.railway.app/webhook/telegram-bot` |
+| Pending Updates | `0` (messages received) |
+| Last Error | `none` |
+| Workflow Active | `true` |
+| Recent Executions | `true` |
+| Webhook HTTP | `200` ✅ |
+
+### Files Changed
+
+| File | Lines Changed | Purpose |
+|------|---------------|---------|
+| `.github/workflows/deploy-n8n.yml` | +90 lines | Env vars, force restart |
+| `.github/workflows/diagnose-n8n-telegram.yml` | +120 lines | Auto-fix, multi-URL test |
+| `.github/workflows/setup-telegram-n8n-webhook.yml` | +20 lines | Simplified JSON |
+
+### Lessons Learned
+
+**1. API Semantics Matter**
+- `PATCH` for data update ≠ `POST` for action
+- n8n's `/activate` endpoint performs side effects (webhook registration)
+- Database state and runtime state can diverge
+
+**2. Diagnostic-Driven Development**
+- Each PR added more diagnostic output
+- Seeing the difference between root `/webhook/` (200) and specific path (404) revealed the issue
+- Automated diagnostics enabled rapid iteration
+
+**3. Railway Container Networking**
+- `N8N_LISTEN_ADDRESS=0.0.0.0` required for Railway
+- Default `127.0.0.1` doesn't work in containerized environments
+
+**4. Webhook Registration Timing**
+- 5-second delay after activation is necessary
+- Immediate webhook calls may fail during registration
+
+### 4-Layer Documentation Update
+
+| Layer | File | Action |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | ⏭️ Consider adding n8n webhook section |
+| Layer 2 | `docs/decisions/ADR-007` | ✅ Created (n8n webhook architecture) |
+| Layer 3 | `docs/JOURNEY.md` | ✅ This entry |
+| Layer 4 | `docs/changelog.md` | ✅ Fixed section updated |
+
+### Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Duration** | ~10 hours (22:00 2026-01-18 to 08:48 2026-01-19) |
+| **PRs Created** | 18 (PR #292-#310) |
+| **Iterations** | 10 deployment cycles |
+| **Root Cause Found** | POST /activate vs PATCH |
+| **Final Status** | ✅ Webhooks operational |
+
+### Current Status
+
+**Working**:
+- ✅ Telegram webhook receives messages
+- ✅ n8n workflow executes
+- ✅ HTTP 200 returned to Telegram
+
+**Next Step**:
+- Add workflow nodes to process messages and reply back to Telegram
+- Current workflow only receives and acknowledges (HTTP 200)
+
+---
+
+*Last Updated: 2026-01-19*
+*Status: **n8n Telegram Webhook Operational***
