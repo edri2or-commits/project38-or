@@ -45,11 +45,7 @@ class GitHubAPI:
     Works in all Claude Code environments including those with proxy restrictions.
     """
 
-    def __init__(
-        self,
-        token: str | None = None,
-        repo: str = "edri2or-commits/project38-or"
-    ):
+    def __init__(self, token: str | None = None, repo: str = "edri2or-commits/project38-or"):
         """
         Initialize GitHub API client.
 
@@ -57,7 +53,7 @@ class GitHubAPI:
             token: GitHub token. If not provided, uses GH_TOKEN or GITHUB_TOKEN env var.
             repo: Repository in format "owner/repo".
         """
-        self.token = token or os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
+        self.token = token or os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
         if not self.token:
             raise ValueError(
                 "No GitHub token found. Set GH_TOKEN or GITHUB_TOKEN environment variable."
@@ -66,9 +62,9 @@ class GitHubAPI:
         self.repo = repo
         self.base_url = f"https://api.github.com/repos/{repo}"
         self.headers = {
-            'Accept': 'application/vnd.github+json',
-            'Authorization': f'Bearer {self.token}',
-            'X-GitHub-Api-Version': '2022-11-28'
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {self.token}",
+            "X-GitHub-Api-Version": "2022-11-28",
         }
 
     def _request(
@@ -77,7 +73,7 @@ class GitHubAPI:
         endpoint: str,
         params: dict | None = None,
         json_data: dict | None = None,
-        timeout: int = 30
+        timeout: int = 30,
     ) -> requests.Response:
         """
         Make an API request.
@@ -99,14 +95,11 @@ class GitHubAPI:
             headers=self.headers,
             params=params,
             json=json_data,
-            timeout=timeout
+            timeout=timeout,
         )
 
     def get_workflow_runs(
-        self,
-        workflow_file: str | None = None,
-        status: str | None = None,
-        limit: int = 10
+        self, workflow_file: str | None = None, status: str | None = None, limit: int = 10
     ) -> list[dict[str, Any]]:
         """
         Get recent workflow runs.
@@ -119,18 +112,18 @@ class GitHubAPI:
         Returns:
             List of workflow run objects
         """
-        params = {'per_page': limit}
+        params = {"per_page": limit}
         if status:
-            params['status'] = status
+            params["status"] = status
 
         if workflow_file:
             endpoint = f"actions/workflows/{workflow_file}/runs"
         else:
             endpoint = "actions/runs"
 
-        response = self._request('GET', endpoint, params=params)
+        response = self._request("GET", endpoint, params=params)
         response.raise_for_status()
-        return response.json().get('workflow_runs', [])
+        return response.json().get("workflow_runs", [])
 
     def get_run_status(self, run_id: int) -> dict[str, Any]:
         """
@@ -142,17 +135,17 @@ class GitHubAPI:
         Returns:
             Dictionary with run details including status and conclusion
         """
-        response = self._request('GET', f"actions/runs/{run_id}")
+        response = self._request("GET", f"actions/runs/{run_id}")
         response.raise_for_status()
         run = response.json()
         return {
-            'id': run['id'],
-            'name': run['name'],
-            'status': run['status'],
-            'conclusion': run.get('conclusion'),
-            'html_url': run['html_url'],
-            'created_at': run['created_at'],
-            'updated_at': run['updated_at']
+            "id": run["id"],
+            "name": run["name"],
+            "status": run["status"],
+            "conclusion": run.get("conclusion"),
+            "html_url": run["html_url"],
+            "created_at": run["created_at"],
+            "updated_at": run["updated_at"],
         }
 
     def get_run_jobs(self, run_id: int) -> list[dict[str, Any]]:
@@ -165,33 +158,32 @@ class GitHubAPI:
         Returns:
             List of job objects with steps
         """
-        response = self._request('GET', f"actions/runs/{run_id}/jobs")
+        response = self._request("GET", f"actions/runs/{run_id}/jobs")
         response.raise_for_status()
-        jobs = response.json().get('jobs', [])
+        jobs = response.json().get("jobs", [])
 
         result = []
         for job in jobs:
             job_info = {
-                'id': job['id'],
-                'name': job['name'],
-                'status': job['status'],
-                'conclusion': job.get('conclusion'),
-                'steps': []
+                "id": job["id"],
+                "name": job["name"],
+                "status": job["status"],
+                "conclusion": job.get("conclusion"),
+                "steps": [],
             }
-            for step in job.get('steps', []):
-                job_info['steps'].append({
-                    'name': step['name'],
-                    'status': step['status'],
-                    'conclusion': step.get('conclusion')
-                })
+            for step in job.get("steps", []):
+                job_info["steps"].append(
+                    {
+                        "name": step["name"],
+                        "status": step["status"],
+                        "conclusion": step.get("conclusion"),
+                    }
+                )
             result.append(job_info)
         return result
 
     def trigger_workflow(
-        self,
-        workflow_file: str,
-        inputs: dict | None = None,
-        ref: str = "main"
+        self, workflow_file: str, inputs: dict | None = None, ref: str = "main"
     ) -> bool:
         """
         Trigger a workflow dispatch event.
@@ -204,23 +196,18 @@ class GitHubAPI:
         Returns:
             True if workflow was triggered successfully
         """
-        data = {'ref': ref}
+        data = {"ref": ref}
         if inputs:
-            data['inputs'] = inputs
+            data["inputs"] = inputs
 
         response = self._request(
-            'POST',
-            f"actions/workflows/{workflow_file}/dispatches",
-            json_data=data
+            "POST", f"actions/workflows/{workflow_file}/dispatches", json_data=data
         )
         # 204 No Content means success
         return response.status_code == 204
 
     def wait_for_workflow(
-        self,
-        workflow_file: str,
-        timeout: int = 300,
-        poll_interval: int = 10
+        self, workflow_file: str, timeout: int = 300, poll_interval: int = 10
     ) -> dict[str, Any] | None:
         """
         Wait for a workflow to complete after triggering.
@@ -242,17 +229,14 @@ class GitHubAPI:
             runs = self.get_workflow_runs(workflow_file=workflow_file, limit=1)
             if runs:
                 run = runs[0]
-                if run['status'] == 'completed':
-                    return self.get_run_status(run['id'])
+                if run["status"] == "completed":
+                    return self.get_run_status(run["id"])
             time.sleep(poll_interval)
 
         return None
 
     def create_issue(
-        self,
-        title: str,
-        body: str,
-        labels: list[str] | None = None
+        self, title: str, body: str, labels: list[str] | None = None
     ) -> dict[str, Any]:
         """
         Create a GitHub issue.
@@ -265,11 +249,11 @@ class GitHubAPI:
         Returns:
             Created issue data
         """
-        data = {'title': title, 'body': body}
+        data = {"title": title, "body": body}
         if labels:
-            data['labels'] = labels
+            data["labels"] = labels
 
-        response = self._request('POST', 'issues', json_data=data)
+        response = self._request("POST", "issues", json_data=data)
         response.raise_for_status()
         return response.json()
 
@@ -285,9 +269,7 @@ class GitHubAPI:
             Created comment data
         """
         response = self._request(
-            'POST',
-            f'issues/{issue_number}/comments',
-            json_data={'body': body}
+            "POST", f"issues/{issue_number}/comments", json_data={"body": body}
         )
         response.raise_for_status()
         return response.json()
@@ -319,22 +301,22 @@ if __name__ == "__main__":
             if command == "runs":
                 runs = api.get_workflow_runs(limit=5)
                 for run in runs:
-                    conclusion = run.get('conclusion')
-                    if conclusion == 'success':
+                    conclusion = run.get("conclusion")
+                    if conclusion == "success":
                         status_icon = "✅"
-                    elif conclusion == 'failure':
+                    elif conclusion == "failure":
                         status_icon = "❌"
                     else:
                         status_icon = "🔄"
-                    status = run.get('conclusion', 'running')
+                    status = run.get("conclusion", "running")
                     print(f"{status_icon} {run['name']}: {run['status']} ({status})")
 
             elif command == "trigger" and len(sys.argv) > 2:
                 workflow = sys.argv[2]
                 inputs = {}
                 for arg in sys.argv[3:]:
-                    if '=' in arg:
-                        key, value = arg.split('=', 1)
+                    if "=" in arg:
+                        key, value = arg.split("=", 1)
                         inputs[key] = value
 
                 if api.trigger_workflow(workflow, inputs):
