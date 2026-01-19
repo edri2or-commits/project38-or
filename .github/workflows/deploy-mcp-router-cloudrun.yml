@@ -89,6 +89,8 @@ jobs:
 
           cd cloud_functions/mcp_router
 
+          # Use --set-secrets for MCP_TUNNEL_TOKEN to always read from Secret Manager
+          # This ensures token sync - Secret Manager is the single source of truth
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source . \
             --region ${{ inputs.region }} \
@@ -103,7 +105,8 @@ jobs:
             --timeout 120s \
             --clear-base-image \
             --verbosity=debug \
-            --set-env-vars="MCP_TUNNEL_TOKEN=${{ steps.secrets.outputs.MCP_TUNNEL_TOKEN }},RAILWAY_TOKEN=${{ steps.secrets.outputs.RAILWAY_TOKEN }},RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0,GCP_PROJECT_ID=${{ env.PROJECT_ID }}" 2>&1 | tee /tmp/deploy-output.log
+            --set-secrets="MCP_TUNNEL_TOKEN=MCP-TUNNEL-TOKEN:latest,RAILWAY_TOKEN=RAILWAY-API:latest" \
+            --set-env-vars="RAILWAY_PROJECT_ID=95ec21cc-9ada-41c5-8485-12f9a00e0116,RAILWAY_ENVIRONMENT_ID=99c99a18-aea2-4d01-9360-6a93705102a0,GCP_PROJECT_ID=${{ env.PROJECT_ID }}" 2>&1 | tee /tmp/deploy-output.log
 
           echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
           echo ""

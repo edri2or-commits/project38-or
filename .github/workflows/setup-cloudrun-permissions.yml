@@ -69,6 +69,8 @@ jobs:
           echo "- roles/cloudbuild.builds.editor" >> $GITHUB_STEP_SUMMARY
           echo "- roles/storage.admin" >> $GITHUB_STEP_SUMMARY
           echo "- roles/iam.serviceAccountUser" >> $GITHUB_STEP_SUMMARY
+          echo "- roles/cloudfunctions.admin (for Cloud Functions IAM)" >> $GITHUB_STEP_SUMMARY
+          echo "- roles/secretmanager.secretAccessor (for Secret Manager mounts)" >> $GITHUB_STEP_SUMMARY
 
       - name: Enable APIs
         if: inputs.action == 'enable-apis' || inputs.action == 'full-setup'
@@ -107,6 +109,18 @@ jobs:
             --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
             --role="roles/iam.serviceAccountUser" \
             --quiet && echo "✅ roles/iam.serviceAccountUser granted" || echo "❌ Failed to grant roles/iam.serviceAccountUser"
+
+          # Cloud Functions Admin (for IAM policy bindings on Cloud Functions)
+          gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \
+            --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
+            --role="roles/cloudfunctions.admin" \
+            --quiet && echo "✅ roles/cloudfunctions.admin granted" || echo "❌ Failed to grant roles/cloudfunctions.admin"
+
+          # Secret Manager Secret Accessor (for --set-secrets in Cloud Run)
+          gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \
+            --member="serviceAccount:${{ env.SERVICE_ACCOUNT }}" \
+            --role="roles/secretmanager.secretAccessor" \
+            --quiet && echo "✅ roles/secretmanager.secretAccessor granted" || echo "❌ Failed to grant roles/secretmanager.secretAccessor"
 
       - name: Verify Setup
         if: inputs.action == 'full-setup'

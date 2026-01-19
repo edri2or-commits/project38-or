@@ -1,0 +1,263 @@
+name: GCP Tunnel Health Check
+
+# Scheduled health check to ensure GCP Tunnel is working
+# Runs every 6 hours and on manual trigger
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      notify_on_success:
+        description: 'Create issue on success (for testing)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: gcp-tunnel-health-check
+  cancel-in-progress: true
+
+env:
+  PROJECT_ID: project38-483612
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  CLOUD_RUN_URL: https://mcp-router-979429709900.us-central1.run.app
+  CLOUD_FUNCTION_URL: https://us-central1-project38-483612.cloudfunctions.net/mcp-router
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    outputs:
+      cloud_run_status: ${{ steps.check-cloud-run.outputs.status }}
+      cloud_function_status: ${{ steps.check-cloud-function.outputs.status }}
+      mcp_tools_status: ${{ steps.check-mcp-tools.outputs.status }}
+      overall_status: ${{ steps.summary.outputs.overall_status }}
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get MCP Tunnel Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" --project="${PROJECT_ID}" 2>/dev/null || echo "")
+          if [ -z "$TOKEN" ]; then
+            echo "status=error" >> $GITHUB_OUTPUT
+            echo "::error::Could not retrieve MCP-TUNNEL-TOKEN from Secret Manager"
+          else
+            echo "::add-mask::${TOKEN}"
+            echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+            echo "status=ok" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Cloud Run Health
+        id: check-cloud-run
+        if: steps.get-token.outputs.status == 'ok'
+        run: |
+          echo "Checking Cloud Run at: ${{ env.CLOUD_RUN_URL }}"
+
+          HTTP_CODE=$(curl -s -o /tmp/cloudrun-response.txt -w "%{http_code}" \
+            "${{ env.CLOUD_RUN_URL }}/health" \
+            --max-time 30 || echo "000")
+
+          RESPONSE=$(cat /tmp/cloudrun-response.txt 2>/dev/null || echo "No response")
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response: $RESPONSE"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "✅ Cloud Run is healthy"
+          else
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+            echo "❌ Cloud Run is unhealthy (HTTP $HTTP_CODE)"
+          fi
+
+      - name: Check Cloud Function Health
+        id: check-cloud-function
+        if: steps.get-token.outputs.status == 'ok'
+        run: |
+          echo "Checking Cloud Function at: ${{ env.CLOUD_FUNCTION_URL }}"
+
+          # Cloud Function proxies to Cloud Run, so a 502/504 from CF means CF is up but backend is down
+          HTTP_CODE=$(curl -s -o /tmp/cf-response.txt -w "%{http_code}" \
+            -X POST "${{ env.CLOUD_FUNCTION_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            --max-time 30 || echo "000")
+
+          RESPONSE=$(cat /tmp/cf-response.txt 2>/dev/null || echo "No response")
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response: $RESPONSE"
+
+          # 401 means CF is responding (auth required) - that's good!
+          # 502/504 means CF is up but can't reach backend
+          # 200 means everything works
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "401" ]; then
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "✅ Cloud Function is healthy"
+          elif [ "$HTTP_CODE" = "502" ] || [ "$HTTP_CODE" = "504" ]; then
+            echo "status=partial" >> $GITHUB_OUTPUT
+            echo "⚠️ Cloud Function is up but backend unreachable"
+          else
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+            echo "❌ Cloud Function is unhealthy (HTTP $HTTP_CODE)"
+          fi
+
+      - name: Check MCP Tools Access
+        id: check-mcp-tools
+        if: steps.get-token.outputs.status == 'ok' && steps.check-cloud-run.outputs.status == 'healthy'
+        run: |
+          echo "Checking MCP tools access..."
+
+          RESPONSE=$(curl -s -X POST "${{ env.CLOUD_RUN_URL }}/" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d '{"data": "{\"jsonrpc\": \"2.0\", \"method\": \"tools/list\", \"id\": 1}"}' \
+            --max-time 30 || echo '{"error": "request failed"}')
+
+          echo "Response: $RESPONSE"
+
+          if echo "$RESPONSE" | grep -q "tools"; then
+            TOOL_COUNT=$(echo "$RESPONSE" | grep -o '"name"' | wc -l)
+            echo "status=healthy" >> $GITHUB_OUTPUT
+            echo "tool_count=$TOOL_COUNT" >> $GITHUB_OUTPUT
+            echo "✅ MCP tools accessible ($TOOL_COUNT tools)"
+          else
+            echo "status=unhealthy" >> $GITHUB_OUTPUT
+            echo "tool_count=0" >> $GITHUB_OUTPUT
+            echo "❌ MCP tools not accessible"
+          fi
+
+      - name: Generate Summary
+        id: summary
+        run: |
+          echo "## GCP Tunnel Health Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # Secret Manager
+          if [ "${{ steps.get-token.outputs.status }}" = "ok" ]; then
+            echo "| Secret Manager | ✅ Token retrieved |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Secret Manager | ❌ Token missing |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Cloud Run
+          CR_STATUS="${{ steps.check-cloud-run.outputs.status }}"
+          if [ "$CR_STATUS" = "healthy" ]; then
+            echo "| Cloud Run | ✅ Healthy |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Cloud Run | ❌ Unhealthy |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Cloud Function
+          CF_STATUS="${{ steps.check-cloud-function.outputs.status }}"
+          if [ "$CF_STATUS" = "healthy" ]; then
+            echo "| Cloud Function | ✅ Healthy |" >> $GITHUB_STEP_SUMMARY
+          elif [ "$CF_STATUS" = "partial" ]; then
+            echo "| Cloud Function | ⚠️ Partial |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Cloud Function | ❌ Unhealthy |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # MCP Tools
+          MCP_STATUS="${{ steps.check-mcp-tools.outputs.status }}"
+          TOOL_COUNT="${{ steps.check-mcp-tools.outputs.tool_count }}"
+          if [ "$MCP_STATUS" = "healthy" ]; then
+            echo "| MCP Tools | ✅ $TOOL_COUNT tools |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| MCP Tools | ❌ Not accessible |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Determine overall status
+          if [ "${{ steps.get-token.outputs.status }}" = "ok" ] && \
+             [ "$CR_STATUS" = "healthy" ] && \
+             [ "$CF_STATUS" = "healthy" ] && \
+             [ "$MCP_STATUS" = "healthy" ]; then
+            echo "### ✅ All systems operational" >> $GITHUB_STEP_SUMMARY
+            echo "overall_status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "### ❌ Issues detected" >> $GITHUB_STEP_SUMMARY
+            echo "overall_status=unhealthy" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Alert Issue on Failure
+        if: steps.summary.outputs.overall_status == 'unhealthy'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 GCP Tunnel Health Check Failed - ${new Date().toISOString().slice(0, 16)}`;
+            const body = `## GCP Tunnel Health Check Alert
+
+            **Time:** ${new Date().toISOString()}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ### Status
+
+            | Component | Status |
+            |-----------|--------|
+            | Secret Manager | ${{ steps.get-token.outputs.status == 'ok' ? '✅' : '❌' }} |
+            | Cloud Run | ${{ steps.check-cloud-run.outputs.status == 'healthy' ? '✅' : '❌' }} |
+            | Cloud Function | ${{ steps.check-cloud-function.outputs.status == 'healthy' ? '✅' : (steps.check-cloud-function.outputs.status == 'partial' ? '⚠️' : '❌') }} |
+            | MCP Tools | ${{ steps.check-mcp-tools.outputs.status == 'healthy' ? '✅' : '❌' }} |
+
+            ### Troubleshooting
+
+            1. Check Cloud Run logs: \`gcloud run services logs read mcp-router --region=us-central1\`
+            2. Check Cloud Function logs: \`gcloud functions logs read mcp-router --region=us-central1\`
+            3. Verify token in Secret Manager: \`gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN"\`
+            4. Redeploy if needed: Run \`deploy-mcp-router-cloudrun.yml\` workflow
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['health-check-failure', 'gcp-tunnel']
+            });
+
+      - name: Create Success Issue (if requested)
+        if: steps.summary.outputs.overall_status == 'healthy' && inputs.notify_on_success == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `✅ GCP Tunnel Health Check Passed - ${new Date().toISOString().slice(0, 16)}`;
+            const body = `## GCP Tunnel Health Check Success
+
+            **Time:** ${new Date().toISOString()}
+            **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            All components are operational:
+            - ✅ Secret Manager: Token retrieved
+            - ✅ Cloud Run: Healthy
+            - ✅ Cloud Function: Healthy
+            - ✅ MCP Tools: ${{ steps.check-mcp-tools.outputs.tool_count }} tools accessible
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['health-check-success', 'gcp-tunnel']
+            });
