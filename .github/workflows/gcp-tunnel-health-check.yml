@@ -203,8 +203,18 @@ jobs:
       - name: Create Alert Issue on Failure
         if: steps.summary.outputs.overall_status == 'unhealthy'
         uses: actions/github-script@v7
+        env:
+          SECRET_STATUS: ${{ steps.get-token.outputs.status }}
+          CR_STATUS: ${{ steps.check-cloud-run.outputs.status }}
+          CF_STATUS: ${{ steps.check-cloud-function.outputs.status }}
+          MCP_STATUS: ${{ steps.check-mcp-tools.outputs.status }}
         with:
           script: |
+            const secretIcon = process.env.SECRET_STATUS === 'ok' ? '✅' : '❌';
+            const crIcon = process.env.CR_STATUS === 'healthy' ? '✅' : '❌';
+            const cfIcon = process.env.CF_STATUS === 'healthy' ? '✅' : (process.env.CF_STATUS === 'partial' ? '⚠️' : '❌');
+            const mcpIcon = process.env.MCP_STATUS === 'healthy' ? '✅' : '❌';
+
             const title = `🚨 GCP Tunnel Health Check Failed - ${new Date().toISOString().slice(0, 16)}`;
             const body = `## GCP Tunnel Health Check Alert
 
@@ -215,10 +225,10 @@ jobs:
 
             | Component | Status |
             |-----------|--------|
-            | Secret Manager | ${{ steps.get-token.outputs.status == 'ok' ? '✅' : '❌' }} |
-            | Cloud Run | ${{ steps.check-cloud-run.outputs.status == 'healthy' ? '✅' : '❌' }} |
-            | Cloud Function | ${{ steps.check-cloud-function.outputs.status == 'healthy' ? '✅' : (steps.check-cloud-function.outputs.status == 'partial' ? '⚠️' : '❌') }} |
-            | MCP Tools | ${{ steps.check-mcp-tools.outputs.status == 'healthy' ? '✅' : '❌' }} |
+            | Secret Manager | ${secretIcon} |
+            | Cloud Run | ${crIcon} |
+            | Cloud Function | ${cfIcon} |
+            | MCP Tools | ${mcpIcon} |
 
             ### Troubleshooting
 
@@ -239,8 +249,11 @@ jobs:
       - name: Create Success Issue (if requested)
         if: steps.summary.outputs.overall_status == 'healthy' && inputs.notify_on_success == 'true'
         uses: actions/github-script@v7
+        env:
+          TOOL_COUNT: ${{ steps.check-mcp-tools.outputs.tool_count }}
         with:
           script: |
+            const toolCount = process.env.TOOL_COUNT || '0';
             const title = `✅ GCP Tunnel Health Check Passed - ${new Date().toISOString().slice(0, 16)}`;
             const body = `## GCP Tunnel Health Check Success
 
@@ -251,7 +264,7 @@ jobs:
             - ✅ Secret Manager: Token retrieved
             - ✅ Cloud Run: Healthy
             - ✅ Cloud Function: Healthy
-            - ✅ MCP Tools: ${{ steps.check-mcp-tools.outputs.tool_count }} tools accessible
+            - ✅ MCP Tools: ${toolCount} tools accessible
             `;
 
             await github.rest.issues.create({
