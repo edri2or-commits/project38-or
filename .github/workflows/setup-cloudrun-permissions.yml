@@ -128,17 +128,29 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Setup Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Enabled APIs (After)" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Enabled APIs" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          gcloud services list --enabled --filter="name:(run OR cloudbuild OR artifactregistry)" --format="value(name)" >> $GITHUB_STEP_SUMMARY 2>&1
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### IAM Roles (After)" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          gcloud projects get-iam-policy ${{ env.PROJECT_ID }} \
-            --flatten="bindings[].members" \
-            --filter="bindings.members:${{ env.SERVICE_ACCOUNT }}" \
-            --format="table(bindings.role)" >> $GITHUB_STEP_SUMMARY 2>&1
+          gcloud services list --enabled --filter="name:(run OR cloudbuild OR artifactregistry OR cloudfunctions OR secretmanager)" --format="value(name)" >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Could not list services"
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Next step: Re-run the \`deploy-mcp-cloudrun.yml\` workflow" >> $GITHUB_STEP_SUMMARY
+
+          echo "### IAM Roles Granted" >> $GITHUB_STEP_SUMMARY
+          echo "The following roles were requested for \`${{ env.SERVICE_ACCOUNT }}\`:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`roles/run.admin\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`roles/cloudbuild.builds.editor\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`roles/storage.admin\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`roles/iam.serviceAccountUser\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`roles/cloudfunctions.admin\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`roles/secretmanager.secretAccessor\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Note: Reading IAM policy requires resourcemanager.projects.getIamPolicy permission
+          # which may not be available. The grant commands above succeeded if no error was shown.
+          echo "### Verification" >> $GITHUB_STEP_SUMMARY
+          echo "IAM roles were granted in the previous step. If 'Grant IAM Roles' showed ✅, the setup is complete." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Run \`deploy-mcp-router-cloudrun.yml\` to deploy Cloud Run with Secret Manager mounts" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run \`fix-mcp-router.yml\` to deploy the Cloud Function proxy" >> $GITHUB_STEP_SUMMARY
+          echo "3. Run \`gcp-tunnel-health-check.yml\` to verify the setup" >> $GITHUB_STEP_SUMMARY

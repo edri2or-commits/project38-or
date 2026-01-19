@@ -1795,13 +1795,62 @@ no_proxy=localhost,127.0.0.1,169.254.169.254,metadata.google.internal,*.googleap
 ```
 
 **Verified Patterns:**
-- ✅ `gh pr merge` - works
-- ✅ `gh pr create` - works
-- ✅ `gh api` - works
-- ✅ `gh run list` - works
+- ✅ `gh pr merge` - works (if gh CLI is installed)
+- ✅ `gh pr create` - works (if gh CLI is installed)
+- ✅ `gh api` - works (if gh CLI is installed)
+- ✅ `gh run list` - works (if gh CLI is installed)
 - ❌ `curl` with Authorization - fails
 - ❌ Direct GitHub API requests with curl - fail
 - ✅ `requests` library with GitHub API - **works** (handles proxy correctly)
+
+**Important:** `gh CLI` is NOT installed in Anthropic cloud environments. Use Python modules instead.
+
+---
+
+## GitHub API Module (Universal Solution)
+
+**Problem:** `gh CLI` is not installed in Anthropic cloud environments, and curl fails due to proxy interference.
+
+**Solution:** Use `src/github_api.py` module which uses Python `requests` library:
+
+```python
+from src.github_api import GitHubAPI
+
+api = GitHubAPI()  # Uses GH_TOKEN from environment
+
+# Get recent workflow runs
+runs = api.get_workflow_runs(limit=5)
+for run in runs:
+    print(f"{run['name']}: {run.get('conclusion', run['status'])}")
+
+# Trigger a workflow
+api.trigger_workflow('deploy.yml', inputs={'environment': 'production'})
+
+# Get workflow status with jobs
+status = api.get_run_status(run_id=12345)
+jobs = api.get_run_jobs(run_id=12345)
+
+# Create issue
+api.create_issue(title="Bug Report", body="Description...", labels=['bug'])
+```
+
+**CLI Usage:**
+```bash
+# List recent runs
+python3 src/github_api.py runs
+
+# Trigger workflow
+python3 src/github_api.py trigger deploy.yml environment=production
+```
+
+**Why this works:**
+- Python `requests` library handles the Anthropic proxy correctly
+- Works in ALL Claude Code environments (local and cloud)
+- No external CLI dependencies
+
+**Files:**
+- `src/github_api.py` - Full GitHub API client (workflows, issues)
+- `src/github_pr.py` - PR-specific operations
 
 ---
 
