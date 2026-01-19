@@ -31,10 +31,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # The Cloud Run URL (internal GCP traffic - not blocked)
-# Points to mcp-router Cloud Run service (NOT gcp-mcp-gateway which returns 404)
+# Points to mcp-router Cloud Run service
 CLOUD_RUN_URL = os.environ.get(
     "CLOUD_RUN_URL",
-    "https://mcp-router-3e7yyrd7xq-uc.a.run.app"
+    "https://mcp-router-979429709900.us-central1.run.app"
 )
 
 
