@@ -1,0 +1,159 @@
+name: Deploy MCP Proxy (Gen 1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'GCP Region'
+        required: true
+        default: 'us-central1'
+        type: choice
+        options:
+          - us-central1
+          - us-east1
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-mcp-proxy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_ID: project38-483612
+  FUNCTION_NAME: mcp-proxy
+  SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  CLOUD_RUN_URL: https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Enable Cloud Functions API
+        run: |
+          gcloud services enable cloudfunctions.googleapis.com --project=${{ env.PROJECT_ID }}
+
+      - name: Get MCP Tunnel Token
+        id: secrets
+        run: |
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" --project="${PROJECT_ID}" 2>/dev/null || echo "")
+          if [ -z "$MCP_TOKEN" ]; then
+            echo "Creating new MCP_TUNNEL_TOKEN..."
+            MCP_TOKEN=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+            echo -n "$MCP_TOKEN" | gcloud secrets create MCP-TUNNEL-TOKEN \
+              --project="${PROJECT_ID}" \
+              --replication-policy="automatic" \
+              --data-file=- 2>/dev/null || \
+            echo -n "$MCP_TOKEN" | gcloud secrets versions add MCP-TUNNEL-TOKEN \
+              --project="${PROJECT_ID}" \
+              --data-file=-
+          fi
+          echo "::add-mask::${MCP_TOKEN}"
+          echo "MCP_TOKEN=${MCP_TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Show source files
+        run: |
+          echo "=== Source Files ==="
+          ls -la cloud_functions/mcp_proxy/
+          echo ""
+          echo "=== main.py ==="
+          cat cloud_functions/mcp_proxy/main.py
+          echo ""
+          echo "=== requirements.txt ==="
+          cat cloud_functions/mcp_proxy/requirements.txt
+
+      - name: Deploy Cloud Function (Gen 1)
+        run: |
+          echo "Deploying MCP Proxy to Cloud Functions Gen 1..."
+          echo "Target: https://${{ inputs.region }}-${{ env.PROJECT_ID }}.cloudfunctions.net/${{ env.FUNCTION_NAME }}"
+          echo ""
+
+          gcloud functions deploy ${{ env.FUNCTION_NAME }} \
+            --runtime=python311 \
+            --region=${{ inputs.region }} \
+            --source=cloud_functions/mcp_proxy \
+            --entry-point=mcp_proxy \
+            --trigger-http \
+            --allow-unauthenticated \
+            --service-account=${{ env.SERVICE_ACCOUNT }} \
+            --memory=256MB \
+            --timeout=120s \
+            --set-env-vars="CLOUD_RUN_URL=${{ env.CLOUD_RUN_URL }}"
+
+          echo ""
+          echo "✅ Deployment completed!"
+
+      - name: Get Function URL
+        id: url
+        run: |
+          URL=$(gcloud functions describe ${{ env.FUNCTION_NAME }} \
+            --region=${{ inputs.region }} \
+            --format='value(httpsTrigger.url)')
+          echo "function_url=${URL}" >> $GITHUB_OUTPUT
+          echo "Function URL: ${URL}"
+
+      - name: Test Function
+        run: |
+          URL="${{ steps.url.outputs.function_url }}"
+          echo "Testing function at: ${URL}"
+
+          # Test basic connectivity
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${URL}")
+          echo "HTTP Status: ${HTTP_CODE}"
+
+          if [ "$HTTP_CODE" = "404" ]; then
+            echo "❌ Function not accessible (404)"
+            exit 1
+          else
+            echo "✅ Function is accessible"
+          fi
+
+          # Test with MCP tools/list request
+          echo ""
+          echo "Testing MCP request..."
+          RESPONSE=$(curl -s -X POST "${URL}" \
+            -H "Authorization: Bearer ${{ steps.secrets.outputs.MCP_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc": "2.0", "method": "tools/list", "id": 1}')
+
+          echo "Response: ${RESPONSE}"
+
+      - name: Summary
+        run: |
+          URL="${{ steps.url.outputs.function_url }}"
+
+          echo "## MCP Proxy Deployed Successfully! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Proxy URL:** ${URL}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend:** ${{ env.CLOUD_RUN_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### How it works" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Claude Code calls \`*.cloudfunctions.net\` (allowed by Anthropic proxy)" >> $GITHUB_STEP_SUMMARY
+          echo "2. This proxy forwards to Cloud Run (internal GCP traffic)" >> $GITHUB_STEP_SUMMARY
+          echo "3. Response returns through the same path" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test from Anthropic Cloud" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "curl -X POST '${URL}' \\" >> $GITHUB_STEP_SUMMARY
+          echo '  -H "Content-Type: application/json" \' >> $GITHUB_STEP_SUMMARY
+          echo '  -d '"'"'{"jsonrpc": "2.0", "method": "tools/list", "id": 1}'"'" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

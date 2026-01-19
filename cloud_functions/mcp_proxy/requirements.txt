@@ -1,0 +1,5 @@
+# MCP Proxy - Minimal requirements for Gen 1 Cloud Function
+# This is a simple HTTP proxy, so we only need requests
+
+functions-framework>=3.0.0
+requests>=2.31.0
