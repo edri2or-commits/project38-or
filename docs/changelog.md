@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **GCP Tools in Cloud Function Tunnel** (2026-01-19) - Bypass Anthropic proxy for GCP access
+  - Added `gcp_secret_list`, `gcp_secret_get`, `gcp_project_info` tools to `cloud_functions/mcp_router/main.py`
+  - **Problem Solved**: Cloud Run `.run.app` domains blocked by Anthropic proxy
+  - **Solution**: Route GCP operations through Cloud Function (`cloudfunctions.googleapis.com` - whitelisted)
+  - Uses same Workload Identity authentication as Cloud Run version
+  - See ADR-006 "Alternative Access Path" section
+
 - **Automation Orchestrator** (2026-01-19) - ✅ **IMPLEMENTED** - Multi-path execution engine for reliable automation
   - `src/automation/orchestrator.py` - Complete implementation (540 lines)
   - `src/automation/__init__.py` - Module exports
