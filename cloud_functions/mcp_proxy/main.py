@@ -19,9 +19,9 @@ Architecture:
     Response back through same path
 """
 
-import os
 import json
 import logging
+import os
 
 import functions_framework
 import requests as http_requests
@@ -33,8 +33,7 @@ logger = logging.getLogger(__name__)
 # The Cloud Run URL (internal GCP traffic - not blocked)
 # Points to mcp-router Cloud Run service
 CLOUD_RUN_URL = os.environ.get(
-    "CLOUD_RUN_URL",
-    "https://mcp-router-979429709900.us-central1.run.app"
+    "CLOUD_RUN_URL", "https://mcp-router-979429709900.us-central1.run.app"
 )
 
 
@@ -59,7 +58,7 @@ def mcp_proxy(request):
                 "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type, Authorization",
                 "Access-Control-Max-Age": "3600",
-            }
+            },
         )
 
     headers = {"Access-Control-Allow-Origin": "*"}
@@ -80,44 +79,21 @@ def mcp_proxy(request):
 
         # Determine method and forward
         if request.method == "GET":
-            response = http_requests.get(
-                CLOUD_RUN_URL,
-                headers=forward_headers,
-                timeout=120
-            )
+            response = http_requests.get(CLOUD_RUN_URL, headers=forward_headers, timeout=120)
         else:
             response = http_requests.post(
-                CLOUD_RUN_URL,
-                data=body,
-                headers=forward_headers,
-                timeout=120
+                CLOUD_RUN_URL, data=body, headers=forward_headers, timeout=120
             )
 
         # Return the response from Cloud Run
-        return (
-            response.text,
-            response.status_code,
-            headers
-        )
+        return (response.text, response.status_code, headers)
 
     except http_requests.exceptions.Timeout:
         logger.error("Timeout connecting to Cloud Run")
-        return (
-            json.dumps({"error": "Timeout connecting to backend"}),
-            504,
-            headers
-        )
+        return (json.dumps({"error": "Timeout connecting to backend"}), 504, headers)
     except http_requests.exceptions.RequestException as e:
         logger.error(f"Error connecting to Cloud Run: {e}")
-        return (
-            json.dumps({"error": f"Backend connection error: {str(e)}"}),
-            502,
-            headers
-        )
+        return (json.dumps({"error": f"Backend connection error: {str(e)}"}), 502, headers)
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        return (
-            json.dumps({"error": f"Internal error: {str(e)}"}),
-            500,
-            headers
-        )
+        return (json.dumps({"error": f"Internal error: {str(e)}"}), 500, headers)

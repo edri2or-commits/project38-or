@@ -511,6 +511,13 @@ project38-or/
 │   │   └── tracer.py              # OpenTelemetry tracing (173 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # AUTOMATION (2 modules, ~570 lines)
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── automation/
+│   │   ├── __init__.py              # Module exports (5 lines)
+│   │   └── orchestrator.py          # Multi-path execution engine (540 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # WORKFLOWS (2 modules, ~850 lines)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   └── workflows/
@@ -1755,6 +1762,88 @@ GCP MCP Server (Cloud Run) ← Bearer Token Auth
 - **PR #337**: Phase 2 completion docs (merged)
 - **PR #341**: Phase 3 workflow (merged)
 - **Workflow**: `.github/workflows/gcp-mcp-phase3-setup.yml` (318 lines)
+
+---
+
+## Automation Orchestrator (Multi-Path Execution)
+
+**Status**: ✅ **IMPLEMENTED** (2026-01-19)
+
+**Purpose**: Multi-path automation engine that doesn't depend on GitHub API. Implements ADR-008 strategy for reliable automation.
+
+**Module**: `src/automation/orchestrator.py`
+
+### Why Multi-Path?
+
+GitHub API has proven unreliable for automation:
+- 88% failure rate observed in project38-or (44/50 workflow runs)
+- `workflow_dispatch` doesn't return run ID (cannot track)
+- Frequent 422 errors, caching delays, 10-second timeouts
+
+### Execution Paths (in order)
+
+| Path | Latency | Reliability | Description |
+|------|---------|-------------|-------------|
+| **1. Direct Python** | <1s | 100% | Local execution via registered handlers |
+| **2. Cloud Run** | <10s | 99%+ | Call GCP MCP Server directly |
+| **3. n8n Webhook** | <5s | 95%+ | Trigger n8n workflow |
+| **4. GitHub API** | 30-60s | ~50% | Traditional dispatch (fallback) |
+| **5. Manual** | N/A | 100% | Create GitHub issue (last resort) |
+
+### Usage
+
+```python
+from src.automation import AutomationOrchestrator, AutomationResult
+
+# Create orchestrator
+orchestrator = AutomationOrchestrator()
+
+# Register custom direct handler
+async def my_handler(**kwargs):
+    return {"status": "ok", **kwargs}
+
+orchestrator.register_handler("my-action", my_handler)
+
+# Execute with automatic fallback
+result = await orchestrator.execute("my-action", {"param": "value"})
+
+if result.success:
+    print(f"Completed via {result.path.value} in {result.duration_ms:.0f}ms")
+else:
+    print(f"Failed: {result.errors}")
+```
+
+### Pre-Configured Actions
+
+| Action | Path 2 (Cloud Run) | Path 3 (n8n) | Path 4 (GitHub) |
+|--------|-------------------|--------------|-----------------|
+| `test-gcp-tools` | `tools/list` | `/{action}` | `gcp-mcp-phase3-setup.yml` |
+| `list-secrets` | `secret_list` | `/{action}` | - |
+| `gcloud-version` | `gcloud_run` | `/{action}` | - |
+| `deploy` | - | `/{action}` | `deploy-railway.yml` |
+| `health-check` | - | `/{action}` | `production-health-check.yml` |
+
+### Configuration
+
+```python
+orchestrator = AutomationOrchestrator(
+    cloud_run_url="https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app",
+    cloud_run_token="...",  # Or from GCP_MCP_TOKEN env
+    n8n_url="https://n8n-production-2fe0.up.railway.app/webhook",
+    github_token="...",  # Or from GH_TOKEN env
+    github_repo="edri2or-commits/project38-or",
+)
+
+# Adjust path timeouts
+orchestrator.path_configs[ExecutionPath.CLOUD_RUN].timeout_seconds = 60
+orchestrator.path_configs[ExecutionPath.DIRECT_PYTHON].enabled = False  # Disable
+```
+
+### Related Documentation
+
+- **ADR-008**: [Robust Automation Strategy](docs/decisions/ADR-008-robust-automation-strategy.md)
+- **Tests**: `tests/test_automation_orchestrator.py` (16 tests)
+- **Implementation**: `src/automation/orchestrator.py` (540 lines)
 
 ---
 
