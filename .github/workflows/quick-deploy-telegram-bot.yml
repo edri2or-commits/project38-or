@@ -98,7 +98,7 @@ jobs:
           echo "Latest deployment status: $DEPLOY_STATUS"
           echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
 
-      - name: Configure and Redeploy
+      - name: Connect Service to GitHub and Deploy
         continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
@@ -107,19 +107,17 @@ jobs:
         run: |
           echo "Setting environment variables..."
 
-          # Set TELEGRAM_BOT_TOKEN
+          # Set all required env vars
           curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'"$BOT_TOKEN"'\" }) }"}' > /dev/null
 
-          # Set LITELLM_GATEWAY_URL
           curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"LITELLM_GATEWAY_URL\", value: \"https://litellm-gateway-production-0339.up.railway.app\" }) }"}' > /dev/null
 
-          # Set GCP_PROJECT_ID
           curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
@@ -127,21 +125,39 @@ jobs:
 
           echo "✅ Environment variables set"
 
-          echo "Triggering redeploy..."
+          echo "Connecting service to GitHub repo (edri2or-commits/project38-or)..."
+          CONNECT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceConnect(id: \"'"$SERVICE_ID"'\", input: { repo: \"edri2or-commits/project38-or\", branch: \"main\" }) { id } }"
+            }')
+          echo "Connect response: $CONNECT"
+
+          echo "Setting root directory to services/telegram-bot..."
+          ROOT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceUpdate(id: \"'"$SERVICE_ID"'\", input: { rootDirectory: \"services/telegram-bot\" }) { id rootDirectory } }"
+            }')
+          echo "Root directory response: $ROOT"
+
+          sleep 5
+
+          echo "Triggering deployment..."
           DEPLOY=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"query": "mutation { serviceInstanceRedeploy(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\") }"}')
+          echo "Redeploy response: $DEPLOY"
 
-          echo "Deploy response: $DEPLOY"
-
-          sleep 15
+          sleep 30
 
           # Check final status
           FINAL=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { name deployments(first: 1) { edges { node { id status createdAt } } } } }"}')
-
+            -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { name repo { fullRepoName } rootDirectory deployments(first: 2) { edges { node { id status createdAt } } } } }"}')
           echo "Final status:"
           echo "$FINAL" | jq '.'
