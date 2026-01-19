@@ -1070,11 +1070,13 @@ class MCPRouter:
             secrets = []
             for secret in client.list_secrets(request={"parent": parent}):
                 secret_name = secret.name.split("/")[-1]
-                secrets.append({
-                    "name": secret_name,
-                    "full_name": secret.name,
-                    "create_time": str(secret.create_time) if secret.create_time else None,
-                })
+                secrets.append(
+                    {
+                        "name": secret_name,
+                        "full_name": secret.name,
+                        "create_time": str(secret.create_time) if secret.create_time else None,
+                    }
+                )
 
             return {
                 "success": True,
