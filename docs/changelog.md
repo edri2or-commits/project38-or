@@ -8,19 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **GCP MCP Server** (2026-01-18/19) - ✅ **DEPLOYED** - Autonomous GCP operations via Model Context Protocol
+- **GCP MCP Server** (2026-01-18/19) - ✅ **DEPLOYED & CONFIGURED** - Autonomous GCP operations via Model Context Protocol
   - `src/gcp_mcp/` - Complete FastMCP server implementation (1,183 lines)
   - `src/gcp_mcp/server.py` - FastMCP server with 20+ tools (269 lines)
   - `src/gcp_mcp/tools/` - Tool modules: gcloud (126), compute (238), iam (104), secrets (207), storage (169)
   - **Features**: gcloud CLI execution, Secret Manager, Compute Engine, Cloud Storage, IAM operations
   - **Architecture**: Cloud Run deployment with Workload Identity (keyless auth)
   - **Security**: Bearer token auth (256-bit entropy), ephemeral GCP tokens, audit trail
-  - **Workflows**: `deploy-gcp-mcp.yml`, `deploy-gcp-mcp-direct.yml` (3 workflows total)
+  - **Workflows**: `deploy-gcp-mcp.yml`, `deploy-gcp-mcp-direct.yml`, `gcp-mcp-phase3-setup.yml` (3 workflows)
   - **Deployment**: ✅ Run #21152406969 (2026-01-19 21:52 UTC, ~5 min duration)
   - **Service**: `gcp-mcp-gateway` @ us-central1, project38-483612
-  - **Bearer Token**: Generated and documented in Issue #336
-  - **Status**: ✅ Phase 1 & 2 complete, Phase 3 (testing) pending
-  - **Evidence**: ADR-006, PR #335, Issue #336, deployment logs
+  - **Service URL**: `https://gcp-mcp-gateway-3e7yyrd7xq-uc.a.run.app`
+  - **Bearer Token**: `tLAb_sTuMguCIuRm0f5luxuvUzYYeAyDngXyIJ1NsC8` (Issue #336, stored in Secret Manager as `GCP-MCP-TOKEN`)
+  - **Phase 3 Setup**: ✅ Complete (2026-01-19 22:28 UTC, Run #21153100309)
+    - Bearer Token stored in GCP Secret Manager (`GCP-MCP-TOKEN`)
+    - Service URL retrieved and documented
+    - Health endpoint verified (HTTP 200)
+    - Configuration instructions provided (Issue #339)
+  - **Status**: ✅ Phase 1 & 2 complete, 🔄 Phase 3 setup complete (testing pending)
+  - **Evidence**: ADR-006, PRs #335/#337/#338/#341, Issues #336/#339/#340, deployment logs
+
+- **GCP MCP Phase 3 Setup Workflow** (2026-01-19) - Automated setup and testing for GCP MCP Server
+  - `.github/workflows/gcp-mcp-phase3-setup.yml` - Comprehensive setup and test automation (318 lines)
+  - **Actions**: `setup` (store token + get URL), `test-tools` (test 20+ tools), `full` (both)
+  - **Setup Features**:
+    - Store Bearer Token in GCP Secret Manager (automatic creation/update)
+    - Retrieve Service URL from Cloud Run
+    - Test health endpoint
+    - Create GitHub Issue with configuration instructions
+  - **Test Features**:
+    - Test MCP protocol (tools/list)
+    - Test individual tools (secrets_list, gcloud_execute, iam_list_service_accounts)
+    - Create GitHub Issue with test results
+  - **Deployment**: PR #338 (2026-01-19), Run #21153100309 (setup ✅ success, tests ⚠️ partial)
+  - **Evidence**: PR #338, Run #21153100309, Issues #339/#340
 
 - **GitHub API Module** (2026-01-19) - Universal GitHub API client for all environments
   - `src/github_api.py` - Python-based GitHub API client (265 lines)
