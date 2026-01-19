@@ -72,16 +72,73 @@ jobs:
           echo "Service ID: $SERVICE_ID"
           echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
 
-      - name: Trigger Deployment
+      - name: Check Service Status
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
           SERVICE_ID: ${{ steps.service.outputs.service_id }}
         run: |
-          echo "Triggering deployment for service $SERVICE_ID..."
+          echo "Checking service $SERVICE_ID status..."
 
-          # First, connect the service to the GitHub repo if not already
-          # Then trigger a deployment from the services/telegram-bot directory
+          STATUS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { service(id: \"'"$SERVICE_ID"'\") { name updatedAt deployments(first: 3) { edges { node { id status createdAt } } } serviceInstances { edges { node { id domains { serviceDomains { domain } } } } } } }"
+            }')
 
+          echo "Service status:"
+          echo "$STATUS" | jq '.'
+
+          # Get domain
+          DOMAIN=$(echo "$STATUS" | jq -r '.data.service.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // "no domain"')
+          echo "Domain: $DOMAIN"
+
+          # Get latest deployment status
+          DEPLOY_STATUS=$(echo "$STATUS" | jq -r '.data.service.deployments.edges[0].node.status // "no deployment"')
+          echo "Latest deployment status: $DEPLOY_STATUS"
+
+      - name: Trigger Deployment
+        continue-on-error: true
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+          BOT_TOKEN: ${{ steps.secrets.outputs.bot_token }}
+        run: |
+          echo "Configuring service environment variables..."
+
+          # Set TELEGRAM_BOT_TOKEN
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'"$BOT_TOKEN"'\" }) }"
+            }' > /dev/null
+
+          # Set LITELLM_GATEWAY_URL
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"LITELLM_GATEWAY_URL\", value: \"https://litellm-gateway-production-0339.up.railway.app\" }) }"
+            }' > /dev/null
+
+          # Set GCP_PROJECT_ID
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"GCP_PROJECT_ID\", value: \"project38-483612\" }) }"
+            }' > /dev/null
+
+          echo "Environment variables set"
+
+          echo "Triggering deployment..."
+
+          # Try serviceInstanceRedeploy
           DEPLOY=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
@@ -92,15 +149,16 @@ jobs:
 
           echo "Deploy response: $DEPLOY"
 
-          # Wait a bit and check status
-          sleep 10
+          # Wait and check status
+          sleep 15
 
           STATUS=$(curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { service(id: \"'"$SERVICE_ID"'\") { name deployments(first: 1) { edges { node { id status } } } } }"
+              "query": "query { service(id: \"'"$SERVICE_ID"'\") { name deployments(first: 1) { edges { node { id status createdAt } } } } }"
             }')
 
-          echo "Status: $STATUS" | jq '.'
+          echo "Final status:"
+          echo "$STATUS" | jq '.'
