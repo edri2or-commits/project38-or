@@ -98,66 +98,130 @@ jobs:
           echo "Latest deployment status: $DEPLOY_STATUS"
           echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
 
-      - name: Connect Service to GitHub and Deploy
-        continue-on-error: true
+      - name: Configure Service and Deploy
+        id: deploy
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
           SERVICE_ID: ${{ steps.service.outputs.service_id }}
           BOT_TOKEN: ${{ steps.secrets.outputs.bot_token }}
         run: |
-          echo "Setting environment variables..."
+          echo "=== Setting environment variables ==="
 
           # Set all required env vars
-          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'"$BOT_TOKEN"'\" }) }"}' > /dev/null
+          for VAR_NAME in "TELEGRAM_BOT_TOKEN:$BOT_TOKEN" "LITELLM_GATEWAY_URL:https://litellm-gateway-production-0339.up.railway.app" "GCP_PROJECT_ID:project38-483612" "PORT:8000"; do
+            NAME=$(echo $VAR_NAME | cut -d: -f1)
+            VALUE=$(echo $VAR_NAME | cut -d: -f2-)
+            RESULT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"'"$NAME"'\", value: \"'"$VALUE"'\" }) }"}')
+            echo "Set $NAME: $(echo $RESULT | jq -r '.errors // "✅"')"
+          done
 
-          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"LITELLM_GATEWAY_URL\", value: \"https://litellm-gateway-production-0339.up.railway.app\" }) }"}' > /dev/null
-
-          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"GCP_PROJECT_ID\", value: \"project38-483612\" }) }"}' > /dev/null
-
-          echo "✅ Environment variables set"
-
-          echo "Connecting service to GitHub repo (edri2or-commits/project38-or)..."
+          echo ""
+          echo "=== Connecting to GitHub repo ==="
           CONNECT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
               "query": "mutation { serviceConnect(id: \"'"$SERVICE_ID"'\", input: { repo: \"edri2or-commits/project38-or\", branch: \"main\" }) { id } }"
             }')
-          echo "Connect response: $CONNECT"
 
-          echo "Setting root directory to services/telegram-bot..."
+          CONNECT_ERROR=$(echo "$CONNECT" | jq -r '.errors[0].message // empty')
+          if [ -n "$CONNECT_ERROR" ]; then
+            echo "⚠️ Connect error (may already be connected): $CONNECT_ERROR"
+          else
+            echo "✅ Connected to GitHub repo"
+          fi
+
+          echo ""
+          echo "=== Setting root directory ==="
           ROOT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
               "query": "mutation { serviceUpdate(id: \"'"$SERVICE_ID"'\", input: { rootDirectory: \"services/telegram-bot\" }) { id rootDirectory } }"
             }')
-          echo "Root directory response: $ROOT"
+          echo "Root directory set: $(echo $ROOT | jq -r '.data.serviceUpdate.rootDirectory // .errors')"
 
-          sleep 5
-
-          echo "Triggering deployment..."
+          echo ""
+          echo "=== Triggering deployment ==="
+          # Use deploymentTrigger which works for new deployments
           DEPLOY=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"query": "mutation { serviceInstanceRedeploy(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\") }"}')
-          echo "Redeploy response: $DEPLOY"
+            -d '{"query": "mutation { deploymentTrigger(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\" }) { id status } }"}')
 
-          sleep 30
+          DEPLOY_ERROR=$(echo "$DEPLOY" | jq -r '.errors[0].message // empty')
+          DEPLOY_ID=$(echo "$DEPLOY" | jq -r '.data.deploymentTrigger.id // empty')
+          DEPLOY_STATUS=$(echo "$DEPLOY" | jq -r '.data.deploymentTrigger.status // empty')
 
-          # Check final status
-          FINAL=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { name repo { fullRepoName } rootDirectory deployments(first: 2) { edges { node { id status createdAt } } } } }"}')
-          echo "Final status:"
-          echo "$FINAL" | jq '.'
+          if [ -n "$DEPLOY_ERROR" ]; then
+            echo "⚠️ Deployment trigger error: $DEPLOY_ERROR"
+            # Try serviceInstanceRedeploy as fallback
+            echo "Trying serviceInstanceRedeploy as fallback..."
+            DEPLOY=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { serviceInstanceRedeploy(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\") }"}')
+            echo "Redeploy response: $DEPLOY"
+          else
+            echo "✅ Deployment triggered: $DEPLOY_ID (status: $DEPLOY_STATUS)"
+          fi
+
+          echo ""
+          echo "=== Waiting for deployment (60s) ==="
+          sleep 60
+
+          echo ""
+          echo "=== Checking deployment status ==="
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { name repo { fullRepoName } rootDirectory deployments(first: 1) { edges { node { id status createdAt } } } serviceInstances { edges { node { domains { serviceDomains { domain } } } } } } }"}')
+
+            DEPLOY_STATUS=$(echo "$STATUS" | jq -r '.data.service.deployments.edges[0].node.status // "unknown"')
+            DOMAIN=$(echo "$STATUS" | jq -r '.data.service.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // "no domain"')
+            REPO=$(echo "$STATUS" | jq -r '.data.service.repo.fullRepoName // "not connected"')
+            ROOT_DIR=$(echo "$STATUS" | jq -r '.data.service.rootDirectory // "/"')
+
+            echo "Check $i: status=$DEPLOY_STATUS, domain=$DOMAIN, repo=$REPO, root=$ROOT_DIR"
+
+            if [ "$DEPLOY_STATUS" = "SUCCESS" ]; then
+              echo ""
+              echo "✅ Deployment successful!"
+              echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+              echo "status=success" >> $GITHUB_OUTPUT
+              break
+            elif [ "$DEPLOY_STATUS" = "FAILED" ] || [ "$DEPLOY_STATUS" = "CRASHED" ]; then
+              echo ""
+              echo "❌ Deployment failed with status: $DEPLOY_STATUS"
+              echo "status=failed" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+
+            if [ $i -lt 5 ]; then
+              echo "Waiting 30s for deployment..."
+              sleep 30
+            fi
+          done
+
+          if [ "$DEPLOY_STATUS" != "SUCCESS" ]; then
+            echo ""
+            echo "⚠️ Deployment still in progress: $DEPLOY_STATUS"
+            echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+            echo "status=$DEPLOY_STATUS" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Test Webhook Endpoint
+        if: steps.deploy.outputs.domain != 'no domain'
+        env:
+          DOMAIN: ${{ steps.deploy.outputs.domain }}
+        run: |
+          echo "Testing webhook endpoint..."
+          HEALTH=$(curl -s --max-time 10 "https://$DOMAIN/health" || echo "error")
+          echo "Health check: $HEALTH"
+
+          ROOT=$(curl -s --max-time 10 "https://$DOMAIN/" || echo "error")
+          echo "Root endpoint: $ROOT"
