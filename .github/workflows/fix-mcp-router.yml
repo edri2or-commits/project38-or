@@ -60,6 +60,15 @@ jobs:
 
           echo "✅ Deployment completed"
 
+      - name: Set IAM policy for public access
+        run: |
+          echo "Setting IAM policy to allow unauthenticated access..."
+          gcloud functions add-iam-policy-binding ${{ env.FUNCTION_NAME }} \
+            --region=us-central1 \
+            --member="allUsers" \
+            --role="roles/cloudfunctions.invoker"
+          echo "✅ IAM policy set"
+
       - name: Verify function
         run: |
           echo "=== Function state after deploy ==="
