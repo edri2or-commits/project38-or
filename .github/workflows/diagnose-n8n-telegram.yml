@@ -258,14 +258,27 @@ jobs:
           set +e
           echo "=== Attempting to Create Workflow via API ==="
 
-          # Skip creation if workflow already exists
+          # If workflow exists but webhooks don't work, delete and recreate
           if [[ "$WORKFLOW_FOUND" == "true" ]]; then
-            echo "✅ Workflow already exists (ID: $EXISTING_WORKFLOW_ID)"
-            echo "Skipping creation..."
-            echo "create_http=skipped" >> $GITHUB_OUTPUT
-            echo "create_error=already_exists" >> $GITHUB_OUTPUT
-            echo "created_workflow_id=$EXISTING_WORKFLOW_ID" >> $GITHUB_OUTPUT
-            exit 0
+            echo "Workflow exists but webhooks return 404. Deleting and recreating..."
+
+            # Delete the existing workflow
+            echo "Deleting workflow $EXISTING_WORKFLOW_ID..."
+            DELETE_RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_URL/api/v1/workflows/$EXISTING_WORKFLOW_ID" 2>&1)
+
+            DELETE_HTTP=$(echo "$DELETE_RESPONSE" | tail -1)
+            echo "Delete HTTP: $DELETE_HTTP"
+
+            if [[ "$DELETE_HTTP" != "200" && "$DELETE_HTTP" != "204" ]]; then
+              echo "Warning: Delete returned $DELETE_HTTP, continuing anyway..."
+            fi
+
+            # Wait a moment
+            sleep 3
+
+            echo "Creating fresh workflow..."
           fi
 
           # Generate unique node ID
@@ -273,7 +286,9 @@ jobs:
 
           # Create minimal workflow JSON using printf to avoid YAML parsing issues
           # Note: "active" field is read-only and must not be included
-          printf '{"name":"Telegram Webhook Bot","nodes":[{"id":"%s","parameters":{"httpMethod":"POST","path":"telegram-bot","responseMode":"onReceived","options":{}},"name":"Webhook","type":"n8n-nodes-base.webhook","typeVersion":1,"position":[250,300]}],"connections":{},"settings":{"executionOrder":"v1"}}' "$NODE_ID" > /tmp/workflow.json
+          # Using typeVersion 1.1 and adding webhookId for proper registration
+          WEBHOOK_ID=$(cat /proc/sys/kernel/random/uuid)
+          printf '{"name":"Telegram Webhook Bot","nodes":[{"id":"%s","parameters":{"httpMethod":"POST","path":"telegram-bot","responseMode":"onReceived","options":{}},"name":"Webhook","type":"n8n-nodes-base.webhook","typeVersion":1.1,"position":[250,300],"webhookId":"%s"}],"connections":{},"settings":{"executionOrder":"v1"}}' "$NODE_ID" "$WEBHOOK_ID" > /tmp/workflow.json
 
           echo "Workflow JSON to send:"
           cat /tmp/workflow.json
@@ -355,6 +370,20 @@ jobs:
           R4=$(curl -s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" "$N8N_URL/webhook/$WORKFLOW_ID" -d '{"test":4}' 2>&1)
           H4=$(echo "$R4" | tail -1)
           echo "   HTTP: $H4"
+
+          # Try root webhook path to see response format
+          echo "5. Testing $N8N_URL/webhook/ (root)"
+          R5=$(curl -s -w "\n%{http_code}" "$N8N_URL/webhook/" 2>&1)
+          H5=$(echo "$R5" | tail -1)
+          B5=$(echo "$R5" | head -n -1 | head -c 200)
+          echo "   HTTP: $H5"
+          echo "   Body: $B5"
+
+          # Check n8n UI/root to confirm it's responding
+          echo "6. Testing $N8N_URL/ (root)"
+          R6=$(curl -s -w "\n%{http_code}" "$N8N_URL/" 2>&1)
+          H6=$(echo "$R6" | tail -1)
+          echo "   HTTP: $H6"
 
           # Choose the best result
           BEST_HTTP="404"
