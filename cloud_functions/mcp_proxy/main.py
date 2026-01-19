@@ -23,6 +23,7 @@ import os
 import json
 import logging
 
+import functions_framework
 import requests as http_requests
 
 # Configure logging
@@ -36,6 +37,7 @@ CLOUD_RUN_URL = os.environ.get(
 )
 
 
+@functions_framework.http
 def mcp_proxy(request):
     """
     Simple HTTP proxy function - forwards requests to Cloud Run.
