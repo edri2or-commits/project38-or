@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **GCP Tunnel Cloud Functions Deployment** (2026-01-19) - Fix Python 3.12 imp module issue
+  - Changed runtime from `python312` to `python311` in `deploy-mcp-router.yml`
+  - **Root Cause**: Python 3.12 removed `imp` module, breaking gcloud buildpack
+  - **Evidence**: [Google Issue Tracker #303280713](https://issuetracker.google.com/issues/303280713)
+  - **Fix**: Use Python 3.11 which still has `imp` module compatibility
+  - Affects both Gen 1 and Gen 2 deployments (lines 248, 288)
+
 ### Added
 - **Telegram Webhook Update Feature** (2026-01-19) - Enable AI responses via FastAPI bot
   - Added `update_webhook` input to `diagnose-n8n-telegram.yml` workflow

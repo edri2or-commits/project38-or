@@ -239,13 +239,13 @@ jobs:
           set -o pipefail
 
           echo "Starting deployment..."
-          echo "⚠️  WARNING: You are using Gen 1. Consider Gen 2 for better Python 3.12 support."
+          echo "ℹ️  Using Python 3.11 to avoid imp module issues with Python 3.12"
           echo ""
 
           # Deploy with --allow-unauthenticated (public HTTP) but custom token validation
           # The function validates MCP_TUNNEL_TOKEN internally
           gcloud functions deploy ${{ env.FUNCTION_NAME }} \
-            --runtime=python312 \
+            --runtime=python311 \
             --region=${{ inputs.region }} \
             --source=cloud_functions/mcp_router \
             --entry-point=mcp_router \
@@ -280,12 +280,12 @@ jobs:
           set -o pipefail
 
           echo "Starting deployment to Gen 2 (Cloud Run functions)..."
-          echo "✅ Gen 2 is recommended for Python 3.12 + functions_framework"
+          echo "✅ Gen 2 uses Python 3.11 to avoid imp module issues"
           echo ""
 
           gcloud functions deploy ${{ env.FUNCTION_NAME }} \
             --gen2 \
-            --runtime=python312 \
+            --runtime=python311 \
             --region=${{ inputs.region }} \
             --source=cloud_functions/mcp_router \
             --entry-point=mcp_router \
