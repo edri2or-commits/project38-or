@@ -34,11 +34,19 @@ jobs:
           echo "=== Current mcp-router state ==="
           gcloud functions describe ${{ env.FUNCTION_NAME }} --region=us-central1 --format="yaml(name,status,runtime,httpsTrigger.url)" || echo "Function not found"
 
-      - name: Deploy simple proxy to mcp-router
+      - name: Delete existing function (to force Gen 1)
         run: |
-          echo "Deploying simple proxy code to mcp-router..."
+          echo "Deleting existing function to ensure clean Gen 1 deployment..."
+          gcloud functions delete ${{ env.FUNCTION_NAME }} --region=us-central1 --quiet || echo "Function didn't exist"
+          sleep 5
 
+      - name: Deploy simple proxy to mcp-router (Gen 1)
+        run: |
+          echo "Deploying simple proxy code to mcp-router as Gen 1..."
+
+          # --no-gen2 flag explicitly requests Gen 1
           gcloud functions deploy ${{ env.FUNCTION_NAME }} \
+            --no-gen2 \
             --runtime=python311 \
             --region=us-central1 \
             --source=cloud_functions/mcp_proxy \
