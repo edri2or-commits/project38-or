@@ -19,9 +19,9 @@ Architecture:
     Response back through same path
 """
 
-import os
 import json
 import logging
+import os
 
 import functions_framework
 import requests as http_requests
