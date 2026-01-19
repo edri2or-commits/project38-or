@@ -147,6 +147,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See ADR-005 for full architecture and deployment details
 
 ### Fixed
+- **n8n Telegram Webhook 404 Fix** (2026-01-19) - Resolved webhook registration issue (PRs #304-#310)
+  - **Problem**: n8n webhooks returning HTTP 404 even though workflow was marked "active"
+  - **Root Cause**: n8n doesn't register webhooks when using `PATCH /workflows/{id}` with `{"active": true}`
+  - **Solution**: Use `POST /api/v1/workflows/{id}/activate` endpoint with 5-second delay for registration
+  - **Investigation Timeline**:
+    - PR #304: Added webhook environment variables (N8N_HOST, N8N_PROTOCOL, N8N_ENDPOINT_WEBHOOK, EXECUTIONS_MODE)
+    - PR #305: Attempted workflow toggle to force re-registration
+    - PR #306: Delete and recreate workflow with webhookId and typeVersion 1.1
+    - PR #307: Added Force Restart step (serviceInstanceRedeploy), N8N_EDITOR_BASE_URL, N8N_USER_MANAGEMENT_DISABLED
+    - PR #308: Added N8N_LISTEN_ADDRESS=0.0.0.0, WEBHOOK_TUNNEL_URL, GENERIC_TIMEZONE
+    - PR #309: Added webhook response body to diagnostic output for debugging
+    - PR #310: **Final fix** - Use POST /activate endpoint instead of PATCH
+  - **Environment Variables Added** (`.github/workflows/deploy-n8n.yml`):
+    - `N8N_HOST`: n8n-production-2fe0.up.railway.app
+    - `N8N_PROTOCOL`: https
+    - `N8N_ENDPOINT_WEBHOOK`: webhook
+    - `EXECUTIONS_MODE`: regular
+    - `N8N_EDITOR_BASE_URL`: https://n8n-production-2fe0.up.railway.app
+    - `N8N_USER_MANAGEMENT_DISABLED`: true
+    - `N8N_LISTEN_ADDRESS`: 0.0.0.0
+    - `WEBHOOK_TUNNEL_URL`: https://n8n-production-2fe0.up.railway.app/
+    - `GENERIC_TIMEZONE`: UTC
+  - **Diagnostic Workflow Improvements** (`.github/workflows/diagnose-n8n-telegram.yml`):
+    - Tests multiple webhook URL patterns (production, test, with/without workflow ID prefix)
+    - Auto-activates workflow using POST /activate endpoint
+    - Deletes and recreates workflow if webhooks fail
+    - Waits 5 seconds for webhook registration after activation
+    - Shows webhook response body for debugging
+  - **Final Status**: Webhook returns HTTP 200, workflow executes, Pending Updates = 0
+  - **Evidence**: Diagnostic workflow #21130958624 passed all checks (2026-01-19 08:48 UTC)
+  - **Impact**: Telegram bot messages now reach n8n workflow successfully
+
 - **n8n Deploy Workflow Domain Discovery** (2026-01-18) - Improved domain discovery and issue comments (PRs #267, #269, #271)
   - **PR #267**: Fixed YAML syntax error causing workflow failures
     - Changed template literals to string concatenation for GitHub Actions compatibility

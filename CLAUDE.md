@@ -1684,6 +1684,71 @@ Response back to Telegram
 - **Research Report**: Multi-LLM Agentic System Architecture (2026)
 - **README**: `services/litellm-gateway/README.md`
 
+### n8n Telegram Webhook Integration
+
+**Status**: ✅ **OPERATIONAL** (2026-01-19 08:48 UTC)
+
+**Production URL**: `https://n8n-production-2fe0.up.railway.app/webhook/telegram-bot`
+
+**Purpose**: n8n workflow that receives Telegram messages and processes them automatically.
+
+**Architecture**:
+```
+Telegram User → Bot API → n8n Webhook → Workflow → Response
+```
+
+#### Critical: Workflow Activation
+
+**Use POST /activate, NOT PATCH**:
+
+```bash
+# ❌ WRONG - Sets active=true but doesn't register webhooks
+curl -X PATCH "$N8N_URL/api/v1/workflows/$ID" \
+  -H "X-N8N-API-KEY: $KEY" \
+  -d '{"active": true}'
+
+# ✅ RIGHT - Activates workflow AND registers webhooks
+curl -X POST "$N8N_URL/api/v1/workflows/$ID/activate" \
+  -H "X-N8N-API-KEY: $KEY"
+
+# Wait for webhook registration
+sleep 5
+```
+
+**Why**: n8n has two activation paths:
+- `PATCH {"active": true}` - Updates database only
+- `POST /activate` - Updates database AND registers webhook routes
+
+#### Required Environment Variables
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `N8N_HOST` | n8n-production-2fe0.up.railway.app | External hostname |
+| `N8N_PROTOCOL` | https | HTTPS for webhooks |
+| `N8N_ENDPOINT_WEBHOOK` | webhook | Webhook path prefix |
+| `EXECUTIONS_MODE` | regular | Production mode |
+| `N8N_LISTEN_ADDRESS` | 0.0.0.0 | Railway containers |
+| `WEBHOOK_TUNNEL_URL` | https://n8n-production-2fe0.up.railway.app/ | External URL |
+
+#### Workflows
+
+| Workflow | Purpose |
+|----------|---------|
+| `deploy-n8n.yml` | Deploy n8n to Railway with all env vars |
+| `diagnose-n8n-telegram.yml` | Auto-diagnose and fix webhook issues |
+| `setup-telegram-n8n-webhook.yml` | Create workflow and set Telegram webhook |
+
+#### Diagnostic Workflow
+
+Run `diagnose-n8n-telegram.yml` to:
+1. Check Telegram webhook status
+2. Verify n8n health
+3. Auto-activate workflow if inactive
+4. Test multiple webhook URL patterns
+5. Post results to Issue #266
+
+**ADR**: [ADR-007: n8n Webhook Activation Architecture](docs/decisions/ADR-007-n8n-webhook-activation-architecture.md)
+
 ---
 
 ### Proxy Constraints (Anthropic Environment)
