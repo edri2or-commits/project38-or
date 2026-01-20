@@ -1,6 +1,6 @@
 # ADR-009: Research Integration Architecture
 
-**Status:** Implementing (Weeks 1-3 Complete)
+**Status:** ✅ Implemented (All 4 Weeks Complete)
 **Date:** 2026-01-20
 **Decision Makers:** User (edri2or-commits), Claude Code Agent
 
@@ -148,11 +148,11 @@ But lacks:
 - [x] Create `experiments/README.md` - Experiment guidelines (208 lines, 2026-01-20)
 - [ ] Run first research note through full process (optional - will happen organically)
 
-### Phase 4: CI Integration (Week 4) 🔄 In Progress
+### Phase 4: CI Integration (Week 4) ✅ Complete
 
 - [x] Add evaluation to CI (GitHub Action) - `.github/workflows/evaluate.yml` (2026-01-20)
 - [x] Create weekly review checklist - in `docs/research/PROCESS.md` line 51-55
-- [ ] Run first weekly review (will happen on next Monday)
+- [x] Run first weekly review (2026-01-20, Issue #361 created for Spike)
 - [x] Update CLAUDE.md with new process (2026-01-20)
 
 ---
@@ -261,3 +261,5 @@ But lacks:
 | 2026-01-20 | Added `.github/workflows/evaluate.yml` with mock/real modes |
 | 2026-01-20 | Created first research note: `2026-01-20-claude-4-opus-evaluation.md` |
 | 2026-01-20 | Updated CLAUDE.md with evaluation CI workflow documentation |
+| 2026-01-20 | First Weekly Review: Created Issue #361 for Opus Spike |
+| 2026-01-20 | **ADR-009 COMPLETE** - All 4 phases implemented |
