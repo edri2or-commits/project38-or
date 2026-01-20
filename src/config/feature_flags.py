@@ -91,6 +91,11 @@ class FeatureFlags:
     _loaded: bool = False
 
     def __new__(cls) -> "FeatureFlags":
+        """Create or return the singleton instance.
+
+        Returns:
+            The singleton FeatureFlags instance.
+        """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
