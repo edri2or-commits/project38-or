@@ -26,7 +26,7 @@ Usage:
     provider = ModelRegistry.get()
 """
 
-from src.providers.base import ModelProvider, ModelResponse, ModelCapabilities
+from src.providers.base import ModelCapabilities, ModelProvider, ModelResponse
 from src.providers.registry import ModelRegistry
 
 __all__ = [

@@ -71,8 +71,9 @@ class Flag:
             return False
 
         # Consistent hash based on flag name + identifier
+        # Using SHA256 for consistent hashing (not for cryptographic security)
         hash_input = f"{self.name}:{identifier}"
-        hash_value = int(hashlib.md5(hash_input.encode()).hexdigest(), 16)
+        hash_value = int(hashlib.sha256(hash_input.encode()).hexdigest(), 16)
         percentage = hash_value % 100
 
         return percentage < self.rollout_percentage

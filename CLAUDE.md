@@ -44,6 +44,11 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-002: Dual Documentation Strategy](docs/decisions/ADR-002-dual-documentation-strategy.md) - The 4-layer architecture
 - [ADR-003: Railway Autonomous Control](docs/decisions/ADR-003-railway-autonomous-control.md) - Autonomous Railway management approach
 - [ADR-004: Google Workspace OAuth](docs/decisions/ADR-004-google-workspace-oauth.md) - Google Workspace integration architecture
+- [ADR-005: GCP Tunnel Protocol Encapsulation](docs/decisions/ADR-005-gcp-tunnel-protocol-encapsulation.md) - Cloud Functions MCP bypass
+- [ADR-006: GCP Agent Autonomy](docs/decisions/ADR-006-gcp-agent-autonomy.md) - GCP MCP Server for autonomous operations
+- [ADR-007: n8n Webhook Activation Architecture](docs/decisions/ADR-007-n8n-webhook-activation-architecture.md) - n8n webhook activation patterns
+- [ADR-008: Robust Automation Strategy](docs/decisions/ADR-008-robust-automation-strategy.md) - Defensive automation patterns
+- [ADR-009: Research Integration Architecture](docs/decisions/ADR-009-research-integration-architecture.md) - Process for integrating new AI research
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
@@ -496,6 +501,21 @@ project38-or/
 │   │       └── docs.py            # Docs operations (346 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # MODEL PROVIDERS (3 modules, ~550 lines) - ADR-009
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── providers/
+│   │   ├── __init__.py            # Module exports (38 lines)
+│   │   ├── base.py                # ModelProvider interface (223 lines)
+│   │   └── registry.py            # Provider registry singleton (163 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # CONFIGURATION (2 modules, ~300 lines) - ADR-009
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── config/
+│   │   ├── __init__.py            # Module exports (20 lines)
+│   │   └── feature_flags.py       # Feature flag system (276 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # DATA MODELS (3 modules, ~265 lines)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── models/
@@ -553,6 +573,12 @@ project38-or/
 │   │   └── test_webhook_load.py
 │   └── test_*.py                  # Unit tests for all modules
 │
+├── experiments/                   # Isolated experiments (ADR-009)
+│   └── README.md                  # Experiment guidelines and templates
+│
+├── config/                        # Configuration files
+│   └── feature_flags.yaml         # Feature flag definitions
+│
 ├── scripts/                       # Operational scripts
 │   ├── health-check.sh            # Production health verification
 │   └── collect-metrics.sh         # Metrics collection
@@ -568,15 +594,25 @@ project38-or/
 │   ├── test-drive-sheets-docs.yml # Workspace tests
 │   └── ...                        # CI/CD workflows
 │
-├── docs/                          # Documentation (566KB)
+├── docs/                          # Documentation (620KB)
 │   ├── JOURNEY.md                 # Project timeline (42KB)
 │   ├── deployment.md              # Production guide (700+ lines)
 │   ├── maintenance-runbook.md     # Operations runbook
-│   ├── decisions/                 # ADRs (4 files)
-│   │   ├── ADR-001-*.md
-│   │   ├── ADR-002-*.md
-│   │   ├── ADR-003-*.md
-│   │   └── ADR-004-*.md
+│   ├── decisions/                 # ADRs (9 files)
+│   │   ├── ADR-001-*.md           # Research Synthesis
+│   │   ├── ADR-002-*.md           # Dual Documentation
+│   │   ├── ADR-003-*.md           # Railway Autonomous
+│   │   ├── ADR-004-*.md           # Google Workspace OAuth
+│   │   ├── ADR-005-*.md           # GCP Tunnel
+│   │   ├── ADR-006-*.md           # GCP Agent Autonomy
+│   │   ├── ADR-007-*.md           # n8n Webhook Activation
+│   │   ├── ADR-008-*.md           # Robust Automation
+│   │   └── ADR-009-*.md           # Research Integration
+│   ├── research/                  # Research integration (ADR-009)
+│   │   ├── README.md              # 5-stage process guide
+│   │   ├── notes/                 # Research notes (YYYY-MM-DD-title.md)
+│   │   └── templates/             # Templates for research
+│   │       └── research-note.md   # Research note template
 │   ├── autonomous/                # System architecture (9 files)
 │   │   └── 08-mcp-gateway-architecture.md
 │   └── api/                       # API reference
@@ -591,6 +627,70 @@ project38-or/
 ├── CLAUDE.md                      # This file
 └── README.md
 ```
+
+---
+
+## Research Integration Process (ADR-009)
+
+Process for safely integrating new AI research (videos, papers, tools) into the system.
+
+### The 5-Stage Process
+
+```
+CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
+```
+
+1. **Capture**: Document discovery in `docs/research/notes/YYYY-MM-DD-title.md`
+2. **Triage**: Weekly review, classify as Spike/ADR/Backlog/Discard
+3. **Experiment**: Run isolated test in `experiments/exp_NNN_description/`
+4. **Evaluate**: Compare to baseline using decision matrix
+5. **Integrate**: Use feature flags for gradual rollout
+
+### Decision Matrix
+
+| Quality | Latency | Cost | Decision |
+|---------|---------|------|----------|
+| Better | Better | Better | **ADOPT** |
+| Better | Same | Same | **ADOPT** |
+| Same | Better | Same | **ADOPT** |
+| Worse | Any | Any | **REJECT** |
+| Mixed | Mixed | Mixed | **NEEDS_MORE_DATA** |
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `docs/research/README.md` | Full process documentation |
+| `docs/research/templates/research-note.md` | Research note template |
+| `experiments/README.md` | Experiment guidelines |
+| `src/providers/` | Model abstraction layer |
+| `src/config/feature_flags.py` | Feature flag system |
+| `config/feature_flags.yaml` | Flag definitions |
+
+### Quick Start
+
+```bash
+# Create research note
+cp docs/research/templates/research-note.md docs/research/notes/$(date +%Y-%m-%d)-title.md
+
+# Create experiment
+mkdir experiments/exp_001_description
+# Follow template in experiments/README.md
+```
+
+### Architecture
+
+```
+docs/research/notes/       # Research notes
+         ↓
+experiments/               # Isolated experiments
+         ↓
+src/providers/             # Model abstraction
+         ↓
+config/feature_flags.yaml  # Controlled rollout
+```
+
+**Architecture Decision**: [ADR-009: Research Integration Architecture](docs/decisions/ADR-009-research-integration-architecture.md)
 
 ---
 
