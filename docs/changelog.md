@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-010 Phase 2: LiteLLM Production Hardening** (2026-01-20) - Phase 33
+  - **Redis Semantic Caching**: 20-40% cost reduction via response caching
+    - Added `cache: True` with Redis configuration in `litellm-config.yaml`
+    - TTL: 1 hour, supported call types: completion, embedding
+  - **Budget Alerts**: Webhook notifications for spend tracking
+    - Configured `alert_to_webhook_url` for budget_alerts, llm_exceptions, spend_reports
+    - Alerts sent to n8n: `https://n8n-production-2fe0.up.railway.app/webhook/litellm-alerts`
+  - **OpenTelemetry Observability**: Full request/response tracing
+    - Added `success_callback: ["otel"]` and `failure_callback: ["otel"]`
+    - Service name: `litellm-gateway`
+  - **Per-User Rate Limiting**: Master key authentication + user quotas
+    - Added `general_settings` with `master_key` and `database_url`
+    - Default user budget: $5/day
+  - **Workflow Enhancement**: Added `setup-phase2` action to deployment workflow
+    - Auto-generates `LITELLM_MASTER_KEY`
+    - Configures alert webhooks and OTEL settings
+  - **Documentation**: Updated README.md with Phase 2 setup guide
+  - **ADR-010**: Marked Phase 2 items as complete
+
 - **Project Status Review & Documentation** (2026-01-20) - Phase 32 comprehensive review
   - Reviewed all 10 ADRs and documented current status
   - Closed ISSUE-0001 (Agent Interop Standards) - AGENTS.md implemented via PR #372

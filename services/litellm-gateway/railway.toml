@@ -1,5 +1,6 @@
 # Railway Configuration for LiteLLM Gateway
 # Documentation: https://docs.railway.app/reference/config-as-code
+# Updated: 2026-01-20 (Phase 2: Production Hardening - ADR-010)
 
 [build]
 builder = "dockerfile"
@@ -14,7 +15,17 @@ healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
-# Environment variables required:
+# Environment variables required (Phase 1 - LLM Providers):
 # - ANTHROPIC_API_KEY
 # - OPENAI_API_KEY
 # - GEMINI_API_KEY
+#
+# Environment variables required (Phase 2 - Production Hardening):
+# - LITELLM_MASTER_KEY: Admin API key for /key/generate, /user/new
+# - DATABASE_URL: Auto-provided by Railway PostgreSQL plugin
+# - REDIS_HOST: Auto-provided by Railway Redis plugin
+# - REDIS_PORT: Auto-provided by Railway Redis plugin (default: 6379)
+# - REDIS_PASSWORD: Auto-provided by Railway Redis plugin
+# - ALERT_WEBHOOK_URL: n8n webhook for budget alerts
+# - OTEL_EXPORTER_OTLP_ENDPOINT: OpenTelemetry endpoint (optional)
+# - OTEL_SERVICE_NAME: Service name for traces (default: litellm-gateway)

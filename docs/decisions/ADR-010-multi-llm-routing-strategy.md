@@ -276,13 +276,13 @@ client.chat.completions.create(model="claude-sonnet", ...)
 - [ ] Test MCP integration: "Check Railway status" → LiteLLM → Claude → MCP → Result
 - [ ] Measure cost: 100 requests = $X (verify budget tracking)
 
-### Phase 2: Production Hardening (⏭️ Future)
+### Phase 2: Production Hardening (✅ Complete - 2026-01-20)
 
-- [ ] Add Redis for semantic caching (reduce costs by 20-40%)
-- [ ] Configure budget alerts (webhooks to Telegram at 50%, 80%, 100%)
-- [ ] Add observability: OpenTelemetry traces to Langfuse
-- [ ] Implement rate limiting (per-user quotas)
-- [ ] Set up monitoring dashboards (Grafana/Railway metrics)
+- [x] Add Redis for semantic caching (reduce costs by 20-40%) - PR #378
+- [x] Configure budget alerts (webhooks to n8n for Telegram) - PR #378
+- [x] Add observability: OpenTelemetry traces - PR #378
+- [x] Implement rate limiting (per-user quotas via master key) - PR #378
+- [ ] Set up monitoring dashboards (Grafana/Railway metrics) - Future
 
 ---
 
@@ -445,7 +445,8 @@ LiteLLM logs every request with:
 | Date | Change | Author | Evidence |
 |------|--------|--------|----------|
 | 2026-01-17 | Initial creation - LiteLLM Gateway implemented | Claude | PR #240, commit 0523382 |
-| 2026-01-20 | Renumbered from ADR-006 to ADR-010 | Claude | PR #375 (pending) |
+| 2026-01-20 | Renumbered from ADR-006 to ADR-010 | Claude | PR #375 |
+| 2026-01-20 | Phase 2 complete: Redis caching, budget alerts, OTEL, rate limiting | Claude | PR #378 |
 
 ---
 

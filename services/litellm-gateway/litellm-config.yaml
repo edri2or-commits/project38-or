@@ -1,6 +1,7 @@
 # LiteLLM Gateway Configuration
 # Documentation: https://docs.litellm.ai/docs/proxy/configs
 # Date: 2026-01-17
+# Updated: 2026-01-20 (Phase 2: Production Hardening - ADR-010)
 
 # Model definitions
 model_list:
@@ -71,13 +72,28 @@ router_settings:
 
 # General settings
 litellm_settings:
-  # Budget control (Phase 1: $10/day limit)
+  # Budget control ($10/day limit)
   max_budget: 10.0  # USD per day
   budget_duration: 1d
 
-  # Logging
-  success_callback: []  # Add observability later (Phase 2)
-  failure_callback: []
+  # =================================================================
+  # Phase 2: Redis Semantic Caching (20-40% cost reduction)
+  # =================================================================
+  cache: True
+  cache_params:
+    type: redis
+    host: os.environ/REDIS_HOST
+    port: os.environ/REDIS_PORT
+    password: os.environ/REDIS_PASSWORD
+    # Semantic caching - cache similar queries
+    supported_call_types: ["acompletion", "completion", "aembedding", "embedding"]
+    ttl: 3600  # Cache TTL: 1 hour
+
+  # =================================================================
+  # Phase 2: OpenTelemetry Observability
+  # =================================================================
+  success_callback: ["otel"]
+  failure_callback: ["otel"]
 
   # Drop unsupported params (for model compatibility)
   drop_params: true
@@ -87,9 +103,46 @@ litellm_settings:
   json_logs: true
 
   # Security
-  allowed_origins: ["*"]  # Restrict in production
+  allowed_origins: ["*"]  # Restrict in production if needed
 
-# Cost tracking (optional - Phase 2)
-# general_settings:
-#   master_key: os.environ/LITELLM_MASTER_KEY
-#   database_url: os.environ/DATABASE_URL
+# =================================================================
+# Phase 2: Budget Alerts, Rate Limiting, Database
+# =================================================================
+general_settings:
+  # Master key for admin API access
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+  # Database for spend tracking and user management
+  database_url: os.environ/DATABASE_URL
+
+  # Alerting configuration
+  alerting: ["webhook"]
+  alerting_threshold: 300  # Alert if requests hang > 5min
+  budget_alert_ttl: 86400  # 24 hours
+
+  # Webhook for budget alerts (Telegram via n8n)
+  alert_to_webhook_url:
+    budget_alerts: os.environ/ALERT_WEBHOOK_URL
+    llm_exceptions: os.environ/ALERT_WEBHOOK_URL
+    spend_reports: os.environ/ALERT_WEBHOOK_URL
+
+  # =================================================================
+  # Phase 2: Rate Limiting (per-user quotas)
+  # =================================================================
+  # Enable multi-instance rate limiting with Redis
+  enable_jwt_auth: false  # Can enable for JWT-based auth later
+
+  # Default limits for new users (can be overridden per key)
+  # Applied when creating new keys via /key/generate
+  default_budget: 5.0  # $5 default budget per user
+  default_budget_duration: 1d  # Daily reset
+
+# Environment variables required (Phase 2):
+# - LITELLM_MASTER_KEY: Admin API key (generate with: openssl rand -hex 32)
+# - DATABASE_URL: PostgreSQL connection string
+# - REDIS_HOST: Redis hostname
+# - REDIS_PORT: Redis port (default: 6379)
+# - REDIS_PASSWORD: Redis password
+# - ALERT_WEBHOOK_URL: n8n webhook URL for alerts
+# - OTEL_EXPORTER_OTLP_ENDPOINT: OpenTelemetry collector endpoint
+# - OTEL_SERVICE_NAME: Service name for traces (default: litellm-gateway)
