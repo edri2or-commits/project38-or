@@ -2,7 +2,7 @@
 
 **Date:** 2026-01-20
 **Author:** Claude Code Agent
-**Status:** Draft
+**Status:** Triaged (Spike)
 
 ---
 
@@ -98,8 +98,10 @@
 
 **Reviewed:** 2026-01-20
 **Decision:** Spike
-**Issue/PR:** #361
-**Experiment ID:** exp_001_opus_comparison (planned)
+**Reason:** Explicit recommendation: Spike
+**Issue/PR:** #1
+**Experiment ID:** exp_001_claude_4_5_opus_model_evaluati
+
 
 ---
 

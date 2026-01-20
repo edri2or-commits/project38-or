@@ -1,0 +1,23 @@
+# Experiment Configuration
+# Auto-generated from research note classification
+
+experiment:
+  id: "exp_001"
+  title: "Claude 4.5 Opus Model Evaluation"
+  hypothesis: "If we use Claude 4.5 Opus for high-stakes autonomous decisions, then quality scores will improve by 10-15% while accepting 2-3x higher cost."
+
+research_note:
+  path: "docs/research/notes/2026-01-20-claude-4-opus-evaluation.md"
+
+providers:
+  baseline: "mock"
+  experiment: "mock"
+
+golden_set:
+  path: "tests/golden/basic_queries.json"
+
+success_criteria:
+  quality_min: 0.85
+  quality_regression_max: -0.02
+  latency_max_ratio: 2.0
+  cost_max_ratio: 1.5

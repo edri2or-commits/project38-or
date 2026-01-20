@@ -28,11 +28,20 @@ from src.research.classifier import (
 
 @dataclass
 class ResearchInput:
-    """Minimal input required from user."""
+    """Input for research ingestion.
 
-    source: str  # URL or title
-    description: str  # Brief description (2-3 sentences)
+    Supports two modes:
+    1. Minimal: source + description (brief)
+    2. Full: title + raw_text (complete research text)
+    """
+
+    source: str = ""  # URL or title
+    description: str = ""  # Brief description (2-3 sentences)
     why_relevant: Optional[str] = None  # Optional context
+    # New fields for full text ingestion
+    title: Optional[str] = None  # Explicit title
+    raw_text: Optional[str] = None  # Full research text to parse
+    source_url: Optional[str] = None  # Explicit URL
 
 
 @dataclass
@@ -379,35 +388,159 @@ def infer_relevance_areas(scope: ImpactScope) -> list[str]:
     return area_map.get(scope, ["Model Layer"])
 
 
-def infer_all_fields(user_input: ResearchInput) -> InferredFields:
-    """Infer all fields from minimal user input.
+def extract_key_findings(raw_text: str) -> list[str]:
+    """Extract key findings from raw research text.
+
+    Looks for:
+    - Numbered lists
+    - Bullet points
+    - Sentences with key phrases like "found that", "shows that", "improves"
 
     Args:
-        user_input: Minimal input from user
+        raw_text: Full research text
+
+    Returns:
+        List of key finding strings (max 5)
+    """
+    findings = []
+
+    # Look for numbered items (1. 2. 3. etc)
+    numbered = re.findall(r"^\s*\d+[.)]\s*(.+)$", raw_text, re.MULTILINE)
+    findings.extend(numbered[:3])
+
+    # Look for bullet points
+    bullets = re.findall(r"^\s*[-•*]\s*(.+)$", raw_text, re.MULTILINE)
+    for bullet in bullets[:3]:
+        if bullet not in findings:
+            findings.append(bullet)
+
+    # Look for key claim sentences
+    key_patterns = [
+        r"([^.]*(?:found that|shows that|demonstrates|improves|reduces|increases)[^.]*\.)",
+        r"([^.]*(?:better than|faster than|more accurate|outperforms)[^.]*\.)",
+        r"([^.]*(?:\d+%|\d+x)[^.]*(?:improvement|faster|better|reduction)[^.]*\.)",
+    ]
+
+    for pattern in key_patterns:
+        matches = re.findall(pattern, raw_text, re.IGNORECASE)
+        for match in matches[:2]:
+            clean = match.strip()
+            if clean and clean not in findings and len(clean) < 200:
+                findings.append(clean)
+
+    # Limit to 5 findings
+    return findings[:5] if findings else ["See raw text for details."]
+
+
+def extract_hypothesis_from_text(raw_text: str) -> str:
+    """Extract or generate hypothesis from raw research text.
+
+    Looks for explicit hypothesis statements or generates one from claims.
+
+    Args:
+        raw_text: Full research text
+
+    Returns:
+        Hypothesis string
+    """
+    # Look for explicit hypothesis
+    hyp_patterns = [
+        r"hypothesis[:\s]+([^.]+\.)",
+        r"we hypothesize[:\s]+([^.]+\.)",
+        r"claim[:\s]+([^.]+\.)",
+        r"proposes[:\s]+([^.]+\.)",
+    ]
+
+    for pattern in hyp_patterns:
+        match = re.search(pattern, raw_text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
+    # Look for improvement claims to form hypothesis
+    improvement_patterns = [
+        r"([^.]*(?:\d+%|\d+x)[^.]*(?:improvement|faster|better)[^.]*\.)",
+        r"([^.]*improves[^.]*by[^.]*\.)",
+        r"([^.]*outperforms[^.]*\.)",
+    ]
+
+    for pattern in improvement_patterns:
+        match = re.search(pattern, raw_text, re.IGNORECASE)
+        if match:
+            claim = match.group(1).strip()
+            return f"If we apply this approach, then: {claim}"
+
+    return "Applying this research will improve system performance measurably."
+
+
+def extract_metrics_from_text(raw_text: str) -> list[str]:
+    """Extract mentioned metrics from research text.
+
+    Args:
+        raw_text: Full research text
+
+    Returns:
+        List of metric mentions
+    """
+    metrics = []
+
+    # Look for percentage improvements
+    pct_matches = re.findall(r"(\d+(?:\.\d+)?%\s*(?:improvement|faster|better|reduction|increase))", raw_text, re.IGNORECASE)
+    metrics.extend(pct_matches[:3])
+
+    # Look for X times improvements
+    times_matches = re.findall(r"(\d+(?:\.\d+)?x\s*(?:faster|better|improvement))", raw_text, re.IGNORECASE)
+    metrics.extend(times_matches[:3])
+
+    # Look for latency/time mentions
+    time_matches = re.findall(r"(\d+(?:\.\d+)?\s*(?:ms|seconds?|minutes?)\s*(?:latency|response time)?)", raw_text, re.IGNORECASE)
+    metrics.extend(time_matches[:2])
+
+    return metrics[:5] if metrics else ["No specific metrics mentioned"]
+
+
+def infer_all_fields(user_input: ResearchInput) -> InferredFields:
+    """Infer all fields from user input.
+
+    Supports two modes:
+    1. Minimal input: source + description
+    2. Full input: title + raw_text
+
+    Args:
+        user_input: Input from user (minimal or full)
 
     Returns:
         InferredFields with all inferred data
     """
     inferred = InferredFields()
 
-    # Source type
-    inferred.source_type = detect_source_type(user_input.source)
+    # Determine if we have raw_text (full mode)
+    has_raw_text = bool(user_input.raw_text and len(user_input.raw_text) > 50)
 
-    # Title (from URL or use description start)
-    if user_input.source.startswith("http"):
-        # Extract title from URL path
-        parsed = urlparse(user_input.source)
+    # Source type
+    source = user_input.source_url or user_input.source or ""
+    inferred.source_type = detect_source_type(source)
+
+    # Title
+    if user_input.title:
+        inferred.title = user_input.title
+    elif source.startswith("http"):
+        parsed = urlparse(source)
         path_parts = parsed.path.strip("/").split("/")
         if path_parts and path_parts[-1]:
             title = path_parts[-1].replace("-", " ").replace("_", " ").title()
-            inferred.title = title[:80]  # Limit length
+            inferred.title = title[:80]
         else:
-            inferred.title = user_input.description[:50]
+            inferred.title = (user_input.description or "Untitled Research")[:50]
     else:
-        inferred.title = user_input.source
+        inferred.title = source or (user_input.description or "Untitled Research")[:50]
+
+    # Use raw_text if available for better inference
+    if has_raw_text:
+        combined_text = user_input.raw_text
+    else:
+        combined_text = f"{user_input.description} {user_input.why_relevant or ''}"
 
     # Scope
-    combined_text = f"{user_input.description} {user_input.why_relevant or ''}"
     inferred.scope = infer_scope_from_description(combined_text)
 
     # Effort and Risk
@@ -422,11 +555,18 @@ def infer_all_fields(user_input: ResearchInput) -> InferredFields:
     else:
         inferred.reversibility = "Difficult"
 
-    # Hypothesis
-    inferred.hypothesis = generate_hypothesis(user_input.description, inferred.scope)
+    # Hypothesis - extract from raw_text if available
+    if has_raw_text:
+        inferred.hypothesis = extract_hypothesis_from_text(user_input.raw_text)
+    else:
+        inferred.hypothesis = generate_hypothesis(user_input.description or "", inferred.scope)
 
-    # Summary
-    inferred.summary = generate_summary(user_input.description)
+    # Summary - use key findings from raw_text if available
+    if has_raw_text:
+        findings = extract_key_findings(user_input.raw_text)
+        inferred.summary = findings[:3] if len(findings) >= 3 else findings + ["See raw text for details."] * (3 - len(findings))
+    else:
+        inferred.summary = generate_summary(user_input.description or "Research discovery")
 
     # Relevance areas
     inferred.relevance_areas = infer_relevance_areas(inferred.scope)
@@ -500,6 +640,10 @@ def create_research_note(
     }
     rec_checkboxes[classification] = "[x]"
 
+    # Determine source URL
+    source_url = user_input.source_url or user_input.source or ""
+    display_url = source_url if source_url.startswith("http") else "N/A"
+
     # Generate note content
     content = f"""# Research Note: {inferred.title}
 
@@ -512,7 +656,7 @@ def create_research_note(
 ## Source
 
 - **Type:** {inferred.source_type}
-- **URL:** {user_input.source if user_input.source.startswith("http") else "N/A"}
+- **URL:** {display_url}
 - **Title:** {inferred.title}
 - **Creator/Author:** Unknown
 - **Date Published:** Unknown
@@ -597,9 +741,25 @@ def create_research_note(
 
 ## User Input (Preserved)
 
-**Source:** {user_input.source}
-**Description:** {user_input.description}
+**Source:** {source_url or user_input.source or "Not specified"}
+**Title:** {user_input.title or "Auto-generated"}
+**Description:** {user_input.description or "See raw text"}
 **Why Relevant:** {user_input.why_relevant or "Not specified"}
+"""
+
+    # Add raw text section if provided
+    if user_input.raw_text:
+        content += f"""
+---
+
+## Raw Research Text
+
+<details>
+<summary>Click to expand original research text</summary>
+
+{user_input.raw_text}
+
+</details>
 """
 
     # Write file
