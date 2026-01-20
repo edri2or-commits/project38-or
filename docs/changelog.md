@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `.claude/skills/research-ingestion/SKILL.md` - Skill definition
   - Triggers: `research`, `מחקר`, `הוסף מחקר`, `add research`, `ADR-009`
   - Enables: User writes instruction + raw text → Claude creates research note
+  - **Pre-Flight Check added** - 3 mandatory questions before processing (prevents "gimmick" implementations)
   - Updated ADR-009 with "Claude Code Skill Interface" section
   - Added to CLAUDE.md Available Skills
   - SessionStart hook reminder added for automatic skill awareness
