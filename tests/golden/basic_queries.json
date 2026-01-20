@@ -1,0 +1,152 @@
+[
+  {
+    "id": "basic_001",
+    "category": "greeting",
+    "query": "Say hello and introduce yourself briefly.",
+    "expected_keywords": ["hello", "assistant", "help"],
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_002",
+    "category": "math",
+    "query": "What is 15 multiplied by 7?",
+    "expected_keywords": ["105"],
+    "max_tokens": 128
+  },
+  {
+    "id": "basic_003",
+    "category": "coding",
+    "query": "Write a Python function that checks if a number is prime.",
+    "expected_keywords": ["def", "prime", "return"],
+    "expected_format": "code",
+    "max_tokens": 512
+  },
+  {
+    "id": "basic_004",
+    "category": "explanation",
+    "query": "Explain what an API is in 2-3 sentences.",
+    "expected_keywords": ["interface", "application", "communicate"],
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_005",
+    "category": "json",
+    "query": "Return a JSON object with fields 'name', 'age', and 'city' for a fictional person.",
+    "expected_format": "json",
+    "expected_keywords": ["name", "age", "city"],
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_006",
+    "category": "list",
+    "query": "List 5 benefits of regular exercise.",
+    "expected_keywords": ["health", "energy"],
+    "expected_format": "markdown",
+    "max_tokens": 512
+  },
+  {
+    "id": "basic_007",
+    "category": "coding",
+    "query": "Write a Python function to reverse a string.",
+    "expected_keywords": ["def", "return", "reverse"],
+    "expected_format": "code",
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_008",
+    "category": "comparison",
+    "query": "Compare Python and JavaScript in 3 key differences.",
+    "expected_keywords": ["Python", "JavaScript"],
+    "max_tokens": 512
+  },
+  {
+    "id": "basic_009",
+    "category": "instruction",
+    "query": "Give step-by-step instructions to make a peanut butter and jelly sandwich.",
+    "expected_keywords": ["bread", "peanut butter", "jelly"],
+    "expected_format": "markdown",
+    "max_tokens": 512
+  },
+  {
+    "id": "basic_010",
+    "category": "coding",
+    "query": "Write a SQL query to select all users older than 25 from a 'users' table.",
+    "expected_keywords": ["SELECT", "FROM", "WHERE", "users", "25"],
+    "expected_format": "code",
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_011",
+    "category": "definition",
+    "query": "Define 'machine learning' in one paragraph.",
+    "expected_keywords": ["data", "algorithm", "learn", "pattern"],
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_012",
+    "category": "json",
+    "query": "Return a JSON array of 3 programming languages with 'name' and 'year_created' fields.",
+    "expected_format": "json",
+    "expected_keywords": ["name", "year"],
+    "max_tokens": 512
+  },
+  {
+    "id": "basic_013",
+    "category": "reasoning",
+    "query": "If all roses are flowers and all flowers need water, do roses need water? Explain.",
+    "expected_keywords": ["yes", "roses", "water"],
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_014",
+    "category": "coding",
+    "query": "Write a Python function that calculates the factorial of a number.",
+    "expected_keywords": ["def", "factorial", "return"],
+    "expected_format": "code",
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_015",
+    "category": "summary",
+    "query": "Summarize the concept of 'version control' in software development.",
+    "expected_keywords": ["version", "code", "changes", "history"],
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_016",
+    "category": "list",
+    "query": "List 3 popular Python web frameworks.",
+    "expected_keywords": ["Django", "Flask"],
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_017",
+    "category": "coding",
+    "query": "Write a Python function to check if a string is a palindrome.",
+    "expected_keywords": ["def", "palindrome", "return"],
+    "expected_format": "code",
+    "max_tokens": 256
+  },
+  {
+    "id": "basic_018",
+    "category": "explanation",
+    "query": "Explain what REST API means and its key principles.",
+    "expected_keywords": ["REST", "HTTP", "resource"],
+    "max_tokens": 512
+  },
+  {
+    "id": "basic_019",
+    "category": "math",
+    "query": "Calculate 128 divided by 8.",
+    "expected_keywords": ["16"],
+    "max_tokens": 128
+  },
+  {
+    "id": "basic_020",
+    "category": "coding",
+    "query": "Write a Python class called 'Rectangle' with width and height attributes and an area method.",
+    "expected_keywords": ["class", "Rectangle", "width", "height", "area", "def"],
+    "expected_format": "code",
+    "max_tokens": 512
+  }
+]

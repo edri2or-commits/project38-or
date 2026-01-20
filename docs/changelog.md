@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Evaluation Harness** (2026-01-20) - Model provider testing infrastructure (ADR-009 Week 2)
+  - `src/evaluation/harness.py` - EvaluationHarness class (~500 lines)
+  - `src/evaluation/metrics/quality.py` - Quality metrics (keyword, format, completeness)
+  - `src/evaluation/metrics/latency.py` - Latency metrics (avg, p50, p95, p99)
+  - `src/evaluation/metrics/cost.py` - Cost metrics with pricing models
+  - `tests/golden/basic_queries.json` - Golden test set (20 test cases)
+  - `scripts/run_evaluation.py` - CLI for running evaluations
+  - Features: Async execution, comparison mode, ADOPT/REJECT/NEEDS_MORE_DATA decisions
+
 - **ADR-009: Research Integration Architecture** (2026-01-20) - Framework for safe integration of new AI research
   - **Problem**: Rapid AI evolution (YouTube videos, articles) can cause chaotic system changes
   - **Solution**: 5-stage process: Capture → Triage → Experiment → Evaluate → Integrate

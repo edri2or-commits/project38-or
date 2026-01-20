@@ -43,6 +43,8 @@ secrets/
 !pyproject.toml
 !mkdocs.yml
 !services/**/package.json
+!tests/golden/*.json
+!config/feature_flags.yaml
 
 # IDE
 .vscode/
