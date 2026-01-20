@@ -4410,5 +4410,246 @@ python scripts/run_evaluation.py --output results.json
 
 ---
 
+## Phase 26: ADR-009 Week 4 - Evaluation CI & Research Notes (2026-01-20)
+
+### Context
+
+With Weeks 1-3 of ADR-009 complete (model abstraction, evaluation harness, process documentation), Week 4 focused on CI integration and operationalizing the research capture workflow.
+
+### Implementation
+
+**Evaluation CI Workflow** (`.github/workflows/evaluate.yml`):
+
+| Feature | Description |
+|---------|-------------|
+| Mock Mode | Runs on PRs - validates code without API costs |
+| Real Mode | Manual dispatch with actual providers (claude, gpt-4) |
+| PR Comments | Auto-posts evaluation results to PR |
+| Validation | Checks golden set format and evaluation imports |
+
+**Workflow Structure**:
+```yaml
+jobs:
+  validate:      # Check imports, validate golden set
+  mock-evaluation:   # Run with MockProvider (PRs)
+  real-evaluation:   # Run with real APIs (manual)
+```
+
+**Research Notes Infrastructure**:
+
+| File | Purpose |
+|------|---------|
+| `docs/research/notes/` | Directory for capturing new research |
+| `docs/research/notes/.gitkeep` | Preserve empty directory in git |
+| `docs/research/notes/2026-01-20-claude-4-opus-evaluation.md` | Example research note |
+
+**Example Research Note** demonstrates the full 5-stage process:
+- Source documentation (URL, author, date)
+- Hypothesis with testable metrics
+- Impact estimate (scope, effort, risk, reversibility)
+- Current vs proposed state comparison
+- Triage decision (Spike selected)
+
+### ADR-009 Progress Summary
+
+| Week | Focus | Status | Evidence |
+|------|-------|--------|----------|
+| Week 1 | Model Abstraction | ✅ Complete | PR #355, src/providers/ |
+| Week 2 | Evaluation Harness | ✅ Complete | PR #357, src/evaluation/ |
+| Week 3 | Process Docs | ✅ Complete | PR #358, docs/research/ |
+| Week 4 | CI Integration | ✅ Complete | PR #359, #360, #362 |
+
+**Weekly Review Completed**: Issue #361 created for Opus evaluation Spike
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Added Evaluation CI Workflow section |
+| Layer 2 | `ADR-009` | Phase 4 status updated (3/4 complete) |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 26) |
+| Layer 4 | `docs/changelog.md` | Evaluation CI Workflow entry |
+
+### Evidence
+
+- **PR #359**: Evaluation CI workflow (merged)
+- **PR #360**: Phase 26 documentation (merged)
+- **PR #362**: ADR-009 completion (merged)
+- **Issue #361**: Opus evaluation Spike (created via Weekly Review)
+- **ADR-009**: ✅ All 4 weeks complete
+
+---
+
+## Phase 27: ADR-009 Phase 5 - Research Ingestion & Autonomy (2026-01-20)
+
+### Context
+
+User requested enhancement: "I just drop research, and the system handles everything automatically."
+
+The goal is to transform from manual research processing to autonomous handling:
+- **Before**: User creates research note manually, runs weekly review manually, creates issues manually
+- **After**: User provides minimal input (URL + description), system does the rest
+
+### Implementation
+
+**ADR-009 Phase 5** added the following specifications:
+
+#### 1. Research Ingestion Agent
+
+| User Provides | System Infers |
+|---------------|---------------|
+| URL or title | Source type, full summary |
+| 1-2 sentences | Key findings, hypothesis |
+| (optional) Why relevant | Impact estimate, classification |
+
+**Invocation:**
+```
+"Add research: https://youtube.com/watch?v=XYZ - New prompting technique"
+```
+
+#### 2. Auto Weekly Review
+
+| Trigger | Frequency |
+|---------|-----------|
+| Scheduled | Every Monday 09:00 UTC |
+| On-demand | Manual workflow dispatch |
+
+**Auto-Classification:**
+- Scope = Model + Hypothesis → Spike
+- Scope = Architecture → ADR
+- Effort = Hours, Risk = Low → Backlog
+
+#### 3. Automated Decision Rules
+
+| Condition | Decision |
+|-----------|----------|
+| Quality drops > 2% | REJECT |
+| Cost +50% without quality gain | REJECT |
+| All metrics improve | ADOPT |
+| Quality +10%, acceptable cost | ADOPT |
+
+#### 4. Auto vs Human Actions
+
+| Action | Auto? |
+|--------|-------|
+| Create research note | ✅ |
+| Create GitHub Issue | ✅ |
+| Run mock evaluation | ✅ |
+| Create feature flag 0% | ✅ |
+| Run real evaluation | ⚠️ |
+| Merge PR | ❌ |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | "How to Add Research (Autonomous Mode)" |
+| Layer 2 | `ADR-009` | Phase 5: Research Ingestion & Autonomy |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 27) |
+| Layer 4 | `docs/changelog.md` | ADR-009 Phase 5 entry |
+
+### Evidence
+
+- **ADR-009**: Phase 5 specification (~260 lines added)
+- **PROCESS.md**: Auto Weekly Review section
+- **CLAUDE.md**: Autonomous research usage guide
+- **Status**: Specification complete, code implementation planned
+
+---
+
+## Phase 28: ADR-009 Phase 5 - Full Implementation (2026-01-20)
+
+### Context
+
+Following Phase 27's specification, this phase implements all the autonomous research processing components.
+
+### Implementation
+
+**4 New Modules Created** (~1,263 lines of production code):
+
+#### 1. `src/research/classifier.py` (310 lines)
+
+Auto-classification of research notes:
+- `parse_research_note()` - Extract structured data from markdown
+- `auto_classify()` - Apply classification rules
+- `find_unclassified_notes()` - Scan notes directory
+- `update_note_with_classification()` - Write results back
+
+**Classification Rules:**
+1. Explicit Recommendation → Use it
+2. Scope = Architecture/Security → ADR
+3. Effort = Hours, Risk = Low → Backlog
+4. Scope = Model + Hypothesis → Spike
+5. Default → NEEDS_REVIEW
+
+#### 2. `src/research/ingestion_agent.py` (380 lines)
+
+Create full research notes from minimal input:
+- `detect_source_type()` - Pattern matching on URL
+- `infer_scope_from_description()` - Keyword analysis
+- `generate_hypothesis()` - Template-based generation
+- `create_research_note()` - Full note creation
+- `ingest_research()` - Main entry point
+
+#### 3. `src/research/experiment_creator.py` (340 lines)
+
+Auto-generate experiment skeletons for Spikes:
+- `get_next_experiment_id()` - Auto-increment IDs
+- `create_experiment_skeleton()` - Full directory setup
+
+**Creates:**
+```
+experiments/exp_NNN_description/
+├── README.md      # Hypothesis, success criteria
+├── run.py         # Executable experiment script
+└── config.yaml    # Configuration
+```
+
+#### 4. `.github/workflows/auto-weekly-review.yml` (175 lines)
+
+Scheduled workflow for autonomous weekly review:
+- Trigger: `cron: '0 9 * * 1'` (Every Monday 09:00 UTC)
+- Manual: `workflow_dispatch` with dry-run option
+- Actions: Find → Classify → Issue → Experiment → Commit
+
+### Module Structure
+
+```
+src/research/
+├── __init__.py              # 58 lines
+├── classifier.py            # 310 lines
+├── ingestion_agent.py       # 380 lines
+└── experiment_creator.py    # 340 lines
+
+.github/workflows/
+└── auto-weekly-review.yml   # 175 lines
+```
+
+### Evidence
+
+| Component | Location | Lines |
+|-----------|----------|-------|
+| Classifier | `src/research/classifier.py` | 310 |
+| Ingestion Agent | `src/research/ingestion_agent.py` | 380 |
+| Experiment Creator | `src/research/experiment_creator.py` | 340 |
+| Auto Weekly Review | `.github/workflows/auto-weekly-review.yml` | 175 |
+| Module Init | `src/research/__init__.py` | 58 |
+| **Total** | | **1,263** |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Already has autonomous mode guide |
+| Layer 2 | `ADR-009` | Status updated to "✅ Fully Implemented" |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 28) |
+| Layer 4 | `docs/changelog.md` | Phase 5 implementation entry |
+
+### Status
+
+**ADR-009 Phase 5: ✅ FULLY IMPLEMENTED**
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 25 Complete - Evaluation Harness implemented with quality, latency, cost metrics***
+*Status: **Phase 28 Complete - ADR-009 Phase 5 fully implemented with ~1,263 lines of code***

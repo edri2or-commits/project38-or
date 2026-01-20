@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-009 Phase 5: Research Ingestion & Autonomy - FULL IMPLEMENTATION** (2026-01-20) - ~1,263 lines
+  - `src/research/classifier.py` (310 lines) - Auto-classification with rule-based logic
+  - `src/research/ingestion_agent.py` (380 lines) - Create notes from minimal input
+  - `src/research/experiment_creator.py` (340 lines) - Auto-generate experiment skeletons
+  - `.github/workflows/auto-weekly-review.yml` (175 lines) - Scheduled weekly review
+  - `src/research/__init__.py` (58 lines) - Module exports
+  - Features: parse_research_note, auto_classify, create_research_note, create_experiment_skeleton
+  - Triggers: Scheduled (Mon 09:00 UTC), Manual (workflow_dispatch), On-demand (prompt)
+  - Status: ✅ Fully Implemented
+
 - **Evaluation CI Workflow** (2026-01-20) - Automated evaluation in GitHub Actions (ADR-009 Week 4)
   - `.github/workflows/evaluate.yml` - CI workflow for evaluation
   - Mock provider for PR validation (no API costs)
@@ -22,7 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Code Style** (2026-01-20) - Applied ruff formatting to evaluation module and telegram-bot service
-- **ADR-009 Status** (2026-01-20) - Updated to "Implementing (Weeks 1-3 Complete)", Phase 4 in progress
+- **ADR-009 Complete** (2026-01-20) - All 4 weeks implemented
+  - First Weekly Review executed
+  - Issue #361 created for Opus evaluation Spike
+  - Status: ✅ Implemented
 
 ### Previously Added
 - **Evaluation Harness** (2026-01-20) - Model provider testing infrastructure (ADR-009 Week 2)
