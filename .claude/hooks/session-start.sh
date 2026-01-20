@@ -139,6 +139,9 @@ else
     CONTEXT+="- Token Status: ⚠️ Not loaded (run setup workflows)\\n"
 fi
 
+# Research ingestion skill reminder
+CONTEXT+="\\n📚 Quick Action: 'הוסף מחקר: [title] + [text]' → Creates research note (ADR-009)\\n"
+
 output_context "$CONTEXT"
 
 echo "   ✅ SessionStart hook completed" >&2
