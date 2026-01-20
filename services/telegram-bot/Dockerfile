@@ -37,9 +37,10 @@ USER botuser
 # Expose port
 EXPOSE 8000
 
-# Health check
+# Health check (uses PORT env var or default 8000)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+    CMD python -c "import os; import requests; requests.get(f'http://localhost:{os.environ.get(\"PORT\", 8000)}/health')" || exit 1
 
-# Run application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run application - Railway provides PORT env var dynamically
+# Using shell form to interpret environment variables
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}

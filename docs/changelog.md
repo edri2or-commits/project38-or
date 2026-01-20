@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Telegram Bot Railway Healthcheck** (2026-01-20)
+  - Fixed PORT environment variable not used in Dockerfile CMD
+    - Changed from hardcoded `--port 8000` to dynamic `${PORT:-8000}`
+    - Railway assigns dynamic PORT, not always 8000
+  - Improved database lazy initialization in `database.py`
+    - Engine now created on first use, not at import time
+    - Graceful handling when DATABASE_URL not set
+  - Root cause: Healthcheck failure because app started on wrong port
+
 ### Added
 - **ADR-010 Phase 3: Monitoring Dashboards** (2026-01-20) - Phase 34
   - **Prometheus Metrics**: Exposed `/metrics` endpoint for monitoring
