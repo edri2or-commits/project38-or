@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 
 class Classification(Enum):
@@ -64,10 +63,10 @@ class Risk(Enum):
 class ImpactEstimate:
     """Impact estimate for a research note."""
 
-    scope: Optional[ImpactScope] = None
-    effort: Optional[Effort] = None
-    risk: Optional[Risk] = None
-    reversibility: Optional[str] = None
+    scope: ImpactScope | None = None
+    effort: Effort | None = None
+    risk: Risk | None = None
+    reversibility: str | None = None
 
 
 @dataclass
@@ -76,7 +75,7 @@ class ResearchNote:
 
     # Core fields
     title: str = ""
-    date: Optional[datetime] = None
+    date: datetime | None = None
     author: str = ""
     status: str = "Draft"
 
@@ -95,20 +94,20 @@ class ResearchNote:
     impact: ImpactEstimate = field(default_factory=ImpactEstimate)
 
     # Classification
-    recommendation: Optional[Classification] = None
+    recommendation: Classification | None = None
     relevance_areas: list[str] = field(default_factory=list)
 
     # Triage
-    triage_date: Optional[datetime] = None
-    triage_decision: Optional[Classification] = None
-    issue_number: Optional[int] = None
-    experiment_id: Optional[str] = None
+    triage_date: datetime | None = None
+    triage_decision: Classification | None = None
+    issue_number: int | None = None
+    experiment_id: str | None = None
 
     # File info
-    file_path: Optional[Path] = None
+    file_path: Path | None = None
 
 
-def parse_research_note(content: str, file_path: Optional[Path] = None) -> ResearchNote:
+def parse_research_note(content: str, file_path: Path | None = None) -> ResearchNote:
     """Parse a research note markdown file into structured data.
 
     Args:
@@ -237,9 +236,7 @@ def parse_research_note(content: str, file_path: Optional[Path] = None) -> Resea
         note.experiment_id = exp_match.group(1)
 
     # Extract summary points (lines starting with numbers in Summary section)
-    summary_section = re.search(
-        r"## Summary\s+((?:\d+\.\s+.+\n?)+)", content, re.MULTILINE
-    )
+    summary_section = re.search(r"## Summary\s+((?:\d+\.\s+.+\n?)+)", content, re.MULTILINE)
     if summary_section:
         summary_lines = re.findall(r"\d+\.\s+(.+)", summary_section.group(1))
         note.summary = [line.strip() for line in summary_lines]
@@ -348,8 +345,8 @@ def update_note_with_classification(
     note_path: Path,
     classification: Classification,
     reason: str,
-    issue_number: Optional[int] = None,
-    experiment_id: Optional[str] = None,
+    issue_number: int | None = None,
+    experiment_id: str | None = None,
 ) -> str:
     """Update a research note with classification results.
 

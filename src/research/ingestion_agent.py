@@ -14,7 +14,6 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 from src.research.classifier import (
@@ -32,10 +31,10 @@ class ResearchInput:
 
     source: str = ""  # URL or title
     description: str = ""  # Brief description (2-3 sentences)
-    why_relevant: Optional[str] = None  # Optional context
-    title: Optional[str] = None  # Optional explicit title
-    raw_text: Optional[str] = None  # Full research text for parsing
-    source_url: Optional[str] = None  # Explicit URL (separate from source)
+    why_relevant: str | None = None  # Optional context
+    title: str | None = None  # Optional explicit title
+    raw_text: str | None = None  # Full research text for parsing
+    source_url: str | None = None  # Explicit URL (separate from source)
 
 
 @dataclass
@@ -46,11 +45,11 @@ class InferredFields:
     title: str = ""
     summary: list[str] = None
     hypothesis: str = ""
-    scope: Optional[ImpactScope] = None
-    effort: Optional[Effort] = None
-    risk: Optional[Risk] = None
+    scope: ImpactScope | None = None
+    effort: Effort | None = None
+    risk: Risk | None = None
     reversibility: str = ""
-    recommendation: Optional[Classification] = None
+    recommendation: Classification | None = None
     relevance_areas: list[str] = None
 
     def __post_init__(self):
@@ -223,15 +222,25 @@ def extract_metrics_from_text(raw_text: str) -> list[str]:
     metrics = []
 
     # Percentage improvements
-    pct_matches = re.findall(r"(\d+(?:\.\d+)?%\s*(?:improvement|increase|decrease|better|faster|reduction))", raw_text, re.IGNORECASE)
+    pct_matches = re.findall(
+        r"(\d+(?:\.\d+)?%\s*(?:improvement|increase|decrease|better|faster|reduction))",
+        raw_text,
+        re.IGNORECASE,
+    )
     metrics.extend(pct_matches)
 
     # X times improvements
-    times_matches = re.findall(r"(\d+(?:\.\d+)?x\s*(?:faster|slower|better|improvement))", raw_text, re.IGNORECASE)
+    times_matches = re.findall(
+        r"(\d+(?:\.\d+)?x\s*(?:faster|slower|better|improvement))", raw_text, re.IGNORECASE
+    )
     metrics.extend(times_matches)
 
     # Latency/performance
-    latency_matches = re.findall(r"(\d+(?:\.\d+)?\s*(?:ms|seconds?|minutes?)\s*(?:latency|response time)?)", raw_text, re.IGNORECASE)
+    latency_matches = re.findall(
+        r"(\d+(?:\.\d+)?\s*(?:ms|seconds?|minutes?)\s*(?:latency|response time)?)",
+        raw_text,
+        re.IGNORECASE,
+    )
     metrics.extend(latency_matches)
 
     return metrics[:5]
@@ -565,7 +574,7 @@ def infer_all_fields(user_input: ResearchInput) -> InferredFields:
 
 def create_research_note(
     user_input: ResearchInput,
-    output_dir: Optional[Path] = None,
+    output_dir: Path | None = None,
     author: str = "Claude Code Agent",
 ) -> tuple[Path, str]:
     """Create a full research note from minimal input.
@@ -610,13 +619,18 @@ def create_research_note(
     # Determine recommendation checkbox
     # Create temporary note for classification
     from src.research.classifier import ResearchNote as ClassifierNote
+
     temp_note = ClassifierNote(
         hypothesis=inferred.hypothesis,
-        impact=type("Impact", (), {
-            "scope": inferred.scope,
-            "effort": inferred.effort,
-            "risk": inferred.risk,
-        })(),
+        impact=type(
+            "Impact",
+            (),
+            {
+                "scope": inferred.scope,
+                "effort": inferred.effort,
+                "risk": inferred.risk,
+            },
+        )(),
     )
     classification, reason = auto_classify(temp_note)
     inferred.recommendation = classification
@@ -672,10 +686,10 @@ def create_research_note(
 
 | Dimension | Estimate | Notes |
 |-----------|----------|-------|
-| **Scope** | {inferred.scope.value if inferred.scope else "Unknown"} | {inferred.scope.value if inferred.scope else "TBD"} layer |
-| **Effort** | {inferred.effort.value if inferred.effort else "Unknown"} | Estimated implementation time |
-| **Risk** | {inferred.risk.value if inferred.risk else "Unknown"} | Based on scope and effort |
-| **Reversibility** | {inferred.reversibility} | {"Easy rollback" if inferred.risk == Risk.LOW else "Needs planning"} |
+| **Scope** | {inferred.scope.value if inferred.scope else "Unknown"} | Layer affected |
+| **Effort** | {inferred.effort.value if inferred.effort else "Unknown"} | Time estimate |
+| **Risk** | {inferred.risk.value if inferred.risk else "Unknown"} | Based on scope |
+| **Reversibility** | {inferred.reversibility or "Unknown"} | Rollback ease |
 
 ---
 
@@ -733,6 +747,10 @@ def create_research_note(
 
     # Add raw text section if provided
     if user_input.raw_text:
+        metrics = extract_metrics_from_text(user_input.raw_text)
+        metrics_list = chr(10).join(f"- {m}" for m in metrics)
+        if not metrics_list:
+            metrics_list = "- No explicit metrics found"
         raw_text_section = f"""
 ---
 
@@ -747,7 +765,7 @@ def create_research_note(
 
 ### Extracted Metrics
 
-{chr(10).join(f"- {m}" for m in extract_metrics_from_text(user_input.raw_text)) or "- No explicit metrics found"}
+{metrics_list}
 """
         content += raw_text_section
 
@@ -757,7 +775,7 @@ def create_research_note(
     return file_path, content
 
 
-def parse_user_prompt(prompt: str) -> Optional[ResearchInput]:
+def parse_user_prompt(prompt: str) -> ResearchInput | None:
     """Parse a user prompt into ResearchInput.
 
     Supports formats:
@@ -804,8 +822,8 @@ def parse_user_prompt(prompt: str) -> Optional[ResearchInput]:
 
 async def ingest_research(
     prompt: str,
-    output_dir: Optional[Path] = None,
-) -> Optional[tuple[Path, str, Classification]]:
+    output_dir: Path | None = None,
+) -> tuple[Path, str, Classification] | None:
     """Main entry point for research ingestion.
 
     Args:
@@ -825,6 +843,7 @@ async def ingest_research(
 
     # Get classification
     from src.research.classifier import parse_research_note
+
     note = parse_research_note(content, file_path)
     classification, _ = auto_classify(note)
 
