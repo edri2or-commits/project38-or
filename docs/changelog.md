@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **GCP Tunnel Health Check Enhancement** (2026-01-20) - Individual tool tests added
+  - Tests 4 MCP tools: `gcp_project_info`, `gcp_secret_list`, `health_check`, `railway_status`
+  - Reports pass/fail for each tool in workflow summary
+  - New job outputs: `tool_tests_status`, `tool_tests_passed`, `tool_tests_failed`
+  - Overall status now includes tool test results
+
 - **AGENTS.md - Agent Onboarding Standard** (2026-01-20) - First research-to-implementation cycle
   - Created `AGENTS.md` following 2026 Agent Interop Standards format (~100 lines)
   - Provides quick agent onboarding: project overview, tech stack, security rules, testing
