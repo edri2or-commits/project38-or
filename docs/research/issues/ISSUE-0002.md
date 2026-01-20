@@ -3,7 +3,7 @@
 **Created:** 2026-01-20
 **Status:** Open
 **Classification:** Spike
-**Research Note:** [2026-01-20-claude-4-opus-evaluation.md](../../docs/research/notes/2026-01-20-claude-4-opus-evaluation.md)
+**Research Note:** [2026-01-20-claude-4-opus-evaluation.md](../notes/2026-01-20-claude-4-opus-evaluation.md)
 
 ---
 

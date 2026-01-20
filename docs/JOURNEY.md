@@ -2680,7 +2680,7 @@ Response back to Telegram
 
 **Commit**: 0523382 (`feat(llm-router): Add LiteLLM Gateway for multi-LLM routing`)
 **PR**: #240 (https://github.com/edri2or-commits/project38-or/pull/240)
-**ADR**: docs/decisions/ADR-006-multi-llm-routing-strategy.md (430+ lines)
+**ADR**: docs/decisions/ADR-010-multi-llm-routing-strategy.md (430+ lines, renumbered from ADR-006 on 2026-01-20)
 **Files**: 4 new files (services/litellm-gateway/), 724 lines total
 **Documentation**: CLAUDE.md (100+ lines), changelog.md, JOURNEY.md (this entry)
 

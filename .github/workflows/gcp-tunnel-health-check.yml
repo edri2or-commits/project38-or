@@ -37,6 +37,9 @@ jobs:
       cloud_run_status: ${{ steps.check-cloud-run.outputs.status }}
       cloud_function_status: ${{ steps.check-cloud-function.outputs.status }}
       mcp_tools_status: ${{ steps.check-mcp-tools.outputs.status }}
+      tool_tests_status: ${{ steps.test-tools.outputs.status }}
+      tool_tests_passed: ${{ steps.test-tools.outputs.passed }}
+      tool_tests_failed: ${{ steps.test-tools.outputs.failed }}
       overall_status: ${{ steps.summary.outputs.overall_status }}
 
     steps:
@@ -142,6 +145,96 @@ jobs:
             echo "❌ MCP tools not accessible"
           fi
 
+      - name: Test Individual Tools
+        id: test-tools
+        if: steps.check-mcp-tools.outputs.status == 'healthy'
+        run: |
+          echo "Testing individual MCP tools..."
+
+          # Helper function to call MCP tool
+          call_tool() {
+            local tool_name=$1
+            local args=$2
+            curl -s -X POST "${{ env.CLOUD_RUN_URL }}/" \
+              -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"data\": \"{\\\"jsonrpc\\\": \\\"2.0\\\", \\\"method\\\": \\\"tools/call\\\", \\\"params\\\": {\\\"name\\\": \\\"$tool_name\\\", \\\"arguments\\\": $args}, \\\"id\\\": 1}\"}" \
+              --max-time 30 2>/dev/null || echo '{"error": "request failed"}'
+          }
+
+          PASSED=0
+          FAILED=0
+          RESULTS=""
+
+          # Test 1: gcp_project_info
+          echo "🔍 Testing gcp_project_info..."
+          RESP=$(call_tool "gcp_project_info" "{}")
+          if echo "$RESP" | grep -q "project38-483612\|project_id"; then
+            echo "✅ gcp_project_info: PASS"
+            RESULTS="${RESULTS}gcp_project_info:pass,"
+            PASSED=$((PASSED + 1))
+          else
+            echo "❌ gcp_project_info: FAIL"
+            echo "Response: $RESP"
+            RESULTS="${RESULTS}gcp_project_info:fail,"
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 2: gcp_secret_list
+          echo "🔍 Testing gcp_secret_list..."
+          RESP=$(call_tool "gcp_secret_list" "{}")
+          if echo "$RESP" | grep -q "secrets\|ANTHROPIC\|MCP"; then
+            echo "✅ gcp_secret_list: PASS"
+            RESULTS="${RESULTS}gcp_secret_list:pass,"
+            PASSED=$((PASSED + 1))
+          else
+            echo "❌ gcp_secret_list: FAIL"
+            echo "Response: $RESP"
+            RESULTS="${RESULTS}gcp_secret_list:fail,"
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 3: health_check (monitoring tool)
+          echo "🔍 Testing health_check..."
+          RESP=$(call_tool "health_check" "{}")
+          if echo "$RESP" | grep -q "healthy\|status\|ok"; then
+            echo "✅ health_check: PASS"
+            RESULTS="${RESULTS}health_check:pass,"
+            PASSED=$((PASSED + 1))
+          else
+            echo "❌ health_check: FAIL"
+            echo "Response: $RESP"
+            RESULTS="${RESULTS}health_check:fail,"
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 4: railway_status
+          echo "🔍 Testing railway_status..."
+          RESP=$(call_tool "railway_status" "{}")
+          if echo "$RESP" | grep -q "delightful-cat\|status\|project\|deployments"; then
+            echo "✅ railway_status: PASS"
+            RESULTS="${RESULTS}railway_status:pass,"
+            PASSED=$((PASSED + 1))
+          else
+            echo "❌ railway_status: FAIL"
+            echo "Response: $RESP"
+            RESULTS="${RESULTS}railway_status:fail,"
+            FAILED=$((FAILED + 1))
+          fi
+
+          echo ""
+          echo "📊 Tool Test Results: $PASSED passed, $FAILED failed"
+
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "results=$RESULTS" >> $GITHUB_OUTPUT
+
+          if [ "$FAILED" -eq 0 ]; then
+            echo "status=healthy" >> $GITHUB_OUTPUT
+          else
+            echo "status=partial" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate Summary
         id: summary
         run: |
@@ -188,13 +281,50 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
+          # Individual Tool Tests
+          TOOL_TEST_STATUS="${{ steps.test-tools.outputs.status }}"
+          TOOL_PASSED="${{ steps.test-tools.outputs.passed }}"
+          TOOL_FAILED="${{ steps.test-tools.outputs.failed }}"
+
+          if [ -n "$TOOL_PASSED" ]; then
+            echo "### Individual Tool Tests" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Tool | Result |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+
+            # Parse results
+            RESULTS="${{ steps.test-tools.outputs.results }}"
+            for result in $(echo "$RESULTS" | tr ',' ' '); do
+              if [ -n "$result" ]; then
+                tool_name=$(echo "$result" | cut -d':' -f1)
+                tool_status=$(echo "$result" | cut -d':' -f2)
+                if [ "$tool_status" = "pass" ]; then
+                  echo "| $tool_name | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+                else
+                  echo "| $tool_name | ❌ Fail |" >> $GITHUB_STEP_SUMMARY
+                fi
+              fi
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Summary:** $TOOL_PASSED passed, $TOOL_FAILED failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
           # Determine overall status
           if [ "${{ steps.get-token.outputs.status }}" = "ok" ] && \
              [ "$CR_STATUS" = "healthy" ] && \
              [ "$CF_STATUS" = "healthy" ] && \
-             [ "$MCP_STATUS" = "healthy" ]; then
+             [ "$MCP_STATUS" = "healthy" ] && \
+             [ "$TOOL_TEST_STATUS" = "healthy" ]; then
             echo "### ✅ All systems operational" >> $GITHUB_STEP_SUMMARY
             echo "overall_status=healthy" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.get-token.outputs.status }}" = "ok" ] && \
+               [ "$CR_STATUS" = "healthy" ] && \
+               [ "$CF_STATUS" = "healthy" ] && \
+               [ "$MCP_STATUS" = "healthy" ]; then
+            echo "### ⚠️ Systems operational with some tool failures" >> $GITHUB_STEP_SUMMARY
+            echo "overall_status=partial" >> $GITHUB_OUTPUT
           else
             echo "### ❌ Issues detected" >> $GITHUB_STEP_SUMMARY
             echo "overall_status=unhealthy" >> $GITHUB_OUTPUT

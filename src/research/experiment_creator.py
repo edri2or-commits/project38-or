@@ -11,7 +11,6 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from src.research.classifier import (
     Classification,
@@ -29,7 +28,7 @@ class ExperimentConfig:
     title: str
     hypothesis: str
     research_note_path: Path
-    scope: Optional[ImpactScope] = None
+    scope: ImpactScope | None = None
     baseline_provider: str = "mock"
     test_provider: str = "mock"
     golden_set_path: str = "tests/golden/basic_queries.json"
@@ -109,10 +108,10 @@ It tests whether the proposed change improves system performance.
 
 | Metric | Threshold | Description |
 |--------|-----------|-------------|
-| Quality | >= {config.success_criteria['quality_min']:.0%} | Must meet minimum quality |
-| Quality Regression | <= {config.success_criteria['quality_regression_max']:.1%} | Max allowed regression |
-| Latency | <= {config.success_criteria['latency_max_ratio']:.1f}x baseline | Max latency increase |
-| Cost | <= {config.success_criteria['cost_max_ratio']:.1f}x baseline | Max cost increase |
+| Quality | >= {config.success_criteria["quality_min"]:.0%} | Min quality |
+| Quality Regression | <= {config.success_criteria["quality_regression_max"]:.1%} | Max regression |
+| Latency | <= {config.success_criteria["latency_max_ratio"]:.1f}x baseline | Max latency |
+| Cost | <= {config.success_criteria["cost_max_ratio"]:.1f}x baseline | Max cost |
 
 ---
 
@@ -204,10 +203,10 @@ from src.evaluation import EvaluationHarness, Decision
 
 # Success criteria from ADR-009
 SUCCESS_CRITERIA = {{
-    "quality_min": {config.success_criteria['quality_min']},
-    "quality_regression_max": {config.success_criteria['quality_regression_max']},
-    "latency_max_ratio": {config.success_criteria['latency_max_ratio']},
-    "cost_max_ratio": {config.success_criteria['cost_max_ratio']},
+    "quality_min": {config.success_criteria["quality_min"]},
+    "quality_regression_max": {config.success_criteria["quality_regression_max"]},
+    "latency_max_ratio": {config.success_criteria["latency_max_ratio"]},
+    "cost_max_ratio": {config.success_criteria["cost_max_ratio"]},
 }}
 
 
@@ -333,9 +332,18 @@ def main():
             "results": experiment_results,
         }},
         "comparison": {{
-            "quality_delta": experiment_results["avg_quality_score"] - baseline_results["avg_quality_score"],
-            "latency_ratio": experiment_results["avg_latency_ms"] / max(baseline_results["avg_latency_ms"], 1),
-            "cost_ratio": experiment_results["estimated_cost_usd"] / max(baseline_results["estimated_cost_usd"], 0.0001),
+            "quality_delta": (
+                experiment_results["avg_quality_score"]
+                - baseline_results["avg_quality_score"]
+            ),
+            "latency_ratio": (
+                experiment_results["avg_latency_ms"]
+                / max(baseline_results["avg_latency_ms"], 1)
+            ),
+            "cost_ratio": (
+                experiment_results["estimated_cost_usd"]
+                / max(baseline_results["estimated_cost_usd"], 0.0001)
+            ),
         }},
         "decision": decision,
         "reasoning": reasoning,
@@ -382,10 +390,10 @@ golden_set:
   path: "{config.golden_set_path}"
 
 success_criteria:
-  quality_min: {config.success_criteria['quality_min']}
-  quality_regression_max: {config.success_criteria['quality_regression_max']}
-  latency_max_ratio: {config.success_criteria['latency_max_ratio']}
-  cost_max_ratio: {config.success_criteria['cost_max_ratio']}
+  quality_min: {config.success_criteria["quality_min"]}
+  quality_regression_max: {config.success_criteria["quality_regression_max"]}
+  latency_max_ratio: {config.success_criteria["latency_max_ratio"]}
+  cost_max_ratio: {config.success_criteria["cost_max_ratio"]}
 """
 
 
@@ -404,8 +412,8 @@ def _slugify(title: str) -> str:
 
 def create_experiment_skeleton(
     note_path: Path,
-    experiments_dir: Optional[Path] = None,
-) -> Optional[Path]:
+    experiments_dir: Path | None = None,
+) -> Path | None:
     """Create experiment skeleton from research note.
 
     Args:
@@ -421,6 +429,7 @@ def create_experiment_skeleton(
 
     # Only create experiments for Spike classification
     from src.research.classifier import auto_classify
+
     classification, _ = auto_classify(note)
 
     if classification != Classification.SPIKE:
@@ -465,8 +474,8 @@ def create_experiment_skeleton(
 
 def create_experiment_for_note(
     note: ResearchNote,
-    experiments_dir: Optional[Path] = None,
-) -> Optional[tuple[Path, str]]:
+    experiments_dir: Path | None = None,
+) -> tuple[Path, str] | None:
     """Create experiment from parsed note object.
 
     Args:

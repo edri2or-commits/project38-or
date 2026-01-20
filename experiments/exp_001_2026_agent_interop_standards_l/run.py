@@ -14,8 +14,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.evaluation import EvaluationHarness, Decision
-
+from src.evaluation import EvaluationHarness
 
 # Success criteria from ADR-009
 SUCCESS_CRITERIA = {
@@ -65,7 +64,7 @@ def compare_results(baseline: dict, experiment: dict) -> tuple[str, str]:
 
     # REJECT: Too expensive without improvement
     if cost_ratio > SUCCESS_CRITERIA["cost_max_ratio"] and quality_delta < 0.05:
-        return "REJECT", f"Cost +{(cost_ratio-1)*100:.0f}% without quality improvement"
+        return "REJECT", f"Cost +{(cost_ratio - 1) * 100:.0f}% without quality improvement"
 
     # ADOPT: All metrics better or same
     if quality_delta >= 0 and latency_ratio <= 1 and cost_ratio <= 1:
@@ -107,7 +106,7 @@ def main():
     )
     args = parser.parse_args()
 
-    print(f"=== exp_001: 2026 Agent Interop Standards Landscape ===")
+    print("=== exp_001: 2026 Agent Interop Standards Landscape ===")
     print()
 
     # Run baseline
@@ -148,9 +147,12 @@ def main():
             "results": experiment_results,
         },
         "comparison": {
-            "quality_delta": experiment_results["avg_quality_score"] - baseline_results["avg_quality_score"],
-            "latency_ratio": experiment_results["avg_latency_ms"] / max(baseline_results["avg_latency_ms"], 1),
-            "cost_ratio": experiment_results["estimated_cost_usd"] / max(baseline_results["estimated_cost_usd"], 0.0001),
+            "quality_delta": experiment_results["avg_quality_score"]
+            - baseline_results["avg_quality_score"],
+            "latency_ratio": experiment_results["avg_latency_ms"]
+            / max(baseline_results["avg_latency_ms"], 1),
+            "cost_ratio": experiment_results["estimated_cost_usd"]
+            / max(baseline_results["estimated_cost_usd"], 0.0001),
         },
         "decision": decision,
         "reasoning": reasoning,
