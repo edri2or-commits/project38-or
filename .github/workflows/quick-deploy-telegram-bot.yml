@@ -98,6 +98,60 @@ jobs:
           echo "Latest deployment status: $DEPLOY_STATUS"
           echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
 
+      - name: Ensure Public Domain Exists
+        id: domain
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          # Check if domain exists
+          CURRENT_DOMAIN="${{ steps.status.outputs.domain }}"
+
+          if [ "$CURRENT_DOMAIN" = "no domain" ] || [ -z "$CURRENT_DOMAIN" ]; then
+            echo "No domain found. Creating service domain..."
+
+            # Get service instance ID first
+            INSTANCE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "query { service(id: \"'"$SERVICE_ID"'\") { serviceInstances { edges { node { id } } } } }"
+              }')
+
+            INSTANCE_ID=$(echo "$INSTANCE" | jq -r '.data.service.serviceInstances.edges[0].node.id // empty')
+
+            if [ -n "$INSTANCE_ID" ]; then
+              echo "Service instance ID: $INSTANCE_ID"
+
+              # Create a railway.app domain
+              CREATE_DOMAIN=$(curl -s -X POST \
+                "https://backboard.railway.app/graphql/v2" \
+                -H "Authorization: Bearer $RAILWAY_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "query": "mutation { serviceDomainCreate(input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\" }) { domain } }"
+                }')
+
+              echo "Create domain response: $CREATE_DOMAIN"
+              NEW_DOMAIN=$(echo "$CREATE_DOMAIN" | jq -r '.data.serviceDomainCreate.domain // empty')
+
+              if [ -n "$NEW_DOMAIN" ]; then
+                echo "✅ Domain created: $NEW_DOMAIN"
+                echo "domain=$NEW_DOMAIN" >> $GITHUB_OUTPUT
+              else
+                echo "⚠️ Failed to create domain"
+                echo "domain=" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "⚠️ No service instance found - will be created after first deploy"
+              echo "domain=" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "✅ Domain already exists: $CURRENT_DOMAIN"
+            echo "domain=$CURRENT_DOMAIN" >> $GITHUB_OUTPUT
+          fi
+
       - name: Connect Service to GitHub and Deploy
         continue-on-error: true
         env:
