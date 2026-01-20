@@ -4991,5 +4991,97 @@ After merge, requires manual steps:
 
 ---
 
+## Phase 34: ADR-010 Phase 3 - Monitoring Dashboards (2026-01-20)
+
+### Goal
+
+Implement ADR-010 Phase 3: Monitoring Dashboards for LiteLLM Gateway with Prometheus metrics, Grafana dashboard, and infrastructure health monitoring.
+
+### Implementation
+
+#### 1. Prometheus Metrics Configuration
+
+Added comprehensive Prometheus metrics to `litellm-config.yaml`:
+
+```yaml
+litellm_settings:
+  callbacks: ["prometheus"]
+  service_callback: ["prometheus_system"]  # Redis/PostgreSQL health
+
+  prometheus_metrics_config:
+    - group: "token_consumption"
+      metrics: [litellm_input_tokens_metric, litellm_output_tokens_metric, litellm_total_tokens_metric]
+    - group: "request_tracking"
+      metrics: [litellm_proxy_total_requests_metric, litellm_proxy_failed_requests_metric]
+    - group: "deployment_health"
+      metrics: [litellm_deployment_success_responses, litellm_deployment_failure_responses]
+    - group: "budget_tracking"
+      metrics: [litellm_remaining_team_budget_metric, litellm_spend_metric]
+```
+
+#### 2. Grafana Dashboard
+
+Created `grafana-dashboard.json` (21KB) with 18 panels across 4 sections:
+
+| Section | Panels |
+|---------|--------|
+| Overview | Request rate, Failed requests (1h), Tokens (1h), Daily spend |
+| Request Metrics | Rate by model time series, Requests by model pie chart |
+| Token Usage | Token rate by model, Daily spend with $10 budget line |
+| Provider Health | Success rate by provider, Latency per output token |
+| Infrastructure | LiteLLM status, Redis status, PostgreSQL status |
+
+#### 3. Multi-Worker Support
+
+Updated Dockerfile for Prometheus multi-process metrics:
+
+```dockerfile
+ENV PROMETHEUS_MULTIPROC_DIR=/prometheus_metrics
+RUN mkdir -p /prometheus_metrics && chmod 777 /prometheus_metrics
+```
+
+### Files Modified
+
+| File | Changes | Description |
+|------|---------|-------------|
+| `services/litellm-gateway/litellm-config.yaml` | +58 | Prometheus metrics config |
+| `services/litellm-gateway/grafana-dashboard.json` | +500 (new) | 18-panel Grafana dashboard |
+| `services/litellm-gateway/Dockerfile` | +3 | PROMETHEUS_MULTIPROC_DIR |
+| `services/litellm-gateway/railway.toml` | +4 | Phase 3 documentation |
+| `services/litellm-gateway/README.md` | +60 | Phase 3 setup guide |
+| `docs/decisions/ADR-010-multi-llm-routing-strategy.md` | +12 | Phase 3 completion |
+| `docs/changelog.md` | +14 | Phase 34 entry |
+| `.gitignore` | +1 | Exception for grafana-dashboard.json |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Phase 3 features, env vars, metrics endpoint |
+| Layer 2 | `docs/decisions/ADR-010-*.md` | Phase 3 checklist complete |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 34) |
+| Layer 4 | `docs/changelog.md` | Phase 34 entry |
+
+### Evidence
+
+- **PR #379**: ADR-010 Phase 3 implementation
+- **Merge SHA**: `e287fbdcaf9f6d2cfc23d383fbb76d937092e338`
+- **Files Changed**: 8 files, 878 insertions
+- **Deployment**: LiteLLM Gateway redeployed with monitoring
+
+### Grafana Cloud Setup (Optional)
+
+To visualize metrics in Grafana Cloud:
+
+1. Deploy Railway Grafana Alloy template: https://railway.com/deploy/railway-grafana-alloy
+2. Import `services/litellm-gateway/grafana-dashboard.json`
+3. Configure Prometheus remote_write to Grafana Cloud
+
+### Status
+
+**Phase 34: ✅ COMPLETE - ADR-010 Phase 3 Monitoring Dashboards**
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 33 Complete - LiteLLM Production Hardening***
+*Status: **Phase 34 Complete - LiteLLM Monitoring Dashboards***

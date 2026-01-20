@@ -2124,7 +2124,7 @@ orchestrator.path_configs[ExecutionPath.DIRECT_PYTHON].enabled = False  # Disabl
 
 ### LiteLLM Gateway (Multi-LLM Routing)
 
-**Status**: ✅ **Phase 2 Complete** (2026-01-20) - Production Hardening
+**Status**: ✅ **Phase 3 Complete** (2026-01-20) - Monitoring Dashboards
 
 **Production URL**: `https://litellm-gateway-production-0339.up.railway.app`
 
@@ -2166,14 +2166,25 @@ Telegram Bot → LiteLLM Gateway → [Claude 3.7, GPT-4o, Gemini 1.5] → MCP Ga
 - **OpenTelemetry Tracing**: Full request/response observability
 - **Per-User Rate Limiting**: Master key authentication + user quotas ($5/day default)
 
+**Phase 3 (✅ Complete - 2026-01-20)**:
+- **Prometheus Metrics**: `/metrics` endpoint with 4 metric groups
+  - `token_consumption`: Input/output/total tokens by model
+  - `request_tracking`: Total/failed requests by status code
+  - `deployment_health`: Success/failure rates by provider
+  - `budget_tracking`: Spend and remaining budget
+- **Grafana Dashboard**: 18-panel dashboard JSON (`grafana-dashboard.json`)
+- **Infrastructure Monitoring**: Redis/PostgreSQL health via `service_callback`
+- **Multi-Worker Support**: `PROMETHEUS_MULTIPROC_DIR` for metrics aggregation
+
 #### Configuration Files
 
 | File | Purpose | Size |
 |------|---------|------|
-| `Dockerfile` | Based on `ghcr.io/berriai/litellm:main-latest` | 23 lines |
-| `litellm-config.yaml` | Model definitions, routing, budget | 100+ lines |
-| `railway.toml` | Railway deployment config | 20 lines |
-| `README.md` | Complete documentation | 150+ lines |
+| `Dockerfile` | Based on `ghcr.io/berriai/litellm:main-latest` | 30 lines |
+| `litellm-config.yaml` | Model definitions, routing, budget, metrics | 150+ lines |
+| `grafana-dashboard.json` | Importable Grafana dashboard (18 panels) | 21KB |
+| `railway.toml` | Railway deployment config | 35 lines |
+| `README.md` | Complete documentation | 320+ lines |
 
 #### Deployment Workflow
 
@@ -2207,6 +2218,14 @@ gh workflow run deploy-litellm-gateway.yml -f action=status
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` → Railway Redis plugin
 - `ALERT_WEBHOOK_URL` → n8n webhook for budget alerts
 - `OTEL_SERVICE_NAME` → `litellm-gateway`
+
+**Environment Variables - Phase 3** (auto-configured in Dockerfile):
+- `PROMETHEUS_MULTIPROC_DIR` → `/prometheus_metrics` (multi-worker metrics)
+
+**Metrics Endpoint**:
+- URL: `https://litellm-gateway-production-0339.up.railway.app/metrics`
+- Format: Prometheus text format
+- Authentication: None required (configurable via `require_auth_for_metrics_endpoint`)
 
 #### Usage Example
 
