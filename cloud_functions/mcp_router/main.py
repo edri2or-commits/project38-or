@@ -294,8 +294,13 @@ class MCPRouter:
     # Railway Tools
     # =========================================================================
 
-    def _railway_deploy(self, service_id: str = None) -> dict:
-        """Trigger a Railway deployment."""
+    def _railway_deploy(self, service_id: str = None, service_name: str = "telegram-bot") -> dict:
+        """Trigger a Railway deployment using serviceInstanceRedeploy.
+
+        Args:
+            service_id: Optional service ID. If not provided, will look up by service_name.
+            service_name: Service name to deploy (default: telegram-bot)
+        """
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
         environment_id = os.environ.get(
@@ -305,16 +310,49 @@ class MCPRouter:
         if not railway_token:
             return {"error": "RAILWAY_TOKEN not configured"}
 
-        query = """
-        mutation deploymentTrigger($input: DeploymentTriggerInput!) {
-            deploymentTriggerCreate(input: $input) {
-                id
-                status
+        # If no service_id provided, look it up by name
+        if not service_id:
+            services_query = """
+            query getServices($projectId: String!) {
+                project(id: $projectId) {
+                    services {
+                        edges {
+                            node {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
             }
+            """
+            services_response = httpx.post(
+                "https://backboard.railway.app/graphql/v2",
+                headers={
+                    "Authorization": f"Bearer {railway_token}",
+                    "Content-Type": "application/json",
+                },
+                json={"query": services_query, "variables": {"projectId": project_id}},
+                timeout=30,
+            )
+            services_data = services_response.json()
+
+            # Find service by name
+            edges = services_data.get("data", {}).get("project", {}).get("services", {}).get("edges", [])
+            for edge in edges:
+                if edge.get("node", {}).get("name") == service_name:
+                    service_id = edge["node"]["id"]
+                    break
+
+            if not service_id:
+                return {"error": f"Service '{service_name}' not found in project"}
+
+        # Use serviceInstanceRedeploy mutation (current Railway API)
+        query = """
+        mutation redeployService($serviceId: String!, $environmentId: String!) {
+            serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
         }
         """
-
-        variables = {"input": {"projectId": project_id, "environmentId": environment_id}}
 
         response = httpx.post(
             "https://backboard.railway.app/graphql/v2",
@@ -322,11 +360,17 @@ class MCPRouter:
                 "Authorization": f"Bearer {railway_token}",
                 "Content-Type": "application/json",
             },
-            json={"query": query, "variables": variables},
+            json={
+                "query": query,
+                "variables": {"serviceId": service_id, "environmentId": environment_id}
+            },
             timeout=30,
         )
 
-        return response.json()
+        result = response.json()
+        if result.get("data", {}).get("serviceInstanceRedeploy"):
+            return {"status": "deployment_triggered", "service_id": service_id, "service_name": service_name}
+        return result
 
     def _railway_status(self) -> dict:
         """Get current Railway deployment status."""
