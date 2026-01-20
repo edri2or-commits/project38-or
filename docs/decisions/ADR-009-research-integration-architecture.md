@@ -344,6 +344,46 @@ echo "URL: https://...\nDescription: ..." > docs/research/inbox/new-research.txt
 # Agent will process issues labeled 'research'
 ```
 
+#### Claude Code Skill Interface
+
+**Skill:** `.claude/skills/research-ingestion/SKILL.md`
+
+**Trigger Keywords:** `research`, `מחקר`, `הוסף מחקר`, `add research`, `ADR-009`
+
+**Usage Pattern:**
+```
+User: הוסף מחקר: [כותרת]
+[טקסט המחקר הגולמי - כולל ממצאים, מספרים, טענות]
+
+Agent:
+1. מזהה את ההוראה כ-research ingestion
+2. מחלץ כותרת + raw_text מההודעה
+3. מריץ create_research_note() עם הנתונים
+4. מדווח על הסיווג והממצאים
+```
+
+**Raw Text Support:**
+
+The ingestion agent extracts automatically:
+- **Key Findings**: Numbered lists, bullet points, "key finding:" phrases
+- **Hypothesis**: Explicit statements or improvement claims (X% better)
+- **Metrics**: Percentages, latency values, Nx improvements
+
+**Example:**
+```
+User:
+הוסף מחקר: Chain-of-Thought Prompting
+מחקר מראה שיפור של 40% בהיגיון.
+ממצאים:
+1. פירוק שלבים מפחית שגיאות
+2. שיפור של 2x ב-GSM8K
+
+Agent creates:
+- docs/research/notes/2026-01-20-chain-of-thought-prompting.md
+- Classification: Spike (Model change with hypothesis)
+- Extracted metrics: 40% improvement, 2x better
+```
+
 ### Auto Weekly Review
 
 #### Trigger Conditions

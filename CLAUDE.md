@@ -1497,6 +1497,54 @@ Manual merge (1-click, < 10 seconds)
 3. **Caching:** Avoid re-reading same files
 4. **Batching:** Group related operations
 
+### research-ingestion (v1.0.0)
+
+**Purpose:** Ingest research from raw text, create standardized notes, classify, and create issues/experiments. Use when user provides research text to process following ADR-009.
+
+**Triggers:**
+- Keywords: `research`, `מחקר`, `הוסף מחקר`, `add research`, `ADR-009`
+- User provides raw research text with instruction
+- Research note creation requests
+
+**What it does:**
+1. **Parse Input** - Extract title, raw text, source URL from user message
+2. **Extract Information** - Key findings, hypothesis, metrics from raw text
+3. **Create Note** - Standardized research note in `docs/research/notes/`
+4. **Classify** - Auto-classify as Spike/ADR/Backlog/Discard
+5. **Optional: Full Processing** - Create local issue + experiment skeleton
+
+**When to use:**
+```
+# Hebrew format
+הוסף מחקר: [כותרת]
+[טקסט המחקר הגולמי]
+
+# English format
+Add research: [title]
+[raw research text]
+
+# Run full processing
+python scripts/auto_weekly_review.py
+```
+
+**Files:**
+- Skill definition: `.claude/skills/research-ingestion/SKILL.md`
+- Ingestion agent: `src/research/ingestion_agent.py`
+- Classifier: `src/research/classifier.py`
+- Weekly review: `scripts/auto_weekly_review.py`
+
+**Safety:**
+- `plan_mode_required: false`
+- Never runs real experiments without approval
+- Preserves original raw text in note
+- Allowed tools: Read, Edit, Write, Bash(python), Grep, Glob
+
+**Success metrics:**
+- ✅ Research note created with extracted findings
+- ✅ Correct classification applied
+- ✅ Hypothesis extracted from text
+- ✅ Metrics parsed (percentages, Nx improvements)
+
 ### email-assistant (v1.0.0)
 
 **Purpose:** Autonomous email agent that reads, summarizes, triages, and responds to emails via Gmail. Use when user wants help managing their inbox or processing emails.
