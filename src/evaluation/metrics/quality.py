@@ -66,30 +66,22 @@ class QualityMetrics:
 
         # Keyword score
         if expected_keywords:
-            metrics.keyword_score = cls._calculate_keyword_score(
-                response, expected_keywords
-            )
-            metrics.details["keyword_hits"] = cls._get_keyword_hits(
-                response, expected_keywords
-            )
+            metrics.keyword_score = cls._calculate_keyword_score(response, expected_keywords)
+            metrics.details["keyword_hits"] = cls._get_keyword_hits(response, expected_keywords)
         else:
             metrics.keyword_score = 1.0  # No keywords to check
             metrics.details["keyword_hits"] = []
 
         # Format score
         if expected_format:
-            metrics.format_score = cls._calculate_format_score(
-                response, expected_format
-            )
+            metrics.format_score = cls._calculate_format_score(response, expected_format)
             metrics.details["format_check"] = expected_format
         else:
             metrics.format_score = 1.0  # No format to check
             metrics.details["format_check"] = None
 
         # Completeness score
-        metrics.completeness_score = cls._calculate_completeness_score(
-            response, min_length
-        )
+        metrics.completeness_score = cls._calculate_completeness_score(response, min_length)
         metrics.details["response_length"] = len(response)
 
         # Overall weighted score

@@ -348,6 +348,7 @@ async def main() -> int:
         print(f"Error during evaluation: {e}")
         if args.verbose:
             import traceback
+
             traceback.print_exc()
         return 1
 

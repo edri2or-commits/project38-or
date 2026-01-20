@@ -187,6 +187,7 @@ class CostMetrics:
         Returns:
             Dictionary with percentage changes (positive = more expensive).
         """
+
         def pct_change(new: float, old: float) -> float:
             if old == 0:
                 return 0.0 if new == 0 else 100.0
@@ -197,9 +198,7 @@ class CostMetrics:
             "per_request_change_pct": pct_change(
                 self.cost_per_request_usd, other.cost_per_request_usd
             ),
-            "daily_change_pct": pct_change(
-                self.estimated_daily_usd, other.estimated_daily_usd
-            ),
+            "daily_change_pct": pct_change(self.estimated_daily_usd, other.estimated_daily_usd),
             "monthly_change_pct": pct_change(
                 self.estimated_monthly_usd, other.estimated_monthly_usd
             ),

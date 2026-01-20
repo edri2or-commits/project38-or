@@ -297,9 +297,7 @@ class EvaluationHarness:
         # Calculate deltas
         quality_delta = experiment.avg_quality_score - baseline.avg_quality_score
         latency_delta_pct = (
-            (experiment.avg_latency_ms - baseline.avg_latency_ms)
-            / baseline.avg_latency_ms
-            * 100
+            (experiment.avg_latency_ms - baseline.avg_latency_ms) / baseline.avg_latency_ms * 100
             if baseline.avg_latency_ms > 0
             else 0
         )
@@ -327,9 +325,7 @@ class EvaluationHarness:
             )
 
         # Decision logic based on ADR-009 matrix
-        decision = self._make_decision(
-            quality_delta, latency_delta_pct, cost_delta_pct, reasons
-        )
+        decision = self._make_decision(quality_delta, latency_delta_pct, cost_delta_pct, reasons)
 
         return ComparisonResult(
             decision=decision,
