@@ -143,7 +143,7 @@ But lacks:
 
 ### Phase 3: Research Process (Week 3)
 
-- [ ] Create `docs/research/README.md` - Process documentation
+- [ ] Create `docs/research/PROCESS.md` - Process documentation
 - [ ] Create `docs/research/templates/` - Templates
 - [ ] Create `experiments/README.md` - Experiment guidelines
 - [ ] Run first research note through full process

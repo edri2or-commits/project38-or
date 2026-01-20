@@ -4214,7 +4214,7 @@ User expressed concern about rapid AI evolution (2026) and system adaptability:
 
 ### Solution: ADR-009 Research Integration Architecture
 
-**ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](../decisions/ADR-009-research-integration-architecture.md)
+**ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](decisions/ADR-009-research-integration-architecture.md)
 
 #### 5-Stage Research Process
 
@@ -4279,7 +4279,7 @@ class FeatureFlags:
 #### Research Documentation
 
 **Files Created**:
-- `docs/research/README.md` - 5-stage process guide (205 lines)
+- `docs/research/PROCESS.md` - 5-stage process guide (205 lines)
 - `docs/research/templates/research-note.md` - Research note template (126 lines)
 - `experiments/README.md` - Experiment guidelines (207 lines)
 
@@ -4335,7 +4335,7 @@ For evaluating experiments:
 ### Evidence
 
 - **PR #355**: https://github.com/edri2or-commits/project38-or/pull/355 (merged)
-- **ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](../decisions/ADR-009-research-integration-architecture.md)
+- **ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](decisions/ADR-009-research-integration-architecture.md)
 - **Commit**: `40f8714` (squash merge)
 
 ---

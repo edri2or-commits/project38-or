@@ -672,7 +672,7 @@ CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
 
 | File | Purpose |
 |------|---------|
-| `docs/research/README.md` | Full process documentation |
+| `docs/research/PROCESS.md` | Full process documentation |
 | `docs/research/templates/research-note.md` | Research note template |
 | `experiments/README.md` | Experiment guidelines |
 | `src/providers/` | Model abstraction layer |

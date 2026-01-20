@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports: Gradual rollout (0% → 10% → 50% → 100%)
 
 - **Research Integration Process** (2026-01-20) - Documentation and templates
-  - `docs/research/README.md` - Process documentation
+  - `docs/research/PROCESS.md` - Process documentation
   - `docs/research/templates/research-note.md` - Research note template
   - `experiments/README.md` - Experiment guidelines
   - Weekly review checklist for research triage
