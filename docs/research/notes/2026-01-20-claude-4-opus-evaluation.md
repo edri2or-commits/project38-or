@@ -98,7 +98,7 @@
 
 **Reviewed:** 2026-01-20
 **Decision:** Spike
-**Issue/PR:** N/A (example research note)
+**Issue/PR:** #361
 **Experiment ID:** exp_001_opus_comparison (planned)
 
 ---
