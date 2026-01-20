@@ -1,6 +1,6 @@
 # Railway Configuration for LiteLLM Gateway
 # Documentation: https://docs.railway.app/reference/config-as-code
-# Updated: 2026-01-20 (Phase 2: Production Hardening - ADR-010)
+# Updated: 2026-01-20 (Phase 3: Monitoring Dashboards - ADR-010)
 
 [build]
 builder = "dockerfile"
@@ -29,3 +29,7 @@ restartPolicyMaxRetries = 3
 # - ALERT_WEBHOOK_URL: n8n webhook for budget alerts
 # - OTEL_EXPORTER_OTLP_ENDPOINT: OpenTelemetry endpoint (optional)
 # - OTEL_SERVICE_NAME: Service name for traces (default: litellm-gateway)
+#
+# Phase 3 - Monitoring (auto-configured):
+# - PROMETHEUS_MULTIPROC_DIR: /prometheus_metrics (set in Dockerfile)
+# - Metrics endpoint: /metrics (Prometheus format)

@@ -282,7 +282,14 @@ client.chat.completions.create(model="claude-sonnet", ...)
 - [x] Configure budget alerts (webhooks to n8n for Telegram) - PR #378
 - [x] Add observability: OpenTelemetry traces - PR #378
 - [x] Implement rate limiting (per-user quotas via master key) - PR #378
-- [ ] Set up monitoring dashboards (Grafana/Railway metrics) - Future
+
+### Phase 3: Monitoring Dashboards (✅ Complete - 2026-01-20)
+
+- [x] Add Prometheus metrics endpoint (`/metrics`) - PR #379
+- [x] Configure prometheus_metrics_config with 4 metric groups - PR #379
+- [x] Add service_callback for Redis/PostgreSQL health monitoring - PR #379
+- [x] Create Grafana dashboard JSON (importable to Grafana Cloud) - PR #379
+- [x] Document Grafana Cloud setup with Railway Alloy integration - PR #379
 
 ---
 
@@ -447,6 +454,7 @@ LiteLLM logs every request with:
 | 2026-01-17 | Initial creation - LiteLLM Gateway implemented | Claude | PR #240, commit 0523382 |
 | 2026-01-20 | Renumbered from ADR-006 to ADR-010 | Claude | PR #375 |
 | 2026-01-20 | Phase 2 complete: Redis caching, budget alerts, OTEL, rate limiting | Claude | PR #378 |
+| 2026-01-20 | Phase 3 complete: Prometheus metrics, Grafana dashboard | Claude | PR #379 |
 
 ---
 

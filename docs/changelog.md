@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-010 Phase 3: Monitoring Dashboards** (2026-01-20) - Phase 34
+  - **Prometheus Metrics**: Exposed `/metrics` endpoint for monitoring
+    - Added `callbacks: ["prometheus"]` to litellm_settings
+    - Added `service_callback: ["prometheus_system"]` for Redis/PostgreSQL health
+    - Configured 4 metric groups: token_consumption, request_tracking, deployment_health, budget_tracking
+  - **Grafana Dashboard**: Created importable dashboard JSON
+    - `grafana-dashboard.json` - 18 panels across 4 sections
+    - Panels: request rate, token usage, daily spend, provider health, latency
+    - Template variable for model filtering
+  - **Multi-Worker Support**: Added Prometheus multiprocess directory
+    - `PROMETHEUS_MULTIPROC_DIR=/prometheus_metrics` in Dockerfile
+  - **Documentation**: Added Phase 3 setup guide with Grafana Cloud instructions
+  - **ADR-010**: Added Phase 3 completion section
+
 - **ADR-010 Phase 2: LiteLLM Production Hardening** (2026-01-20) - Phase 33
   - **Redis Semantic Caching**: 20-40% cost reduction via response caching
     - Added `cache: True` with Redis configuration in `litellm-config.yaml`
