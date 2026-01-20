@@ -4557,5 +4557,99 @@ The goal is to transform from manual research processing to autonomous handling:
 
 ---
 
+## Phase 28: ADR-009 Phase 5 - Full Implementation (2026-01-20)
+
+### Context
+
+Following Phase 27's specification, this phase implements all the autonomous research processing components.
+
+### Implementation
+
+**4 New Modules Created** (~1,263 lines of production code):
+
+#### 1. `src/research/classifier.py` (310 lines)
+
+Auto-classification of research notes:
+- `parse_research_note()` - Extract structured data from markdown
+- `auto_classify()` - Apply classification rules
+- `find_unclassified_notes()` - Scan notes directory
+- `update_note_with_classification()` - Write results back
+
+**Classification Rules:**
+1. Explicit Recommendation → Use it
+2. Scope = Architecture/Security → ADR
+3. Effort = Hours, Risk = Low → Backlog
+4. Scope = Model + Hypothesis → Spike
+5. Default → NEEDS_REVIEW
+
+#### 2. `src/research/ingestion_agent.py` (380 lines)
+
+Create full research notes from minimal input:
+- `detect_source_type()` - Pattern matching on URL
+- `infer_scope_from_description()` - Keyword analysis
+- `generate_hypothesis()` - Template-based generation
+- `create_research_note()` - Full note creation
+- `ingest_research()` - Main entry point
+
+#### 3. `src/research/experiment_creator.py` (340 lines)
+
+Auto-generate experiment skeletons for Spikes:
+- `get_next_experiment_id()` - Auto-increment IDs
+- `create_experiment_skeleton()` - Full directory setup
+
+**Creates:**
+```
+experiments/exp_NNN_description/
+├── README.md      # Hypothesis, success criteria
+├── run.py         # Executable experiment script
+└── config.yaml    # Configuration
+```
+
+#### 4. `.github/workflows/auto-weekly-review.yml` (175 lines)
+
+Scheduled workflow for autonomous weekly review:
+- Trigger: `cron: '0 9 * * 1'` (Every Monday 09:00 UTC)
+- Manual: `workflow_dispatch` with dry-run option
+- Actions: Find → Classify → Issue → Experiment → Commit
+
+### Module Structure
+
+```
+src/research/
+├── __init__.py              # 58 lines
+├── classifier.py            # 310 lines
+├── ingestion_agent.py       # 380 lines
+└── experiment_creator.py    # 340 lines
+
+.github/workflows/
+└── auto-weekly-review.yml   # 175 lines
+```
+
+### Evidence
+
+| Component | Location | Lines |
+|-----------|----------|-------|
+| Classifier | `src/research/classifier.py` | 310 |
+| Ingestion Agent | `src/research/ingestion_agent.py` | 380 |
+| Experiment Creator | `src/research/experiment_creator.py` | 340 |
+| Auto Weekly Review | `.github/workflows/auto-weekly-review.yml` | 175 |
+| Module Init | `src/research/__init__.py` | 58 |
+| **Total** | | **1,263** |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Already has autonomous mode guide |
+| Layer 2 | `ADR-009` | Status updated to "✅ Fully Implemented" |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 28) |
+| Layer 4 | `docs/changelog.md` | Phase 5 implementation entry |
+
+### Status
+
+**ADR-009 Phase 5: ✅ FULLY IMPLEMENTED**
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 27 Complete - ADR-009 Phase 5 autonomous research specification added***
+*Status: **Phase 28 Complete - ADR-009 Phase 5 fully implemented with ~1,263 lines of code***
