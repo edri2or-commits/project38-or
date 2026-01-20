@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Evaluation CI Workflow** (2026-01-20) - Automated evaluation in GitHub Actions (ADR-009 Week 4)
+  - `.github/workflows/evaluate.yml` - CI workflow for evaluation
+  - Mock provider for PR validation (no API costs)
+  - Real provider support for manual runs
+  - Auto-posts results to PR comments
+  - Validates golden set and evaluation code on every PR
+
+- **Research Notes Directory** (2026-01-20) - Infrastructure for capturing new research
+  - `docs/research/notes/` - Directory for research notes
+  - First example note: `2026-01-20-claude-4-opus-evaluation.md`
+  - Demonstrates full 5-stage process from ADR-009
+
 ### Changed
 - **Code Style** (2026-01-20) - Applied ruff formatting to evaluation module and telegram-bot service
+- **ADR-009 Status** (2026-01-20) - Updated to "Implementing (Weeks 1-3 Complete)", Phase 4 in progress
 
-### Added
+### Previously Added
 - **Evaluation Harness** (2026-01-20) - Model provider testing infrastructure (ADR-009 Week 2)
   - `src/evaluation/harness.py` - EvaluationHarness class (~500 lines)
   - `src/evaluation/metrics/quality.py` - Quality metrics (keyword, format, completeness)

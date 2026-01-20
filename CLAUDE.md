@@ -674,10 +674,13 @@ CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
 |------|---------|
 | `docs/research/PROCESS.md` | Full process documentation |
 | `docs/research/templates/research-note.md` | Research note template |
+| `docs/research/notes/` | Research notes directory |
 | `experiments/README.md` | Experiment guidelines |
 | `src/providers/` | Model abstraction layer |
+| `src/evaluation/` | Evaluation harness |
 | `src/config/feature_flags.py` | Feature flag system |
 | `config/feature_flags.yaml` | Flag definitions |
+| `.github/workflows/evaluate.yml` | Evaluation CI workflow |
 
 ### Quick Start
 
@@ -703,6 +706,32 @@ config/feature_flags.yaml  # Controlled rollout
 ```
 
 **Architecture Decision**: [ADR-009: Research Integration Architecture](docs/decisions/ADR-009-research-integration-architecture.md)
+
+### Evaluation CI Workflow
+
+The evaluation system runs automatically in GitHub Actions:
+
+| Trigger | Mode | Description |
+|---------|------|-------------|
+| PR to main | Mock | Validates code, runs mock evaluation (no API costs) |
+| Manual dispatch | Real | Runs with actual providers (costs money) |
+
+**Workflow**: `.github/workflows/evaluate.yml`
+
+**Features**:
+- Mock provider for PR validation
+- Real provider support (claude, gpt-4) for manual runs
+- Auto-posts results to PR comments
+- Validates golden set format and evaluation code
+
+**Usage**:
+```bash
+# Run mock evaluation (automatic on PR)
+# Or manually: Actions → Evaluation → Run workflow
+
+# For real evaluation (costs money):
+# Actions → Evaluation → Run workflow → Select provider: claude
+```
 
 ---
 
