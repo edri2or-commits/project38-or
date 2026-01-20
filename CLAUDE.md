@@ -528,6 +528,15 @@ project38-or/
 │   │       └── cost.py            # Cost calculations (260 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # RESEARCH INTEGRATION (4 modules, ~1,088 lines) - ADR-009 Phase 5
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── research/
+│   │   ├── __init__.py            # Module exports (58 lines)
+│   │   ├── classifier.py          # Auto-classification rules (310 lines)
+│   │   ├── ingestion_agent.py     # Create notes from minimal input (380 lines)
+│   │   └── experiment_creator.py  # Auto-generate experiments (340 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # DATA MODELS (3 modules, ~265 lines)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── models/
@@ -678,9 +687,11 @@ CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
 | `experiments/README.md` | Experiment guidelines |
 | `src/providers/` | Model abstraction layer |
 | `src/evaluation/` | Evaluation harness |
+| `src/research/` | Autonomous research processing (Phase 5) |
 | `src/config/feature_flags.py` | Feature flag system |
 | `config/feature_flags.yaml` | Flag definitions |
 | `.github/workflows/evaluate.yml` | Evaluation CI workflow |
+| `.github/workflows/auto-weekly-review.yml` | Scheduled weekly review |
 
 ### Quick Start
 
