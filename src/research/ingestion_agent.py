@@ -30,9 +30,12 @@ from src.research.classifier import (
 class ResearchInput:
     """Minimal input required from user."""
 
-    source: str  # URL or title
-    description: str  # Brief description (2-3 sentences)
+    source: str = ""  # URL or title
+    description: str = ""  # Brief description (2-3 sentences)
     why_relevant: Optional[str] = None  # Optional context
+    title: Optional[str] = None  # Optional explicit title
+    raw_text: Optional[str] = None  # Full research text for parsing
+    source_url: Optional[str] = None  # Explicit URL (separate from source)
 
 
 @dataclass
@@ -124,6 +127,114 @@ def detect_source_type(source: str) -> str:
 
     # Default for non-URL sources
     return "Discovery"
+
+
+def extract_key_findings(raw_text: str) -> list[str]:
+    """Extract key findings from raw research text.
+
+    Args:
+        raw_text: Full research text
+
+    Returns:
+        List of key findings (max 5)
+    """
+    findings = []
+
+    # Pattern 1: Numbered items (1. Finding, 2. Finding)
+    numbered = re.findall(r"^\s*\d+[.)]\s*(.+)$", raw_text, re.MULTILINE)
+    findings.extend(numbered[:3])
+
+    # Pattern 2: Bullet points (-, *, •)
+    bullets = re.findall(r"^\s*[-•*]\s*(.+)$", raw_text, re.MULTILINE)
+    for bullet in bullets:
+        if len(bullet) > 20 and len(bullet) < 200 and bullet not in findings:
+            findings.append(bullet)
+            if len(findings) >= 5:
+                break
+
+    # Pattern 3: Key phrases
+    key_phrases = [
+        r"key finding[s]?:\s*(.+)",
+        r"result[s]?:\s*(.+)",
+        r"conclusion[s]?:\s*(.+)",
+        r"we found that\s*(.+)",
+        r"shows that\s*(.+)",
+        r"demonstrates that\s*(.+)",
+    ]
+    for pattern in key_phrases:
+        matches = re.findall(pattern, raw_text, re.IGNORECASE)
+        for match in matches:
+            if match not in findings:
+                findings.append(match.strip())
+                if len(findings) >= 5:
+                    break
+
+    return findings[:5]
+
+
+def extract_hypothesis_from_text(raw_text: str) -> str:
+    """Extract or generate hypothesis from raw research text.
+
+    Args:
+        raw_text: Full research text
+
+    Returns:
+        Hypothesis string
+    """
+    # Look for explicit hypothesis statements
+    hyp_patterns = [
+        r"hypothesis[:\s]+([^.]+\.)",
+        r"we hypothesize[:\s]+([^.]+\.)",
+        r"our hypothesis is[:\s]+([^.]+\.)",
+        r"this suggests[:\s]+([^.]+\.)",
+        r"we propose[:\s]+([^.]+\.)",
+        r"the claim is[:\s]+([^.]+\.)",
+    ]
+
+    for pattern in hyp_patterns:
+        match = re.search(pattern, raw_text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
+    # Look for improvement claims
+    improvement_patterns = [
+        r"(\d+%?\s*(?:improvement|better|faster|more accurate)[^.]+\.)",
+        r"(improves\s+[^.]+by\s+\d+[^.]+\.)",
+        r"(achieves\s+[^.]+performance[^.]+\.)",
+    ]
+
+    for pattern in improvement_patterns:
+        match = re.search(pattern, raw_text, re.IGNORECASE)
+        if match:
+            return f"If we adopt this approach, it may provide: {match.group(1).strip()}"
+
+    return ""
+
+
+def extract_metrics_from_text(raw_text: str) -> list[str]:
+    """Extract mentioned metrics from research text.
+
+    Args:
+        raw_text: Full research text
+
+    Returns:
+        List of metrics mentioned
+    """
+    metrics = []
+
+    # Percentage improvements
+    pct_matches = re.findall(r"(\d+(?:\.\d+)?%\s*(?:improvement|increase|decrease|better|faster|reduction))", raw_text, re.IGNORECASE)
+    metrics.extend(pct_matches)
+
+    # X times improvements
+    times_matches = re.findall(r"(\d+(?:\.\d+)?x\s*(?:faster|slower|better|improvement))", raw_text, re.IGNORECASE)
+    metrics.extend(times_matches)
+
+    # Latency/performance
+    latency_matches = re.findall(r"(\d+(?:\.\d+)?\s*(?:ms|seconds?|minutes?)\s*(?:latency|response time)?)", raw_text, re.IGNORECASE)
+    metrics.extend(latency_matches)
+
+    return metrics[:5]
 
 
 def infer_scope_from_description(description: str) -> ImpactScope:
@@ -391,12 +502,15 @@ def infer_all_fields(user_input: ResearchInput) -> InferredFields:
     inferred = InferredFields()
 
     # Source type
-    inferred.source_type = detect_source_type(user_input.source)
+    source = user_input.source_url or user_input.source
+    inferred.source_type = detect_source_type(source)
 
-    # Title (from URL or use description start)
-    if user_input.source.startswith("http"):
+    # Title - prefer explicit title, then extract from URL or description
+    if user_input.title:
+        inferred.title = user_input.title
+    elif source.startswith("http"):
         # Extract title from URL path
-        parsed = urlparse(user_input.source)
+        parsed = urlparse(source)
         path_parts = parsed.path.strip("/").split("/")
         if path_parts and path_parts[-1]:
             title = path_parts[-1].replace("-", " ").replace("_", " ").title()
@@ -404,10 +518,23 @@ def infer_all_fields(user_input: ResearchInput) -> InferredFields:
         else:
             inferred.title = user_input.description[:50]
     else:
-        inferred.title = user_input.source
+        inferred.title = source if source else user_input.description[:50]
+
+    # Use raw_text for richer inference if available
+    if user_input.raw_text:
+        combined_text = user_input.raw_text
+        # Extract findings from raw text
+        findings = extract_key_findings(user_input.raw_text)
+        if findings:
+            inferred.summary = findings[:3]
+        # Extract hypothesis from raw text
+        extracted_hyp = extract_hypothesis_from_text(user_input.raw_text)
+        if extracted_hyp:
+            inferred.hypothesis = extracted_hyp
+    else:
+        combined_text = f"{user_input.description} {user_input.why_relevant or ''}"
 
     # Scope
-    combined_text = f"{user_input.description} {user_input.why_relevant or ''}"
     inferred.scope = infer_scope_from_description(combined_text)
 
     # Effort and Risk
@@ -422,11 +549,13 @@ def infer_all_fields(user_input: ResearchInput) -> InferredFields:
     else:
         inferred.reversibility = "Difficult"
 
-    # Hypothesis
-    inferred.hypothesis = generate_hypothesis(user_input.description, inferred.scope)
+    # Hypothesis (if not extracted from raw_text)
+    if not inferred.hypothesis:
+        inferred.hypothesis = generate_hypothesis(user_input.description, inferred.scope)
 
-    # Summary
-    inferred.summary = generate_summary(user_input.description)
+    # Summary (if not extracted from raw_text)
+    if not inferred.summary:
+        inferred.summary = generate_summary(user_input.description)
 
     # Relevance areas
     inferred.relevance_areas = infer_relevance_areas(inferred.scope)
@@ -597,10 +726,30 @@ def create_research_note(
 
 ## User Input (Preserved)
 
-**Source:** {user_input.source}
+**Source:** {user_input.source_url or user_input.source}
 **Description:** {user_input.description}
 **Why Relevant:** {user_input.why_relevant or "Not specified"}
 """
+
+    # Add raw text section if provided
+    if user_input.raw_text:
+        raw_text_section = f"""
+---
+
+## Raw Research Text
+
+<details>
+<summary>Click to expand full research text</summary>
+
+{user_input.raw_text}
+
+</details>
+
+### Extracted Metrics
+
+{chr(10).join(f"- {m}" for m in extract_metrics_from_text(user_input.raw_text)) or "- No explicit metrics found"}
+"""
+        content += raw_text_section
 
     # Write file
     file_path.write_text(content)

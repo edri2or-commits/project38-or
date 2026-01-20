@@ -692,6 +692,8 @@ CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
 | `config/feature_flags.yaml` | Flag definitions |
 | `.github/workflows/evaluate.yml` | Evaluation CI workflow |
 | `.github/workflows/auto-weekly-review.yml` | Scheduled weekly review |
+| `docs/research/issues/` | Local issues for Spikes/ADRs |
+| `scripts/auto_weekly_review.py` | Local weekly review script |
 
 ### Quick Start
 

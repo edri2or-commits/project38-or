@@ -4651,5 +4651,58 @@ src/research/
 
 ---
 
+## Phase 29: ADR-009 Phase 5 MVP - End-to-End Flow (2026-01-20)
+
+### Goal
+
+Implement MVP that works end-to-end: user provides title + raw research text → system creates standardized research note → classifies → creates local issue + experiment skeleton.
+
+### Key Enhancements
+
+1. **Raw Text Support** - Enhanced `ResearchInput` dataclass:
+   - Added `title`, `raw_text`, `source_url` fields
+   - New extraction functions:
+     - `extract_key_findings()` - Parse numbered/bulleted findings
+     - `extract_hypothesis_from_text()` - Extract or generate hypothesis
+     - `extract_metrics_from_text()` - Parse performance metrics (%, Nx)
+
+2. **Local Issue Management** - No GitHub API dependency:
+   - Created `docs/research/issues/` directory
+   - Created `scripts/auto_weekly_review.py` (~300 lines)
+   - Local issues stored as `ISSUE-NNNN.md` files
+   - Full triage info in each issue
+
+3. **Updated Inference Logic**:
+   - `infer_all_fields()` now uses raw_text when available
+   - Better summary extraction from research documents
+   - Hypothesis extraction from claims/improvements in text
+
+### Files Changed
+
+```
+src/research/
+└── ingestion_agent.py     # +100 lines (raw_text support)
+
+scripts/
+└── auto_weekly_review.py  # ~300 lines (new)
+
+docs/research/
+└── issues/                # New directory for local issues
+```
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Added Key Files: `docs/research/issues/`, `scripts/auto_weekly_review.py` |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 29) |
+| Layer 4 | `docs/changelog.md` | MVP enhancement entry |
+
+### Status
+
+**ADR-009 Phase 5 MVP: ✅ COMPLETE**
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 28 Complete - ADR-009 Phase 5 fully implemented with ~1,263 lines of code***
+*Status: **Phase 29 Complete - ADR-009 Phase 5 MVP with end-to-end flow***

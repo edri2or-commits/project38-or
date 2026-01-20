@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-009 Phase 5 MVP: End-to-End Research Flow** (2026-01-20) - Enhanced ingestion with raw text support
+  - **Raw Text Parsing**: Full research document ingestion with extraction functions
+    - `extract_key_findings()` - Extract numbered/bulleted findings from text
+    - `extract_hypothesis_from_text()` - Auto-extract or generate hypothesis
+    - `extract_metrics_from_text()` - Parse performance metrics (%, Nx improvements)
+  - **Local Issue Management**: Store issues locally without GitHub API dependency
+    - `docs/research/issues/` - Local issue storage directory
+    - `scripts/auto_weekly_review.py` - Local weekly review script (~300 lines)
+    - Auto-creates ISSUE-NNNN.md files with full triage info
+  - **ResearchInput Enhanced**: Added `title`, `raw_text`, `source_url` fields
+
 - **ADR-009 Phase 5: Research Ingestion & Autonomy - FULL IMPLEMENTATION** (2026-01-20) - ~1,263 lines
   - `src/research/classifier.py` (310 lines) - Auto-classification with rule-based logic
   - `src/research/ingestion_agent.py` (380 lines) - Create notes from minimal input
