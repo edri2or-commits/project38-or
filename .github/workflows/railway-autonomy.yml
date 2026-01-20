@@ -1,0 +1,231 @@
+name: Railway Autonomy Operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - status
+          - redeploy
+          - logs
+          - list-services
+      service_name:
+        description: 'Service name (e.g., telegram-bot, litellm-gateway)'
+        required: false
+        default: 'telegram-bot'
+        type: string
+      issue_number:
+        description: 'Issue number to post results to'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  RAILWAY_PROJECT_ID: "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+  RAILWAY_ENVIRONMENT_ID: "99c99a18-aea2-4d01-9360-6a93705102a0"
+
+jobs:
+  railway-operation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: railway-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project="${PROJECT_ID}")
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: List Services
+        if: inputs.action == 'list-services' || inputs.action == 'status'
+        id: list-services
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+        run: |
+          echo "## Railway Services" >> $GITHUB_STEP_SUMMARY
+
+          RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { name services { edges { node { id name updatedAt } } } } }"
+            }')
+
+          echo "Response: $RESPONSE"
+          echo ""
+          echo "| Service | ID |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq -r '.data.project.services.edges[] | "| \(.node.name) | \(.node.id) |"' >> $GITHUB_STEP_SUMMARY
+
+          # Save services for later steps
+          echo "services=$RESPONSE" >> $GITHUB_OUTPUT
+
+      - name: Get Service Status
+        if: inputs.action == 'status'
+        id: service-status
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+        run: |
+          echo "## Service Status: $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+
+          # Get service ID
+          SERVICES='${{ steps.list-services.outputs.services }}'
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "'"$SERVICE_NAME"'") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Service '$SERVICE_NAME' not found" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+
+          # Get deployments
+          DEPLOYMENTS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { deployments(first: 5, input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\" }) { edges { node { id status createdAt } } } }"
+            }')
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Recent Deployments" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | Created |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "$DEPLOYMENTS" | jq -r '.data.deployments.edges[] | "| \(.node.status) | \(.node.createdAt) |"' >> $GITHUB_STEP_SUMMARY
+
+          LATEST_STATUS=$(echo "$DEPLOYMENTS" | jq -r '.data.deployments.edges[0].node.status // "UNKNOWN"')
+          echo "latest_status=$LATEST_STATUS" >> $GITHUB_OUTPUT
+
+      - name: Redeploy Service
+        if: inputs.action == 'redeploy'
+        id: redeploy
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+        run: |
+          echo "## Redeploying: $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+
+          # Get service ID
+          SERVICES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { services { edges { node { id name } } } } }"
+            }')
+
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "'"$SERVICE_NAME"'") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Service '$SERVICE_NAME' not found" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          # Trigger redeploy
+          REDEPLOY=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceInstanceRedeploy(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\") }"
+            }')
+
+          echo "Redeploy response: $REDEPLOY"
+
+          if echo "$REDEPLOY" | jq -e '.errors' > /dev/null 2>&1; then
+            echo "❌ Redeploy failed" >> $GITHUB_STEP_SUMMARY
+            echo "$REDEPLOY" | jq '.errors' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ Redeploy triggered successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Wait ~60 seconds for deployment to complete, then check status." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Get Service Logs
+        if: inputs.action == 'logs'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+        run: |
+          echo "## Logs: $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+
+          # Get service ID
+          SERVICES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { services { edges { node { id name } } } } }"
+            }')
+
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "'"$SERVICE_NAME"'") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Service '$SERVICE_NAME' not found" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Get deployment ID for logs
+          DEPLOYMENTS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { deployments(first: 1, input: { serviceId: \"'"$SERVICE_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\" }) { edges { node { id status } } } }"
+            }')
+
+          DEPLOYMENT_ID=$(echo "$DEPLOYMENTS" | jq -r '.data.deployments.edges[0].node.id // empty')
+          DEPLOYMENT_STATUS=$(echo "$DEPLOYMENTS" | jq -r '.data.deployments.edges[0].node.status // "UNKNOWN"')
+
+          echo "Deployment ID: $DEPLOYMENT_ID"
+          echo "Status: $DEPLOYMENT_STATUS"
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Latest Deployment**: $DEPLOYMENT_ID" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: $DEPLOYMENT_STATUS" >> $GITHUB_STEP_SUMMARY
+
+          # Note: Railway API doesn't expose logs directly via GraphQL
+          # Would need to use Railway CLI or dashboard for actual logs
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ Logs are available in Railway Dashboard: https://railway.app/project/$RAILWAY_PROJECT_ID" >> $GITHUB_STEP_SUMMARY
+
+      - name: Post Results to Issue
+        if: inputs.issue_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ inputs.action }}
+          SERVICE: ${{ inputs.service_name }}
+          LATEST_STATUS: ${{ steps.service-status.outputs.latest_status }}
+        run: |
+          COMMENT="## 🚂 Railway Autonomy: $ACTION
+
+**Service**: \`$SERVICE\`
+**Action**: $ACTION
+**Latest Status**: $LATEST_STATUS
+
+---
+Workflow: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          gh issue comment ${{ inputs.issue_number }} --body "$COMMENT" --repo ${{ github.repository }}
