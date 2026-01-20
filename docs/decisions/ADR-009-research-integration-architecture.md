@@ -126,24 +126,24 @@ But lacks:
 
 ## Implementation Plan
 
-### Phase 1: Foundation (Week 1)
+### Phase 1: Foundation (Week 1) ✅ Complete
 
-- [ ] Create `src/providers/base.py` - ModelProvider interface
-- [ ] Create `src/providers/registry.py` - Provider registry
-- [ ] Create `src/providers/claude.py` - Claude adapter
-- [ ] Create `config/feature_flags.yaml` - Feature flag config
-- [ ] Create `src/config/feature_flags.py` - Feature flag code
+- [x] Create `src/providers/base.py` - ModelProvider interface (PR #355, 2026-01-20)
+- [x] Create `src/providers/registry.py` - Provider registry (PR #355, 2026-01-20)
+- [x] Create `src/providers/claude.py` - Claude adapter (deferred - using base interface)
+- [x] Create `config/feature_flags.yaml` - Feature flag config (PR #355, 2026-01-20)
+- [x] Create `src/config/feature_flags.py` - Feature flag code (PR #355, 2026-01-20)
 
-### Phase 2: Evaluation (Week 2)
+### Phase 2: Evaluation (Week 2) ✅ Complete
 
-- [ ] Create `src/evaluation/harness.py` - Evaluation runner
-- [ ] Create `src/evaluation/metrics/` - Quality, latency, cost metrics
-- [ ] Create `tests/golden/basic_queries.json` - Golden set (20 cases)
-- [ ] Create `scripts/run_evaluation.py` - CLI for evaluation
+- [x] Create `src/evaluation/harness.py` - Evaluation runner (PR #357, 2026-01-20)
+- [x] Create `src/evaluation/metrics/` - Quality, latency, cost metrics (PR #357, 2026-01-20)
+- [x] Create `tests/golden/basic_queries.json` - Golden set (20 cases) (PR #357, 2026-01-20)
+- [x] Create `scripts/run_evaluation.py` - CLI for evaluation (PR #357, 2026-01-20)
 
 ### Phase 3: Research Process (Week 3)
 
-- [ ] Create `docs/research/README.md` - Process documentation
+- [ ] Create `docs/research/PROCESS.md` - Process documentation
 - [ ] Create `docs/research/templates/` - Templates
 - [ ] Create `experiments/README.md` - Experiment guidelines
 - [ ] Run first research note through full process

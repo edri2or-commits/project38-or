@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Code Style** (2026-01-20) - Applied ruff formatting to evaluation module and telegram-bot service
+
 ### Added
 - **Evaluation Harness** (2026-01-20) - Model provider testing infrastructure (ADR-009 Week 2)
   - `src/evaluation/harness.py` - EvaluationHarness class (~500 lines)
@@ -38,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports: Gradual rollout (0% → 10% → 50% → 100%)
 
 - **Research Integration Process** (2026-01-20) - Documentation and templates
-  - `docs/research/README.md` - Process documentation
+  - `docs/research/PROCESS.md` - Process documentation
   - `docs/research/templates/research-note.md` - Research note template
   - `experiments/README.md` - Experiment guidelines
   - Weekly review checklist for research triage

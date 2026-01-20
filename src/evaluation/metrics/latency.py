@@ -137,6 +137,7 @@ class LatencyMetrics:
         Returns:
             Dictionary with percentage changes (positive = slower).
         """
+
         def pct_change(new: float, old: float) -> float:
             if old == 0:
                 return 0.0

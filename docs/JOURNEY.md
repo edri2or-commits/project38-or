@@ -4214,7 +4214,7 @@ User expressed concern about rapid AI evolution (2026) and system adaptability:
 
 ### Solution: ADR-009 Research Integration Architecture
 
-**ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](../decisions/ADR-009-research-integration-architecture.md)
+**ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](decisions/ADR-009-research-integration-architecture.md)
 
 #### 5-Stage Research Process
 
@@ -4279,7 +4279,7 @@ class FeatureFlags:
 #### Research Documentation
 
 **Files Created**:
-- `docs/research/README.md` - 5-stage process guide (205 lines)
+- `docs/research/PROCESS.md` - 5-stage process guide (205 lines)
 - `docs/research/templates/research-note.md` - Research note template (126 lines)
 - `experiments/README.md` - Experiment guidelines (207 lines)
 
@@ -4335,10 +4335,80 @@ For evaluating experiments:
 ### Evidence
 
 - **PR #355**: https://github.com/edri2or-commits/project38-or/pull/355 (merged)
-- **ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](../decisions/ADR-009-research-integration-architecture.md)
+- **ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](decisions/ADR-009-research-integration-architecture.md)
 - **Commit**: `40f8714` (squash merge)
 
 ---
 
+## Phase 25: ADR-009 Week 2 - Evaluation Harness (2026-01-20)
+
+### Context
+
+With the model abstraction layer and feature flags in place (Phase 24), Week 2 of ADR-009 focused on implementing the evaluation harness - a system for measuring provider quality, comparing experiments, and preventing regressions.
+
+### Implementation
+
+**Evaluation Harness** (`src/evaluation/`):
+
+| Module | Lines | Purpose |
+|--------|-------|---------|
+| `harness.py` | 640 | Core EvaluationHarness with async test execution |
+| `metrics/quality.py` | 270 | Quality scoring (keywords, format, completeness) |
+| `metrics/latency.py` | 180 | Latency percentiles (p50, p90, p95, p99) |
+| `metrics/cost.py` | 260 | Cost calculations with provider pricing |
+| **Total** | **1,350** | Complete evaluation infrastructure |
+
+**Key Components**:
+
+1. **EvaluationHarness** - Async test runner with concurrency control
+   - Loads golden test sets from JSON
+   - Executes tests with configurable concurrency
+   - Aggregates results with quality, latency, cost metrics
+
+2. **Decision Matrix** - Automated comparison logic
+   - `ADOPT`: Quality improved ≥5%, cost within 20%
+   - `REJECT`: Quality dropped ≥5% or cost increased >50%
+   - `NEEDS_MORE_DATA`: Inconclusive results
+
+3. **Metrics Classes**:
+   - `QualityMetrics`: keyword matching, format compliance (JSON/Markdown/code)
+   - `LatencyMetrics`: avg, p50, p90, p95, p99, standard deviation
+   - `CostMetrics`: per-token pricing for Claude, GPT-4o, Gemini
+
+**Golden Test Set** (`tests/golden/basic_queries.json`):
+- 20 test cases across 11 categories
+- Categories: greeting, math, coding, explanation, json, list, comparison, instruction, definition, reasoning, summary
+- Each case defines: query, expected_keywords, expected_format, max_tokens
+
+**CLI Tool** (`scripts/run_evaluation.py`):
+```bash
+# Single evaluation
+python scripts/run_evaluation.py --provider claude
+
+# Comparison mode
+python scripts/run_evaluation.py --baseline claude --experiment gpt-4
+
+# Save results
+python scripts/run_evaluation.py --output results.json
+```
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Added src/evaluation/ to file structure |
+| Layer 2 | `ADR-009` | Week 2 implementation checklist |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 25) |
+| Layer 4 | `docs/changelog.md` | Evaluation harness entry |
+
+### Evidence
+
+- **PR #357**: Evaluation Harness implementation (merged)
+- **Modules**: 5 new modules, 1,350 lines of code
+- **Tests**: 20 golden test cases
+- **ADR-009**: Week 2 complete
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 24 Complete - Research Integration Architecture implemented with model abstraction and feature flags***
+*Status: **Phase 25 Complete - Evaluation Harness implemented with quality, latency, cost metrics***
