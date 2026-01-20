@@ -12,6 +12,7 @@ on:
           - deploy
           - create-service
           - status
+          - setup-phase2
 
 permissions:
   contents: read
@@ -231,6 +232,109 @@ jobs:
             echo "Service domain not available yet. Add domain in Railway dashboard."
           fi
 
+      # =================================================================
+      # Phase 2: Setup Redis, PostgreSQL, and advanced configuration
+      # =================================================================
+      - name: Setup Phase 2 (Production Hardening)
+        if: inputs.action == 'setup-phase2'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "🚀 Setting up Phase 2: Production Hardening..."
+          echo ""
+
+          # Get service ID
+          SERVICES_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }')
+
+          SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "litellm-gateway") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ LiteLLM Gateway service not found. Run 'create-service' first."
+            exit 1
+          fi
+
+          echo "📍 Service ID: $SERVICE_ID"
+          echo ""
+
+          # Generate LITELLM_MASTER_KEY
+          echo "🔑 Step 1: Generating LITELLM_MASTER_KEY..."
+          MASTER_KEY=$(openssl rand -hex 32)
+          echo "::add-mask::$MASTER_KEY"
+
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"LITELLM_MASTER_KEY\", value: \"'$MASTER_KEY'\" }) }"
+            }' > /dev/null
+
+          echo "✅ LITELLM_MASTER_KEY generated and stored"
+
+          # Set n8n webhook URL for alerts
+          echo ""
+          echo "🔔 Step 2: Configuring alert webhook..."
+          # Use n8n webhook endpoint for alerts
+          ALERT_WEBHOOK="https://n8n-production-2fe0.up.railway.app/webhook/litellm-alerts"
+
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"ALERT_WEBHOOK_URL\", value: \"'$ALERT_WEBHOOK'\" }) }"
+            }' > /dev/null
+
+          echo "✅ Alert webhook configured: $ALERT_WEBHOOK"
+
+          # Set OTEL service name
+          echo ""
+          echo "📊 Step 3: Configuring OpenTelemetry..."
+
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"OTEL_SERVICE_NAME\", value: \"litellm-gateway\" }) }"
+            }' > /dev/null
+
+          echo "✅ OTEL_SERVICE_NAME set"
+
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════"
+          echo "✅ Phase 2 Setup Complete!"
+          echo "═══════════════════════════════════════════════════════════════"
+          echo ""
+          echo "📋 Summary of configured variables:"
+          echo "  • LITELLM_MASTER_KEY: Generated (64 hex chars)"
+          echo "  • ALERT_WEBHOOK_URL: $ALERT_WEBHOOK"
+          echo "  • OTEL_SERVICE_NAME: litellm-gateway"
+          echo ""
+          echo "⚠️  Manual steps required in Railway Dashboard:"
+          echo ""
+          echo "1. Add Redis plugin to the project:"
+          echo "   Railway Dashboard → Add Service → Redis"
+          echo "   This will auto-inject REDIS_HOST, REDIS_PORT, REDIS_PASSWORD"
+          echo ""
+          echo "2. Add PostgreSQL plugin (if not exists):"
+          echo "   Railway Dashboard → Add Service → PostgreSQL"
+          echo "   This will auto-inject DATABASE_URL"
+          echo ""
+          echo "3. (Optional) Add OTEL endpoint for observability:"
+          echo "   Set OTEL_EXPORTER_OTLP_ENDPOINT in Railway variables"
+          echo "   Recommended: Use Langfuse, Grafana Cloud, or Honeycomb"
+          echo ""
+          echo "4. Run 'deploy' action to redeploy with new configuration"
+
       - name: Summary
         run: |
           echo "## LiteLLM Gateway Deployment"
@@ -242,8 +346,18 @@ jobs:
           echo "| OpenAI API Key | ✅ |"
           echo "| Gemini API Key | ✅ |"
           echo ""
-          echo "### Next Steps"
-          echo "1. Verify deployment: Check Railway dashboard"
-          echo "2. Test health endpoint: \`curl https://<domain>/health\`"
-          echo "3. Test model routing: \`curl https://<domain>/v1/models\`"
-          echo "4. Integrate with Telegram Bot (Phase 1)"
+          if [ "${{ inputs.action }}" = "setup-phase2" ]; then
+            echo "### Phase 2 Configuration"
+            echo "| Feature | Status |"
+            echo "|---------|--------|"
+            echo "| Redis Caching | ⚠️ Add Redis plugin manually |"
+            echo "| Budget Alerts | ✅ Webhook configured |"
+            echo "| OTEL Tracing | ✅ Service name set |"
+            echo "| Rate Limiting | ✅ Master key generated |"
+          else
+            echo "### Next Steps"
+            echo "1. Verify deployment: Check Railway dashboard"
+            echo "2. Test health endpoint: \`curl https://<domain>/health\`"
+            echo "3. Test model routing: \`curl https://<domain>/v1/models\`"
+            echo "4. (Phase 2) Run with action: setup-phase2"
+          fi

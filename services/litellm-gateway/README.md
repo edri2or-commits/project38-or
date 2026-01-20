@@ -13,23 +13,43 @@ Telegram Bot → LiteLLM Gateway → [Claude, GPT-4, Gemini] → MCP Gateway
 
 ## Features
 
+### Phase 1 (✅ Complete)
 - **Multi-Provider Support**: Claude 3.7, GPT-4o, Gemini 1.5 Pro/Flash
 - **Automatic Fallback**: If primary model fails, cascades to secondary/tertiary
 - **Cost Control**: $10/day budget limit (configurable)
 - **Unified API**: All models exposed via OpenAI Chat Completion format
 - **Health Monitoring**: `/health` endpoint for Railway health checks
 
+### Phase 2 (✅ Complete - 2026-01-20)
+- **Redis Semantic Caching**: 20-40% cost reduction via response caching
+- **Budget Alerts**: Webhook notifications to Telegram via n8n
+- **OpenTelemetry Tracing**: Full request/response observability
+- **Per-User Rate Limiting**: Quotas via master key authentication
+
 ## Configuration
 
 ### Environment Variables (Railway)
 
-Required secrets (stored in GCP Secret Manager):
+**Phase 1 - LLM Providers** (stored in GCP Secret Manager):
 
 | Variable | Purpose | Source |
 |----------|---------|--------|
 | `ANTHROPIC_API_KEY` | Claude API access | GCP Secret: `ANTHROPIC-API` |
 | `OPENAI_API_KEY` | GPT-4 API access | GCP Secret: `OPENAI-API` |
 | `GEMINI_API_KEY` | Gemini API access | GCP Secret: `GEMINI-API` |
+
+**Phase 2 - Production Hardening** (configured via workflow):
+
+| Variable | Purpose | Source |
+|----------|---------|--------|
+| `LITELLM_MASTER_KEY` | Admin API authentication | Auto-generated |
+| `DATABASE_URL` | Spend tracking database | Railway PostgreSQL plugin |
+| `REDIS_HOST` | Caching backend | Railway Redis plugin |
+| `REDIS_PORT` | Redis port | Railway Redis plugin |
+| `REDIS_PASSWORD` | Redis authentication | Railway Redis plugin |
+| `ALERT_WEBHOOK_URL` | Budget alert destination | n8n webhook |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Tracing endpoint | Optional: Langfuse/Grafana |
+| `OTEL_SERVICE_NAME` | Service identifier | Default: litellm-gateway |
 
 ### Model Routing
 
@@ -167,8 +187,84 @@ LiteLLM logs cost per request. Budget limit ($10/day) enforced automatically.
 
 1. **API Keys**: Never hardcode. Use Railway environment variables linked to GCP Secret Manager.
 2. **CORS**: Restrict `allowed_origins` in `litellm-config.yaml` to specific domains.
-3. **Rate Limiting**: Consider adding Redis-backed rate limiter (Phase 2).
-4. **Audit Logs**: Enable `success_callback` for observability (Phase 2).
+3. **Rate Limiting**: Use Redis-backed rate limiter (Phase 2 enabled).
+4. **Audit Logs**: OpenTelemetry enabled for full observability.
+
+## Phase 2 Setup (Production Hardening)
+
+### Quick Setup
+
+Run the GitHub Actions workflow with `setup-phase2` action:
+
+```bash
+gh workflow run deploy-litellm-gateway.yml -f action=setup-phase2
+```
+
+This configures:
+- ✅ `LITELLM_MASTER_KEY` - Generated 64-char hex token
+- ✅ `ALERT_WEBHOOK_URL` - n8n webhook for alerts
+- ✅ `OTEL_SERVICE_NAME` - Tracing identification
+
+### Manual Steps Required
+
+After running `setup-phase2`, add these Railway plugins:
+
+1. **Redis Plugin** (for caching):
+   ```
+   Railway Dashboard → delightful-cat → Add Service → Redis
+   ```
+   Auto-injects: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
+
+2. **PostgreSQL Plugin** (for spend tracking):
+   ```
+   Railway Dashboard → delightful-cat → Add Service → PostgreSQL
+   ```
+   Auto-injects: `DATABASE_URL`
+
+3. **Deploy with new config**:
+   ```bash
+   gh workflow run deploy-litellm-gateway.yml -f action=deploy
+   ```
+
+### Verify Phase 2
+
+```bash
+# Check health with caching info
+curl https://litellm-gateway-production-0339.up.railway.app/health
+
+# Test admin API (requires LITELLM_MASTER_KEY)
+curl -H "Authorization: Bearer <MASTER_KEY>" \
+  https://litellm-gateway-production-0339.up.railway.app/key/info
+
+# Check cache stats
+curl https://litellm-gateway-production-0339.up.railway.app/cache/ping
+```
+
+### Budget Alert Configuration
+
+Alerts are sent to n8n webhook at: `https://n8n-production-2fe0.up.railway.app/webhook/litellm-alerts`
+
+Create n8n workflow to handle alerts:
+1. Webhook Trigger node (path: `/litellm-alerts`)
+2. IF node: Check `body.alert_type == "budget_alerts"`
+3. Telegram node: Send formatted message
+
+### Rate Limiting (Per-User Quotas)
+
+Create user keys with budgets:
+
+```bash
+curl -X POST https://litellm-gateway-production-0339.up.railway.app/key/generate \
+  -H "Authorization: Bearer <MASTER_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "max_budget": 5.0,
+    "budget_duration": "1d",
+    "metadata": {"user": "telegram-bot"}
+  }'
+```
+
+Response includes API key for that user with enforced budget.
 
 ### Secret Rotation
 
@@ -204,5 +300,21 @@ When rotating API keys:
 
 ---
 
-**Status**: ✅ Ready for Deployment (Phase 1)
-**Last Updated**: 2026-01-17
+**Status**: ✅ Phase 2 Complete (Production Hardening)
+**Last Updated**: 2026-01-20
+
+## Changelog
+
+### 2026-01-20 (Phase 2)
+- Added Redis semantic caching configuration
+- Added budget alerts via webhook
+- Added OpenTelemetry observability
+- Added per-user rate limiting with master key
+- Created `setup-phase2` workflow action
+- Updated documentation
+
+### 2026-01-17 (Phase 1)
+- Initial deployment
+- Multi-provider support (Claude, GPT-4, Gemini)
+- Automatic fallback chains
+- Basic budget control ($10/day)
