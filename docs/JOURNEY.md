@@ -4192,5 +4192,153 @@ def _gcp_secret_list(self) -> dict:
 
 ---
 
+## Phase 24: Research Integration Architecture - ADR-009 (2026-01-20)
+
+**Timeline**: 2026-01-20
+**Focus**: Build adaptive architecture for integrating new AI research safely
+**Outcome**: ✅ **Complete research integration system with model abstraction and feature flags**
+
+### Background
+
+User expressed concern about rapid AI evolution (2026) and system adaptability:
+- "אני מפחד שהשינויים שאני מציע למערכת גורמים לבלגן" (I'm afraid the changes I propose cause chaos in the system)
+- Learning method: YouTube videos → research → propose changes
+- Need: Structured process to safely integrate new discoveries
+
+### Problem Statement
+
+1. **No model abstraction** - System tightly coupled to specific LLM providers
+2. **No feature flags** - Changes are all-or-nothing, no gradual rollout
+3. **No research process** - Ad-hoc integration of new discoveries
+4. **No evaluation harness** - No baseline comparison for changes
+
+### Solution: ADR-009 Research Integration Architecture
+
+**ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](../decisions/ADR-009-research-integration-architecture.md)
+
+#### 5-Stage Research Process
+
+```
+CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
+   ↓         ↓          ↓           ↓          ↓
+Research  Weekly    Isolated    Compare    Feature
+  Note    Review     Test      Baseline    Flags
+```
+
+| Stage | Action | Output |
+|-------|--------|--------|
+| **Capture** | Document discovery | `docs/research/notes/YYYY-MM-DD-title.md` |
+| **Triage** | Classify impact | Spike / ADR / Backlog / Discard |
+| **Experiment** | Run isolated test | `experiments/exp_NNN_description/` |
+| **Evaluate** | Compare to baseline | ADOPT / REJECT / NEEDS_MORE_DATA |
+| **Integrate** | Gradual rollout | Feature flags (10% → 50% → 100%) |
+
+#### Model Provider Abstraction
+
+Created `src/providers/` module (550 lines):
+
+```python
+# Abstract interface for swappable LLM backends
+class ModelProvider(ABC):
+    @abstractmethod
+    async def complete(self, messages, **kwargs) -> ModelResponse: ...
+
+    @abstractmethod
+    async def stream(self, messages, **kwargs) -> AsyncIterator[str]: ...
+
+# Singleton registry for runtime switching
+ModelRegistry.register("claude", ClaudeProvider())
+ModelRegistry.set_default("claude")
+```
+
+**Files Created**:
+- `src/providers/base.py` - ModelProvider interface (223 lines)
+- `src/providers/registry.py` - Provider registry (163 lines)
+- `src/providers/__init__.py` - Module exports
+
+#### Feature Flags System
+
+Created `src/config/` module (300 lines):
+
+```python
+# Percentage-based rollout with consistent hashing
+class FeatureFlags:
+    @classmethod
+    def is_enabled(cls, flag_name: str) -> bool: ...
+
+    @classmethod
+    def is_enabled_for(cls, flag_name: str, identifier: str) -> bool:
+        # Uses SHA256 for consistent hash - same user always gets same result
+        ...
+```
+
+**Files Created**:
+- `src/config/feature_flags.py` - Feature flag system (281 lines)
+- `config/feature_flags.yaml` - Flag definitions (93 lines)
+
+#### Research Documentation
+
+**Files Created**:
+- `docs/research/README.md` - 5-stage process guide (205 lines)
+- `docs/research/templates/research-note.md` - Research note template (126 lines)
+- `experiments/README.md` - Experiment guidelines (207 lines)
+
+### Implementation
+
+**PR #355**: `feat(arch): implement ADR-009 Research Integration Architecture`
+
+| Metric | Value |
+|--------|-------|
+| Files changed | 17 |
+| Lines added | 2,290 |
+| Lines deleted | 53 |
+| Merge SHA | `40f8714` |
+
+### Decision Matrix
+
+For evaluating experiments:
+
+| Quality | Latency | Cost | Decision |
+|---------|---------|------|----------|
+| Better | Better | Better | **ADOPT** |
+| Better | Same | Same | **ADOPT** |
+| Same | Better | Same | **ADOPT** |
+| Worse | Any | Any | **REJECT** |
+| Mixed | Mixed | Mixed | **NEEDS_MORE_DATA** |
+
+### 4-Layer Documentation Status
+
+| Layer | File | Status |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | ✅ Updated - 8 ADR-009 references |
+| Layer 2 | `docs/decisions/ADR-009-*.md` | ✅ Created (10,399 bytes) |
+| Layer 3 | `docs/JOURNEY.md` | ✅ This entry (Phase 24) |
+| Layer 4 | `src/providers/`, `src/config/`, etc. | ✅ Created |
+
+### Key Learnings
+
+**1. Structured Process Reduces Chaos**
+- Research notes capture context before changes
+- Experiments isolate risk
+- Feature flags enable gradual rollout
+
+**2. Abstraction Enables Flexibility**
+- ModelProvider interface allows swapping LLMs
+- Feature flags allow A/B testing
+- Registry pattern enables runtime switching
+
+**3. Documentation-as-Infrastructure**
+- ADR captures WHY decisions were made
+- Research notes preserve learning context
+- Experiment templates ensure reproducibility
+
+### Evidence
+
+- **PR #355**: https://github.com/edri2or-commits/project38-or/pull/355 (merged)
+- **ADR-009**: [docs/decisions/ADR-009-research-integration-architecture.md](../decisions/ADR-009-research-integration-architecture.md)
+- **Commit**: `40f8714` (squash merge)
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 23 Complete - GCP tools accessible via Cloud Function tunnel, bypassing Anthropic proxy***
+*Status: **Phase 24 Complete - Research Integration Architecture implemented with model abstraction and feature flags***
