@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **research-ingestion Skill** (2026-01-20) - Claude Code skill for natural language research processing
+  - `.claude/skills/research-ingestion/SKILL.md` - Skill definition
+  - Triggers: `research`, `מחקר`, `הוסף מחקר`, `add research`, `ADR-009`
+  - Enables: User writes instruction + raw text → Claude creates research note
+  - Updated ADR-009 with "Claude Code Skill Interface" section
+  - Added to CLAUDE.md Available Skills
+
 - **ADR-009 Phase 5 MVP: End-to-End Research Flow** (2026-01-20) - Enhanced ingestion with raw text support
   - **Raw Text Parsing**: Full research document ingestion with extraction functions
     - `extract_key_findings()` - Extract numbered/bulleted findings from text
