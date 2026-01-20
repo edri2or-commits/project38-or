@@ -37,6 +37,42 @@ Your primary mission: Convert raw research text + brief instruction into actiona
 
 # Instructions
 
+## Pre-Flight Check (MANDATORY)
+
+**STOP. Before processing ANY research, ask and answer these 3 questions:**
+
+| # | שאלה | תשובה נדרשת |
+|---|------|-------------|
+| 1 | **מה ישתנה בפועל?** | יכולת חדשה / ביצועים / עלות - **לא רק תיעוד** |
+| 2 | **איך נמדוד הצלחה?** | מטריקה קונקרטית לפני/אחרי |
+| 3 | **מה האלטרנטיבה?** | למה לא להשאיר כמו שזה? |
+
+### Decision Logic
+
+```
+If answers are weak or unclear:
+    → REJECT immediately
+    → Tell user: "המחקר הזה לא עובר את המסנן: [reason]"
+    → Ask: "רוצה להמשיך בכל זאת?"
+
+If all 3 answers are strong:
+    → PROCEED to workflow
+```
+
+### Examples
+
+**REJECT:**
+- "מוסיף תיעוד" ← לא משנה יכולות
+- "לא בטוח איך למדוד" ← אין מטריקה
+- "כבר יש משהו דומה" ← אין צורך אמיתי
+
+**APPROVE:**
+- "מאפשר query על 10x יותר נתונים" ← יכולת חדשה
+- "נמדוד latency לפני/אחרי" ← מטריקה ברורה
+- "אין פתרון קיים לבעיה הזו" ← צורך אמיתי
+
+---
+
 ## Activation Triggers
 
 Invoke this skill when user:
