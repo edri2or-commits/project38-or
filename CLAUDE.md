@@ -645,7 +645,8 @@ project38-or/
 ├── railway.toml                   # Railway configuration
 ├── Procfile                       # Process definition
 ├── mkdocs.yml                     # Documentation config
-├── CLAUDE.md                      # This file
+├── CLAUDE.md                      # This file (full context)
+├── AGENTS.md                      # Agent onboarding (2026 standard)
 └── README.md
 ```
 
