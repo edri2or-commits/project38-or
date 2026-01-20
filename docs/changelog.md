@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-006 Phase 4 Documentation Complete** (2026-01-20) - GCP MCP Server documentation finalized
+  - Updated `src/gcp_mcp/README.md` with production URLs, security model, troubleshooting guide
+  - All 4 phases of ADR-006 now complete (Implementation, Deployment, Testing, Documentation)
+  - Added Claude Code prompt examples, 5-layer security architecture diagram
+  - Added 6 common troubleshooting scenarios with solutions
+
 - **GCP Tools in Cloud Function Tunnel** (2026-01-19) - Bypass Anthropic proxy for GCP access
   - Added `gcp_secret_list`, `gcp_secret_get`, `gcp_project_info` tools to `cloud_functions/mcp_router/main.py`
   - **Problem Solved**: Cloud Run `.run.app` domains blocked by Anthropic proxy
