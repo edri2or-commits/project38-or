@@ -4340,5 +4340,75 @@ For evaluating experiments:
 
 ---
 
+## Phase 25: ADR-009 Week 2 - Evaluation Harness (2026-01-20)
+
+### Context
+
+With the model abstraction layer and feature flags in place (Phase 24), Week 2 of ADR-009 focused on implementing the evaluation harness - a system for measuring provider quality, comparing experiments, and preventing regressions.
+
+### Implementation
+
+**Evaluation Harness** (`src/evaluation/`):
+
+| Module | Lines | Purpose |
+|--------|-------|---------|
+| `harness.py` | 640 | Core EvaluationHarness with async test execution |
+| `metrics/quality.py` | 270 | Quality scoring (keywords, format, completeness) |
+| `metrics/latency.py` | 180 | Latency percentiles (p50, p90, p95, p99) |
+| `metrics/cost.py` | 260 | Cost calculations with provider pricing |
+| **Total** | **1,350** | Complete evaluation infrastructure |
+
+**Key Components**:
+
+1. **EvaluationHarness** - Async test runner with concurrency control
+   - Loads golden test sets from JSON
+   - Executes tests with configurable concurrency
+   - Aggregates results with quality, latency, cost metrics
+
+2. **Decision Matrix** - Automated comparison logic
+   - `ADOPT`: Quality improved ≥5%, cost within 20%
+   - `REJECT`: Quality dropped ≥5% or cost increased >50%
+   - `NEEDS_MORE_DATA`: Inconclusive results
+
+3. **Metrics Classes**:
+   - `QualityMetrics`: keyword matching, format compliance (JSON/Markdown/code)
+   - `LatencyMetrics`: avg, p50, p90, p95, p99, standard deviation
+   - `CostMetrics`: per-token pricing for Claude, GPT-4o, Gemini
+
+**Golden Test Set** (`tests/golden/basic_queries.json`):
+- 20 test cases across 11 categories
+- Categories: greeting, math, coding, explanation, json, list, comparison, instruction, definition, reasoning, summary
+- Each case defines: query, expected_keywords, expected_format, max_tokens
+
+**CLI Tool** (`scripts/run_evaluation.py`):
+```bash
+# Single evaluation
+python scripts/run_evaluation.py --provider claude
+
+# Comparison mode
+python scripts/run_evaluation.py --baseline claude --experiment gpt-4
+
+# Save results
+python scripts/run_evaluation.py --output results.json
+```
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Added src/evaluation/ to file structure |
+| Layer 2 | `ADR-009` | Week 2 implementation checklist |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 25) |
+| Layer 4 | `docs/changelog.md` | Evaluation harness entry |
+
+### Evidence
+
+- **PR #357**: Evaluation Harness implementation (merged)
+- **Modules**: 5 new modules, 1,350 lines of code
+- **Tests**: 20 golden test cases
+- **ADR-009**: Week 2 complete
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 24 Complete - Research Integration Architecture implemented with model abstraction and feature flags***
+*Status: **Phase 25 Complete - Evaluation Harness implemented with quality, latency, cost metrics***

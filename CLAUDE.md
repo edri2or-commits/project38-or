@@ -373,7 +373,7 @@ The `src/workspace_mcp_bridge/` directory contains a custom implementation that 
 
 ## File Structure
 
-**Total: 87 Python modules, 29,200+ lines of production code**
+**Total: 92 Python modules, 30,500+ lines of production code**
 
 ```
 project38-or/
@@ -514,6 +514,18 @@ project38-or/
 │   ├── config/
 │   │   ├── __init__.py            # Module exports (20 lines)
 │   │   └── feature_flags.py       # Feature flag system (276 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # EVALUATION HARNESS (5 modules, ~1,350 lines) - ADR-009
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── evaluation/
+│   │   ├── __init__.py            # Module exports (37 lines)
+│   │   ├── harness.py             # EvaluationHarness runner (640 lines)
+│   │   └── metrics/
+│   │       ├── __init__.py        # Metrics exports (21 lines)
+│   │       ├── quality.py         # Quality scoring (270 lines)
+│   │       ├── latency.py         # Latency percentiles (180 lines)
+│   │       └── cost.py            # Cost calculations (260 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # DATA MODELS (3 modules, ~265 lines)
