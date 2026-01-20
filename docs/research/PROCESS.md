@@ -47,12 +47,52 @@ Every week, review new research notes and classify:
 | **Backlog** | Add to future work | Good idea, not urgent |
 | **Discard** | Archive | Not relevant, superseded, or impractical |
 
-### Weekly Review Checklist
+### Manual Weekly Review Checklist
 
 - [ ] Review all new notes in `docs/research/notes/`
 - [ ] Classify each note (Spike/ADR/Backlog/Discard)
 - [ ] Create GitHub issues for Spikes
 - [ ] Update experiment queue
+
+### Auto Weekly Review (Autonomous Mode)
+
+The system can automatically process research notes. See [ADR-009 Phase 5](../decisions/ADR-009-research-integration-architecture.md#phase-5-research-ingestion--autonomy-enhancement).
+
+**Triggers:**
+- Scheduled: Every Monday 09:00 UTC (GitHub Action)
+- On-demand: Manual workflow dispatch
+- Immediate: On new note creation (optional)
+
+**Auto-Classification Rules:**
+
+```python
+# Classification is based on Recommendation field + content analysis
+if note.recommendation:
+    return note.recommendation  # Use explicit recommendation
+
+if impact.scope in ["Architecture", "Security"]:
+    return "ADR"  # Big changes → ADR
+
+if impact.scope == "Model" and hypothesis:
+    return "Spike"  # Model + hypothesis → Spike
+
+if effort == "Hours" and risk == "Low":
+    return "Backlog"  # Quick & safe → Backlog
+```
+
+**Auto-Actions:**
+
+| Classification | Automatic Actions |
+|----------------|-------------------|
+| Spike | Create GitHub Issue, Create experiment skeleton |
+| ADR | Create draft ADR, Create Issue for review |
+| Backlog | Add to backlog tracking Issue |
+| Discard | Move to archive folder |
+
+**What Still Needs Human:**
+- Approve PR merges
+- Increase rollout percentage above 0%
+- Real evaluations (cost money)
 
 ## Stage 3: Experiment
 

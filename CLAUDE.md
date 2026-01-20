@@ -733,6 +733,75 @@ The evaluation system runs automatically in GitHub Actions:
 # Actions → Evaluation → Run workflow → Select provider: claude
 ```
 
+### How to Add Research (Autonomous Mode)
+
+**ADR-009 Phase 5** enables autonomous research processing. Here's how to use it:
+
+#### Option 1: Simple Prompt (Recommended)
+
+Just tell Claude Code about your research:
+
+```
+"Add research: https://youtube.com/watch?v=XYZ - New prompting technique claims 40% better reasoning"
+```
+
+The system will:
+1. Fetch and analyze the source
+2. Create a standardized research note
+3. Auto-classify (Spike/ADR/Backlog/Discard)
+4. Create GitHub Issue for Spikes
+5. Generate experiment skeleton if needed
+
+#### Option 2: Minimal File
+
+Create a file with minimal info:
+
+```bash
+echo "URL: https://arxiv.org/abs/2026.12345
+Title: New RAG Architecture
+Description: Claims 2x faster retrieval with same quality" > docs/research/inbox/new-research.txt
+```
+
+#### What You Provide vs What System Infers
+
+| You Provide | System Infers |
+|-------------|---------------|
+| URL or title | Source type (YouTube, arXiv, blog) |
+| 1-2 sentence description | Full summary, key findings |
+| (optional) Why relevant | Hypothesis, impact estimate |
+| | Classification recommendation |
+| | GitHub Issue (for Spikes) |
+| | Experiment skeleton (for model changes) |
+
+#### What Happens Automatically
+
+| Action | Auto? | Notes |
+|--------|-------|-------|
+| Create research note | ✅ | From minimal input |
+| Classify note | ✅ | Based on content analysis |
+| Create GitHub Issue | ✅ | For Spikes |
+| Create experiment skeleton | ✅ | For model Spikes |
+| Run mock evaluation | ✅ | No cost |
+| Run real evaluation | ⚠️ | Needs approval (costs money) |
+| Create feature flag | ✅ | At 0% rollout |
+| Increase rollout | ❌ | Needs human approval |
+| Merge PR | ❌ | Needs human approval |
+
+#### Example Flow
+
+```
+You: "Add research: GPT-5 announced - supposedly 3x better at coding"
+
+System:
+1. Creates: docs/research/notes/2026-01-20-gpt5-coding.md
+2. Classifies: Spike (model change + hypothesis)
+3. Creates: Issue #XXX "[Spike] GPT-5 Coding Evaluation"
+4. Creates: experiments/exp_002_gpt5_coding/
+5. Awaits: Your approval to run real evaluation
+```
+
+**Full specification**: [ADR-009 Phase 5](docs/decisions/ADR-009-research-integration-architecture.md#phase-5-research-ingestion--autonomy-enhancement)
+
 ---
 
 ## System Capabilities (17+ Phases Implemented)

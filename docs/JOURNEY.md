@@ -4480,5 +4480,82 @@ jobs:
 
 ---
 
+## Phase 27: ADR-009 Phase 5 - Research Ingestion & Autonomy (2026-01-20)
+
+### Context
+
+User requested enhancement: "I just drop research, and the system handles everything automatically."
+
+The goal is to transform from manual research processing to autonomous handling:
+- **Before**: User creates research note manually, runs weekly review manually, creates issues manually
+- **After**: User provides minimal input (URL + description), system does the rest
+
+### Implementation
+
+**ADR-009 Phase 5** added the following specifications:
+
+#### 1. Research Ingestion Agent
+
+| User Provides | System Infers |
+|---------------|---------------|
+| URL or title | Source type, full summary |
+| 1-2 sentences | Key findings, hypothesis |
+| (optional) Why relevant | Impact estimate, classification |
+
+**Invocation:**
+```
+"Add research: https://youtube.com/watch?v=XYZ - New prompting technique"
+```
+
+#### 2. Auto Weekly Review
+
+| Trigger | Frequency |
+|---------|-----------|
+| Scheduled | Every Monday 09:00 UTC |
+| On-demand | Manual workflow dispatch |
+
+**Auto-Classification:**
+- Scope = Model + Hypothesis → Spike
+- Scope = Architecture → ADR
+- Effort = Hours, Risk = Low → Backlog
+
+#### 3. Automated Decision Rules
+
+| Condition | Decision |
+|-----------|----------|
+| Quality drops > 2% | REJECT |
+| Cost +50% without quality gain | REJECT |
+| All metrics improve | ADOPT |
+| Quality +10%, acceptable cost | ADOPT |
+
+#### 4. Auto vs Human Actions
+
+| Action | Auto? |
+|--------|-------|
+| Create research note | ✅ |
+| Create GitHub Issue | ✅ |
+| Run mock evaluation | ✅ |
+| Create feature flag 0% | ✅ |
+| Run real evaluation | ⚠️ |
+| Merge PR | ❌ |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | "How to Add Research (Autonomous Mode)" |
+| Layer 2 | `ADR-009` | Phase 5: Research Ingestion & Autonomy |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 27) |
+| Layer 4 | `docs/changelog.md` | ADR-009 Phase 5 entry |
+
+### Evidence
+
+- **ADR-009**: Phase 5 specification (~260 lines added)
+- **PROCESS.md**: Auto Weekly Review section
+- **CLAUDE.md**: Autonomous research usage guide
+- **Status**: Specification complete, code implementation planned
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 26 Complete - ADR-009 fully implemented, first Weekly Review executed***
+*Status: **Phase 27 Complete - ADR-009 Phase 5 autonomous research specification added***
