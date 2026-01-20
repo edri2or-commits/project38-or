@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-009 Phase 5: Research Ingestion & Autonomy** (2026-01-20) - Autonomous research processing
+  - Research Ingestion Agent specification (user provides URL + description → system creates full note)
+  - Auto Weekly Review design (scheduled + on-demand classification)
+  - Automated decision rules with thresholds (quality, latency, cost)
+  - Clear separation: what's auto-allowed vs needs human approval
+  - End-to-end flow diagram: User input → Note → Classify → Issue → Experiment → Evaluate → Integrate
+  - Updated CLAUDE.md with "How to Add Research (Autonomous Mode)" guide
+  - Status: Specification complete, code implementation planned
+
 - **Evaluation CI Workflow** (2026-01-20) - Automated evaluation in GitHub Actions (ADR-009 Week 4)
   - `.github/workflows/evaluate.yml` - CI workflow for evaluation
   - Mock provider for PR validation (no API costs)
