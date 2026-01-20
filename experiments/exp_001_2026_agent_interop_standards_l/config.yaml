@@ -1,0 +1,23 @@
+# Experiment Configuration
+# Auto-generated from research note classification
+
+experiment:
+  id: "exp_001"
+  title: "2026 Agent Interop Standards Landscape"
+  hypothesis: "Hypothesis: Combining MCP (tool connectivity) + AGENTS."
+
+research_note:
+  path: "docs/research/notes/2026-01-20-2026-agent-interop-standards-landscape.md"
+
+providers:
+  baseline: "mock"
+  experiment: "mock"
+
+golden_set:
+  path: "tests/golden/basic_queries.json"
+
+success_criteria:
+  quality_min: 0.85
+  quality_regression_max: -0.02
+  latency_max_ratio: 2.0
+  cost_max_ratio: 1.5
