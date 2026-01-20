@@ -34,10 +34,7 @@ class MockProvider(ModelProvider):
 
     # Pre-defined responses for common query patterns
     _RESPONSE_TEMPLATES = {
-        "hello": (
-            "Hello! I'm an AI assistant here to help you. "
-            "How can I assist you today?"
-        ),
+        "hello": ("Hello! I'm an AI assistant here to help you. How can I assist you today?"),
         "prime": '''def is_prime(n):
     """Check if a number is prime."""
     if n <= 1:
@@ -220,9 +217,7 @@ class MockProvider(ModelProvider):
         response_content = self._generate_response(query)
 
         # Calculate token counts (approximate)
-        input_tokens = sum(
-            len(msg.get("content", "").split()) * 1.3 for msg in messages
-        )
+        input_tokens = sum(len(msg.get("content", "").split()) * 1.3 for msg in messages)
         output_tokens = len(response_content.split()) * 1.3
 
         latency_ms = (time.time() - start_time) * 1000
@@ -288,9 +283,7 @@ class MockProvider(ModelProvider):
         Yields:
             String chunks of the response.
         """
-        response = await self.complete(
-            messages, system, max_tokens, temperature, **kwargs
-        )
+        response = await self.complete(messages, system, max_tokens, temperature, **kwargs)
         # Simulate streaming by yielding chunks
         words = response.content.split()
         for i in range(0, len(words), 3):

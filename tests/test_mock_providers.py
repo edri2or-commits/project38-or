@@ -54,9 +54,7 @@ class TestMockProvider:
     async def test_complete_basic(self):
         """Test basic completion."""
         provider = MockProvider()
-        response = await provider.complete(
-            messages=[{"role": "user", "content": "Hello"}]
-        )
+        response = await provider.complete(messages=[{"role": "user", "content": "Hello"}])
 
         assert response.content is not None
         assert len(response.content) > 0
@@ -68,9 +66,7 @@ class TestMockProvider:
     async def test_complete_hello(self):
         """Test hello response contains expected keywords."""
         provider = MockProvider()
-        response = await provider.complete(
-            messages=[{"role": "user", "content": "Say hello"}]
-        )
+        response = await provider.complete(messages=[{"role": "user", "content": "Say hello"}])
 
         content_lower = response.content.lower()
         assert "hello" in content_lower
@@ -135,9 +131,7 @@ class TestMockProvider:
     async def test_latency_simulation(self):
         """Test latency simulation works."""
         provider = MockProvider(latency_ms=100.0)
-        response = await provider.complete(
-            messages=[{"role": "user", "content": "Test"}]
-        )
+        response = await provider.complete(messages=[{"role": "user", "content": "Test"}])
 
         # Latency should be approximately 100ms (with some tolerance)
         assert response.latency_ms >= 90
@@ -228,12 +222,8 @@ class TestMockOpusProvider:
         base = MockProvider()
         opus = MockOpusProvider()
 
-        base_response = await base.complete(
-            messages=[{"role": "user", "content": "Test"}]
-        )
-        opus_response = await opus.complete(
-            messages=[{"role": "user", "content": "Test"}]
-        )
+        base_response = await base.complete(messages=[{"role": "user", "content": "Test"}])
+        opus_response = await opus.complete(messages=[{"role": "user", "content": "Test"}])
 
         # Opus should be slower (150ms vs 50ms)
         assert opus_response.latency_ms > base_response.latency_ms
@@ -355,9 +345,7 @@ class TestIntegrationWithEvaluationHarness:
         ]
 
         for query, expected_keywords in test_queries:
-            response = await provider.complete(
-                messages=[{"role": "user", "content": query}]
-            )
+            response = await provider.complete(messages=[{"role": "user", "content": query}])
             content_lower = response.content.lower()
 
             # At least one expected keyword should be present
