@@ -4410,5 +4410,74 @@ python scripts/run_evaluation.py --output results.json
 
 ---
 
+## Phase 26: ADR-009 Week 4 - Evaluation CI & Research Notes (2026-01-20)
+
+### Context
+
+With Weeks 1-3 of ADR-009 complete (model abstraction, evaluation harness, process documentation), Week 4 focused on CI integration and operationalizing the research capture workflow.
+
+### Implementation
+
+**Evaluation CI Workflow** (`.github/workflows/evaluate.yml`):
+
+| Feature | Description |
+|---------|-------------|
+| Mock Mode | Runs on PRs - validates code without API costs |
+| Real Mode | Manual dispatch with actual providers (claude, gpt-4) |
+| PR Comments | Auto-posts evaluation results to PR |
+| Validation | Checks golden set format and evaluation imports |
+
+**Workflow Structure**:
+```yaml
+jobs:
+  validate:      # Check imports, validate golden set
+  mock-evaluation:   # Run with MockProvider (PRs)
+  real-evaluation:   # Run with real APIs (manual)
+```
+
+**Research Notes Infrastructure**:
+
+| File | Purpose |
+|------|---------|
+| `docs/research/notes/` | Directory for capturing new research |
+| `docs/research/notes/.gitkeep` | Preserve empty directory in git |
+| `docs/research/notes/2026-01-20-claude-4-opus-evaluation.md` | Example research note |
+
+**Example Research Note** demonstrates the full 5-stage process:
+- Source documentation (URL, author, date)
+- Hypothesis with testable metrics
+- Impact estimate (scope, effort, risk, reversibility)
+- Current vs proposed state comparison
+- Triage decision (Spike selected)
+
+### ADR-009 Progress Summary
+
+| Week | Focus | Status | Evidence |
+|------|-------|--------|----------|
+| Week 1 | Model Abstraction | ✅ Complete | PR #355, src/providers/ |
+| Week 2 | Evaluation Harness | ✅ Complete | PR #357, src/evaluation/ |
+| Week 3 | Process Docs | ✅ Complete | PR #358, docs/research/ |
+| Week 4 | CI Integration | 🔄 3/4 | PR #359, evaluate.yml |
+
+**Remaining**: Run first weekly review (scheduled for next Monday)
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Added Evaluation CI Workflow section |
+| Layer 2 | `ADR-009` | Phase 4 status updated (3/4 complete) |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 26) |
+| Layer 4 | `docs/changelog.md` | Evaluation CI Workflow entry |
+
+### Evidence
+
+- **PR #359**: Evaluation CI workflow (merged)
+- **Files Created**: 3 new files (workflow, .gitkeep, example note)
+- **Lines Added**: 478 lines across 6 files
+- **ADR-009**: Week 4 in progress (3/4 items complete)
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 25 Complete - Evaluation Harness implemented with quality, latency, cost metrics***
+*Status: **Phase 26 Complete - Evaluation CI workflow deployed, research notes infrastructure ready***
