@@ -4457,9 +4457,9 @@ jobs:
 | Week 1 | Model Abstraction | ✅ Complete | PR #355, src/providers/ |
 | Week 2 | Evaluation Harness | ✅ Complete | PR #357, src/evaluation/ |
 | Week 3 | Process Docs | ✅ Complete | PR #358, docs/research/ |
-| Week 4 | CI Integration | 🔄 3/4 | PR #359, evaluate.yml |
+| Week 4 | CI Integration | ✅ Complete | PR #359, #360, #362 |
 
-**Remaining**: Run first weekly review (scheduled for next Monday)
+**Weekly Review Completed**: Issue #361 created for Opus evaluation Spike
 
 ### 4-Layer Documentation Updates
 
@@ -4473,11 +4473,12 @@ jobs:
 ### Evidence
 
 - **PR #359**: Evaluation CI workflow (merged)
-- **Files Created**: 3 new files (workflow, .gitkeep, example note)
-- **Lines Added**: 478 lines across 6 files
-- **ADR-009**: Week 4 in progress (3/4 items complete)
+- **PR #360**: Phase 26 documentation (merged)
+- **PR #362**: ADR-009 completion (merged)
+- **Issue #361**: Opus evaluation Spike (created via Weekly Review)
+- **ADR-009**: ✅ All 4 weeks complete
 
 ---
 
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 26 Complete - Evaluation CI workflow deployed, research notes infrastructure ready***
+*Status: **Phase 26 Complete - ADR-009 fully implemented, first Weekly Review executed***
