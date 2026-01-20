@@ -7,8 +7,9 @@ which routes requests to Claude, GPT-4, or Gemini with automatic fallback.
 import logging
 from typing import Any
 
-from config import get_settings
 from openai import AsyncOpenAI
+
+from config import get_settings
 
 logger = logging.getLogger(__name__)
 

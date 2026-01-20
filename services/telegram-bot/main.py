@@ -9,12 +9,13 @@ Architecture:
 import logging
 from contextlib import asynccontextmanager
 
-from config import get_settings, load_secrets_from_gcp
 from database import check_database_connection, close_db_connection, create_db_and_tables
 from fastapi import FastAPI, Request, Response
 from handlers import error_handler, generate_command, start_command, text_message_handler
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
+
+from config import get_settings, load_secrets_from_gcp
 
 # Configure logging
 logging.basicConfig(

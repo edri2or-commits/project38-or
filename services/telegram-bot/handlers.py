@@ -6,13 +6,13 @@ This module contains handlers for Telegram commands and messages.
 import logging
 from datetime import UTC, datetime
 
-from config import get_settings
 from database import async_session_maker
 from litellm_client import LiteLLMClient
 from sqlalchemy import select
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from config import get_settings
 from models import ConversationMessage, ConversationStats
 
 logger = logging.getLogger(__name__)
