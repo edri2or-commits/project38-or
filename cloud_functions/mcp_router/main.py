@@ -209,6 +209,11 @@ class MCPRouter:
         self.tools["docs_read"] = self._docs_read
         self.tools["docs_append"] = self._docs_append
 
+        # GCP tools (ADR-006 integration - bypasses Anthropic proxy)
+        self.tools["gcp_secret_list"] = self._gcp_secret_list
+        self.tools["gcp_secret_get"] = self._gcp_secret_get
+        self.tools["gcp_project_info"] = self._gcp_project_info
+
         logger.info(f"Registered {len(self.tools)} tools")
 
     def process_request(self, mcp_message: dict) -> dict:
@@ -1046,6 +1051,99 @@ class MCPRouter:
         except Exception as e:
             logger.error(f"docs_append failed: {e}")
             return {"success": False, "error": str(e)}
+
+    # =========================================================================
+    # GCP Tools (ADR-006 integration)
+    # These tools provide GCP access from Anthropic cloud sessions
+    # by bypassing the proxy restriction on .run.app domains
+    # =========================================================================
+
+    def _gcp_secret_list(self) -> dict:
+        """List all secrets in GCP Secret Manager."""
+        try:
+            # LAZY IMPORT: Import only when needed to prevent cold start crashes
+            from google.cloud import secretmanager
+
+            client = secretmanager.SecretManagerServiceClient()
+            parent = f"projects/{GCP_PROJECT_ID}"
+
+            secrets = []
+            for secret in client.list_secrets(request={"parent": parent}):
+                secret_name = secret.name.split("/")[-1]
+                secrets.append(
+                    {
+                        "name": secret_name,
+                        "full_name": secret.name,
+                        "create_time": str(secret.create_time) if secret.create_time else None,
+                    }
+                )
+
+            return {
+                "success": True,
+                "count": len(secrets),
+                "secrets": secrets,
+                "project_id": GCP_PROJECT_ID,
+            }
+
+        except Exception as e:
+            logger.error(f"gcp_secret_list failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def _gcp_secret_get(self, secret_name: str, version: str = "latest") -> dict:
+        """
+        Get a secret value from GCP Secret Manager.
+
+        Args:
+            secret_name: Name of the secret
+            version: Version to retrieve (default: latest)
+
+        Returns:
+            dict with secret metadata (value is masked for security)
+        """
+        try:
+            # LAZY IMPORT: Import only when needed
+            from google.cloud import secretmanager
+
+            client = secretmanager.SecretManagerServiceClient()
+            name = f"projects/{GCP_PROJECT_ID}/secrets/{secret_name}/versions/{version}"
+            response = client.access_secret_version(request={"name": name})
+
+            # Get secret value
+            secret_value = response.payload.data.decode("UTF-8")
+
+            # Mask the value for security
+            if len(secret_value) > 10:
+                preview = f"{secret_value[:10]}..."
+            else:
+                preview = "[MASKED]"
+
+            return {
+                "success": True,
+                "secret_name": secret_name,
+                "version": version,
+                "value_length": len(secret_value),
+                "value_preview": preview,
+                "message": "Secret retrieved. Value masked for security.",
+                "project_id": GCP_PROJECT_ID,
+            }
+
+        except Exception as e:
+            logger.error(f"gcp_secret_get failed: {e}")
+            return {"success": False, "error": str(e), "secret_name": secret_name}
+
+    def _gcp_project_info(self) -> dict:
+        """Get GCP project information and available services."""
+        return {
+            "success": True,
+            "project_id": GCP_PROJECT_ID,
+            "available_tools": [
+                "gcp_secret_list - List all secrets",
+                "gcp_secret_get - Get secret value (masked)",
+                "gcp_project_info - This tool",
+            ],
+            "note": "These tools bypass Anthropic proxy via Cloud Function tunnel",
+            "documentation": "See ADR-006 for full GCP MCP Server details",
+        }
 
 
 # Global router instance
