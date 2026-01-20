@@ -15,6 +15,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.evaluation import EvaluationHarness
+from src.providers import register_mock_providers
+
+# Register mock providers for testing
+register_mock_providers()
 
 # Success criteria from ADR-009
 SUCCESS_CRITERIA = {
@@ -91,8 +95,8 @@ def main():
     )
     parser.add_argument(
         "--provider",
-        default="mock",
-        help="Experiment provider name",
+        default="mock-opus",
+        help="Experiment provider name (default: mock-opus for Opus simulation)",
     )
     parser.add_argument(
         "--golden-set",

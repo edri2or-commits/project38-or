@@ -4801,5 +4801,69 @@ Result: Created AGENTS.md following 2026 standard format
 
 ---
 
+## Phase 32: Mock Providers & Evaluation Framework Validation (2026-01-20)
+
+### Goal
+
+Enable evaluation framework testing without API costs by implementing mock providers.
+
+### Problem
+
+The exp_002 Opus evaluation experiment required registered model providers, but no mock
+providers existed. Running with real APIs would incur costs without validating the
+framework first.
+
+### Solution: Mock Providers
+
+Created `src/providers/mock.py` with two providers:
+
+1. **MockProvider** - Base mock with deterministic responses
+   - Simulates Sonnet-like characteristics
+   - 50ms latency, low cost ($0.001/$0.002 per 1K tokens)
+   - Responses designed to match golden set expectations
+
+2. **MockOpusProvider** - Enhanced mock for Opus simulation
+   - 150ms latency (3x slower)
+   - 5x higher cost ($0.015/$0.075 per 1K tokens)
+   - More detailed/verbose responses
+
+### exp_002 Validation Run
+
+```
+Baseline (mock):     Quality 81.25%, Latency 51ms,  Cost $0.0016
+Experiment (opus):   Quality 81.25%, Latency 151ms, Cost $0.0785
+
+Decision: REJECT
+Reason: Cost +4747% without quality improvement
+```
+
+**Framework Validation:** ✅ ADR-009 decision matrix correctly rejects high-cost with no quality gain.
+
+### Key Files
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/providers/mock.py` | ~470 | Mock providers implementation |
+| `src/providers/__init__.py` | Updated | Export mock providers |
+| `experiments/exp_002_*/run.py` | Updated | Auto-register mocks |
+| `experiments/exp_002_*/results.json` | Generated | Experiment results |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | (No change - internal implementation) |
+| Layer 2 | ADRs | (No change - implements ADR-009) |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 32) |
+| Layer 4 | `docs/changelog.md` | Mock providers entry |
+| - | `experiments/exp_002_*/README.md` | Results documented |
+| - | `docs/research/notes/2026-01-20-claude-4-opus-evaluation.md` | Results added |
+
+### Status
+
+**Phase 32: ✅ COMPLETE - Mock providers enable zero-cost evaluation validation**
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 31 Complete - AGENTS.md implemented from research findings***
+*Status: **Phase 32 Complete - Mock providers implemented, evaluation framework validated***
