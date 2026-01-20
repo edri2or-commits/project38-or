@@ -4704,5 +4704,53 @@ docs/research/
 
 ---
 
+## Phase 30: research-ingestion Skill - Claude Code Interface (2026-01-20)
+
+### Goal
+
+Enable natural language interface for research ingestion: user writes instruction + raw text in conversation → Claude automatically processes.
+
+### What Was Added
+
+1. **New Skill:** `.claude/skills/research-ingestion/SKILL.md`
+   - Trigger keywords: `research`, `מחקר`, `הוסף מחקר`, `add research`, `ADR-009`
+   - Enables Claude to recognize research requests in conversation
+   - Calls `src/research/` module automatically
+
+2. **ADR-009 Update:** Added "Claude Code Skill Interface" section
+   - Documents skill usage pattern
+   - Shows Hebrew and English examples
+   - Explains raw_text extraction capabilities
+
+3. **CLAUDE.md Update:** Added skill to Available Skills section
+
+### Usage Pattern
+
+```
+User: הוסף מחקר: [כותרת]
+[טקסט המחקר הגולמי]
+
+Claude:
+1. זיהוי ההוראה כ-research ingestion
+2. חילוץ כותרת + raw_text
+3. הרצת create_research_note()
+4. דיווח על סיווג וממצאים
+```
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Added research-ingestion skill |
+| Layer 2 | `ADR-009` | Added Claude Code Skill Interface section |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 30) |
+| Layer 4 | `docs/changelog.md` | Skill addition entry |
+
+### Status
+
+**research-ingestion Skill: ✅ COMPLETE**
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 29 Complete - ADR-009 Phase 5 MVP with end-to-end flow***
+*Status: **Phase 30 Complete - research-ingestion skill enables natural language research processing***
