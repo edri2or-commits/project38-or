@@ -177,6 +177,53 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"GCP_PROJECT_ID\", value: \"project38-483612\" }) }"}' > /dev/null
 
+          # Get PostgreSQL service and its DATABASE_URL
+          echo "Finding PostgreSQL service..."
+          POSTGRES_SERVICE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { services { edges { node { id name } } } } }"
+            }' | jq -r '.data.project.services.edges[] | select(.node.name | test("postgres|Postgres|PostgreSQL"; "i")) | .node.id' | head -1)
+
+          if [ -n "$POSTGRES_SERVICE" ] && [ "$POSTGRES_SERVICE" != "null" ]; then
+            echo "Found PostgreSQL service: $POSTGRES_SERVICE"
+
+            # Get the DATABASE_URL from PostgreSQL service variables
+            PG_VARS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "query { variables(projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$POSTGRES_SERVICE"'\") }"
+              }')
+
+            DATABASE_URL=$(echo "$PG_VARS" | jq -r '.data.variables.DATABASE_URL // empty')
+
+            if [ -n "$DATABASE_URL" ]; then
+              echo "Setting DATABASE_URL for telegram-bot..."
+              curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+                -H "Authorization: Bearer $RAILWAY_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"DATABASE_URL\", value: \"'"$DATABASE_URL"'\" }) }"}' > /dev/null
+              echo "DATABASE_URL set ✅"
+            else
+              echo "⚠️ Could not get DATABASE_URL from PostgreSQL service"
+              echo "Creating reference to shared PostgreSQL..."
+              # Use Railway's shared variable syntax
+              curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+                -H "Authorization: Bearer $RAILWAY_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"DATABASE_URL\", value: \"${{Postgres.DATABASE_URL}}\" }) }"}' > /dev/null
+            fi
+          else
+            echo "⚠️ No PostgreSQL service found in project"
+            echo "Using reference variable..."
+            curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"DATABASE_URL\", value: \"${{Postgres.DATABASE_URL}}\" }) }"}' > /dev/null
+          fi
+
           echo "✅ Environment variables set"
 
           echo "Connecting service to GitHub repo (edri2or-commits/project38-or)..."
