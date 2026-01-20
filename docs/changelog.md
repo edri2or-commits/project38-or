@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-009: Research Integration Architecture** (2026-01-20) - Framework for safe integration of new AI research
+  - **Problem**: Rapid AI evolution (YouTube videos, articles) can cause chaotic system changes
+  - **Solution**: 5-stage process: Capture → Triage → Experiment → Evaluate → Integrate
+  - Created `docs/decisions/ADR-009-research-integration-architecture.md`
+  - Created 6-layer system architecture for adaptability
+  - Defined decision matrix for ADOPT/REJECT/NEEDS_MORE_DATA
+
+- **Model Provider Abstraction Layer** (2026-01-20) - Swap LLM providers without code changes
+  - `src/providers/base.py` - ModelProvider interface (~180 lines)
+  - `src/providers/registry.py` - Provider registry (~150 lines)
+  - `src/providers/__init__.py` - Module exports
+  - Features: ModelCapabilities, ModelResponse, async streaming, health checks
+  - Enables: Runtime provider switching, A/B testing, gradual rollout
+
+- **Feature Flags System** (2026-01-20) - Controlled feature rollout
+  - `config/feature_flags.yaml` - Flag definitions
+  - `src/config/feature_flags.py` - Feature flag code (~200 lines)
+  - Features: Percentage-based rollout, consistent hashing, easy enable/disable
+  - Supports: Gradual rollout (0% → 10% → 50% → 100%)
+
+- **Research Integration Process** (2026-01-20) - Documentation and templates
+  - `docs/research/README.md` - Process documentation
+  - `docs/research/templates/research-note.md` - Research note template
+  - `experiments/README.md` - Experiment guidelines
+  - Weekly review checklist for research triage
+
 - **ADR-006 Phase 4 Documentation Complete** (2026-01-20) - GCP MCP Server documentation finalized
   - Updated `src/gcp_mcp/README.md` with production URLs, security model, troubleshooting guide
   - All 4 phases of ADR-006 now complete (Implementation, Deployment, Testing, Documentation)

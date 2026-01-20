@@ -1,0 +1,93 @@
+# Feature Flags Configuration
+#
+# This file controls feature rollout for the system.
+# Changes to this file take effect on next application restart.
+#
+# Format:
+#   feature_name:
+#     enabled: bool           # Master switch
+#     rollout_percentage: int # 0-100, percentage of requests using this feature
+#     description: str        # What this flag controls
+#     experiment_id: str      # Link to experiment (if applicable)
+#     created_date: str       # When flag was created
+#     owner: str              # Who owns this flag
+#
+# Lifecycle:
+#   1. Create flag with enabled: false, rollout: 0
+#   2. Enable and gradually increase rollout (0 → 10 → 50 → 100)
+#   3. Once at 100% for 2+ weeks with no issues, remove flag
+#
+# Architecture Decision: ADR-009
+
+# ============================================================
+# Model Provider Flags
+# ============================================================
+
+use_provider_abstraction:
+  enabled: true
+  rollout_percentage: 100
+  description: "Use ModelProvider abstraction layer instead of direct API calls"
+  created_date: "2026-01-20"
+  owner: "system"
+
+switch_to_new_model:
+  enabled: false
+  rollout_percentage: 0
+  description: "Switch default model provider (requires experiment results)"
+  experiment_id: null
+  created_date: "2026-01-20"
+  owner: "user"
+
+# ============================================================
+# Orchestration Flags
+# ============================================================
+
+async_tool_execution:
+  enabled: false
+  rollout_percentage: 0
+  description: "Execute independent tools in parallel"
+  created_date: "2026-01-20"
+  owner: "system"
+
+enhanced_fallback_strategy:
+  enabled: true
+  rollout_percentage: 100
+  description: "Use ADR-008 multi-path fallback for automation"
+  created_date: "2026-01-20"
+  owner: "system"
+
+# ============================================================
+# Evaluation Flags
+# ============================================================
+
+evaluation_on_pr:
+  enabled: false
+  rollout_percentage: 0
+  description: "Run evaluation harness on every PR"
+  created_date: "2026-01-20"
+  owner: "system"
+
+golden_set_validation:
+  enabled: false
+  rollout_percentage: 0
+  description: "Validate responses against golden set"
+  created_date: "2026-01-20"
+  owner: "system"
+
+# ============================================================
+# Research Integration Flags
+# ============================================================
+
+research_note_required:
+  enabled: false
+  rollout_percentage: 0
+  description: "Require research note for architectural changes"
+  created_date: "2026-01-20"
+  owner: "user"
+
+experiment_before_merge:
+  enabled: false
+  rollout_percentage: 0
+  description: "Require experiment results before merging model changes"
+  created_date: "2026-01-20"
+  owner: "user"
