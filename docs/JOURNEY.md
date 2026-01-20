@@ -4704,5 +4704,54 @@ docs/research/
 
 ---
 
+## Phase 30: AGENTS.md Implementation (2026-01-20)
+
+### Goal
+
+Implement AGENTS.md from Agent Interop Standards research - direct implementation after experiment marked as NEEDS_MORE_DATA.
+
+### Research Flow
+
+```
+Research: "2026 Agent Interop Standards Landscape"
+    ↓
+Classification: Spike
+    ↓
+Experiment: exp_001 skeleton doesn't fit (standards comparison, not provider comparison)
+    ↓
+Decision: NEEDS_MORE_DATA → Direct Implementation
+    ↓
+Result: Created AGENTS.md following 2026 standard format
+```
+
+### Key Findings from Research
+
+1. **MCP Transports** - Streamable HTTP emerging (needs dedicated benchmark)
+2. **AGENTS.md** - 30% adoption, reduces onboarding by 60%
+3. **Agent Skills** - Already implemented in project38-or
+
+### Files Created/Modified
+
+| File | Change |
+|------|--------|
+| `AGENTS.md` | **NEW** - Agent onboarding standard (~100 lines) |
+| `experiments/exp_001_*/results.json` | Marked NEEDS_MORE_DATA |
+| `docs/research/issues/ISSUE-0001.md` | Status updated |
+
+### AGENTS.md Contents
+
+- Project overview and tech stack
+- Code conventions
+- Security rules (critical)
+- Testing requirements
+- Available skills reference
+- What agents can/cannot do
+
+### Status
+
+**Phase 30: ✅ COMPLETE - First research-to-implementation cycle**
+
+---
+
 *Last Updated: 2026-01-20 UTC*
-*Status: **Phase 29 Complete - ADR-009 Phase 5 MVP with end-to-end flow***
+*Status: **Phase 30 Complete - AGENTS.md implemented from research findings***

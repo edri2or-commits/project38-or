@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **AGENTS.md - Agent Onboarding Standard** (2026-01-20) - First research-to-implementation cycle
+  - Created `AGENTS.md` following 2026 Agent Interop Standards format (~100 lines)
+  - Provides quick agent onboarding: project overview, tech stack, security rules, testing
+  - Research flow: Spike → NEEDS_MORE_DATA → Direct Implementation
+  - Source research: "2026 Agent Interop Standards Landscape" (MCP + AGENTS.md + Skills)
+
 - **ADR-009 Phase 5 MVP: End-to-End Research Flow** (2026-01-20) - Enhanced ingestion with raw text support
   - **Raw Text Parsing**: Full research document ingestion with extraction functions
     - `extract_key_findings()` - Extract numbered/bulleted findings from text
