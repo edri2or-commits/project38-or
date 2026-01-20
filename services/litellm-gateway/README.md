@@ -273,6 +273,77 @@ When rotating API keys:
 2. Update Railway environment variables
 3. Restart service: `railway service restart litellm-gateway`
 
+## Phase 3: Monitoring Dashboards (2026-01-20)
+
+### Prometheus Metrics
+
+LiteLLM exposes Prometheus metrics at `/metrics`:
+
+```bash
+# View raw metrics
+curl https://litellm-gateway-production-0339.up.railway.app/metrics
+```
+
+**Available Metric Groups:**
+
+| Group | Metrics | Purpose |
+|-------|---------|---------|
+| `token_consumption` | input/output/total tokens | Track token usage by model |
+| `request_tracking` | total/failed requests | Monitor request volume and errors |
+| `deployment_health` | success/failure responses | Track provider reliability |
+| `budget_tracking` | spend, remaining budget | Monitor costs |
+
+### Grafana Cloud Setup (Free Tier)
+
+1. **Create Grafana Cloud account**: https://grafana.com/auth/sign-up/create-user
+
+2. **Deploy Grafana Alloy on Railway**:
+   ```bash
+   # Use the Railway template
+   # https://railway.com/deploy/railway-grafana-alloy
+   ```
+
+   Configure environment variables:
+   ```
+   GRAFANA_CLOUD_PROMETHEUS_URL=<your-prometheus-remote-write-url>
+   GRAFANA_CLOUD_PROMETHEUS_USER=<your-metrics-instance-id>
+   GRAFANA_CLOUD_TOKEN=<your-access-policy-token>
+   ```
+
+3. **Import Dashboard**:
+   - Go to Grafana → Dashboards → Import
+   - Upload `grafana-dashboard.json` from this directory
+   - Or use dashboard ID: `24055` (official LiteLLM dashboard)
+
+### Dashboard Panels
+
+The included `grafana-dashboard.json` provides:
+
+| Panel | Description |
+|-------|-------------|
+| Request Rate | Requests per second by model |
+| Failed Requests | Error count over 1 hour |
+| Token Usage | Input/output tokens over time |
+| Daily Spend | Cost tracking with $10 budget line |
+| Success Rate | Provider reliability percentage |
+| Latency | Response time per output token |
+| Infrastructure Status | LiteLLM/Redis/PostgreSQL health |
+
+### Alternative: Railway Metrics
+
+Railway provides built-in metrics without Grafana:
+
+```bash
+# View in Railway Dashboard
+# https://railway.app/project/delightful-cat
+# → litellm-gateway → Metrics tab
+```
+
+Available metrics:
+- CPU/Memory usage
+- Network I/O
+- Request count (via health checks)
+
 ## Troubleshooting
 
 ### Issue: "Model not found"
@@ -300,10 +371,17 @@ When rotating API keys:
 
 ---
 
-**Status**: ✅ Phase 2 Complete (Production Hardening)
+**Status**: ✅ Phase 3 Complete (Monitoring Dashboards)
 **Last Updated**: 2026-01-20
 
 ## Changelog
+
+### 2026-01-20 (Phase 3)
+- Added Prometheus metrics endpoint (`/metrics`)
+- Added prometheus_metrics_config with 4 metric groups
+- Added service_callback for Redis/PostgreSQL health
+- Created Grafana dashboard JSON (importable)
+- Added Phase 3 documentation
 
 ### 2026-01-20 (Phase 2)
 - Added Redis semantic caching configuration

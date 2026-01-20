@@ -43,6 +43,7 @@ secrets/
 !pyproject.toml
 !mkdocs.yml
 !services/**/package.json
+!services/**/grafana-dashboard.json
 !tests/golden/*.json
 !config/feature_flags.yaml
 
