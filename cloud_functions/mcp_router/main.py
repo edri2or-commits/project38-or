@@ -185,6 +185,7 @@ class MCPRouter:
         self.tools["railway_service_info"] = self._railway_service_info
         self.tools["railway_list_services"] = self._railway_list_services
         self.tools["railway_create_domain"] = self._railway_create_domain
+        self.tools["railway_logs"] = self._railway_logs
 
         # n8n tools
         self.tools["n8n_trigger"] = self._n8n_trigger
@@ -587,6 +588,135 @@ class MCPRouter:
             }
 
         return {"error": "Unexpected response", "response": data}
+
+    def _railway_logs(self, deployment_id: str = None, service_name: str = "telegram-bot", limit: int = 100) -> dict:
+        """Get deployment logs from Railway.
+
+        Args:
+            deployment_id: Optional specific deployment ID. If not provided, gets latest.
+            service_name: Service name to get logs for (default: telegram-bot)
+            limit: Number of log lines to fetch (default: 100)
+        """
+        railway_token = os.environ.get("RAILWAY_TOKEN")
+        project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
+
+        if not railway_token:
+            return {"error": "RAILWAY_TOKEN not configured"}
+
+        # If no deployment_id, get the latest deployment for the service
+        if not deployment_id:
+            # First get service ID
+            services_query = """
+            query getServices($projectId: String!) {
+                project(id: $projectId) {
+                    services {
+                        edges {
+                            node {
+                                id
+                                name
+                                deployments(first: 1) {
+                                    edges {
+                                        node {
+                                            id
+                                            status
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """
+            services_response = httpx.post(
+                "https://backboard.railway.app/graphql/v2",
+                headers={
+                    "Authorization": f"Bearer {railway_token}",
+                    "Content-Type": "application/json",
+                },
+                json={"query": services_query, "variables": {"projectId": project_id}},
+                timeout=30,
+            )
+            services_data = services_response.json()
+
+            # Find deployment for service
+            edges = services_data.get("data", {}).get("project", {}).get("services", {}).get("edges", [])
+            for edge in edges:
+                if edge.get("node", {}).get("name") == service_name:
+                    deployments = edge["node"].get("deployments", {}).get("edges", [])
+                    if deployments:
+                        deployment_id = deployments[0]["node"]["id"]
+                        break
+
+            if not deployment_id:
+                return {"error": f"No deployments found for service '{service_name}'"}
+
+        # Get deployment logs
+        logs_query = """
+        query getDeploymentLogs($deploymentId: String!, $limit: Int) {
+            deploymentLogs(deploymentId: $deploymentId, limit: $limit) {
+                timestamp
+                message
+                severity
+            }
+        }
+        """
+
+        response = httpx.post(
+            "https://backboard.railway.app/graphql/v2",
+            headers={
+                "Authorization": f"Bearer {railway_token}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "query": logs_query,
+                "variables": {"deploymentId": deployment_id, "limit": limit}
+            },
+            timeout=30,
+        )
+
+        result = response.json()
+
+        if "errors" in result:
+            # If deploymentLogs doesn't work, try getting build logs
+            build_query = """
+            query getBuildLogs($deploymentId: String!) {
+                deployment(id: $deploymentId) {
+                    id
+                    status
+                    meta
+                    buildLogs
+                }
+            }
+            """
+            build_response = httpx.post(
+                "https://backboard.railway.app/graphql/v2",
+                headers={
+                    "Authorization": f"Bearer {railway_token}",
+                    "Content-Type": "application/json",
+                },
+                json={"query": build_query, "variables": {"deploymentId": deployment_id}},
+                timeout=30,
+            )
+            build_result = build_response.json()
+
+            if "errors" not in build_result:
+                deployment = build_result.get("data", {}).get("deployment", {})
+                return {
+                    "deployment_id": deployment_id,
+                    "status": deployment.get("status"),
+                    "meta": deployment.get("meta"),
+                    "build_logs": deployment.get("buildLogs"),
+                }
+            return {"error": "Could not fetch logs", "graphql_errors": result.get("errors")}
+
+        logs = result.get("data", {}).get("deploymentLogs", [])
+        return {
+            "deployment_id": deployment_id,
+            "service_name": service_name,
+            "log_count": len(logs),
+            "logs": logs
+        }
 
     # =========================================================================
     # n8n Tools
