@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Mock Providers for Evaluation Framework** (2026-01-20) - Testing without API costs
+  - `src/providers/mock.py` - MockProvider and MockOpusProvider implementations (~470 lines)
+  - Deterministic responses designed to pass golden set quality checks
+  - MockOpusProvider simulates Opus characteristics (5x cost, 3x latency)
+  - `register_mock_providers()` helper for easy registration
+  - Enables CI/CD validation without incurring API costs
+  - Validated with exp_002: Framework correctly REJECTS high-cost without quality gain
+
 - **GCP Tunnel Health Check Enhancement** (2026-01-20) - Individual tool tests added
   - Tests 4 MCP tools: `gcp_project_info`, `gcp_secret_list`, `health_check`, `railway_status`
   - Reports pass/fail for each tool in workflow summary

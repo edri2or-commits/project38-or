@@ -27,6 +27,7 @@ Usage:
 """
 
 from src.providers.base import ModelCapabilities, ModelProvider, ModelResponse
+from src.providers.mock import MockOpusProvider, MockProvider, register_mock_providers
 from src.providers.registry import ModelRegistry
 
 __all__ = [
@@ -34,4 +35,7 @@ __all__ = [
     "ModelResponse",
     "ModelCapabilities",
     "ModelRegistry",
+    "MockProvider",
+    "MockOpusProvider",
+    "register_mock_providers",
 ]

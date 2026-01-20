@@ -61,21 +61,48 @@ python experiments/exp_002_claude_4_5_opus_model_evaluati/run.py --provider clau
 
 ## Results
 
-**Status:** Not yet run
+**Status:** ✅ Completed (2026-01-20)
 
-| Metric | Baseline | Experiment | Delta | Pass? |
-|--------|----------|------------|-------|-------|
-| Quality | - | - | - | - |
-| Latency | - | - | - | - |
-| Cost | - | - | - | - |
+| Metric | Baseline (mock) | Experiment (mock-opus) | Delta | Pass? |
+|--------|-----------------|------------------------|-------|-------|
+| Quality | 81.25% | 81.25% | 0.0% | ⚠️ No improvement |
+| Latency | 51ms | 151ms | +198% | ⚠️ Worse |
+| Cost | $0.0016 | $0.0785 | +4747% | ❌ Much worse |
+| Success Rate | 70% (14/20) | 70% (14/20) | 0% | ⚠️ No improvement |
+
+**Test Set:** 20 golden queries covering greeting, math, coding, JSON, markdown, reasoning
 
 ---
 
 ## Decision
 
-**Outcome:** PENDING
+**Outcome:** REJECT
 
-**Reasoning:** Experiment not yet run.
+**Reasoning:** Cost increased by 4747% without any quality improvement.
+
+**Analysis:**
+1. Mock providers produce identical quality scores because they use similar response templates
+2. The cost difference reflects Opus's 5x pricing ($0.015/$0.075 vs $0.001/$0.002 per 1K tokens)
+3. Latency increased 3x (simulated 150ms vs 50ms)
+
+**Framework Validation:**
+This experiment validates that the ADR-009 decision matrix is working correctly:
+- Same quality + much higher cost → **REJECT**
+
+**Next Steps for Real Evaluation:**
+To make a real ADOPT/REJECT decision with actual API providers:
+
+```bash
+# Run with real Claude Sonnet baseline
+python experiments/exp_002_claude_4_5_opus_model_evaluati/run.py \
+    --baseline claude-sonnet \
+    --provider claude-opus
+```
+
+This requires:
+1. Register actual Claude providers with API keys
+2. Budget approval for API costs (~$5-10 for full golden set)
+3. Compare real quality differences on complex reasoning tasks
 
 ---
 
