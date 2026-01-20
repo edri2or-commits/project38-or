@@ -1,7 +1,7 @@
 # ISSUE-0001: [Spike] 2026 Agent Interop Standards Landscape
 
 **Created:** 2026-01-20
-**Status:** Open
+**Status:** NEEDS_MORE_DATA → Moving to Direct Implementation
 **Classification:** Spike
 **Research Note:** [2026-01-20-2026-agent-interop-standards-landscape.md](../../docs/research/notes/2026-01-20-2026-agent-interop-standards-landscape.md)
 
