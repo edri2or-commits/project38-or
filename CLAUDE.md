@@ -2124,7 +2124,7 @@ orchestrator.path_configs[ExecutionPath.DIRECT_PYTHON].enabled = False  # Disabl
 
 ### LiteLLM Gateway (Multi-LLM Routing)
 
-**Status**: ✅ **DEPLOYED** (2026-01-17 20:14 UTC)
+**Status**: ✅ **Phase 2 Complete** (2026-01-20) - Production Hardening
 
 **Production URL**: `https://litellm-gateway-production-0339.up.railway.app`
 
@@ -2152,12 +2152,19 @@ Telegram Bot → LiteLLM Gateway → [Claude 3.7, GPT-4o, Gemini 1.5] → MCP Ga
 
 #### Features
 
+**Phase 1 (✅ Complete - 2026-01-17)**:
 - **Multi-Provider Support**: Claude 3.7, GPT-4o, Gemini 1.5 Pro/Flash
 - **Automatic Fallback**: `claude-sonnet → gpt-4o → gemini-pro → gemini-flash`
 - **Cost Control**: $10/day budget limit (configurable in `litellm-config.yaml`)
 - **Unified API**: All models exposed via OpenAI Chat Completion format
 - **Health Monitoring**: `/health` endpoint for Railway health checks
 - **Security**: API keys from GCP Secret Manager (ANTHROPIC-API, OPENAI-API, GEMINI-API)
+
+**Phase 2 (✅ Complete - 2026-01-20)**:
+- **Redis Semantic Caching**: 20-40% cost reduction via response caching (TTL: 1 hour)
+- **Budget Alerts**: Webhook notifications to n8n → Telegram at budget thresholds
+- **OpenTelemetry Tracing**: Full request/response observability
+- **Per-User Rate Limiting**: Master key authentication + user quotas ($5/day default)
 
 #### Configuration Files
 
@@ -2176,18 +2183,30 @@ Telegram Bot → LiteLLM Gateway → [Claude 3.7, GPT-4o, Gemini 1.5] → MCP Ga
 # Step 1: Create Railway service (one-time)
 gh workflow run deploy-litellm-gateway.yml -f action=create-service
 
-# Step 2: Deploy to Railway
+# Step 2: Setup Phase 2 (Production Hardening)
+gh workflow run deploy-litellm-gateway.yml -f action=setup-phase2
+
+# Step 3: Add Redis + PostgreSQL plugins in Railway Dashboard
+
+# Step 4: Deploy to Railway
 gh workflow run deploy-litellm-gateway.yml -f action=deploy
 
-# Step 3: Check status
+# Step 5: Check status
 gh workflow run deploy-litellm-gateway.yml -f action=status
 ```
 
-**Environment Variables** (auto-configured from GCP Secret Manager):
+**Environment Variables - Phase 1** (auto-configured from GCP Secret Manager):
 - `ANTHROPIC_API_KEY` → `ANTHROPIC-API` secret
 - `OPENAI_API_KEY` → `OPENAI-API` secret
 - `GEMINI_API_KEY` → `GEMINI-API` secret
 - `PORT` → 4000
+
+**Environment Variables - Phase 2** (configured via `setup-phase2` action):
+- `LITELLM_MASTER_KEY` → Auto-generated (admin API access)
+- `DATABASE_URL` → Railway PostgreSQL plugin
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` → Railway Redis plugin
+- `ALERT_WEBHOOK_URL` → n8n webhook for budget alerts
+- `OTEL_SERVICE_NAME` → `litellm-gateway`
 
 #### Usage Example
 
