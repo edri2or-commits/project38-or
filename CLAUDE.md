@@ -49,6 +49,7 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-007: n8n Webhook Activation Architecture](docs/decisions/ADR-007-n8n-webhook-activation-architecture.md) - n8n webhook activation patterns
 - [ADR-008: Robust Automation Strategy](docs/decisions/ADR-008-robust-automation-strategy.md) - Defensive automation patterns
 - [ADR-009: Research Integration Architecture](docs/decisions/ADR-009-research-integration-architecture.md) - Process for integrating new AI research
+- [ADR-010: Multi-LLM Routing Strategy](docs/decisions/ADR-010-multi-llm-routing-strategy.md) - LiteLLM Gateway for multi-provider AI routing
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
@@ -628,7 +629,8 @@ project38-or/
 │   │   ├── ADR-006-*.md           # GCP Agent Autonomy
 │   │   ├── ADR-007-*.md           # n8n Webhook Activation
 │   │   ├── ADR-008-*.md           # Robust Automation
-│   │   └── ADR-009-*.md           # Research Integration
+│   │   ├── ADR-009-*.md           # Research Integration
+│   │   └── ADR-010-*.md           # Multi-LLM Routing Strategy
 │   ├── research/                  # Research integration (ADR-009)
 │   │   ├── README.md              # 5-stage process guide
 │   │   ├── notes/                 # Research notes (YYYY-MM-DD-title.md)

@@ -62,6 +62,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - First Weekly Review executed
   - Issue #361 created for Opus evaluation Spike
   - Status: ✅ Implemented
+- **ADR-006 Renumbered to ADR-010** (2026-01-20) - Resolved duplicate ADR numbering conflict
+  - `ADR-006-multi-llm-routing-strategy.md` → `ADR-010-multi-llm-routing-strategy.md`
+  - ADR-006 now exclusively refers to "GCP Agent Autonomy"
+  - ADR-010 now refers to "Multi-LLM Routing Strategy" (LiteLLM Gateway)
+  - Updated all references in CLAUDE.md, JOURNEY.md, changelog.md
 
 ### Previously Added
 - **Evaluation Harness** (2026-01-20) - Model provider testing infrastructure (ADR-009 Week 2)
@@ -299,7 +304,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Production URL**: https://telegram-bot-production-053d.up.railway.app
   - **Evidence**: Workflows #21100613950 (create), #21100626525 (deploy), #21100638013 (webhook)
   - Integration with existing LiteLLM Gateway (https://litellm-gateway-production-0339.up.railway.app)
-  - See Phase 1 Integration in [ADR-006](decisions/ADR-006-multi-llm-routing-strategy.md)
+  - See Phase 1 Integration in [ADR-010](decisions/ADR-010-multi-llm-routing-strategy.md)
 - **Telegram Bot Testing Documentation** (2026-01-17) - Comprehensive end-to-end test plan
   - Added **Testing** section to `services/telegram-bot/README.md` (+233 lines)
   - **5 test phases**: Service Health, Bot Interaction, LiteLLM Gateway, Cost Tracking, Error Handling
@@ -328,7 +333,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Status**: ✅ **DEPLOYED** to production (2026-01-17 20:14 UTC)
   - **Production URL**: https://litellm-gateway-production-0339.up.railway.app
   - **Evidence**: Workflow #21099849223 (create-service), #21099864987 (deploy), deployment SUCCESS
-  - See [ADR-006](decisions/ADR-006-multi-llm-routing-strategy.md) for full rationale and implementation details
+  - See [ADR-010](decisions/ADR-010-multi-llm-routing-strategy.md) for full rationale and implementation details
 
 - **Phase 3: Google Workspace Tools Migration** (2026-01-17) - Complete implementation
   - Migrated full Google Workspace implementation from `src/mcp_gateway/tools/workspace.py` to Cloud Function

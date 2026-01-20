@@ -1,9 +1,11 @@
-# ADR-006: Multi-LLM Routing Strategy
+# ADR-010: Multi-LLM Routing Strategy
 
-**Date**: 2026-01-17 (Created)
+**Date**: 2026-01-17 (Created), 2026-01-20 (Renumbered from ADR-006)
 **Status**: ✅ Implemented - Ready for Deployment
 **Deciders**: User (edri2or-commits), Claude AI Agent
 **Tags**: llm-routing, litellm, multi-provider, cost-optimization, resilience
+
+> **Note**: This ADR was originally numbered ADR-006 but was renumbered to ADR-010 on 2026-01-20 to resolve a numbering conflict with ADR-006: GCP Agent Autonomy.
 
 ---
 
@@ -31,7 +33,7 @@ For Phase 1 (Telegram Bot POC) and beyond, the system needs:
 4. **Unified Interface**: Application code should be provider-agnostic
 5. **Task-Based Routing**: Route simple tasks to cheap models, complex tasks to premium models
 
-### Current State (Before ADR-006)
+### Current State (Before ADR-010)
 
 - Direct API calls to Anthropic Claude via `anthropic` Python SDK
 - No fallback mechanism (Claude failure = system failure)
@@ -238,7 +240,7 @@ client.chat.completions.create(model="claude-sonnet", ...)
 - [x] Create deployment workflow `.github/workflows/deploy-litellm-gateway.yml`
 - [x] Update CLAUDE.md with LiteLLM Gateway section (100+ lines)
 - [x] Update docs/changelog.md with feature entry
-- [x] Create ADR-006 (this document)
+- [x] Create ADR-010 (this document, originally ADR-006)
 - [x] Commit and push: PR #240
 
 ### Phase 1: Deployment (✅ Complete - 2026-01-17)
@@ -399,7 +401,7 @@ LiteLLM logs every request with:
 |----------|---------|--------|
 | `CLAUDE.md` | "LiteLLM Gateway (Multi-LLM Routing)" (lines 1499-1610) | ✅ Added |
 | `docs/changelog.md` | Feature entry (lines 11-28) | ✅ Added |
-| `docs/decisions/ADR-006-*.md` | This document | ✅ Created |
+| `docs/decisions/ADR-010-*.md` | This document | ✅ Created |
 
 ### Commit
 
@@ -443,6 +445,7 @@ LiteLLM logs every request with:
 | Date | Change | Author | Evidence |
 |------|--------|--------|----------|
 | 2026-01-17 | Initial creation - LiteLLM Gateway implemented | Claude | PR #240, commit 0523382 |
+| 2026-01-20 | Renumbered from ADR-006 to ADR-010 | Claude | PR #375 (pending) |
 
 ---
 
@@ -464,7 +467,7 @@ The decision to use LiteLLM Gateway was informed by comprehensive research docum
 
 The research identified 3 routing patterns, all implemented in LiteLLM:
 
-1. **Cascading Fallback** (implemented in ADR-006)
+1. **Cascading Fallback** (implemented in ADR-010)
 2. **Semantic Router** (planned for Phase 2 - task classification)
 3. **Capability-Specific Routing** (planned - vision → GPT-4o/Gemini)
 
@@ -483,4 +486,4 @@ The research compared self-hosted (LiteLLM on Railway) vs SaaS (OpenRouter):
 
 ---
 
-**End of ADR-006**
+**End of ADR-010**
