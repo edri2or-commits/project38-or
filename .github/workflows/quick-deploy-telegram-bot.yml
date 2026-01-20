@@ -161,21 +161,27 @@ jobs:
         run: |
           echo "Setting environment variables..."
 
-          # Set all required env vars
-          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+          # Set all required env vars - show responses for debugging
+          echo "Setting TELEGRAM_BOT_TOKEN..."
+          RESULT1=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'"$BOT_TOKEN"'\" }) }"}' > /dev/null
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'"$BOT_TOKEN"'\" }) }"}')
+          echo "Result: $RESULT1"
 
-          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+          echo "Setting LITELLM_GATEWAY_URL..."
+          RESULT2=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"LITELLM_GATEWAY_URL\", value: \"https://litellm-gateway-production-0339.up.railway.app\" }) }"}' > /dev/null
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"LITELLM_GATEWAY_URL\", value: \"https://litellm-gateway-production-0339.up.railway.app\" }) }"}')
+          echo "Result: $RESULT2"
 
-          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+          echo "Setting GCP_PROJECT_ID..."
+          RESULT3=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"GCP_PROJECT_ID\", value: \"project38-483612\" }) }"}' > /dev/null
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"GCP_PROJECT_ID\", value: \"project38-483612\" }) }"}')
+          echo "Result: $RESULT3" > /dev/null
 
           # Get PostgreSQL service and its DATABASE_URL
           echo "Finding PostgreSQL service..."
