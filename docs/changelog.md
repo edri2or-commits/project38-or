@@ -22,7 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Code Style** (2026-01-20) - Applied ruff formatting to evaluation module and telegram-bot service
-- **ADR-009 Status** (2026-01-20) - Updated to "Implementing (Weeks 1-3 Complete)", Phase 4 in progress
+- **ADR-009 Complete** (2026-01-20) - All 4 weeks implemented
+  - First Weekly Review executed
+  - Issue #361 created for Opus evaluation Spike
+  - Status: ✅ Implemented
 
 ### Previously Added
 - **Evaluation Harness** (2026-01-20) - Model provider testing infrastructure (ADR-009 Week 2)
