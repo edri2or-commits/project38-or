@@ -207,21 +207,14 @@ jobs:
                 -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"DATABASE_URL\", value: \"'"$DATABASE_URL"'\" }) }"}' > /dev/null
               echo "DATABASE_URL set ✅"
             else
-              echo "⚠️ Could not get DATABASE_URL from PostgreSQL service"
-              echo "Creating reference to shared PostgreSQL..."
-              # Use Railway's shared variable syntax
-              curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-                -H "Authorization: Bearer $RAILWAY_TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"DATABASE_URL\", value: \"${{Postgres.DATABASE_URL}}\" }) }"}' > /dev/null
+              echo "❌ Could not get DATABASE_URL from PostgreSQL service"
+              echo "Please check that PostgreSQL plugin is added to the Railway project"
+              exit 1
             fi
           else
-            echo "⚠️ No PostgreSQL service found in project"
-            echo "Using reference variable..."
-            curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-              -H "Authorization: Bearer $RAILWAY_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"DATABASE_URL\", value: \"${{Postgres.DATABASE_URL}}\" }) }"}' > /dev/null
+            echo "❌ No PostgreSQL service found in project"
+            echo "Please add PostgreSQL plugin to Railway project first"
+            exit 1
           fi
 
           echo "✅ Environment variables set"
