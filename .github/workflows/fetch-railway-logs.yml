@@ -1,0 +1,99 @@
+name: Fetch Railway Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Service name (e.g., telegram-bot, mcp-gateway)'
+        required: true
+        default: 'telegram-bot'
+      log_type:
+        description: 'Log type (build or deploy)'
+        required: true
+        default: 'build'
+        type: choice
+        options:
+          - build
+          - deploy
+      issue_number:
+        description: 'Issue number to post logs to'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  CLOUD_RUN_URL: https://mcp-router-979429709900.us-central1.run.app
+
+jobs:
+  fetch-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get MCP Tunnel Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" --project="${PROJECT_ID}")
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Fetch Railway Logs
+        id: fetch-logs
+        run: |
+          echo "Fetching ${{ inputs.log_type }} logs for ${{ inputs.service_name }}..."
+
+          RESPONSE=$(curl -s -X POST "${{ env.CLOUD_RUN_URL }}/" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"data\": \"{\\\"jsonrpc\\\": \\\"2.0\\\", \\\"method\\\": \\\"tools/call\\\", \\\"params\\\": {\\\"name\\\": \\\"railway_logs\\\", \\\"arguments\\\": {\\\"service_name\\\": \\\"${{ inputs.service_name }}\\\", \\\"log_type\\\": \\\"${{ inputs.log_type }}\\\", \\\"timeout_seconds\\\": 30}}, \\\"id\\\": 1}\"}" \
+            --max-time 60 || echo '{"error": "request failed"}')
+
+          echo "Raw response length: ${#RESPONSE}"
+
+          # Save to file for posting
+          echo "$RESPONSE" > /tmp/logs.json
+
+          # Pretty print if possible
+          if command -v jq &> /dev/null; then
+            echo "$RESPONSE" | jq '.' > /tmp/logs_pretty.json 2>/dev/null || cp /tmp/logs.json /tmp/logs_pretty.json
+          else
+            cp /tmp/logs.json /tmp/logs_pretty.json
+          fi
+
+      - name: Post Logs to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LOGS=$(cat /tmp/logs_pretty.json)
+
+          # Truncate if too long (GitHub comment limit is 65536 chars)
+          if [ ${#LOGS} -gt 60000 ]; then
+            LOGS="${LOGS:0:60000}... (truncated)"
+          fi
+
+          COMMENT="## Railway Logs: ${{ inputs.service_name }} (${{ inputs.log_type }})
+
+          **Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          \`\`\`json
+          ${LOGS}
+          \`\`\`
+
+          ---
+          *Fetched via \`railway_logs\` MCP tool*"
+
+          gh issue comment ${{ inputs.issue_number }} --body "$COMMENT" --repo ${{ github.repository }}
+
+          echo "✅ Logs posted to issue #${{ inputs.issue_number }}"
