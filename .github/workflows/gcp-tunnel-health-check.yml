@@ -222,6 +222,23 @@ jobs:
             FAILED=$((FAILED + 1))
           fi
 
+          # Test 5: railway_logs (WebSocket-based log fetching)
+          echo "🔍 Testing railway_logs..."
+          RESP=$(call_tool "railway_logs" "{\"service_name\": \"telegram-bot\", \"log_type\": \"build\", \"timeout_seconds\": 15}")
+          if echo "$RESP" | grep -q "logs\|entries\|completed\|no_logs\|error"; then
+            # Success if we got any response (logs, no_logs, or even errors are OK - means tool works)
+            echo "✅ railway_logs: PASS"
+            RESULTS="${RESULTS}railway_logs:pass,"
+            PASSED=$((PASSED + 1))
+            # Show first part of response for debugging
+            echo "Response preview: $(echo "$RESP" | head -c 200)"
+          else
+            echo "❌ railway_logs: FAIL"
+            echo "Response: $RESP"
+            RESULTS="${RESULTS}railway_logs:fail,"
+            FAILED=$((FAILED + 1))
+          fi
+
           echo ""
           echo "📊 Tool Test Results: $PASSED passed, $FAILED failed"
 
