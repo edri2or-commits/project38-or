@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Vercel Agent Browser Experiment** (2026-01-21)
+  - Created `exp_003_vercel_agent_browser` experiment for autonomous UI navigation
+  - Implements Accessibility Tree approach (93% token reduction vs DOM)
+  - 13 test cases across 3 phases: Basic Navigation, Interactive, Complex Workflows
+  - Loop detection with state machine (last 10 actions + snapshot hash)
+  - Dry-run mode for safe testing
+  - Files: `experiments/exp_003_vercel_agent_browser/` (README.md, run.py)
+  - Issue: ISSUE-0003
+
 - **Railway Troubleshooting Workflows** (2026-01-21)
   - `railway-project-status.yml` - Query all services in Railway project (PRs #406)
   - `railway-inspect-service.yml` - Inspect specific service configuration (PR #407)
