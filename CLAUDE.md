@@ -1845,13 +1845,33 @@ If GCP Tunnel fails:
 | Environment | MCP Gateway (Railway) | GCP Tunnel | GitHub Relay | Status |
 |-------------|----------------------|------------|--------------|--------|
 | **Local Claude Code** | ✅ Works (`or-infra.com/mcp`) | ✅ Works (cloudfunctions.googleapis.com) | ❌ Disabled | ✅ Full autonomy |
-| **Anthropic Cloud Sessions** | ❌ Blocked (proxy) | ✅ Works (cloudfunctions.googleapis.com) | ❌ Disabled by default | ✅ Full autonomy |
+| **Anthropic Cloud Sessions** | ❌ Blocked (proxy) | ⚠️ Accessible but not configured | ❌ Disabled by default | ⚠️ Limited (see below) |
+
+**Cloud Session Limitation (Discovered 2026-01-21)**:
+
+In Anthropic Cloud sessions, while the GCP Tunnel endpoint is accessible, **MCP servers are NOT auto-configured**:
+
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| Cloud Function URL accessible | ✅ | Returns `{"error": "Unauthorized"}` (needs token) |
+| `gcloud` CLI installed | ❌ | Not in Anthropic environment |
+| MCP servers configured | ❌ | `mcpServers: {}` empty |
+| Token available | ❌ | Cannot access GCP Secret Manager without gcloud |
+
+**Result**: The GCP Tunnel infrastructure exists but cannot be used autonomously in cloud sessions without manual token provisioning.
+
+**Workaround for Cloud Sessions**:
+
+Use GitHub Actions workflows which have full GCP access via WIF:
+- `railway-project-status.yml` - Check all Railway services
+- `railway-inspect-service.yml` - Inspect specific service config
+- `gcp-tunnel-health-check.yml` - Verify GCP Tunnel health
 
 **Recommendation by Environment**:
 
-- **Local sessions**: Use MCP Gateway at `https://or-infra.com/mcp` (lower latency)
-- **Cloud sessions**: Use GCP Tunnel at `cloudfunctions.googleapis.com` (bypasses Anthropic proxy)
-- **Both environments**: Full access to 24 autonomous tools across Railway, n8n, Monitoring, and Google Workspace
+- **Local sessions**: Use MCP Gateway at `https://or-infra.com/mcp` (full autonomy)
+- **Cloud sessions**: Use GitHub Actions workflows (partial autonomy via WIF)
+- **Gap to address**: Auto-configure MCP in cloud sessions (requires architecture change)
 
 ---
 

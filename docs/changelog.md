@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Railway Troubleshooting Workflows** (2026-01-21)
+  - `railway-project-status.yml` - Query all services in Railway project (PRs #406)
+  - `railway-inspect-service.yml` - Inspect specific service configuration (PR #407)
+  - `railway-force-unstick.yml` - Force cancel QUEUED deployments (PR #405)
+  - These workflows use GCP WIF to access Railway API via Secret Manager
+
+- **Research Note: Vercel Agent Browser** (2026-01-21)
+  - Documented autonomous QA architecture using Accessibility Tree (93% token reduction)
+  - Classified as Spike for future browser automation capability
+  - File: `docs/research/notes/2026-01-21-autonomous-qa-vercel-agent-browser.md` (PR #408)
+
 ### Fixed
+- **Cloud Session Autonomy Documentation** (2026-01-21)
+  - Corrected misleading "Full autonomy" claim for Anthropic Cloud sessions
+  - Documented actual limitations: MCP not configured, gcloud not available, token not accessible
+  - Added workaround section pointing to GitHub Actions workflows
+  - Updated CLAUDE.md with accurate "Current Autonomy Status" table
+
 - **Telegram Bot Railway Healthcheck** (2026-01-20)
   - Fixed PORT environment variable not used in Dockerfile CMD
     - Changed from hardcoded `--port 8000` to dynamic `${PORT:-8000}`
