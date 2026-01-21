@@ -131,11 +131,11 @@ python experiments/exp_003_vercel_agent_browser/run.py --all
 - [x] Reset between test cases
 - [ ] Confidence score threshold (60%) - for live implementation
 
-### Step 3: MCP Integration (PENDING)
-- [ ] Create `src/mcp/browser_agent.py` with Playwright
-- [ ] Register browser tools in MCP Gateway
-- [ ] Add to tool registry
-- [ ] Test from Claude Code session
+### Step 3: MCP Integration ✅ COMPLETE
+- [x] Extend `src/mcp/browser.py` with Accessibility Tree methods
+- [x] Register browser tools in MCP Gateway (`src/mcp_gateway/server.py`)
+- [x] Add 6 tools: browser_navigate, browser_accessibility_tree, browser_click_ref, browser_fill_ref, browser_screenshot, browser_close
+- [ ] Test from Claude Code session (requires Playwright installation)
 
 ### Step 4: Test Cases ✅ COMPLETE (Dry-Run)
 - [x] Run Phase 1 tests (5/5 passed)
