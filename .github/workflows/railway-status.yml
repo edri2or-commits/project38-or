@@ -1,0 +1,63 @@
+name: Railway Status
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to post status to'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  CLOUD_RUN_URL: https://mcp-router-979429709900.us-central1.run.app
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get MCP Tunnel Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" --project="${PROJECT_ID}")
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Get Railway Status
+        run: |
+          echo "Fetching Railway status..."
+
+          RESPONSE=$(curl -s -X POST "${{ env.CLOUD_RUN_URL }}/" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d '{"data": "{\"jsonrpc\": \"2.0\", \"method\": \"tools/call\", \"params\": {\"name\": \"railway_status\", \"arguments\": {}}, \"id\": 1}"}' \
+            --max-time 30)
+
+          echo "$RESPONSE" | jq '.' > /tmp/status.json 2>/dev/null || echo "$RESPONSE" > /tmp/status.json
+
+          COMMENT="## Railway Status
+
+          **Timestamp:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+          \`\`\`json
+          $(cat /tmp/status.json)
+          \`\`\`
+          "
+
+          gh issue comment ${{ inputs.issue_number }} --body "$COMMENT" --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ github.token }}
