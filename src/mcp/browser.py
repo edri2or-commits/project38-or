@@ -2,10 +2,14 @@
 
 Provides safe browser automation capabilities using Playwright in headless mode.
 Agents can navigate, click, extract text, and capture screenshots.
+
+Enhanced with Accessibility Tree support for 93% token reduction (exp_003).
 """
 
+import hashlib
+import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
@@ -465,6 +469,276 @@ class BrowserServer:
             >>> url = server.current_url
         """
         return self._page.url if self._page else None
+
+    async def get_accessibility_tree(self) -> BrowserResult:
+        """Get Accessibility Tree snapshot (93% token reduction vs DOM).
+
+        Returns compact representation using ARIA roles and reference IDs (@e1, @e2, etc.)
+        instead of full DOM. This approach is from exp_003 research.
+
+        Returns:
+            BrowserResult with accessibility tree in data field
+
+        Example:
+            >>> result = await server.get_accessibility_tree()
+            >>> tree = result.data
+            >>> # Find button: tree["children"][0]["ref"] -> "@e1"
+        """
+        if not self._running:
+            raise RuntimeError("BrowserServer not started")
+
+        start_time = datetime.now(UTC)
+        try:
+            # Get accessibility snapshot from Playwright
+            snapshot = await self._page.accessibility.snapshot()
+
+            # Add reference IDs for easier navigation
+            ref_counter = [0]  # Use list for mutable counter in closure
+
+            def add_refs(node: dict) -> dict:
+                """Recursively add reference IDs to nodes."""
+                if node is None:
+                    return None
+                ref_counter[0] += 1
+                node["ref"] = f"@e{ref_counter[0]}"
+                if "children" in node:
+                    node["children"] = [add_refs(c) for c in node["children"] if c]
+                return node
+
+            tree = add_refs(snapshot) if snapshot else {"role": "document", "ref": "@e1", "children": []}
+
+            # Compute hash for loop detection
+            tree_hash = hashlib.sha256(json.dumps(tree, sort_keys=True).encode()).hexdigest()[:16]
+
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+            token_estimate = len(json.dumps(tree)) // 4
+
+            logger.info(
+                "Accessibility tree: %d nodes, ~%d tokens, hash=%s (%.2fs)",
+                ref_counter[0],
+                token_estimate,
+                tree_hash,
+                duration,
+            )
+
+            return BrowserResult(
+                tool="accessibility_tree",
+                success=True,
+                data={
+                    "tree": tree,
+                    "hash": tree_hash,
+                    "node_count": ref_counter[0],
+                    "token_estimate": token_estimate,
+                },
+                url=self._page.url,
+                duration=duration,
+            )
+        except Exception as e:
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+            logger.error("Accessibility tree failed: %s", e)
+            return BrowserResult(
+                tool="accessibility_tree",
+                success=False,
+                error=str(e),
+                url=self._page.url if self._page else None,
+                duration=duration,
+            )
+
+    async def click_by_ref(self, ref: str, timeout: int = 5000) -> BrowserResult:
+        """Click element by accessibility reference ID.
+
+        Args:
+            ref: Reference ID from accessibility tree (e.g., "@e1", "@e3")
+            timeout: Wait timeout in milliseconds
+
+        Returns:
+            BrowserResult with success status
+
+        Example:
+            >>> tree = await server.get_accessibility_tree()
+            >>> # Find button ref from tree
+            >>> result = await server.click_by_ref("@e3")
+        """
+        if not self._running:
+            raise RuntimeError("BrowserServer not started")
+
+        start_time = datetime.now(UTC)
+        try:
+            # Get accessibility tree to find element
+            tree_result = await self.get_accessibility_tree()
+            if not tree_result.success:
+                raise RuntimeError(f"Could not get accessibility tree: {tree_result.error}")
+
+            # Find element by ref
+            def find_by_ref(node: dict, target_ref: str) -> dict | None:
+                if node.get("ref") == target_ref:
+                    return node
+                for child in node.get("children", []):
+                    found = find_by_ref(child, target_ref)
+                    if found:
+                        return found
+                return None
+
+            element = find_by_ref(tree_result.data["tree"], ref)
+            if not element:
+                raise ValueError(f"Element with ref {ref} not found in accessibility tree")
+
+            # Use name or role to find and click
+            name = element.get("name", "")
+            role = element.get("role", "")
+
+            # Try to click using accessible name
+            if name:
+                await self._page.get_by_role(role, name=name).click(timeout=timeout)
+            else:
+                # Fallback to role-based click
+                await self._page.get_by_role(role).first.click(timeout=timeout)
+
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+
+            logger.info("Clicked ref %s (role=%s, name=%s) (%.2fs)", ref, role, name, duration)
+            return BrowserResult(
+                tool="click_by_ref",
+                success=True,
+                data={"ref": ref, "role": role, "name": name},
+                url=self._page.url,
+                duration=duration,
+            )
+        except Exception as e:
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+            logger.error("Click by ref %s failed: %s", ref, e)
+            return BrowserResult(
+                tool="click_by_ref",
+                success=False,
+                error=str(e),
+                data={"ref": ref},
+                url=self._page.url if self._page else None,
+                duration=duration,
+            )
+
+    async def fill_by_ref(self, ref: str, value: str) -> BrowserResult:
+        """Fill input element by accessibility reference ID.
+
+        Args:
+            ref: Reference ID from accessibility tree
+            value: Value to enter
+
+        Returns:
+            BrowserResult with success status
+
+        Example:
+            >>> result = await server.fill_by_ref("@e5", "test@example.com")
+        """
+        if not self._running:
+            raise RuntimeError("BrowserServer not started")
+
+        start_time = datetime.now(UTC)
+        try:
+            tree_result = await self.get_accessibility_tree()
+            if not tree_result.success:
+                raise RuntimeError(f"Could not get accessibility tree: {tree_result.error}")
+
+            def find_by_ref(node: dict, target_ref: str) -> dict | None:
+                if node.get("ref") == target_ref:
+                    return node
+                for child in node.get("children", []):
+                    found = find_by_ref(child, target_ref)
+                    if found:
+                        return found
+                return None
+
+            element = find_by_ref(tree_result.data["tree"], ref)
+            if not element:
+                raise ValueError(f"Element with ref {ref} not found")
+
+            name = element.get("name", "")
+            role = element.get("role", "textbox")
+
+            if name:
+                await self._page.get_by_role(role, name=name).fill(value)
+            else:
+                await self._page.get_by_role(role).first.fill(value)
+
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+
+            logger.info("Filled ref %s (%.2fs)", ref, duration)
+            return BrowserResult(
+                tool="fill_by_ref",
+                success=True,
+                data={"ref": ref, "value_length": len(value)},
+                url=self._page.url,
+                duration=duration,
+            )
+        except Exception as e:
+            duration = (datetime.now(UTC) - start_time).total_seconds()
+            logger.error("Fill by ref %s failed: %s", ref, e)
+            return BrowserResult(
+                tool="fill_by_ref",
+                success=False,
+                error=str(e),
+                data={"ref": ref},
+                url=self._page.url if self._page else None,
+                duration=duration,
+            )
+
+
+@dataclass
+class LoopDetector:
+    """Detects action loops to prevent infinite cycling (from exp_003).
+
+    Tracks recent actions and snapshot hashes to identify when the agent
+    is stuck in a loop.
+    """
+
+    history_size: int = 10
+    action_history: list = field(default_factory=list)
+    hash_history: list = field(default_factory=list)
+
+    def add_action(self, action: str, target: str, snapshot_hash: str = "") -> bool:
+        """Add action and check for loops.
+
+        Args:
+            action: Action type (navigate, click, etc.)
+            target: Action target (URL, ref, etc.)
+            snapshot_hash: Hash of accessibility tree after action
+
+        Returns:
+            True if loop detected, False otherwise
+        """
+        action_key = f"{action}:{target}"
+        self.action_history.append(action_key)
+        if len(self.action_history) > self.history_size:
+            self.action_history.pop(0)
+
+        if snapshot_hash:
+            self.hash_history.append(snapshot_hash)
+            if len(self.hash_history) > self.history_size:
+                self.hash_history.pop(0)
+
+        return self._check_loop()
+
+    def _check_loop(self) -> bool:
+        """Check if recent actions indicate a loop."""
+        if len(self.action_history) < 4:
+            return False
+
+        # Check for repeated action patterns
+        recent = self.action_history[-4:]
+        if len(set(recent)) <= 2:
+            return True
+
+        # Check for repeated snapshots
+        if len(self.hash_history) >= 3:
+            recent_hashes = self.hash_history[-3:]
+            if len(set(recent_hashes)) == 1:
+                return True
+
+        return False
+
+    def reset(self) -> None:
+        """Reset loop detector state."""
+        self.action_history.clear()
+        self.hash_history.clear()
 
 
 # Singleton instance

@@ -8,12 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Accessibility Tree Browser Tools** (2026-01-21)
+  - Extended `src/mcp/browser.py` with Accessibility Tree approach (93% token reduction)
+  - `get_accessibility_tree()` - Returns compact tree with reference IDs (@e1, @e2)
+  - `click_by_ref()` - Click element by accessibility reference ID
+  - `fill_by_ref()` - Fill input by accessibility reference ID
+  - `LoopDetector` class - Prevents infinite action loops
+  - Based on exp_003 research findings
+
 - **Vercel Agent Browser Experiment** (2026-01-21)
   - Created `exp_003_vercel_agent_browser` experiment for autonomous UI navigation
   - Implements Accessibility Tree approach (93% token reduction vs DOM)
   - 13 test cases across 3 phases: Basic Navigation, Interactive, Complex Workflows
   - Loop detection with state machine (last 10 actions + snapshot hash)
   - Dry-run mode for safe testing
+  - **Dry-run results**: 13/13 tests passed, $0.0012/test, 214ms avg latency
   - Files: `experiments/exp_003_vercel_agent_browser/` (README.md, run.py)
   - Issue: ISSUE-0003
 
