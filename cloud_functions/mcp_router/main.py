@@ -26,9 +26,17 @@ import json
 import logging
 import os
 import time
+import uuid
 from datetime import UTC, datetime
 from email.mime.text import MIMEText
 from typing import Any
+
+# WebSocket import for Railway log subscriptions
+try:
+    import websockets
+    WEBSOCKETS_AVAILABLE = True
+except ImportError:
+    WEBSOCKETS_AVAILABLE = False
 
 # functions_framework is optional - only needed for Cloud Functions deployment
 # For Cloud Run, we use Flask directly via app.py
@@ -589,37 +597,208 @@ class MCPRouter:
 
         return {"error": "Unexpected response", "response": data}
 
-    def _railway_logs(self, deployment_id: str = None, service_name: str = "telegram-bot", limit: int = 100) -> dict:
-        """Get deployment logs from Railway.
+    def _railway_logs(
+        self,
+        deployment_id: str = None,
+        service_name: str = "telegram-bot",
+        log_type: str = "build",
+        timeout_seconds: int = 10
+    ) -> dict:
+        """Get deployment logs from Railway via WebSocket subscription.
 
         Args:
             deployment_id: Optional specific deployment ID. If not provided, gets latest.
             service_name: Service name to get logs for (default: telegram-bot)
-            limit: Number of log lines to fetch (default: 100)
+            log_type: Type of logs - "build" or "deployment" (default: build)
+            timeout_seconds: How long to collect logs (default: 10 seconds)
+
+        Returns:
+            dict with logs array and metadata
         """
+        return asyncio.run(
+            self._railway_logs_async(deployment_id, service_name, log_type, timeout_seconds)
+        )
+
+    async def _railway_logs_async(
+        self,
+        deployment_id: str = None,
+        service_name: str = "telegram-bot",
+        log_type: str = "build",
+        timeout_seconds: int = 10
+    ) -> dict:
+        """Get deployment logs from Railway via WebSocket subscription (async).
+
+        Railway logs require WebSocket subscriptions (not HTTP queries).
+        Protocol: graphql-transport-ws over wss://backboard.railway.app/graphql/v2
+
+        Flow:
+        1. Connect WebSocket
+        2. Send connection_init with Authorization
+        3. Wait for connection_ack
+        4. Send subscription (buildLogs or deploymentLogs)
+        5. Buffer logs until timeout or complete
+        6. Return collected logs
+        """
+        if not WEBSOCKETS_AVAILABLE:
+            return {"error": "websockets library not available"}
+
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
 
         if not railway_token:
             return {"error": "RAILWAY_TOKEN not configured"}
 
-        # If no deployment_id, get the latest deployment for the service
+        # Step 1: Get deployment ID if not provided
         if not deployment_id:
-            # First get service ID
-            services_query = """
-            query getServices($projectId: String!) {
-                project(id: $projectId) {
-                    services {
-                        edges {
-                            node {
-                                id
-                                name
-                                deployments(first: 1) {
-                                    edges {
-                                        node {
-                                            id
-                                            status
-                                        }
+            deployment_info = await self._get_latest_deployment(railway_token, project_id, service_name)
+            if "error" in deployment_info:
+                return deployment_info
+            deployment_id = deployment_info["deployment_id"]
+            deployment_status = deployment_info.get("status", "UNKNOWN")
+        else:
+            deployment_status = "UNKNOWN"
+
+        # Step 2: Determine subscription type based on log_type
+        if log_type == "build":
+            subscription_query = """
+            subscription StreamBuildLogs($deploymentId: String!) {
+                buildLogs(deploymentId: $deploymentId) {
+                    timestamp
+                    message
+                    severity
+                }
+            }
+            """
+        else:
+            subscription_query = """
+            subscription StreamDeploymentLogs($deploymentId: String!) {
+                deploymentLogs(deploymentId: $deploymentId) {
+                    timestamp
+                    message
+                    severity
+                    attributes {
+                        key
+                        value
+                    }
+                }
+            }
+            """
+
+        # Step 3: Connect via WebSocket and stream logs
+        logs = []
+        error_msg = None
+
+        try:
+            async with websockets.connect(
+                "wss://backboard.railway.app/graphql/v2",
+                subprotocols=["graphql-transport-ws"],
+                additional_headers={"Origin": "https://railway.app"}
+            ) as ws:
+                # Step 3a: Send connection_init with token
+                init_payload = {
+                    "type": "connection_init",
+                    "payload": {"Authorization": f"Bearer {railway_token}"}
+                }
+                await ws.send(json.dumps(init_payload))
+
+                # Step 3b: Wait for connection_ack
+                ack_timeout = 5
+                try:
+                    ack_response = await asyncio.wait_for(ws.recv(), timeout=ack_timeout)
+                    ack_data = json.loads(ack_response)
+                    if ack_data.get("type") != "connection_ack":
+                        return {
+                            "error": f"Expected connection_ack, got: {ack_data.get('type')}",
+                            "details": ack_data
+                        }
+                except asyncio.TimeoutError:
+                    return {"error": "Timeout waiting for connection_ack"}
+
+                # Step 3c: Send subscription
+                subscription_id = str(uuid.uuid4())
+                subscribe_payload = {
+                    "id": subscription_id,
+                    "type": "subscribe",
+                    "payload": {
+                        "query": subscription_query,
+                        "variables": {"deploymentId": deployment_id}
+                    }
+                }
+                await ws.send(json.dumps(subscribe_payload))
+
+                # Step 3d: Collect logs until timeout or complete
+                start_time = time.time()
+                while (time.time() - start_time) < timeout_seconds:
+                    try:
+                        msg = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                        data = json.loads(msg)
+
+                        msg_type = data.get("type")
+                        msg_id = data.get("id")
+
+                        if msg_type == "next" and msg_id == subscription_id:
+                            # Extract log entry
+                            payload = data.get("payload", {}).get("data", {})
+                            log_entry = payload.get("buildLogs") or payload.get("deploymentLogs")
+                            if log_entry:
+                                logs.append(log_entry)
+
+                        elif msg_type == "complete" and msg_id == subscription_id:
+                            # Subscription finished (no more logs)
+                            break
+
+                        elif msg_type == "error":
+                            error_msg = data.get("payload", [])
+                            break
+
+                    except asyncio.TimeoutError:
+                        # No message received in 1 second, continue waiting
+                        continue
+
+                # Step 3e: Send stop to close subscription gracefully
+                stop_payload = {"id": subscription_id, "type": "complete"}
+                await ws.send(json.dumps(stop_payload))
+
+        except websockets.exceptions.InvalidStatusCode as e:
+            return {"error": f"WebSocket connection failed: HTTP {e.status_code}"}
+        except Exception as e:
+            logger.exception("WebSocket error")
+            return {"error": f"WebSocket error: {str(e)}"}
+
+        # Step 4: Return results
+        result = {
+            "success": True,
+            "deployment_id": deployment_id,
+            "service_name": service_name,
+            "deployment_status": deployment_status,
+            "log_type": log_type,
+            "log_count": len(logs),
+            "timeout_seconds": timeout_seconds,
+            "logs": logs
+        }
+
+        if error_msg:
+            result["subscription_errors"] = error_msg
+
+        return result
+
+    async def _get_latest_deployment(
+        self, railway_token: str, project_id: str, service_name: str
+    ) -> dict:
+        """Get the latest deployment ID for a service."""
+        services_query = """
+        query getServices($projectId: String!) {
+            project(id: $projectId) {
+                services {
+                    edges {
+                        node {
+                            id
+                            name
+                            deployments(first: 1) {
+                                edges {
+                                    node {
+                                        id
+                                        status
                                     }
                                 }
                             }
@@ -627,8 +806,11 @@ class MCPRouter:
                     }
                 }
             }
-            """
-            services_response = httpx.post(
+        }
+        """
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
                 "https://backboard.railway.app/graphql/v2",
                 headers={
                     "Authorization": f"Bearer {railway_token}",
@@ -637,86 +819,21 @@ class MCPRouter:
                 json={"query": services_query, "variables": {"projectId": project_id}},
                 timeout=30,
             )
-            services_data = services_response.json()
+            services_data = response.json()
 
-            # Find deployment for service
-            edges = services_data.get("data", {}).get("project", {}).get("services", {}).get("edges", [])
-            for edge in edges:
-                if edge.get("node", {}).get("name") == service_name:
-                    deployments = edge["node"].get("deployments", {}).get("edges", [])
-                    if deployments:
-                        deployment_id = deployments[0]["node"]["id"]
-                        break
+        # Find deployment for service
+        edges = services_data.get("data", {}).get("project", {}).get("services", {}).get("edges", [])
+        for edge in edges:
+            if edge.get("node", {}).get("name") == service_name:
+                deployments = edge["node"].get("deployments", {}).get("edges", [])
+                if deployments:
+                    deployment = deployments[0]["node"]
+                    return {
+                        "deployment_id": deployment["id"],
+                        "status": deployment.get("status", "UNKNOWN")
+                    }
 
-            if not deployment_id:
-                return {"error": f"No deployments found for service '{service_name}'"}
-
-        # Get deployment logs
-        logs_query = """
-        query getDeploymentLogs($deploymentId: String!, $limit: Int) {
-            deploymentLogs(deploymentId: $deploymentId, limit: $limit) {
-                timestamp
-                message
-                severity
-            }
-        }
-        """
-
-        response = httpx.post(
-            "https://backboard.railway.app/graphql/v2",
-            headers={
-                "Authorization": f"Bearer {railway_token}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "query": logs_query,
-                "variables": {"deploymentId": deployment_id, "limit": limit}
-            },
-            timeout=30,
-        )
-
-        result = response.json()
-
-        if "errors" in result:
-            # If deploymentLogs doesn't work, try getting build logs
-            build_query = """
-            query getBuildLogs($deploymentId: String!) {
-                deployment(id: $deploymentId) {
-                    id
-                    status
-                    meta
-                    buildLogs
-                }
-            }
-            """
-            build_response = httpx.post(
-                "https://backboard.railway.app/graphql/v2",
-                headers={
-                    "Authorization": f"Bearer {railway_token}",
-                    "Content-Type": "application/json",
-                },
-                json={"query": build_query, "variables": {"deploymentId": deployment_id}},
-                timeout=30,
-            )
-            build_result = build_response.json()
-
-            if "errors" not in build_result:
-                deployment = build_result.get("data", {}).get("deployment", {})
-                return {
-                    "deployment_id": deployment_id,
-                    "status": deployment.get("status"),
-                    "meta": deployment.get("meta"),
-                    "build_logs": deployment.get("buildLogs"),
-                }
-            return {"error": "Could not fetch logs", "graphql_errors": result.get("errors")}
-
-        logs = result.get("data", {}).get("deploymentLogs", [])
-        return {
-            "deployment_id": deployment_id,
-            "service_name": service_name,
-            "log_count": len(logs),
-            "logs": logs
-        }
+        return {"error": f"No deployments found for service '{service_name}'"}
 
     # =========================================================================
     # n8n Tools

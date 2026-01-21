@@ -11,6 +11,9 @@ flask>=2.0.0
 # HTTP Client (async)
 httpx>=0.25.0
 
+# WebSocket Client (for Railway log subscriptions)
+websockets>=12.0
+
 # Google Cloud Secret Manager - lazy loaded
 google-cloud-secret-manager>=2.18.0
 
