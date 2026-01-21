@@ -15,6 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.evaluation import EvaluationHarness
+from src.providers import register_mock_providers
 
 # Success criteria from ADR-009
 SUCCESS_CRITERIA = {
@@ -83,6 +84,9 @@ def compare_results(baseline: dict, experiment: dict) -> tuple[str, str]:
 
 def main():
     """Run experiment."""
+    # Register mock providers for testing
+    register_mock_providers()
+
     parser = argparse.ArgumentParser(description="Run exp_002 experiment")
     parser.add_argument(
         "--baseline",

@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Mock Providers for Testing** (2026-01-21)
+  - Added `src/providers/mock.py` with mock provider implementations
+  - `MockProvider` - Configurable mock for testing experiments
+  - `MockOpusProvider` - Simulates Opus (quality=95%, latency=800ms, 5x cost)
+  - `MockSonnetProvider` - Simulates Sonnet (quality=85%, latency=300ms, baseline cost)
+  - `MockHaikuProvider` - Simulates Haiku (quality=75%, latency=100ms, cheapest)
+  - `register_mock_providers()` - Convenience function to register all mocks
+  - Enables experiment framework validation without real API costs
+
+- **exp_002 Framework Validation** (2026-01-21)
+  - Updated `experiments/exp_002_claude_4_5_opus_model_evaluati/run.py` to use mock providers
+  - Validated evaluation harness with mock-sonnet vs mock-opus comparison
+  - Mock results: REJECT (as expected - mock providers don't match golden set)
+  - Confirmed decision logic works correctly (cost +400% → REJECT)
+  - Ready for real provider testing
+
 - **Browser MCP Tools in Gateway** (2026-01-21)
   - Registered 6 browser tools in MCP Gateway (`src/mcp_gateway/server.py`)
   - `browser_navigate` - Navigate to URL

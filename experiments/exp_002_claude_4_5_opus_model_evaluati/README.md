@@ -2,7 +2,7 @@
 
 **ID:** exp_002
 **Created:** 2026-01-20
-**Status:** Not Started
+**Status:** Framework Validated (Mock Run Complete)
 **Research Note:** [2026-01-20-claude-4-opus-evaluation.md](../../docs/research/notes/2026-01-20-claude-4-opus-evaluation.md)
 
 ---
@@ -61,7 +61,25 @@ python experiments/exp_002_claude_4_5_opus_model_evaluati/run.py --provider clau
 
 ## Results
 
-**Status:** Not yet run
+### Mock Run (Framework Validation) - 2026-01-21
+
+**Status:** ✅ Framework Validated
+
+| Metric | Baseline (mock-sonnet) | Experiment (mock-opus) | Ratio | Pass? |
+|--------|------------------------|------------------------|-------|-------|
+| Quality | 18.33% | 18.33% | 1.0x | ⚠️ N/A (mock) |
+| Latency | 297ms | 804ms | 2.71x | ❌ FAIL |
+| Cost | $0.0068 | $0.0340 | 5.0x | ❌ FAIL |
+
+**Key Observations:**
+1. Framework correctly compares providers
+2. Decision logic works (REJECT due to cost +400% without quality improvement)
+3. Mock providers have correct characteristics (Opus: higher latency, 5x cost)
+4. Quality scores are low because mock responses don't match golden set expectations
+
+### Real Provider Run (Pending)
+
+Requires real API providers to be registered (Claude Sonnet vs Claude Opus).
 
 | Metric | Baseline | Experiment | Delta | Pass? |
 |--------|----------|------------|-------|-------|
@@ -73,9 +91,17 @@ python experiments/exp_002_claude_4_5_opus_model_evaluati/run.py --provider clau
 
 ## Decision
 
+### Mock Run Decision
+
+**Outcome:** REJECT (Expected for mock validation)
+
+**Reasoning:** Cost +400% without quality improvement (mock providers don't produce meaningful quality scores)
+
+### Real Provider Decision
+
 **Outcome:** PENDING
 
-**Reasoning:** Experiment not yet run.
+**Reasoning:** Requires real API providers to be registered and tested.
 
 ---
 

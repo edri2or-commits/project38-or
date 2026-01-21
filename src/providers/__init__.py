@@ -27,6 +27,13 @@ Usage:
 """
 
 from src.providers.base import ModelCapabilities, ModelProvider, ModelResponse
+from src.providers.mock import (
+    MockHaikuProvider,
+    MockOpusProvider,
+    MockProvider,
+    MockSonnetProvider,
+    register_mock_providers,
+)
 from src.providers.registry import ModelRegistry
 
 __all__ = [
@@ -34,4 +41,10 @@ __all__ = [
     "ModelResponse",
     "ModelCapabilities",
     "ModelRegistry",
+    # Mock providers for testing
+    "MockProvider",
+    "MockOpusProvider",
+    "MockSonnetProvider",
+    "MockHaikuProvider",
+    "register_mock_providers",
 ]
