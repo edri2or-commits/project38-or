@@ -194,6 +194,7 @@ class MCPRouter:
         self.tools["railway_list_services"] = self._railway_list_services
         self.tools["railway_create_domain"] = self._railway_create_domain
         self.tools["railway_logs"] = self._railway_logs
+        self.tools["railway_logs_debug"] = self._railway_logs_debug
 
         # n8n tools
         self.tools["n8n_trigger"] = self._n8n_trigger
@@ -846,6 +847,39 @@ class MCPRouter:
                         }
 
         return {"error": f"No deployments found for service '{service_name}'"}
+
+    def _railway_logs_debug(self, service_name: str = "telegram-bot") -> dict:
+        """Debug tool to check WebSocket and Railway API status."""
+        import sys
+
+        result = {
+            "websockets_available": WEBSOCKETS_AVAILABLE,
+            "websockets_version": None,
+            "railway_token_set": bool(os.environ.get("RAILWAY_TOKEN")),
+            "project_id": os.environ.get("RAILWAY_PROJECT_ID", "NOT SET"),
+            "python_version": sys.version,
+        }
+
+        # Check websockets version
+        if WEBSOCKETS_AVAILABLE:
+            try:
+                import websockets
+                result["websockets_version"] = websockets.__version__
+            except Exception as e:
+                result["websockets_version_error"] = str(e)
+
+        # Try to get deployment info
+        try:
+            deployment_info = asyncio.run(self._get_latest_deployment(
+                os.environ.get("RAILWAY_TOKEN", ""),
+                os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116"),
+                service_name
+            ))
+            result["deployment_info"] = deployment_info
+        except Exception as e:
+            result["deployment_error"] = str(e)
+
+        return result
 
     # =========================================================================
     # n8n Tools
