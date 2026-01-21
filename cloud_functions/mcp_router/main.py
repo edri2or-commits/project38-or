@@ -832,15 +832,18 @@ class MCPRouter:
         project = data.get("project") or {}
         services = project.get("services") or {}
         edges = services.get("edges") or []
+
         for edge in edges:
-            if edge.get("node", {}).get("name") == service_name:
-                deployments = edge["node"].get("deployments", {}).get("edges", [])
-                if deployments:
-                    deployment = deployments[0]["node"]
-                    return {
-                        "deployment_id": deployment["id"],
-                        "status": deployment.get("status", "UNKNOWN")
-                    }
+            node = edge.get("node") or {}
+            if node.get("name") == service_name:
+                deploys = (node.get("deployments") or {}).get("edges") or []
+                if deploys:
+                    deploy_node = (deploys[0].get("node") or {})
+                    if deploy_node.get("id"):
+                        return {
+                            "deployment_id": deploy_node["id"],
+                            "status": deploy_node.get("status", "UNKNOWN")
+                        }
 
         return {"error": f"No deployments found for service '{service_name}'"}
 
