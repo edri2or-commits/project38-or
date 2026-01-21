@@ -1,0 +1,98 @@
+name: Railway Deploy Service
+
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Service to deploy'
+        required: true
+        default: 'telegram-bot'
+      issue_number:
+        description: 'Issue number for status updates'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  CLOUD_RUN_URL: https://mcp-router-979429709900.us-central1.run.app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get MCP Tunnel Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" --project="${PROJECT_ID}")
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Deploy Service
+        id: deploy
+        run: |
+          echo "🚀 Deploying ${{ inputs.service_name }}..."
+
+          RESPONSE=$(curl -s -X POST "${{ env.CLOUD_RUN_URL }}/" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"data\": \"{\\\"jsonrpc\\\": \\\"2.0\\\", \\\"method\\\": \\\"tools/call\\\", \\\"params\\\": {\\\"name\\\": \\\"railway_deploy\\\", \\\"arguments\\\": {\\\"service_name\\\": \\\"${{ inputs.service_name }}\\\"}}, \\\"id\\\": 1}\"}" \
+            --max-time 60)
+
+          echo "$RESPONSE" | jq '.' > /tmp/deploy.json 2>/dev/null || echo "$RESPONSE" > /tmp/deploy.json
+          cat /tmp/deploy.json
+
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/deploy.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Wait and Check Status
+        run: |
+          echo "⏳ Waiting 30 seconds for deployment to progress..."
+          sleep 30
+
+          echo "📊 Checking status..."
+          STATUS=$(curl -s -X POST "${{ env.CLOUD_RUN_URL }}/" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d '{"data": "{\"jsonrpc\": \"2.0\", \"method\": \"tools/call\", \"params\": {\"name\": \"railway_status\", \"arguments\": {}}, \"id\": 1}"}' \
+            --max-time 30)
+
+          echo "$STATUS" | jq '.' > /tmp/status.json 2>/dev/null || echo "$STATUS" > /tmp/status.json
+
+      - name: Post Results to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DEPLOY_RESULT=$(cat /tmp/deploy.json)
+          STATUS_RESULT=$(cat /tmp/status.json)
+
+          COMMENT="## 🚀 Railway Deploy: ${{ inputs.service_name }}
+
+          **Timestamp:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+          ### Deploy Response
+          \`\`\`json
+          ${DEPLOY_RESULT}
+          \`\`\`
+
+          ### Status After 30s
+          \`\`\`json
+          ${STATUS_RESULT}
+          \`\`\`
+          "
+
+          gh issue comment ${{ inputs.issue_number }} --body "$COMMENT" --repo ${{ github.repository }}
