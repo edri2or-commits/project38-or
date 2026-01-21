@@ -740,9 +740,9 @@ class MCPRouter:
                         msg_id = data.get("id")
 
                         if msg_type == "next" and msg_id == subscription_id:
-                            # Extract log entry
-                            payload = data.get("payload", {}).get("data", {})
-                            log_entry = payload.get("buildLogs") or payload.get("deploymentLogs")
+                            # Extract log entry - use `or {}` for null safety
+                            payload_data = (data.get("payload") or {}).get("data") or {}
+                            log_entry = payload_data.get("buildLogs") or payload_data.get("deploymentLogs")
                             if log_entry:
                                 logs.append(log_entry)
 
@@ -751,7 +751,7 @@ class MCPRouter:
                             break
 
                         elif msg_type == "error":
-                            error_msg = data.get("payload", [])
+                            error_msg = data.get("payload") or []
                             break
 
                     except asyncio.TimeoutError:
