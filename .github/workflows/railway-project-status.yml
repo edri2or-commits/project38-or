@@ -1,0 +1,103 @@
+name: Railway Project Status
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to post results to'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  RAILWAY_API: https://backboard.railway.app/graphql/v2
+  RAILWAY_PROJECT_ID: "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+
+jobs:
+  check-all-services:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project="${PROJECT_ID}")
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Query All Services
+        id: query
+        run: |
+          echo "Querying all services in project..."
+
+          QUERY='query {
+            project(id: "'"$RAILWAY_PROJECT_ID"'") {
+              name
+              services {
+                edges {
+                  node {
+                    id
+                    name
+                    deployments(first: 3) {
+                      edges {
+                        node {
+                          id
+                          status
+                          createdAt
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }'
+
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ' | sed 's/"/\\"/g')\"}")
+
+          echo "Response:"
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          echo "$RESPONSE" > /tmp/project_status.json
+
+      - name: Analyze and Post Results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RESULT=$(cat /tmp/project_status.json | jq '.' 2>/dev/null || cat /tmp/project_status.json)
+
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          BODY="## Railway Project Status (All Services)
+
+          **Timestamp:** ${TIMESTAMP}
+
+          ### Raw Response
+          \`\`\`json
+          ${RESULT}
+          \`\`\`
+
+          ### What to Look For
+          - Any service with status \`BUILDING\` is blocking the queue (Hobby plan limit)
+          - Multiple \`QUEUED\` deployments indicate backlog
+          - \`REMOVED\` means successfully cleaned up
+          - \`SUCCESS\` means healthy deployment
+          "
+
+          gh issue comment ${{ inputs.issue_number }} --body "$BODY" --repo ${{ github.repository }}
