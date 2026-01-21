@@ -640,7 +640,7 @@ class MCPRouter:
         6. Return collected logs
         """
         if not WEBSOCKETS_AVAILABLE:
-            return {"error": "websockets library not available"}
+            return {"error": "websockets library not available - install with pip install websockets"}
 
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
@@ -687,6 +687,8 @@ class MCPRouter:
         # Step 3: Connect via WebSocket and stream logs
         logs = []
         error_msg = None
+
+        logger.info(f"Connecting to Railway WebSocket for deployment {deployment_id}")
 
         try:
             async with websockets.connect(
@@ -821,8 +823,15 @@ class MCPRouter:
             )
             services_data = response.json()
 
-        # Find deployment for service
-        edges = services_data.get("data", {}).get("project", {}).get("services", {}).get("edges", [])
+        # Check for GraphQL errors
+        if "errors" in services_data:
+            return {"error": f"GraphQL error: {services_data['errors']}"}
+
+        # Find deployment for service - handle null values safely
+        data = services_data.get("data") or {}
+        project = data.get("project") or {}
+        services = project.get("services") or {}
+        edges = services.get("edges") or []
         for edge in edges:
             if edge.get("node", {}).get("name") == service_name:
                 deployments = edge["node"].get("deployments", {}).get("edges", [])
