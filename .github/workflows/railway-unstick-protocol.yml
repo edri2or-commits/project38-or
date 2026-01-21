@@ -1,0 +1,265 @@
+name: Railway Unstick Protocol
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to post results to'
+        required: true
+        type: number
+      skip_cancel:
+        description: 'Skip cancel and go straight to remove'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  RAILWAY_API: https://backboard.railway.app/graphql/v2
+  RAILWAY_PROJECT_ID: "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+  RAILWAY_ENV_ID: "99c99a18-aea2-4d01-9360-6a93705102a0"
+  RAILWAY_SERVICE_ID: "7d427f80-c97f-4c8b-a301-2fecbd6d1331"
+
+jobs:
+  unstick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project="${PROJECT_ID}")
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: "Step 1: Diagnostic Query"
+        id: diagnose
+        run: |
+          echo "🔍 Step 1: Running Diagnostic Query..."
+
+          QUERY='query GetDeployments {
+            deployments(
+              input: {
+                projectId: "'"$RAILWAY_PROJECT_ID"'"
+                serviceId: "'"$RAILWAY_SERVICE_ID"'"
+              }
+              first: 10
+            ) {
+              edges {
+                node {
+                  id
+                  status
+                  createdAt
+                }
+              }
+            }
+          }'
+
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ' | sed 's/"/\\"/g')\"}")
+
+          echo "Raw response:"
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          # Save for later steps
+          echo "$RESPONSE" > /tmp/deployments.json
+
+          # Find blocking deployments (BUILDING, INITIALIZING, or old QUEUED)
+          echo ""
+          echo "📊 Deployment Analysis:"
+
+          # Extract deployments that might be blocking
+          BLOCKING=$(echo "$RESPONSE" | jq -r '.data.deployments.edges[] | select(.node.status == "BUILDING" or .node.status == "INITIALIZING" or .node.status == "QUEUED") | .node.id' 2>/dev/null | head -5)
+
+          if [ -n "$BLOCKING" ]; then
+            echo "Found potentially blocking deployments:"
+            echo "$BLOCKING"
+            # Get the first one as the primary blocker
+            BLOCKER_ID=$(echo "$BLOCKING" | head -1)
+            echo "blocker_id=$BLOCKER_ID" >> $GITHUB_OUTPUT
+            echo "has_blocker=true" >> $GITHUB_OUTPUT
+          else
+            echo "No obvious blocking deployments found"
+            echo "has_blocker=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "Step 2: Cancel Blocking Deployment"
+        id: cancel
+        if: steps.diagnose.outputs.has_blocker == 'true' && inputs.skip_cancel != 'true'
+        run: |
+          echo "🛑 Step 2: Attempting deploymentCancel..."
+
+          BLOCKER_ID="${{ steps.diagnose.outputs.blocker_id }}"
+          echo "Target deployment: $BLOCKER_ID"
+
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"mutation { deploymentCancel(id: \\\"$BLOCKER_ID\\\") }\"}")
+
+          echo "Cancel response:"
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          # Check if cancel worked
+          if echo "$RESPONSE" | grep -q "error"; then
+            echo "cancel_success=false" >> $GITHUB_OUTPUT
+          else
+            echo "cancel_success=true" >> $GITHUB_OUTPUT
+          fi
+
+          sleep 3
+
+      - name: "Step 3: Force Remove (if cancel failed)"
+        id: remove
+        if: steps.diagnose.outputs.has_blocker == 'true' && (steps.cancel.outputs.cancel_success == 'false' || inputs.skip_cancel == 'true')
+        run: |
+          echo "💀 Step 3: Force removing with deploymentRemove..."
+
+          BLOCKER_ID="${{ steps.diagnose.outputs.blocker_id }}"
+          echo "Target deployment: $BLOCKER_ID"
+
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"mutation { deploymentRemove(id: \\\"$BLOCKER_ID\\\") }\"}")
+
+          echo "Remove response:"
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          sleep 3
+
+      - name: "Step 4: Inspect Service Configuration"
+        id: config
+        run: |
+          echo "🔧 Step 4: Inspecting service configuration..."
+
+          # Note: The exact query depends on Railway's schema
+          # This attempts to get service settings
+          QUERY='query InspectService {
+            service(id: "'"$RAILWAY_SERVICE_ID"'") {
+              name
+              deployments(first: 1) {
+                edges {
+                  node {
+                    id
+                    status
+                    staticUrl
+                  }
+                }
+              }
+            }
+          }'
+
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ' | sed 's/"/\\"/g')\"}")
+
+          echo "Service config:"
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          echo "$RESPONSE" > /tmp/config.json
+
+      - name: "Step 5: Fresh Redeploy"
+        id: redeploy
+        run: |
+          echo "🚀 Step 5: Triggering fresh redeploy with serviceInstanceRedeploy..."
+
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"mutation { serviceInstanceRedeploy(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$RAILWAY_SERVICE_ID\\\") }\"}")
+
+          echo "Redeploy response:"
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          if echo "$RESPONSE" | grep -q "error"; then
+            echo "redeploy_success=false" >> $GITHUB_OUTPUT
+          else
+            echo "redeploy_success=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "Step 6: Verify New Status"
+        id: verify
+        run: |
+          echo "✅ Step 6: Waiting 30s and verifying new status..."
+          sleep 30
+
+          QUERY='query VerifyStatus {
+            deployments(
+              input: {
+                projectId: "'"$RAILWAY_PROJECT_ID"'"
+                serviceId: "'"$RAILWAY_SERVICE_ID"'"
+              }
+              first: 3
+            ) {
+              edges {
+                node {
+                  id
+                  status
+                  createdAt
+                }
+              }
+            }
+          }'
+
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ' | sed 's/"/\\"/g')\"}")
+
+          echo "Final status:"
+          echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"
+
+          echo "$RESPONSE" > /tmp/final_status.json
+
+      - name: Post Results to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DEPLOYMENTS=$(cat /tmp/deployments.json | jq '.' 2>/dev/null || cat /tmp/deployments.json)
+          CONFIG=$(cat /tmp/config.json | jq '.' 2>/dev/null || cat /tmp/config.json)
+          FINAL=$(cat /tmp/final_status.json | jq '.' 2>/dev/null || cat /tmp/final_status.json)
+
+          COMMENT="## 🔧 Railway Unstick Protocol Results
+
+**Timestamp:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+### Step 1: Diagnostic Query
+\`\`\`json
+${DEPLOYMENTS}
+\`\`\`
+
+### Step 4: Service Configuration
+\`\`\`json
+${CONFIG}
+\`\`\`
+
+### Step 6: Final Status (after redeploy)
+\`\`\`json
+${FINAL}
+\`\`\`
+
+---
+**Blocker Found:** ${{ steps.diagnose.outputs.has_blocker }}
+**Blocker ID:** ${{ steps.diagnose.outputs.blocker_id }}
+**Cancel Success:** ${{ steps.cancel.outputs.cancel_success }}
+**Redeploy Success:** ${{ steps.redeploy.outputs.redeploy_success }}
+"
+
+          gh issue comment ${{ inputs.issue_number }} --body "$COMMENT" --repo ${{ github.repository }}
