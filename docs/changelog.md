@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Browser MCP Tools in Gateway** (2026-01-21)
+  - Registered 6 browser tools in MCP Gateway (`src/mcp_gateway/server.py`)
+  - `browser_navigate` - Navigate to URL
+  - `browser_accessibility_tree` - Get compact tree (93% token reduction)
+  - `browser_click_ref` - Click by reference ID (@e1, @e2)
+  - `browser_fill_ref` - Fill input by reference ID
+  - `browser_screenshot` - Capture screenshot (base64 encoded)
+  - `browser_close` - Close browser and release resources
+
 - **Accessibility Tree Browser Tools** (2026-01-21)
   - Extended `src/mcp/browser.py` with Accessibility Tree approach (93% token reduction)
   - `get_accessibility_tree()` - Returns compact tree with reference IDs (@e1, @e2)
