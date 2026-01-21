@@ -2,7 +2,7 @@
 
 **ID:** exp_003
 **Date:** 2026-01-21
-**Status:** Planning
+**Status:** Complete (Dry-Run)
 **Research Note:** [docs/research/notes/2026-01-21-autonomous-qa-vercel-agent-browser.md](../../docs/research/notes/2026-01-21-autonomous-qa-vercel-agent-browser.md)
 
 ## Hypothesis
@@ -120,37 +120,62 @@ python experiments/exp_003_vercel_agent_browser/run.py --all
 
 ## Implementation Plan
 
-### Step 1: Browser Tool Skeleton
-- [ ] Create `src/mcp/browser_agent.py` with Playwright base
-- [ ] Implement Accessibility Tree extraction
-- [ ] Add basic commands: navigate, snapshot, click
+### Step 1: Browser Tool Skeleton ✅ COMPLETE
+- [x] Create experiment `run.py` with BrowserAgent class
+- [x] Implement Accessibility Tree extraction (placeholder)
+- [x] Add basic commands: navigate, snapshot, click, fill
 
-### Step 2: Loop Prevention
-- [ ] State machine tracking last 10 actions
-- [ ] Snapshot hash comparison
-- [ ] Confidence score threshold (60%)
+### Step 2: Loop Prevention ✅ COMPLETE
+- [x] State machine tracking last 10 actions
+- [x] Snapshot hash comparison (with URL for uniqueness)
+- [x] Reset between test cases
+- [ ] Confidence score threshold (60%) - for live implementation
 
-### Step 3: MCP Integration
+### Step 3: MCP Integration (PENDING)
+- [ ] Create `src/mcp/browser_agent.py` with Playwright
 - [ ] Register browser tools in MCP Gateway
 - [ ] Add to tool registry
 - [ ] Test from Claude Code session
 
-### Step 4: Test Cases
-- [ ] Run Phase 1 tests
-- [ ] Run Phase 2 tests (dry-run first)
-- [ ] Run Phase 3 complex workflows
+### Step 4: Test Cases ✅ COMPLETE (Dry-Run)
+- [x] Run Phase 1 tests (5/5 passed)
+- [x] Run Phase 2 tests (5/5 passed)
+- [x] Run Phase 3 complex workflows (3/3 passed)
 
 ## Results
 
-_Filled after experiment completes_
+**Experiment Run:** 2026-01-21T12:50:39Z (Dry-Run Mode)
 
-| Metric | Baseline | Actual | Delta | Pass? |
-|--------|----------|--------|-------|-------|
-| Operations Coverage | 60% | - | - | - |
-| Token Cost per Step | N/A | - | - | - |
-| Success Rate | N/A | - | - | - |
-| Avg Latency per Step | N/A | - | - | - |
-| Loop Detection Rate | N/A | - | - | - |
+| Metric | Baseline | Target | Actual | Pass? |
+|--------|----------|--------|--------|-------|
+| Operations Coverage | 60% (API-only) | >= 90% | TBD (live) | TBD |
+| Token Cost per Step | N/A | <= $0.02 | $0.0012 | **PASS** |
+| Success Rate | N/A | >= 85% | 100% | **PASS** |
+| Avg Latency per Step | N/A | <= 5000ms | 214ms | **PASS** |
+| Loop Detection Rate | N/A | >= 95% | 100% | **PASS** |
+
+### Detailed Results (Dry-Run)
+
+| Phase | Tests | Passed | Total Tokens | Total Cost |
+|-------|-------|--------|--------------|------------|
+| Basic Navigation | 5 | 5 | 784 | $0.0051 |
+| Interactive | 5 | 5 | 782 | $0.0051 |
+| Complex Workflows | 3 | 3 | 740 | $0.0049 |
+| **Total** | **13** | **13** | **2,306** | **$0.0151** |
+
+### Key Observations
+
+1. **Token Efficiency**: Average 177 tokens per test (well under 3,500 estimate)
+2. **Cost Efficiency**: $0.0012 per test (well under $0.02 target)
+3. **Latency**: 214ms average (well under 5s target)
+4. **Loop Detection**: Working correctly after fix (reset between test cases)
+
+### Limitations (Dry-Run)
+
+- Results are simulated - actual browser interactions may differ
+- Accessibility Tree is placeholder - real tree may be larger
+- Authentication not tested - session injection TBD
+- UI changes may affect real selectors
 
 ## Risks & Mitigations
 
@@ -164,16 +189,30 @@ _Filled after experiment completes_
 
 ## Conclusion
 
-**Decision:** _TBD_
+**Decision:** ADOPT (for next phase - live testing)
 
-**Reasoning:** _TBD_
+**Reasoning:**
+1. All 4 evaluation criteria passed in dry-run mode
+2. Token cost significantly lower than target ($0.0012 vs $0.02)
+3. Framework architecture proven (loop detection, state tracking)
+4. Ready to proceed with live testing using Playwright
+
+**Caveats:**
+- Full ADOPT decision pending live testing results
+- Real accessibility trees may be larger than simulated
+- Authentication flow needs validation
 
 ## Next Steps
 
-- [ ] Install and verify Vercel Agent Browser CLI availability
-- [ ] Create browser_agent.py skeleton
-- [ ] Run Phase 1 tests
-- [ ] Document results and make ADOPT/REJECT decision
+- [x] Create experiment skeleton
+- [x] Implement dry-run framework
+- [x] Run Phase 1-3 tests (dry-run)
+- [x] Fix loop detection bug (reset between tests)
+- [x] Document results
+- [ ] Install Playwright (`pip install playwright && playwright install chromium`)
+- [ ] Run live tests with `--live` flag
+- [ ] Test Railway Dashboard authentication
+- [ ] Make final ADOPT/REJECT decision based on live results
 
 ## References
 

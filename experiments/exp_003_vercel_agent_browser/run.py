@@ -153,11 +153,12 @@ class AccessibilityTreeExtractor:
     """Extracts accessibility tree from browser page."""
 
     @staticmethod
-    def extract(page_content: str) -> dict[str, Any]:
+    def extract(page_content: str, url: str = "") -> dict[str, Any]:
         """Extract accessibility tree from page.
 
         Args:
             page_content: Raw page content or DOM
+            url: Current page URL (for dry-run differentiation)
 
         Returns:
             Accessibility tree with element references
@@ -166,7 +167,8 @@ class AccessibilityTreeExtractor:
         # The accessibility tree is much smaller than DOM (~93% reduction)
         return {
             "role": "document",
-            "name": "Page Title",
+            "name": f"Page: {url}" if url else "Page Title",
+            "url": url,
             "children": [
                 {"role": "navigation", "ref": "@e1", "name": "Main Nav"},
                 {"role": "main", "ref": "@e2", "children": []},
@@ -195,6 +197,12 @@ class BrowserAgent:
         self.extractor = AccessibilityTreeExtractor()
         self.browser = None
         self.page = None
+        self.current_url = ""
+
+    def reset_loop_detector(self) -> None:
+        """Reset loop detector between test cases."""
+        self.loop_detector = LoopDetector()
+        self.current_url = ""
 
     async def initialize(self) -> None:
         """Initialize browser instance."""
@@ -231,6 +239,7 @@ class BrowserAgent:
         """
         start_time = time.time()
         tokens_used = 0
+        self.current_url = url
 
         if self.dry_run:
             print(f"[DRY RUN] Navigate to: {url}")
@@ -238,8 +247,8 @@ class BrowserAgent:
         else:
             await self.page.goto(url, wait_until="networkidle")
 
-        # Get accessibility tree snapshot
-        tree = self.extractor.extract("")
+        # Get accessibility tree snapshot (include URL for unique hash in dry-run)
+        tree = self.extractor.extract("", url=url)
         snapshot_hash = self.extractor.compute_hash(tree)
         tokens_used = len(json.dumps(tree)) // 4  # Rough token estimate
 
@@ -269,7 +278,8 @@ class BrowserAgent:
             print("[DRY RUN] Taking accessibility snapshot")
             await asyncio.sleep(0.05)
 
-        tree = self.extractor.extract("")
+        # Include current URL for unique hash in dry-run mode
+        tree = self.extractor.extract("", url=self.current_url)
         snapshot_hash = self.extractor.compute_hash(tree)
         tokens_used = len(json.dumps(tree)) // 4
 
@@ -542,6 +552,9 @@ async def run_test_case(agent: BrowserAgent, test_case: TestCase) -> TestResult:
     """
     print(f"\n--- Running: {test_case.name} ({test_case.id}) ---")
     print(f"Description: {test_case.description}")
+
+    # Reset loop detector between test cases
+    agent.reset_loop_detector()
 
     actions: list[BrowserAction] = []
     total_tokens = 0
