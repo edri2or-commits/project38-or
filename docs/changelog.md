@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Root cause: Healthcheck failure because app started on wrong port
 
 ### Added
+- **Railway Logs via WebSocket** (2026-01-21)
+  - Implemented WebSocket subscription to Railway Backboard API (`wss://backboard.railway.app/graphql/v2`)
+  - Added `railway_logs` tool to MCP Gateway for fetching build/deploy logs
+  - Protocol: `graphql-transport-ws` with Bearer token authentication
+  - Supports `buildLogs(deploymentId)` and `deploymentLogs(deploymentId)` subscriptions
+  - Fixed null safety bug in WebSocket payload parsing (`(data.get("key") or {})` pattern)
+  - Added `railway_logs_debug` tool for troubleshooting
+  - Updated GCP tunnel health check to include `railway_logs` test
+  - PRs: #391, #392, #393, #394, #395, #396
+
 - **ADR-010 Phase 3: Monitoring Dashboards** (2026-01-20) - Phase 34
   - **Prometheus Metrics**: Exposed `/metrics` endpoint for monitoring
     - Added `callbacks: ["prometheus"]` to litellm_settings

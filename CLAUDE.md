@@ -1694,6 +1694,7 @@ gh auth status
 | `railway_status()` | Get current deployment status |
 | `railway_deployments()` | List recent deployments |
 | `railway_rollback()` | Rollback to previous successful deployment |
+| `railway_logs()` | Fetch build/deploy logs via WebSocket subscription |
 | `n8n_trigger()` | Trigger n8n workflow via webhook |
 | `n8n_list()` | List available workflows |
 | `n8n_status()` | Check workflow webhook accessibility |
