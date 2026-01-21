@@ -5083,5 +5083,84 @@ To visualize metrics in Grafana Cloud:
 
 ---
 
-*Last Updated: 2026-01-20 UTC*
-*Status: **Phase 34 Complete - LiteLLM Monitoring Dashboards***
+## Phase 35: Railway WebSocket Logs - Full Autonomy (2026-01-21)
+
+### Goal
+
+Implement WebSocket-based log fetching from Railway Backboard API to enable full autonomous diagnosis of deployment failures without manual intervention.
+
+### Background
+
+Railway's GraphQL API requires **WebSocket subscriptions** for logs - not HTTP queries. This was discovered through research of Railway's Backboard API architecture.
+
+### Implementation
+
+#### 1. WebSocket Subscription
+
+Added WebSocket client to MCP Router (`cloud_functions/mcp_router/main.py`):
+
+```python
+async with websockets.connect(
+    "wss://backboard.railway.app/graphql/v2",
+    subprotocols=["graphql-transport-ws"],
+    additional_headers={"Origin": "https://railway.app"}
+) as ws:
+    # connection_init → connection_ack → subscribe → next (stream) → complete
+```
+
+#### 2. Subscription Types
+
+| Subscription | Purpose |
+|--------------|---------|
+| `buildLogs(deploymentId)` | Nixpacks build output |
+| `deploymentLogs(deploymentId)` | Runtime application logs |
+
+#### 3. Null Safety Fix
+
+Python's `dict.get("key", {})` returns `None` if key exists with `null` value:
+
+```python
+# WRONG: Returns None if "payload" exists with null value
+payload = data.get("payload", {})
+
+# CORRECT: Always returns dict
+payload = data.get("payload") or {}
+```
+
+### Files Modified
+
+| File | Changes | Description |
+|------|---------|-------------|
+| `cloud_functions/mcp_router/main.py` | +150 | WebSocket subscription implementation |
+| `cloud_functions/mcp_router/requirements.txt` | +1 | Added `websockets>=12.0` |
+| `.github/workflows/gcp-tunnel-health-check.yml` | +17 | Added `railway_logs` test |
+| `CLAUDE.md` | +1 | Added `railway_logs` tool to table |
+| `docs/changelog.md` | +10 | Phase 35 entry |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Added `railway_logs()` to MCP Gateway tools |
+| Layer 2 | N/A | No new ADR needed (extends existing Railway tooling) |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 35) |
+| Layer 4 | `docs/changelog.md` | WebSocket logs entry |
+
+### Evidence
+
+- **PR #391**: WebSocket subscription implementation
+- **PR #392**: Null safety fix for `_get_latest_deployment`
+- **PR #393**: Additional null safety fixes
+- **PR #394**: Debug tool `railway_logs_debug`
+- **PR #395**: Null safety for WebSocket payload parsing
+- **PR #396**: Add `railway_logs` to health check
+- **Health Check Run**: #21192871457 - All 5 tools passed
+
+### Status
+
+**Phase 35: ✅ COMPLETE - Railway WebSocket Logs for Full Autonomy**
+
+---
+
+*Last Updated: 2026-01-21 UTC*
+*Status: **Phase 35 Complete - Railway WebSocket Logs***

@@ -744,3 +744,37 @@ This section tracks implementation progress against the decision:
 - Security: WIF authentication, no service account keys
 
 **Status:** Accepted (Implementation Phase)
+
+---
+
+### 2026-01-21: Railway WebSocket Logs - Full Diagnosis Autonomy
+
+**Enhancement:**
+- Added `railway_logs` tool to MCP Gateway for fetching build/deploy logs
+- Implemented WebSocket subscription to Railway Backboard API
+
+**Technical Details:**
+- Protocol: `graphql-transport-ws` over `wss://backboard.railway.app/graphql/v2`
+- Subscriptions: `buildLogs(deploymentId)`, `deploymentLogs(deploymentId)`
+- Authentication: Bearer token in `connection_init` payload
+
+**Implementation:**
+- ✅ `cloud_functions/mcp_router/main.py` - WebSocket subscription (+150 lines)
+- ✅ `cloud_functions/mcp_router/requirements.txt` - Added `websockets>=12.0`
+- ✅ `.github/workflows/gcp-tunnel-health-check.yml` - Added `railway_logs` test
+
+**Bug Fixed:**
+- Null safety in WebSocket payload parsing
+- Python's `dict.get("key", {})` returns `None` if key exists with `null` value
+- Fix: Use `(data.get("key") or {})` pattern
+
+**Pull Requests:**
+- PR #391: WebSocket subscription implementation
+- PR #392-395: Null safety fixes
+- PR #396: Health check update
+
+**Evidence:**
+- Health Check Run #21192871457: All 5 tools passed (including `railway_logs`)
+- Tools verified: gcp_project_info, gcp_secret_list, health_check, railway_status, railway_logs
+
+**ADR Status Updated:** ☑️ Full diagnosis autonomy achieved - can now fetch Railway logs without manual intervention
