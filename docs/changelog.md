@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Skill Trigger Router** (2026-01-22)
+  - Added mandatory section to CLAUDE.md that enforces skill activation on trigger detection
+  - Maps 11 skill triggers (Hebrew + English) to their corresponding skills
+  - Defines required response format when trigger is detected
+  - Includes example of correct vs wrong responses
+  - Fixes issue where trigger_keywords in SKILL.md files were ignored
+
 ### Fixed
 - **monitoring_loop.py API alignment and test re-enablement** (2026-01-22)
   - Fixed `detect_anomaly()` call: parameter `metric_name` → `metric` (line 471-474)

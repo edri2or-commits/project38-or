@@ -957,6 +957,65 @@ System:
 
 ---
 
+## Skill Trigger Router (MANDATORY)
+
+**CRITICAL INSTRUCTION**: Before responding to ANY user message, scan for skill triggers below. If a trigger matches, you MUST engage that skill's workflow instead of giving a generic response.
+
+### How to Use
+
+1. **Scan** user message for trigger keywords (Hebrew or English)
+2. **If match found** → Read the skill's SKILL.md file
+3. **Engage** the skill's defined workflow
+4. **Announce** which skill you're using
+
+### Trigger → Skill Mapping
+
+| Trigger Keywords | Skill | Action |
+|------------------|-------|--------|
+| `מחשבה מפוזרת`, `בקשה`, `רעיון`, `שינוי`, `בעיה`, `החלטה`, `scattered`, `idea`, `request` | **adr-architect** | Run 9-step ADR workflow |
+| `הוסף מחקר`, `מחקר`, `add research`, `research` | **research-ingestion** | Create research note (ADR-009) |
+| `email`, `inbox`, `gmail`, `מייל`, `תיבה` | **email-assistant** | Gmail triage/reply workflow |
+| `create pr`, `pull request`, `ready to merge` | **pr-helper** + **preflight-check** | Run preflight → create PR |
+| `test`, `tests`, `pytest`, `run tests` | **test-runner** | Run test suite |
+| `changelog`, `update changelog` | **changelog-updater** | Generate changelog from commits |
+| `documentation`, `docs`, `docstring` | **doc-updater** | Update documentation |
+| `dependencies`, `vulnerabilities`, `audit` | **dependency-checker** | Security audit |
+| `secrets`, `security check`, `check secrets` | **security-checker** | Scan for secrets |
+| `performance`, `CI performance`, `slow ci` | **performance-monitor** | CI/CD performance report |
+| `costs`, `spending`, `API costs`, `budget` | **cost-optimizer** | Cost analysis report |
+
+### Required Response Format (When Trigger Detected)
+
+```
+מזהה trigger: [keyword] → מפעיל skill: [skill-name]
+
+[Read SKILL.md and follow its workflow]
+```
+
+### Example
+
+**User says:** "יש לי מחשבה מפוזרת"
+
+**Correct response:**
+```
+מזהה trigger: "מחשבה מפוזרת" → מפעיל skill: adr-architect
+
+מעולה. שתף אותי במחשבה.
+
+אני אפעיל את תהליך adr-architect (ADR-011) - 9 שלבים:
+1. INTAKE - להבין מה אתה מבקש
+2. SYSTEM MAPPING - לחקור את הקוד
+...
+```
+
+**Wrong response:**
+```
+מצוין, אני כאן לעזור לארגן אותה...
+[Generic response without mentioning the skill]
+```
+
+---
+
 ## Available Skills
 
 Claude Code supports **Skills** - version-controlled, reusable agent behaviors that enable standardized workflow automation. Skills are stored in `.claude/skills/` and define scoped tool access, safety constraints, and step-by-step instructions.
