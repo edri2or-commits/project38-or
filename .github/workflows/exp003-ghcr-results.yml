@@ -1,0 +1,249 @@
+name: exp_003 Live Test (GHCR Results)
+
+# This workflow implements the permanent solution for proxy-friendly results storage
+# Based on Deep Research findings:
+# - Research #1: workflow_dispatch must be on default branch to register
+# - Research #2: ORAS/GHCR bypasses proxy restrictions (ghcr.io allowed, blob.core.windows.net blocked)
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: 'Phase to run (1=Basic, 2=Interactive, 3=Complex, all=All)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - 'all'
+
+permissions:
+  contents: write
+  packages: write  # Required for GHCR push
+  issues: write
+
+concurrency:
+  group: exp003-ghcr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-live-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright anthropic
+          playwright install chromium --with-deps
+
+      - name: Run live tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+
+          if [ "${{ inputs.phase }}" = "all" ]; then
+            python run.py --all --live --output results_live.json
+          else
+            python run.py --phase ${{ inputs.phase }} --live --output results_live.json
+          fi
+
+      - name: Display results
+        if: always()
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            echo "=== LIVE TEST RESULTS ==="
+            cat results_live.json | python -m json.tool
+          fi
+
+      # ===== STRATEGY 1: GHCR via ORAS (from Research #2) =====
+      # ghcr.io is proxy-friendly (not blocked like Azure Blob Storage)
+      - name: Install ORAS CLI
+        if: always()
+        run: |
+          VERSION="1.2.0"
+          curl -sLO "https://github.com/oras-project/oras/releases/download/v${VERSION}/oras_${VERSION}_linux_amd64.tar.gz"
+          tar -xzf "oras_${VERSION}_linux_amd64.tar.gz"
+          sudo mv oras /usr/local/bin/
+          oras version
+
+      - name: Push results to GHCR
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            echo "Pushing results to GHCR..."
+
+            # Login to GHCR
+            echo "$GITHUB_TOKEN" | oras login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Create artifact tag with run ID for uniqueness
+            ARTIFACT_TAG="ghcr.io/${{ github.repository }}/exp003-results:run-${{ github.run_id }}"
+            ARTIFACT_LATEST="ghcr.io/${{ github.repository }}/exp003-results:latest"
+
+            # Push with proper media type
+            oras push "$ARTIFACT_TAG" \
+              --artifact-type application/vnd.exp003.results+json \
+              results_live.json:application/json
+
+            # Also push as latest for easy retrieval
+            oras push "$ARTIFACT_LATEST" \
+              --artifact-type application/vnd.exp003.results+json \
+              results_live.json:application/json
+
+            echo "Results pushed to:"
+            echo "  - $ARTIFACT_TAG"
+            echo "  - $ARTIFACT_LATEST"
+          fi
+
+      # ===== STRATEGY 2: Git-Bridge (from Research #1) =====
+      # Use orphan branch as data storage - works via git protocol
+      - name: Push results to Git-Bridge
+        if: always()
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            echo "Pushing results to Git-Bridge..."
+
+            # Create orphan branch for this run
+            BRANCH_NAME="artifacts/exp003-run-${{ github.run_id }}"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Create orphan branch with only the results file
+            git checkout --orphan "$BRANCH_NAME"
+            git rm -rf . 2>/dev/null || true
+            git clean -fd
+
+            # Copy results and commit
+            cp /home/runner/work/project38-or/project38-or/experiments/exp_003_vercel_agent_browser/results_live.json ./results.json
+
+            # Add metadata
+            cat > metadata.json << EOF
+          {
+            "run_id": "${{ github.run_id }}",
+            "run_number": "${{ github.run_number }}",
+            "experiment": "exp_003",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "branch": "${{ github.ref_name }}",
+            "sha": "${{ github.sha }}"
+          }
+          EOF
+
+            git add results.json metadata.json
+            git commit -m "exp003 results from run ${{ github.run_id }}"
+
+            # Push to orphan branch
+            git push origin "$BRANCH_NAME" --force
+
+            echo "Results pushed to branch: $BRANCH_NAME"
+          fi
+
+      # ===== STRATEGY 3: IssueOps (fallback) =====
+      # Creates issue with embedded JSON for API retrieval
+      - name: Create issue with results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd /home/runner/work/project38-or/project38-or/experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            python3 << 'PYTHON'
+          import json
+
+          with open('results_live.json') as f:
+              data = json.load(f)
+
+          decision = data.get('decision', 'UNKNOWN')
+          success_rate = data['metrics'].get('success_rate', 0) * 100
+          total_cost = data['metrics'].get('total_cost_usd', 0)
+          avg_latency = data['metrics'].get('avg_latency_ms', 0)
+
+          body = f"""## exp_003 Live Test Results
+
+          **Decision:** {decision}
+          **Success Rate:** {success_rate:.1f}%
+          **Total Cost:** ${total_cost:.4f}
+          **Avg Latency:** {avg_latency:.0f}ms
+          **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ### Retrieval Methods (Proxy-Safe)
+
+          **1. GHCR (Recommended):**
+          ```bash
+          oras pull ghcr.io/${{ github.repository }}/exp003-results:run-${{ github.run_id }}
+          ```
+
+          **2. Git-Bridge:**
+          ```bash
+          git fetch origin artifacts/exp003-run-${{ github.run_id }}
+          git show FETCH_HEAD:results.json
+          ```
+
+          **3. Issue API (this issue):**
+          Extract JSON from code block below.
+
+          ### Test Results Summary
+
+          | Test | Success | Cost | Latency |
+          |------|---------|------|---------|
+          """
+
+          for test in data.get('test_results', []):
+              status = "✅" if test['success'] else "❌"
+              body += f"| {test['test_case_id']} | {status} | ${test['cost_usd']:.4f} | {test['latency_ms']:.0f}ms |\n"
+
+          body += f"""
+          ### Raw Results (JSON)
+
+          <!-- MACHINE_READABLE_START -->
+          ```json
+          {json.dumps(data, indent=2)}
+          ```
+          <!-- MACHINE_READABLE_END -->
+          """
+
+          with open('issue_body.md', 'w') as f:
+              f.write(body)
+
+          with open('decision.txt', 'w') as f:
+              f.write(f"{decision}|{success_rate:.1f}%")
+          PYTHON
+
+            DECISION=$(cut -d'|' -f1 decision.txt)
+            SUCCESS_RATE=$(cut -d'|' -f2 decision.txt)
+
+            gh issue create \
+              --title "exp_003 Results [Run ${{ github.run_id }}]: $DECISION ($SUCCESS_RATE success)" \
+              --body-file issue_body.md \
+              --label "experiment,automated" \
+              || echo "Issue creation failed - check other retrieval methods"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Results Storage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Method | Location | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| GHCR (ORAS) | \`ghcr.io/${{ github.repository }}/exp003-results:run-${{ github.run_id }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Git-Bridge | \`artifacts/exp003-run-${{ github.run_id }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Issue | Search for 'exp_003 Results [Run ${{ github.run_id }}]' | ✅ |" >> $GITHUB_STEP_SUMMARY
