@@ -1,0 +1,170 @@
+name: Configure Night Watch
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: 'Telegram Chat ID (leave empty to auto-detect from bot)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  WIF_PROVIDER: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SERVICE_ACCOUNT: claude-code-agent@project38-483612.iam.gserviceaccount.com
+  RAILWAY_PROJECT_ID: 95ec21cc-9ada-41c5-8485-12f9a00e0116
+  RAILWAY_ENVIRONMENT_ID: 99c99a18-aea2-4d01-9360-6a93705102a0
+  TELEGRAM_BOT_URL: https://telegram-bot-production-053d.up.railway.app
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway API Token
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=${{ env.PROJECT_ID }})
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Get Telegram Chat ID
+        id: chat
+        run: |
+          CHAT_ID="${{ inputs.chat_id }}"
+
+          if [ -z "$CHAT_ID" ]; then
+            echo "No chat_id provided, trying to get from Telegram bot..."
+
+            # Try to get chat IDs from the bot
+            RESPONSE=$(curl -s --max-time 10 "${{ env.TELEGRAM_BOT_URL }}/chats" || echo '{"chats":[]}')
+            echo "Bot response: $RESPONSE"
+
+            # Get the first chat ID
+            CHAT_ID=$(echo "$RESPONSE" | jq -r '.chats[0].chat_id // empty')
+
+            if [ -z "$CHAT_ID" ]; then
+              echo "::error::No chat_id found. Please provide one manually or send a message to the bot first."
+              exit 1
+            fi
+
+            echo "Auto-detected chat_id: $CHAT_ID"
+          fi
+
+          echo "chat_id=$CHAT_ID" >> $GITHUB_OUTPUT
+
+      - name: Get Railway Service ID
+        id: service
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"{ project(id: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\") { services { edges { node { id name } } } } }\"}")
+
+          # Get the main app service (not telegram-bot, not litellm)
+          SERVICE_ID=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name | test("^(main|app|delightful)"; "i") or (. == .data.project.services.edges[0])) | .node.id' | head -1)
+
+          if [ -z "$SERVICE_ID" ]; then
+            SERVICE_ID=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[0].node.id')
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+
+      - name: Set NIGHTWATCH_ENABLED
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\", serviceId: \\\"$SERVICE_ID\\\", name: \\\"NIGHTWATCH_ENABLED\\\", value: \\\"true\\\" }) }\"
+            }"
+          echo "Set NIGHTWATCH_ENABLED=true"
+
+      - name: Set NIGHTWATCH_CHAT_ID
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+          CHAT_ID: ${{ steps.chat.outputs.chat_id }}
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\", serviceId: \\\"$SERVICE_ID\\\", name: \\\"NIGHTWATCH_CHAT_ID\\\", value: \\\"$CHAT_ID\\\" }) }\"
+            }"
+          echo "Set NIGHTWATCH_CHAT_ID=$CHAT_ID"
+
+      - name: Set MONITORING_AUTO_START
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\", serviceId: \\\"$SERVICE_ID\\\", name: \\\"MONITORING_AUTO_START\\\", value: \\\"true\\\" }) }\"
+            }"
+          echo "Set MONITORING_AUTO_START=true"
+
+      - name: Set TELEGRAM_BOT_URL
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\", serviceId: \\\"$SERVICE_ID\\\", name: \\\"TELEGRAM_BOT_URL\\\", value: \\\"${{ env.TELEGRAM_BOT_URL }}\\\" }) }\"
+            }"
+          echo "Set TELEGRAM_BOT_URL=${{ env.TELEGRAM_BOT_URL }}"
+
+      - name: Trigger Redeploy
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { serviceInstanceRedeploy(serviceId: \\\"$SERVICE_ID\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\") }\"
+            }")
+          echo "Redeploy triggered: $RESPONSE"
+
+      - name: Summary
+        env:
+          CHAT_ID: ${{ steps.chat.outputs.chat_id }}
+        run: |
+          echo "## Night Watch Configuration Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Environment Variables Set:" >> $GITHUB_STEP_SUMMARY
+          echo "- NIGHTWATCH_ENABLED=true" >> $GITHUB_STEP_SUMMARY
+          echo "- NIGHTWATCH_CHAT_ID=$CHAT_ID" >> $GITHUB_STEP_SUMMARY
+          echo "- MONITORING_AUTO_START=true" >> $GITHUB_STEP_SUMMARY
+          echo "- TELEGRAM_BOT_URL=${{ env.TELEGRAM_BOT_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Night Watch Schedule:" >> $GITHUB_STEP_SUMMARY
+          echo "- Health checks: Every hour during 00:00-06:00 UTC" >> $GITHUB_STEP_SUMMARY
+          echo "- Morning summary: 06:00 UTC daily" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Redeploy triggered. Night Watch will be active after deployment completes." >> $GITHUB_STEP_SUMMARY
