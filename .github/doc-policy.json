@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "description": "4-Layer Documentation Enforcement Policy for project38-or",
+  "meta": {
+    "created": "2026-01-22",
+    "based_on": "ADR-012 Context Integrity Architecture",
+    "reference": "Deep Research: Policy-as-Code Architecture for Autonomous AI Systems"
+  },
+  "policies": [
+    {
+      "id": "layer1-context-sync",
+      "name": "AI Context Integrity",
+      "description": "Ensure CLAUDE.md reflects core system changes",
+      "layer": 1,
+      "severity": "fail",
+      "triggers": [
+        "src/**/*.py",
+        "railway.toml",
+        "pyproject.toml",
+        "services/**/*",
+        ".github/workflows/*.yml"
+      ],
+      "excludes": [
+        "src/**/*_test.py",
+        "tests/**",
+        "**/__pycache__/**"
+      ],
+      "requires": ["CLAUDE.md"],
+      "message": "Core logic, infrastructure, or workflows changed. Update CLAUDE.md to maintain AI agent context integrity."
+    },
+    {
+      "id": "layer2-adr-journey",
+      "name": "ADR requires JOURNEY update",
+      "description": "New ADRs must be logged in project timeline",
+      "layer": 2,
+      "severity": "fail",
+      "triggers": [
+        "docs/decisions/ADR-*.md"
+      ],
+      "excludes": [],
+      "requires": ["docs/JOURNEY.md"],
+      "message": "New or modified ADR detected. Update docs/JOURNEY.md with a new Phase entry."
+    },
+    {
+      "id": "layer2-skill-claude",
+      "name": "Skill requires CLAUDE.md update",
+      "description": "New skills must be documented in quick context",
+      "layer": 2,
+      "severity": "fail",
+      "triggers": [
+        ".claude/skills/**/SKILL.md"
+      ],
+      "excludes": [],
+      "requires": ["CLAUDE.md"],
+      "message": "New or modified skill detected. Update CLAUDE.md Available Skills section."
+    },
+    {
+      "id": "layer4-changelog",
+      "name": "Code requires changelog",
+      "description": "Source code changes must be logged",
+      "layer": 4,
+      "severity": "fail",
+      "triggers": [
+        "src/**/*.py"
+      ],
+      "excludes": [
+        "src/**/*_test.py",
+        "tests/**",
+        "**/__pycache__/**"
+      ],
+      "requires": ["docs/changelog.md"],
+      "message": "Source code modified. Update docs/changelog.md under [Unreleased] section."
+    },
+    {
+      "id": "layer3-significant-changes",
+      "name": "Significant changes need JOURNEY",
+      "description": "Large changes should be documented in timeline",
+      "layer": 3,
+      "severity": "warn",
+      "triggers": [
+        "src/**/*.py"
+      ],
+      "excludes": [
+        "src/**/*_test.py",
+        "tests/**"
+      ],
+      "requires": ["docs/JOURNEY.md"],
+      "threshold_lines": 100,
+      "message": "Significant code changes detected (100+ lines). Consider updating docs/JOURNEY.md."
+    },
+    {
+      "id": "mcp-gateway-docs",
+      "name": "MCP Gateway changes need docs",
+      "description": "MCP tools must be documented",
+      "layer": 1,
+      "severity": "fail",
+      "triggers": [
+        "src/mcp_gateway/**/*.py",
+        "cloud_functions/mcp_router/**/*.py"
+      ],
+      "excludes": [],
+      "requires": ["CLAUDE.md"],
+      "message": "MCP Gateway or Tunnel modified. Update CLAUDE.md MCP tools documentation."
+    },
+    {
+      "id": "research-notes-issue",
+      "name": "Research notes need classification",
+      "description": "New research notes should have local issues",
+      "layer": 4,
+      "severity": "warn",
+      "triggers": [
+        "docs/research/notes/*.md"
+      ],
+      "excludes": [],
+      "requires": ["docs/research/issues/ISSUE-*.md"],
+      "message": "New research note detected. Consider creating a local issue for classification (ADR-009 process)."
+    }
+  ],
+  "escape_hatches": {
+    "labels": ["skip-docs", "hotfix", "typo-fix"],
+    "description": "PRs with these labels bypass documentation checks"
+  },
+  "big_pr_warning": {
+    "threshold_additions": 500,
+    "threshold_deletions": 200,
+    "message": "Large PR detected. Ensure all 4 documentation layers are updated."
+  }
+}

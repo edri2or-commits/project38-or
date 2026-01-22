@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-012: Context Integrity Enforcement Architecture** (2026-01-22)
+  - Implements Hybrid Enforcement Model for 4-layer documentation
+  - Based on Deep Research: "Policy-as-Code Architecture for Autonomous AI Systems"
+  - **Hard Gate (DangerJS)**: Deterministic enforcement that blocks PRs
+    - Policy rules in `.github/doc-policy.json`
+    - Enforcement logic in `dangerfile.ts`
+    - Workflow in `.github/workflows/enforce-docs.yml`
+  - **Soft Gate (CodeRabbit)**: AI semantic verification (warns only)
+    - Configuration in `.coderabbit.yaml`
+    - Path-specific instructions for each documentation layer
+  - Policy rules enforce:
+    - src/ changes → requires changelog.md
+    - ADR changes → requires JOURNEY.md
+    - Skill changes → requires CLAUDE.md
+    - MCP changes → requires CLAUDE.md
+  - Escape hatches: `skip-docs`, `hotfix`, `typo-fix` labels
+  - Research score: DangerJS 4.8/5 vs OPA 3.0/5 vs Python 4.0/5
+  - Solves "Context Drift" problem for autonomous AI agents
+
 - **ADR-011: ADR Architect - Structured Request Processing** (2026-01-22)
   - New architectural decision record for handling scattered/vague user requests
   - Defines 9-step workflow: Intake → System Mapping → Reality Check → Decision Analysis → External Research → Pattern from History → Impulsivity Check → Plan → Deliverable

@@ -46,6 +46,7 @@ secrets/
 !services/**/grafana-dashboard.json
 !tests/golden/*.json
 !config/feature_flags.yaml
+!.github/doc-policy.json
 
 # IDE
 .vscode/

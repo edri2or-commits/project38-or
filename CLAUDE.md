@@ -50,6 +50,8 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-008: Robust Automation Strategy](docs/decisions/ADR-008-robust-automation-strategy.md) - Defensive automation patterns
 - [ADR-009: Research Integration Architecture](docs/decisions/ADR-009-research-integration-architecture.md) - Process for integrating new AI research
 - [ADR-010: Multi-LLM Routing Strategy](docs/decisions/ADR-010-multi-llm-routing-strategy.md) - LiteLLM Gateway for multi-provider AI routing
+- [ADR-011: ADR Architect](docs/decisions/ADR-011-adr-architect-structured-request-processing.md) - 9-step workflow for scattered requests → structured ADRs
+- [ADR-012: Context Integrity Enforcement](docs/decisions/ADR-012-context-integrity-enforcement.md) - Automated 4-layer documentation enforcement
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
@@ -188,10 +190,31 @@ Frequency: Every major feature completion (not every commit)
 
 ## Automatic Documentation Rules
 
-**This is mandatory - enforced by CI:**
+**This is mandatory - enforced by CI (ADR-012):**
 
-> ⚠️ PRs that modify `src/` without updating `docs/changelog.md` will FAIL.
-> Docstrings are checked by pydocstyle (Google style required).
+> ⚠️ PRs are automatically blocked by DangerJS if documentation is incomplete.
+> The system uses a **Hybrid Enforcement Model**:
+> - **Hard Gate (DangerJS)**: Deterministic checks that BLOCK PRs
+> - **Soft Gate (CodeRabbit)**: AI semantic verification that WARNS only
+
+### Context Integrity Enforcement
+
+Based on [ADR-012](docs/decisions/ADR-012-context-integrity-enforcement.md), the following rules are enforced:
+
+| Trigger | Required Update | Severity |
+|---------|-----------------|----------|
+| `src/**/*.py` changes | `docs/changelog.md` | **FAIL** |
+| `docs/decisions/ADR-*.md` created | `docs/JOURNEY.md` | **FAIL** |
+| `.claude/skills/**/SKILL.md` created | `CLAUDE.md` | **FAIL** |
+| `src/mcp_gateway/**` changes | `CLAUDE.md` | **FAIL** |
+| Large changes (100+ lines) | `docs/JOURNEY.md` | WARN |
+
+**Escape hatches:** Add label `skip-docs`, `hotfix`, or `typo-fix` to bypass.
+
+**Configuration files:**
+- `.github/doc-policy.json` - Policy rules
+- `dangerfile.ts` - Enforcement logic
+- `.coderabbit.yaml` - AI verification config
 
 ### When I Change Code:
 | Change Type | Documentation Action |
