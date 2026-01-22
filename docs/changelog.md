@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test results: 46 passed, 1 skipped (cryptography dependency)
 
 ### Added
+- **Credential Management Tests** (2026-01-22)
+  - Created `tests/test_credential_lifecycle.py` (28 tests) - credential health checks, auto-refresh
+  - Created `tests/test_token_rotation.py` (22 tests) - token rotation interlock with rollback
+  - Total: 50 new tests for credential management modules
+  - Graceful skipping for tests requiring GCP libraries and cryptography
+
 - **MCP Gateway Tests for 5 Modules** (2026-01-22)
   - Created `tests/test_mcp_gateway_auth.py` (10 tests) - bearer token validation
   - Created `tests/test_mcp_gateway_config.py` (6 tests) - configuration loading
