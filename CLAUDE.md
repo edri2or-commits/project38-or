@@ -1604,6 +1604,60 @@ python scripts/auto_weekly_review.py
 - ✅ Zero unauthorized sends
 - ✅ Complete audit trail maintained
 
+### adr-architect (v1.0.0)
+
+**Purpose:** Transform scattered user requests into structured ADRs with evidence-backed decisions following Truth Protocol. Use when user has vague ideas, unclear requests, or scattered thoughts that need to become engineering decisions.
+
+**Triggers:**
+- Keywords: `adr`, `בקשה`, `רעיון`, `שינוי`, `הוספה`, `הסרה`, `בעיה`, `מחשבה`, `החלטה`, `request`, `idea`, `change`, `problem`, `decision`, `scattered`, `מפוזר`
+- User provides unclear/vague request
+- User asks for system changes without clear requirements
+
+**What it does:**
+1. **INTAKE** - Parse raw request, extract intent
+2. **SYSTEM MAPPING** - Investigate codebase, show proof of work
+3. **REALITY CHECK** - Compare user expectation vs actual system
+4. **DECISION ANALYSIS** - Present 2-4 options with pros/cons
+5. **EXTERNAL RESEARCH** - Search for best practices
+6. **PATTERN FROM HISTORY** - Check past similar requests
+7. **IMPULSIVITY CHECK** - Detect potential impulsive requests
+8. **PLAN** - Create implementation plan with metrics
+9. **DELIVERABLE** - Full ADR + executive summary + questions
+
+**When to use:**
+```
+# Scattered thought
+"אני רוצה שהבוט יהיה יותר חכם. משהו עם AI או ככה."
+
+# Vague request
+"תוסיף משהו שעוזר עם ניהול המיילים"
+
+# Unclear requirement
+"I want better monitoring"
+
+# Direct invocation
+"צור ADR לשינוי הזה: [description]"
+```
+
+**Files:**
+- Skill definition: `.claude/skills/adr-architect/SKILL.md`
+- ADR definition: `docs/decisions/ADR-011-adr-architect-structured-request-processing.md`
+- Output directory: `docs/decisions/`
+
+**Safety:**
+- `plan_mode_required: false`
+- **Truth Protocol:** No fabrication, all claims verified
+- Never auto-commits code changes
+- Always asks impulsivity check question
+- Documents proof of work for transparency
+- Allowed tools: Read, Edit, Write, Bash, Grep, Glob, WebSearch, WebFetch, AskUserQuestion, Task
+
+**Success metrics:**
+- ✅ ADR creation time < 30 minutes
+- ✅ 100% claims have evidence sources
+- ✅ User understands decision rationale
+- ✅ Historical patterns tracked and learned
+
 ### Creating New Skills
 
 See `.claude/skills/README.md` for:
