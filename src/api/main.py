@@ -18,6 +18,7 @@ from src.api.routes import (
     learning,
     metrics,
     monitoring,
+    nightwatch,
     secrets_health,
     tasks,
 )
@@ -68,6 +69,21 @@ async def lifespan(app: FastAPI):
             logger.info("GCS MCP Relay started")
         except Exception as e:
             logger.warning(f"Failed to start GCS relay: {e}")
+
+    # Start MonitoringLoop if enabled (for Night Watch)
+    monitoring_auto_start = os.getenv("MONITORING_AUTO_START", "false").lower() == "true"
+    if monitoring_auto_start:
+        try:
+            from src.monitoring_loop import create_railway_monitoring_loop
+
+            monitoring_loop = create_railway_monitoring_loop()
+            # Start in background task
+            import asyncio
+
+            asyncio.create_task(monitoring_loop.start())
+            logger.info("MonitoringLoop auto-started for Night Watch")
+        except Exception as e:
+            logger.warning(f"Failed to auto-start MonitoringLoop: {e}")
 
     # Start GitHub relay polling if enabled
     # Disabled by default - enable with GITHUB_RELAY_ENABLED=true in Railway env vars
@@ -143,6 +159,7 @@ app.include_router(backups.router, prefix="/api", tags=["backups"])
 app.include_router(metrics.router, tags=["metrics"])
 app.include_router(costs.router, tags=["costs"])
 app.include_router(monitoring.router, tags=["monitoring"])
+app.include_router(nightwatch.router, tags=["nightwatch"])
 app.include_router(learning.router, prefix="/api", tags=["learning"])
 app.include_router(secrets_health.router, tags=["secrets"])
 

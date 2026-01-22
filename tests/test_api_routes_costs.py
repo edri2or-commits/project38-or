@@ -5,7 +5,6 @@ Tests the /costs/* endpoints defined in src/api/routes/costs.py.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,7 +15,6 @@ from src.api.routes.costs import (
     BudgetStatusResponse,
     CostEstimateResponse,
     CostRecommendation,
-    CostReportResponse,
     get_mock_budget_status,
     get_mock_estimate,
     get_mock_recommendations,

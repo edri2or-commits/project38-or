@@ -1,8 +1,9 @@
 """Tests for src/config/feature_flags.py - Feature Flags System."""
 
-import pytest
 import tempfile
 from pathlib import Path
+
+import pytest
 
 # Skip all tests if yaml not installed
 pytest.importorskip("yaml")
@@ -483,7 +484,7 @@ class TestIsFeatureEnabledFunction:
 
     def test_is_feature_enabled_delegates(self):
         """is_feature_enabled should delegate to FeatureFlags.is_enabled."""
-        from src.config.feature_flags import is_feature_enabled, FeatureFlags, Flag
+        from src.config.feature_flags import FeatureFlags, Flag, is_feature_enabled
 
         FeatureFlags._loaded = True
         FeatureFlags._flags = {

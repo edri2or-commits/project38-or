@@ -1,7 +1,8 @@
 """Tests for src/factory/ralph_loop.py - Ralph Wiggum Loop."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
 # Skip all tests if dependencies not installed
 pytest.importorskip("anthropic")
@@ -30,8 +31,9 @@ class TestCodeFixPrompt:
 
     def test_prompt_is_jinja_template(self):
         """Prompt should be a Jinja2 Template."""
-        from src.factory.ralph_loop import CODE_FIX_PROMPT
         from jinja2 import Template
+
+        from src.factory.ralph_loop import CODE_FIX_PROMPT
 
         assert isinstance(CODE_FIX_PROMPT, Template)
 
@@ -150,7 +152,7 @@ class TestRalphWiggumLoop:
     @pytest.mark.asyncio
     async def test_max_iterations_raises_error(self):
         """Exceeding max iterations should raise RalphLoopError."""
-        from src.factory.ralph_loop import ralph_wiggum_loop, RalphLoopError
+        from src.factory.ralph_loop import RalphLoopError, ralph_wiggum_loop
 
         code = "broken code"
 

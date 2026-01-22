@@ -13,7 +13,6 @@ import argparse
 import asyncio
 import hashlib
 import json
-import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -28,7 +27,8 @@ EXPERIMENT_TITLE = "Vercel Agent Browser - Autonomous UI Navigation"
 HYPOTHESIS = (
     "If we integrate Vercel Agent Browser CLI for UI interactions, "
     "then autonomous operations coverage will increase by 50%+ "
-    "(from API-only to API+UI) while maintaining acceptable token costs (<$0.05 per complex operation)."
+    "(from API-only to API+UI) while maintaining acceptable token costs "
+    "(<$0.05 per complex operation)."
 )
 
 # Success criteria thresholds
@@ -218,7 +218,10 @@ class BrowserAgent:
             self.page = await self.browser.new_page()
             print("[BROWSER] Initialized Chromium browser")
         except ImportError:
-            print("[ERROR] Playwright not installed. Run: pip install playwright && playwright install chromium")
+            print(
+                "[ERROR] Playwright not installed. "
+                "Run: pip install playwright && playwright install chromium"
+            )
             raise
 
     async def cleanup(self) -> None:

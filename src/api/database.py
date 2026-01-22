@@ -52,6 +52,15 @@ async def create_db_and_tables() -> None:
 
     Should be called on application startup.
     """
+    # Import all models to register them with SQLModel.metadata
+    # This ensures create_all() creates all tables
+    from src.models import (  # noqa: F401
+        ActionRecord,
+        ActivityLog,
+        Agent,
+        Task,
+    )
+
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
 

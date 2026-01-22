@@ -1,8 +1,9 @@
 """Tests for src/harness/handoff.py - Handoff Artifacts."""
 
-import pytest
-from datetime import datetime, UTC
 import json
+from datetime import UTC, datetime
+
+import pytest
 
 # Skip all tests if dependencies not installed (harness/__init__.py imports psutil)
 pytest.importorskip("psutil")
@@ -182,7 +183,7 @@ class TestHandoffManager:
     @pytest.mark.asyncio
     async def test_save_artifact(self):
         """save_artifact should store artifact."""
-        from src.harness.handoff import HandoffManager, HandoffArtifact
+        from src.harness.handoff import HandoffArtifact, HandoffManager
 
         manager = HandoffManager()
         artifact = HandoffArtifact(agent_id=1, state={"key": "value"})
@@ -195,7 +196,7 @@ class TestHandoffManager:
     @pytest.mark.asyncio
     async def test_save_overwrites(self):
         """save_artifact should overwrite existing artifact."""
-        from src.harness.handoff import HandoffManager, HandoffArtifact
+        from src.harness.handoff import HandoffArtifact, HandoffManager
 
         manager = HandoffManager()
         artifact1 = HandoffArtifact(agent_id=1, state={"version": 1})
@@ -209,7 +210,7 @@ class TestHandoffManager:
     @pytest.mark.asyncio
     async def test_load_artifact_exists(self):
         """load_artifact should return existing artifact."""
-        from src.harness.handoff import HandoffManager, HandoffArtifact
+        from src.harness.handoff import HandoffArtifact, HandoffManager
 
         manager = HandoffManager()
         artifact = HandoffArtifact(agent_id=5, run_number=3)
@@ -248,7 +249,7 @@ class TestHandoffManager:
     @pytest.mark.asyncio
     async def test_create_next_artifact_increments_run_number(self):
         """create_next_artifact should increment run number."""
-        from src.harness.handoff import HandoffManager, HandoffArtifact
+        from src.harness.handoff import HandoffArtifact, HandoffManager
 
         manager = HandoffManager()
         first = HandoffArtifact(agent_id=1, run_number=5, state={"old": "state"})
@@ -261,7 +262,7 @@ class TestHandoffManager:
     @pytest.mark.asyncio
     async def test_create_next_artifact_preserves_previous_state(self):
         """create_next_artifact should preserve previous state."""
-        from src.harness.handoff import HandoffManager, HandoffArtifact
+        from src.harness.handoff import HandoffArtifact, HandoffManager
 
         manager = HandoffManager()
         first = HandoffArtifact(agent_id=1, state={"previous_data": "value"})
@@ -297,7 +298,7 @@ class TestHandoffManager:
     @pytest.mark.asyncio
     async def test_clear_artifact(self):
         """clear_artifact should remove artifact."""
-        from src.harness.handoff import HandoffManager, HandoffArtifact
+        from src.harness.handoff import HandoffArtifact, HandoffManager
 
         manager = HandoffManager()
         artifact = HandoffArtifact(agent_id=1)
@@ -376,7 +377,7 @@ class TestGetHandoffManager:
 
     def test_returns_manager(self):
         """get_handoff_manager should return HandoffManager."""
-        from src.harness.handoff import get_handoff_manager, HandoffManager
+        from src.harness.handoff import HandoffManager, get_handoff_manager
 
         manager = get_handoff_manager()
         assert isinstance(manager, HandoffManager)

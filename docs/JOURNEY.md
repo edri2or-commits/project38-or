@@ -5684,5 +5684,87 @@ Continue systematic test coverage expansion with P4-P7 priorities, covering cred
 
 ---
 
+## Phase 42: Night Watch Autonomous Operations (2026-01-22)
+
+### Goal
+
+Implement ADR-013 "Night Watch" system for autonomous overnight operations with morning summaries. User expressed: "אני מרגיש שאני למצח אדבר עם קלוד קוד ולא קורה שום דבר תכלס שכבר עובד אוטומטית" (I feel like I keep talking to Claude Code but nothing actually runs autonomously).
+
+### Gap Analysis (Before Implementation)
+
+Truth Protocol investigation revealed 3 critical gaps:
+
+| Gap | Problem | Status Before |
+|-----|---------|---------------|
+| 1. Telegram proactive messaging | Bot could only respond, not initiate | No `/send` endpoint |
+| 2. Railway cron | No scheduled jobs configured | Empty `[[crons]]` section |
+| 3. MonitoringLoop | Never started in production | No auto-start option |
+
+### Implementation
+
+| Component | File | Lines | Purpose |
+|-----------|------|-------|---------|
+| ActivityLog model | `src/models/activity_log.py` | 130 | Activity logging for audit trail |
+| NightWatchService | `src/nightwatch/service.py` | 575 | Core orchestration service |
+| API routes | `src/api/routes/nightwatch.py` | 200 | Cron-triggered endpoints |
+| Telegram /send | `services/telegram-bot/main.py` | +60 | Proactive message sending |
+| Railway cron | `railway.toml` | +8 | Hourly + morning summary jobs |
+| Auto-start option | `src/api/main.py` | +10 | MonitoringLoop auto-start |
+
+### Architecture (ADR-013)
+
+```
+Railway Cron (00:00-06:00 UTC)
+    ↓ hourly
+/api/nightwatch/tick
+    ↓
+NightWatchService.tick()
+    ├── Health checks
+    ├── Metric collection
+    ├── Anomaly detection
+    └── Self-healing (if enabled)
+    ↓
+ActivityLog (PostgreSQL)
+    ↓
+Railway Cron (06:00 UTC)
+    ↓
+/api/nightwatch/morning-summary
+    ↓
+Telegram Bot /send
+    ↓
+User wakes up with summary
+```
+
+### Key Features
+
+1. **Health Checks**: Hourly health check of all services
+2. **Metric Collection**: Calls MonitoringLoop to collect metrics
+3. **Anomaly Detection**: Uses ML-based anomaly detection
+4. **Self-Healing**: Automatic recovery actions (configurable)
+5. **Activity Logging**: All activities stored for audit
+6. **Morning Summary**: Aggregated overnight report via Telegram
+
+### Configuration
+
+| Env Variable | Default | Purpose |
+|--------------|---------|---------|
+| `NIGHTWATCH_ENABLED` | true | Enable Night Watch |
+| `NIGHTWATCH_CHAT_ID` | - | Telegram chat ID for summaries |
+| `NIGHTWATCH_SELF_HEALING` | true | Enable auto-recovery |
+| `MONITORING_AUTO_START` | false | Auto-start MonitoringLoop |
+
+### Evidence
+
+- **ADR-013**: `docs/decisions/ADR-013-night-watch-autonomous-operations.md`
+- **New files**: 3 modules (~900 lines)
+- **Modified files**: 4 files (~80 lines)
+- **Railway cron**: 2 scheduled jobs configured
+
+### Status
+
+**Phase 42: ✅ COMPLETE - Night Watch Implementation**
+
+---
+
 *Last Updated: 2026-01-22 UTC*
-*Status: **Phase 41 Complete - Test Coverage Expansion P4-P7***
+*Status: **Phase 42 Complete - Night Watch Autonomous Operations***

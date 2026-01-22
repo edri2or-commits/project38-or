@@ -1,7 +1,7 @@
 """Tests for src/providers/mock.py - Mock Model Providers."""
 
+
 import pytest
-from unittest.mock import patch
 
 
 class TestMockProviderBasics:
@@ -63,8 +63,8 @@ class TestMockProviderCapabilities:
 
     def test_get_capabilities_returns_object(self):
         """get_capabilities should return ModelCapabilities."""
-        from src.providers.mock import MockProvider
         from src.providers.base import ModelCapabilities
+        from src.providers.mock import MockProvider
 
         provider = MockProvider()
         caps = provider.get_capabilities()
@@ -113,8 +113,8 @@ class TestMockProviderComplete:
     @pytest.mark.asyncio
     async def test_complete_returns_response(self):
         """complete should return ModelResponse."""
-        from src.providers.mock import MockProvider
         from src.providers.base import ModelResponse
+        from src.providers.mock import MockProvider
 
         provider = MockProvider(latency_ms=1)  # Fast for tests
         response = await provider.complete(

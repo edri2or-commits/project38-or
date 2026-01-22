@@ -198,6 +198,77 @@ async def webhook_info() -> dict:
         }
 
 
+@app.post("/send")
+async def send_message(chat_id: int, text: str, parse_mode: str = "HTML") -> dict:
+    """Send a proactive message to a user.
+
+    This endpoint enables Night Watch and other services to send
+    notifications to users without waiting for incoming messages.
+
+    Args:
+        chat_id: Telegram chat ID to send message to
+        text: Message text (supports HTML formatting)
+        parse_mode: Parse mode for formatting (HTML or Markdown)
+
+    Returns:
+        dict: Send result with message_id
+    """
+    try:
+        message = await telegram_app.bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode=parse_mode,
+        )
+
+        logger.info(f"Sent proactive message to chat_id={chat_id}")
+
+        return {
+            "status": "sent",
+            "message_id": message.message_id,
+            "chat_id": chat_id,
+        }
+    except Exception as e:
+        logger.error(f"Failed to send message to {chat_id}: {e}")
+        return {
+            "status": "error",
+            "error": str(e),
+            "chat_id": chat_id,
+        }
+
+
+@app.get("/chats")
+async def list_chats() -> dict:
+    """List all known chat IDs from conversation history.
+
+    Returns chat IDs that have interacted with the bot,
+    useful for Night Watch to know who to send summaries to.
+
+    Returns:
+        dict: List of unique chat_ids
+    """
+    from database import get_session
+    from sqlmodel import select
+
+    from models import ConversationMessage
+
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(ConversationMessage.chat_id).distinct()
+            )
+            chat_ids = [row[0] for row in result.fetchall()]
+
+        return {
+            "count": len(chat_ids),
+            "chat_ids": chat_ids,
+        }
+    except Exception as e:
+        logger.error(f"Failed to list chats: {e}")
+        return {
+            "error": str(e),
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
 

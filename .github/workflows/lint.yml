@@ -47,11 +47,25 @@ jobs:
       - name: Install ruff
         run: pip install ruff
 
-      - name: Run ruff check
-        run: ruff check --output-format=github .
+      - name: Get changed Python files
+        id: changed
+        run: |
+          # Get list of changed Python files in this PR
+          FILES=$(git diff --name-only origin/main...HEAD -- '*.py' | tr '\n' ' ')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+          if [ -z "$FILES" ]; then
+            echo "No Python files changed"
+          else
+            echo "Changed files: $FILES"
+          fi
 
-      - name: Run ruff format check
-        run: ruff format --check .
+      - name: Run ruff check on changed files
+        if: steps.changed.outputs.files != ''
+        run: ruff check --output-format=github ${{ steps.changed.outputs.files }}
+
+      - name: Run ruff format check on changed files
+        if: steps.changed.outputs.files != ''
+        run: ruff format --check ${{ steps.changed.outputs.files }}
 
   # Final status check - required for branch protection
   # Reports success when: lint passed OR no code changes (lint skipped)

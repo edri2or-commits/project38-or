@@ -351,7 +351,8 @@ class MCPRouter:
             services_data = services_response.json()
 
             # Find service by name
-            edges = services_data.get("data", {}).get("project", {}).get("services", {}).get("edges", [])
+            project = services_data.get("data", {}).get("project", {})
+            edges = project.get("services", {}).get("edges", [])
             for edge in edges:
                 if edge.get("node", {}).get("name") == service_name:
                     service_id = edge["node"]["id"]
@@ -382,7 +383,11 @@ class MCPRouter:
 
         result = response.json()
         if result.get("data", {}).get("serviceInstanceRedeploy"):
-            return {"status": "deployment_triggered", "service_id": service_id, "service_name": service_name}
+            return {
+                "status": "deployment_triggered",
+                "service_id": service_id,
+                "service_name": service_name,
+            }
         return result
 
     def _railway_status(self) -> dict:
@@ -644,7 +649,9 @@ class MCPRouter:
         6. Return collected logs
         """
         if not WEBSOCKETS_AVAILABLE:
-            return {"error": "websockets library not available - install with pip install websockets"}
+            return {
+                "error": "websockets library not available - pip install websockets"
+            }
 
         railway_token = os.environ.get("RAILWAY_TOKEN")
         project_id = os.environ.get("RAILWAY_PROJECT_ID", "95ec21cc-9ada-41c5-8485-12f9a00e0116")
@@ -654,7 +661,9 @@ class MCPRouter:
 
         # Step 1: Get deployment ID if not provided
         if not deployment_id:
-            deployment_info = await self._get_latest_deployment(railway_token, project_id, service_name)
+            deployment_info = await self._get_latest_deployment(
+                railway_token, project_id, service_name
+            )
             if "error" in deployment_info:
                 return deployment_info
             deployment_id = deployment_info["deployment_id"]
@@ -717,7 +726,7 @@ class MCPRouter:
                             "error": f"Expected connection_ack, got: {ack_data.get('type')}",
                             "details": ack_data
                         }
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     return {"error": "Timeout waiting for connection_ack"}
 
                 # Step 3c: Send subscription
@@ -744,8 +753,12 @@ class MCPRouter:
 
                         if msg_type == "next" and msg_id == subscription_id:
                             # Extract log entry - use `or {}` for null safety
-                            payload_data = (data.get("payload") or {}).get("data") or {}
-                            log_entry = payload_data.get("buildLogs") or payload_data.get("deploymentLogs")
+                            payload = data.get("payload") or {}
+                            payload_data = payload.get("data") or {}
+                            log_entry = (
+                                payload_data.get("buildLogs")
+                                or payload_data.get("deploymentLogs")
+                            )
                             if log_entry:
                                 logs.append(log_entry)
 
@@ -757,7 +770,7 @@ class MCPRouter:
                             error_msg = data.get("payload") or []
                             break
 
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         # No message received in 1 second, continue waiting
                         continue
 

@@ -7,8 +7,6 @@ the endpoint behavior and the response models.
 
 from __future__ import annotations
 
-from datetime import datetime
-from enum import Enum
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

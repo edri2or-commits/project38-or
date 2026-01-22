@@ -1,9 +1,9 @@
 """Tests for src/providers/base.py - Base classes for Model Providers."""
 
-import pytest
-from datetime import datetime
 from collections.abc import AsyncIterator
 from typing import Any
+
+import pytest
 
 
 class TestModelCapabilities:
@@ -176,8 +176,9 @@ class TestModelProvider:
 
     def test_model_provider_is_abstract(self):
         """ModelProvider should be abstract."""
-        from src.providers.base import ModelProvider
         from abc import ABC
+
+        from src.providers.base import ModelProvider
 
         assert issubclass(ModelProvider, ABC)
 
@@ -208,7 +209,7 @@ class TestModelProvider:
 
     def test_concrete_provider_implementation(self):
         """Concrete provider implementation should work."""
-        from src.providers.base import ModelProvider, ModelCapabilities, ModelResponse
+        from src.providers.base import ModelCapabilities, ModelProvider, ModelResponse
 
         class TestProvider(ModelProvider):
             @property
@@ -284,7 +285,7 @@ class TestProviderExceptions:
 
     def test_rate_limit_error_is_provider_error(self):
         """RateLimitError should be a ProviderError subclass."""
-        from src.providers.base import RateLimitError, ProviderError
+        from src.providers.base import ProviderError, RateLimitError
 
         assert issubclass(RateLimitError, ProviderError)
 

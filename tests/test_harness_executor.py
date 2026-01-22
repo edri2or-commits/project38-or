@@ -1,8 +1,7 @@
 """Tests for src/harness/executor.py - Agent Executor."""
 
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-import asyncio
 
 # Skip all tests if dependencies not installed (harness/__init__.py imports psutil)
 pytest.importorskip("psutil")

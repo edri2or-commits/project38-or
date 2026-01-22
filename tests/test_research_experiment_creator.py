@@ -5,8 +5,8 @@ Tests the experiment_creator module in src/research/experiment_creator.py.
 
 from __future__ import annotations
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -16,11 +16,11 @@ def _can_import_module() -> bool:
     try:
         from src.research.experiment_creator import (
             ExperimentConfig,
-            get_next_experiment_id,
+            create_experiment_config,
             create_experiment_readme,
             create_experiment_script,
-            create_experiment_config,
             create_experiment_skeleton,
+            get_next_experiment_id,
         )
         return True
     except ImportError:
@@ -330,7 +330,6 @@ class TestCreateExperimentSkeleton:
     def test_creates_directory(self):
         """Test skeleton creates experiment directory."""
         from src.research.experiment_creator import create_experiment_skeleton
-        from src.research.classifier import Classification
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a note that will classify as Spike
@@ -383,8 +382,8 @@ class TestCreateExperimentForNote:
 
     def test_returns_none_without_file_path(self):
         """Test returns None when note has no file_path."""
-        from src.research.experiment_creator import create_experiment_for_note
         from src.research.classifier import ResearchNote
+        from src.research.experiment_creator import create_experiment_for_note
 
         note = ResearchNote()  # No file_path
 

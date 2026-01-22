@@ -11,7 +11,6 @@ Covers:
 
 from __future__ import annotations
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -29,7 +28,7 @@ def _can_import_fastmcp() -> bool:
 def _can_import_server() -> bool:
     """Check if server module can be imported."""
     try:
-        from src.mcp_gateway.server import create_mcp_server, create_mcp_app, FASTMCP_AVAILABLE
+        from src.mcp_gateway.server import FASTMCP_AVAILABLE, create_mcp_app, create_mcp_server
         return True
     except ImportError:
         return False
@@ -818,8 +817,9 @@ class TestBrowserToolDelegation:
     @pytest.mark.skipif(not _can_import_fastmcp(), reason="fastmcp not installed")
     async def test_browser_screenshot_encodes_to_base64(self):
         """Test that browser_screenshot encodes image bytes to base64."""
-        from src.mcp_gateway.server import create_mcp_server
         import base64
+
+        from src.mcp_gateway.server import create_mcp_server
 
         server = create_mcp_server()
 
@@ -900,8 +900,9 @@ class TestToolFunctionSignatures:
     @pytest.mark.skipif(not _can_import_fastmcp(), reason="fastmcp not installed")
     def test_railway_deploy_has_optional_service_id(self):
         """Test that railway_deploy has service_id with default empty string."""
-        from src.mcp_gateway.server import create_mcp_server
         import inspect
+
+        from src.mcp_gateway.server import create_mcp_server
 
         server = create_mcp_server()
 
@@ -916,8 +917,9 @@ class TestToolFunctionSignatures:
     @pytest.mark.skipif(not _can_import_fastmcp(), reason="fastmcp not installed")
     def test_railway_deployments_has_default_count(self):
         """Test that railway_deployments has count default of 5."""
-        from src.mcp_gateway.server import create_mcp_server
         import inspect
+
+        from src.mcp_gateway.server import create_mcp_server
 
         server = create_mcp_server()
 
@@ -932,8 +934,9 @@ class TestToolFunctionSignatures:
     @pytest.mark.skipif(not _can_import_fastmcp(), reason="fastmcp not installed")
     def test_n8n_trigger_has_default_empty_data(self):
         """Test that n8n_trigger has data default of empty JSON object."""
-        from src.mcp_gateway.server import create_mcp_server
         import inspect
+
+        from src.mcp_gateway.server import create_mcp_server
 
         server = create_mcp_server()
 
@@ -948,8 +951,9 @@ class TestToolFunctionSignatures:
     @pytest.mark.skipif(not _can_import_fastmcp(), reason="fastmcp not installed")
     def test_gmail_list_has_default_inbox(self):
         """Test that gmail_list defaults to INBOX label."""
-        from src.mcp_gateway.server import create_mcp_server
         import inspect
+
+        from src.mcp_gateway.server import create_mcp_server
 
         server = create_mcp_server()
 

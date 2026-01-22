@@ -1,9 +1,10 @@
 """Tests for src/factory/validator.py - Code Validator."""
 
-import pytest
-from unittest.mock import MagicMock, patch
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 # Skip all tests if dependencies not installed (factory/__init__.py imports anthropic)
 pytest.importorskip("anthropic")
@@ -142,8 +143,9 @@ class TestRunRuffFormat:
 
     def test_timeout_returns_failed(self):
         """Timeout should return failed."""
-        from src.factory.validator import _run_ruff_format
         import subprocess
+
+        from src.factory.validator import _run_ruff_format
 
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("ruff", 10)):
             result = _run_ruff_format(Path("/tmp/test.py"))
@@ -183,8 +185,9 @@ def hello() -> str:
 
     def test_timeout_returns_failed(self):
         """Timeout should return failed."""
-        from src.factory.validator import _run_ruff_lint
         import subprocess
+
+        from src.factory.validator import _run_ruff_lint
 
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("ruff", 10)):
             result = _run_ruff_lint(Path("/tmp/test.py"))
@@ -205,8 +208,9 @@ class TestRunPydocstyle:
 
     def test_timeout_returns_failed(self):
         """Timeout should return failed."""
-        from src.factory.validator import _run_pydocstyle
         import subprocess
+
+        from src.factory.validator import _run_pydocstyle
 
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("pydocstyle", 10)):
             result = _run_pydocstyle(Path("/tmp/test.py"))

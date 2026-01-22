@@ -1,9 +1,8 @@
 """Tests for src/harness/scheduler.py - Task Scheduler."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from datetime import datetime, UTC
-import json
 
 # Skip all tests if dependencies not installed (harness/__init__.py imports psutil)
 pytest.importorskip("psutil")
@@ -93,8 +92,9 @@ class TestAdvisoryLock:
     @pytest.mark.asyncio
     async def test_consistent_lock_id(self):
         """Same lock name should generate same lock ID."""
-        from src.harness.scheduler import advisory_lock
         import zlib
+
+        from src.harness.scheduler import advisory_lock
 
         lock_name = "my_unique_lock"
         expected_id = zlib.crc32(lock_name.encode("utf-8"))
@@ -131,7 +131,7 @@ class TestExecuteScheduledTask:
     @pytest.mark.asyncio
     async def test_raises_when_agent_not_found(self):
         """Should raise SchedulerError when agent not found."""
-        from src.harness.scheduler import execute_scheduled_task, SchedulerError
+        from src.harness.scheduler import SchedulerError, execute_scheduled_task
 
         mock_session = AsyncMock()
 
@@ -284,7 +284,6 @@ class TestAgentScheduler:
         async def mock_factory():
             yield mock_session
 
-        from contextlib import asynccontextmanager
 
         scheduler = AgentScheduler(mock_factory)
 

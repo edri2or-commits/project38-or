@@ -23,9 +23,9 @@ def _can_import_monitoring() -> bool:
     """Check if monitoring module can be imported."""
     try:
         from src.mcp_gateway.tools.monitoring import (
+            check_deployment_health,
             check_health,
             get_metrics,
-            check_deployment_health,
         )
         return True
     except ImportError:
@@ -90,8 +90,9 @@ class TestCheckHealth:
     @pytest.mark.asyncio
     async def test_check_health_production_unhealthy(self):
         """Test health check when production is unreachable."""
-        from src.mcp_gateway.tools.monitoring import check_health
         import httpx
+
+        from src.mcp_gateway.tools.monitoring import check_health
 
         mock_config = MagicMock()
         mock_config.production_url = "https://prod.local"
@@ -210,8 +211,9 @@ class TestGetMetrics:
     @pytest.mark.asyncio
     async def test_get_metrics_connection_error_fallback(self):
         """Test metrics fallback to MCP Gateway metrics on connection error."""
-        from src.mcp_gateway.tools.monitoring import get_metrics
         import httpx
+
+        from src.mcp_gateway.tools.monitoring import get_metrics
 
         mock_config = MagicMock()
         mock_config.production_url = "https://prod.local"
@@ -279,8 +281,9 @@ class TestCheckDeploymentHealth:
     @pytest.mark.asyncio
     async def test_deployment_health_unhealthy_with_recommendation(self):
         """Test that unhealthy status includes recommendation."""
-        from src.mcp_gateway.tools.monitoring import check_deployment_health
         import httpx
+
+        from src.mcp_gateway.tools.monitoring import check_deployment_health
 
         mock_config = MagicMock()
         mock_config.production_url = "https://prod.local"

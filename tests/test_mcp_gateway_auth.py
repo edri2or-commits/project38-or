@@ -8,9 +8,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
-from fastapi.testclient import TestClient
 
 
 def _has_cryptography() -> bool:
@@ -28,7 +27,7 @@ def _has_cryptography() -> bool:
 def _can_import_auth() -> bool:
     """Check if auth module can be imported."""
     try:
-        from src.mcp_gateway.auth import verify_token, validate_token_sync
+        from src.mcp_gateway.auth import validate_token_sync, verify_token
         return True
     except ImportError:
         return False

@@ -1,8 +1,9 @@
 """Tests for src/harness/resources.py - Resource Management."""
 
-import pytest
-from unittest.mock import MagicMock, patch
 import asyncio
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Skip all tests if dependencies not installed
 pytest.importorskip("psutil")
@@ -45,14 +46,14 @@ class TestResourceMonitor:
 
     def test_init_default_limits(self):
         """ResourceMonitor should use default limits."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         monitor = ResourceMonitor()
         assert monitor.limits.max_concurrent_agents == ResourceLimits().max_concurrent_agents
 
     def test_init_custom_limits(self):
         """ResourceMonitor should accept custom limits."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         limits = ResourceLimits(max_concurrent_agents=20)
         monitor = ResourceMonitor(limits)
@@ -60,7 +61,7 @@ class TestResourceMonitor:
 
     def test_semaphore_initialized(self):
         """ResourceMonitor should initialize semaphore."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         limits = ResourceLimits(max_concurrent_agents=3)
         monitor = ResourceMonitor(limits)
@@ -93,7 +94,7 @@ class TestResourceMonitor:
     @pytest.mark.asyncio
     async def test_acquire_slot_context_manager(self):
         """acquire_slot should work as async context manager."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         limits = ResourceLimits(max_concurrent_agents=2)
         monitor = ResourceMonitor(limits)
@@ -108,7 +109,7 @@ class TestResourceMonitor:
     @pytest.mark.asyncio
     async def test_acquire_slot_limits_concurrency(self):
         """acquire_slot should limit concurrent executions."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         limits = ResourceLimits(max_concurrent_agents=1)
         monitor = ResourceMonitor(limits)
@@ -131,8 +132,9 @@ class TestResourceMonitor:
     @pytest.mark.asyncio
     async def test_get_process_info(self):
         """get_process_info should return process stats."""
-        from src.harness.resources import ResourceMonitor
         import os
+
+        from src.harness.resources import ResourceMonitor
 
         monitor = ResourceMonitor()
         pid = os.getpid()
@@ -146,8 +148,9 @@ class TestResourceMonitor:
     @pytest.mark.asyncio
     async def test_get_process_info_invalid_pid(self):
         """get_process_info should raise for invalid PID."""
-        from src.harness.resources import ResourceMonitor
         import psutil
+
+        from src.harness.resources import ResourceMonitor
 
         monitor = ResourceMonitor()
 
@@ -156,7 +159,7 @@ class TestResourceMonitor:
 
     def test_is_resource_available_with_slots(self):
         """is_resource_available should return True when slots available."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         limits = ResourceLimits(max_concurrent_agents=5)
         monitor = ResourceMonitor(limits)
@@ -171,7 +174,7 @@ class TestResourceMonitor:
 
     def test_is_resource_available_no_slots(self):
         """is_resource_available should return False when no slots."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         limits = ResourceLimits(max_concurrent_agents=1)
         monitor = ResourceMonitor(limits)
@@ -184,7 +187,7 @@ class TestResourceMonitor:
 
     def test_is_resource_available_low_memory(self):
         """is_resource_available should return False when memory low."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         limits = ResourceLimits(max_concurrent_agents=5, max_memory_mb=512)
         monitor = ResourceMonitor(limits)
@@ -199,7 +202,7 @@ class TestResourceMonitor:
 
     def test_is_resource_available_high_cpu(self):
         """is_resource_available should return False when CPU too high."""
-        from src.harness.resources import ResourceMonitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, ResourceMonitor
 
         limits = ResourceLimits(max_concurrent_agents=5)
         monitor = ResourceMonitor(limits)
@@ -258,7 +261,7 @@ class TestGetResourceMonitor:
 
     def test_returns_monitor(self):
         """get_resource_monitor should return ResourceMonitor."""
-        from src.harness.resources import get_resource_monitor, ResourceMonitor
+        from src.harness.resources import ResourceMonitor, get_resource_monitor
 
         monitor = get_resource_monitor()
         assert isinstance(monitor, ResourceMonitor)
@@ -277,7 +280,7 @@ class TestSetResourceLimits:
 
     def test_sets_new_limits(self):
         """set_resource_limits should create new monitor with limits."""
-        from src.harness.resources import set_resource_limits, get_resource_monitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, get_resource_monitor, set_resource_limits
 
         limits = ResourceLimits(max_concurrent_agents=15)
         set_resource_limits(limits)
@@ -287,7 +290,7 @@ class TestSetResourceLimits:
 
     def test_replaces_existing_monitor(self):
         """set_resource_limits should replace existing monitor."""
-        from src.harness.resources import set_resource_limits, get_resource_monitor, ResourceLimits
+        from src.harness.resources import ResourceLimits, get_resource_monitor, set_resource_limits
 
         # Set initial limits
         limits1 = ResourceLimits(max_concurrent_agents=5)

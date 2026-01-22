@@ -7,7 +7,6 @@ using SQLModel and asyncpg.
 import logging
 import os
 from collections.abc import AsyncGenerator
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
@@ -17,11 +16,11 @@ from sqlmodel import SQLModel
 logger = logging.getLogger(__name__)
 
 # Global engine and session maker (lazy initialization)
-_engine: Optional[AsyncEngine] = None
-_async_session_maker: Optional[sessionmaker] = None
+_engine: AsyncEngine | None = None
+_async_session_maker: sessionmaker | None = None
 
 
-def _get_database_url() -> Optional[str]:
+def _get_database_url() -> str | None:
     """Get and convert database URL from environment.
 
     Returns:
@@ -41,7 +40,7 @@ def _get_database_url() -> Optional[str]:
         return database_url_raw
 
 
-def _get_engine() -> Optional[AsyncEngine]:
+def _get_engine() -> AsyncEngine | None:
     """Get or create the database engine (lazy initialization).
 
     Returns:
@@ -70,7 +69,7 @@ def _get_engine() -> Optional[AsyncEngine]:
     return _engine
 
 
-def _get_session_maker() -> Optional[sessionmaker]:
+def _get_session_maker() -> sessionmaker | None:
     """Get or create the async session maker (lazy initialization).
 
     Returns:

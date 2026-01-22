@@ -26,7 +26,6 @@ import requests
 
 from src.providers.base import ModelCapabilities, ModelProvider, ModelResponse, ProviderError
 
-
 # MCP Tunnel configuration
 # Use Cloud Function URL (whitelisted by proxy) instead of Cloud Run URL (blocked)
 MCP_TUNNEL_URL = "https://us-central1-project38-483612.cloudfunctions.net/mcp-router"

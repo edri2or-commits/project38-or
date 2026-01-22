@@ -5,10 +5,9 @@ Tests the classifier module in src/research/classifier.py.
 
 from __future__ import annotations
 
+import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-import tempfile
 
 import pytest
 
@@ -18,12 +17,12 @@ def _can_import_module() -> bool:
     try:
         from src.research.classifier import (
             Classification,
-            ImpactScope,
             Effort,
-            Risk,
+            ImpactScope,
             ResearchNote,
-            parse_research_note,
+            Risk,
             auto_classify,
+            parse_research_note,
         )
         return True
     except ImportError:
@@ -165,7 +164,7 @@ class TestParseResearchNote:
 
     def test_parse_impact_scope(self):
         """Test parsing impact scope."""
-        from src.research.classifier import parse_research_note, ImpactScope
+        from src.research.classifier import ImpactScope, parse_research_note
 
         content = "# Title\n| **Scope** | Model |\n"
         note = parse_research_note(content)
@@ -174,7 +173,7 @@ class TestParseResearchNote:
 
     def test_parse_effort(self):
         """Test parsing effort."""
-        from src.research.classifier import parse_research_note, Effort
+        from src.research.classifier import Effort, parse_research_note
 
         content = "# Title\n| **Effort** | Hours |\n"
         note = parse_research_note(content)
@@ -183,7 +182,7 @@ class TestParseResearchNote:
 
     def test_parse_risk(self):
         """Test parsing risk."""
-        from src.research.classifier import parse_research_note, Risk
+        from src.research.classifier import Risk, parse_research_note
 
         content = "# Title\n| **Risk** | Low |\n"
         note = parse_research_note(content)
@@ -192,7 +191,7 @@ class TestParseResearchNote:
 
     def test_parse_spike_recommendation(self):
         """Test parsing Spike recommendation."""
-        from src.research.classifier import parse_research_note, Classification
+        from src.research.classifier import Classification, parse_research_note
 
         content = "# Title\n[x] **Spike**\n"
         note = parse_research_note(content)
@@ -201,7 +200,7 @@ class TestParseResearchNote:
 
     def test_parse_adr_recommendation(self):
         """Test parsing ADR recommendation."""
-        from src.research.classifier import parse_research_note, Classification
+        from src.research.classifier import Classification, parse_research_note
 
         content = "# Title\n[x] **ADR**\n"
         note = parse_research_note(content)
@@ -220,7 +219,7 @@ class TestParseResearchNote:
 
     def test_parse_triage_info(self):
         """Test parsing triage information."""
-        from src.research.classifier import parse_research_note, Classification
+        from src.research.classifier import Classification, parse_research_note
 
         content = "# Title\n**Reviewed:** 2026-01-22\n**Decision:** Spike\n"
         note = parse_research_note(content)
@@ -253,8 +252,8 @@ class TestAutoClassify:
     def test_explicit_recommendation(self):
         """Test classification uses explicit recommendation."""
         from src.research.classifier import (
-            ResearchNote,
             Classification,
+            ResearchNote,
             auto_classify,
         )
 
@@ -267,10 +266,10 @@ class TestAutoClassify:
     def test_architecture_scope_becomes_adr(self):
         """Test Architecture scope classifies as ADR."""
         from src.research.classifier import (
-            ResearchNote,
             Classification,
-            ImpactScope,
             ImpactEstimate,
+            ImpactScope,
+            ResearchNote,
             auto_classify,
         )
 
@@ -284,10 +283,10 @@ class TestAutoClassify:
     def test_security_scope_becomes_adr(self):
         """Test Security scope classifies as ADR."""
         from src.research.classifier import (
-            ResearchNote,
             Classification,
-            ImpactScope,
             ImpactEstimate,
+            ImpactScope,
+            ResearchNote,
             auto_classify,
         )
 
@@ -301,11 +300,11 @@ class TestAutoClassify:
     def test_quick_low_risk_becomes_backlog(self):
         """Test quick and low-risk changes go to Backlog."""
         from src.research.classifier import (
-            ResearchNote,
             Classification,
             Effort,
-            Risk,
             ImpactEstimate,
+            ResearchNote,
+            Risk,
             auto_classify,
         )
 
@@ -319,10 +318,10 @@ class TestAutoClassify:
     def test_model_with_hypothesis_becomes_spike(self):
         """Test model change with hypothesis classifies as Spike."""
         from src.research.classifier import (
-            ResearchNote,
             Classification,
-            ImpactScope,
             ImpactEstimate,
+            ImpactScope,
+            ResearchNote,
             auto_classify,
         )
 
@@ -337,10 +336,10 @@ class TestAutoClassify:
     def test_tool_scope_becomes_backlog(self):
         """Test Tool scope classifies as Backlog."""
         from src.research.classifier import (
-            ResearchNote,
             Classification,
-            ImpactScope,
             ImpactEstimate,
+            ImpactScope,
+            ResearchNote,
             auto_classify,
         )
 
@@ -354,8 +353,8 @@ class TestAutoClassify:
     def test_default_needs_review(self):
         """Test default classification is NEEDS_REVIEW."""
         from src.research.classifier import (
-            ResearchNote,
             Classification,
+            ResearchNote,
             auto_classify,
         )
 
