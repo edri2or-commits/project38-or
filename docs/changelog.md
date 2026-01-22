@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Permanent Proxy-Safe CI Results Retrieval** (2026-01-22)
+  - Implemented unified solution for retrieving GitHub Actions results from proxy-blocked environments
+  - Based on two Deep Research findings:
+    - Research #1: Protocol-Agnostic Data Exfiltration (Git-Bridge, IssueOps, workflow_dispatch bug)
+    - Research #2: ORAS/GHCR for proxy-friendly artifact storage
+  - Triple-redundant storage in `.github/workflows/exp003-ghcr-results.yml`:
+    1. **GHCR (ORAS)** - Push to `ghcr.io` (proxy-friendly, unlike Azure Blob Storage)
+    2. **Git-Bridge** - Push to orphan branches via git protocol
+    3. **IssueOps** - Create GitHub Issue with embedded JSON
+  - New module `src/experiment_results.py` (540 lines):
+    - `ResultRetriever` class with fallback chain (GHCR → Git-Bridge → Issue)
+    - `get_results()` simple function with auto-fallback
+    - `trigger_and_retrieve()` for full automation
+  - Key insight: `workflow_dispatch` must exist on default branch (main) to register
+  - PRs: #417 (initial), #419 (docs + Git-Bridge fix), #420, #421 (IssueOps fix)
+  - Verified: Git-Bridge retrieval working from Claude Code environment
+  - Documentation: `docs/research/notes/2026-01-22-permanent-ci-results-retrieval.md`
+
 - **exp_002 Real Provider Run Complete** (2026-01-22)
   - Ran model evaluation with real Claude providers via MCP Tunnel
   - Baseline: Claude Haiku (93.33% quality, $0.018 cost)

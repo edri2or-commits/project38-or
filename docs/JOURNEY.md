@@ -5259,5 +5259,91 @@ Tokens: input=13, output=5
 
 ---
 
+## Phase 37: Permanent CI Results Retrieval System (2026-01-22)
+
+### Goal
+
+Solve the fundamental problem: Claude Code sessions behind Anthropic proxy cannot retrieve GitHub Actions results because Azure Blob Storage (`*.blob.core.windows.net`) is blocked.
+
+### Background
+
+Multiple failed attempts:
+- `workflow_dispatch` returning 422 "Workflow does not have trigger"
+- Artifact downloads blocked by proxy (403)
+- `gh run download` failing
+
+User requested Deep Research to find a permanent solution.
+
+### Solution: Triple-Redundant Proxy-Safe Storage
+
+Based on **two Deep Research findings**:
+
+| Research | Key Finding | Implementation |
+|----------|-------------|----------------|
+| #1: Protocol-Agnostic Data Exfiltration | Git-Bridge (orphan branches), workflow_dispatch must be on default branch | Orphan branches `artifacts/exp003-run-{ID}` |
+| #2: ORAS/GHCR Storage | ghcr.io is proxy-friendly (unlike blob.core.windows.net) | Push to `ghcr.io/repo/exp003-results:run-{ID}` |
+
+### Implementation
+
+#### 1. Workflow with Triple Storage
+
+`.github/workflows/exp003-ghcr-results.yml`:
+- **GHCR (ORAS)**: Push to GitHub Container Registry (proxy-friendly)
+- **Git-Bridge**: Push to orphan branches (git protocol)
+- **IssueOps**: Create Issue with embedded JSON (api.github.com allowed)
+
+#### 2. Unified Retrieval Module
+
+`src/experiment_results.py` (540 lines):
+- `ResultRetriever` class with fallback chain
+- `get_results()` simple function
+- `trigger_and_retrieve()` for automation
+
+### Verification
+
+| Method | Push | Retrieval | Run ID |
+|--------|------|-----------|--------|
+| GHCR | ✅ | ⚠️ (needs ORAS) | 21249388957 |
+| Git-Bridge | ✅ | ✅ **VERIFIED** | 21249388957 |
+| IssueOps | ⚠️ | ✅ | 21248523713 |
+
+```bash
+# Verified retrieval from Claude Code:
+python3 src/experiment_results.py get exp003 21249388957
+# Decision: ADOPT, Success Rate: 100%
+```
+
+### Files Modified/Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `.github/workflows/exp003-ghcr-results.yml` | 232 | Triple-redundant storage |
+| `src/experiment_results.py` | 540 | Unified retrieval |
+| `docs/research/notes/2026-01-22-permanent-ci-results-retrieval.md` | 200+ | Documentation |
+
+### PRs
+
+- **#417**: Initial implementation (GHCR + Git-Bridge + IssueOps)
+- **#419**: Documentation + Git-Bridge fix (copy to /tmp before git clean)
+- **#420**: IssueOps fix (use /tmp file)
+- **#421**: YAML fix (jq instead of Python heredoc)
+
+### 4-Layer Documentation Updates
+
+- **Layer 1 (CLAUDE.md)**: Added "Experiment Results Retrieval" section
+- **Layer 3 (JOURNEY.md)**: This phase
+- **Layer 4 (Research Note)**: `docs/research/notes/2026-01-22-permanent-ci-results-retrieval.md`
+- **Changelog**: Added entry for PRs #417-#421
+
+### Key Insight
+
+**workflow_dispatch triggers only register when the workflow file exists on the DEFAULT BRANCH (main)**. This was the root cause of all 422 errors - workflows were being created on feature branches but triggers wouldn't register until merged to main.
+
+### Status
+
+**Phase 37: ✅ COMPLETE - Permanent CI Results Retrieval System**
+
+---
+
 *Last Updated: 2026-01-22 UTC*
-*Status: **Phase 36 Complete - Claude API Direct Access***
+*Status: **Phase 37 Complete - Permanent CI Results Retrieval***

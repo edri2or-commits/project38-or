@@ -117,9 +117,12 @@ jobs:
       - name: Push results to Git-Bridge
         if: always()
         run: |
-          cd experiments/exp_003_vercel_agent_browser
-          if [ -f results_live.json ]; then
+          RESULTS_FILE="${GITHUB_WORKSPACE}/experiments/exp_003_vercel_agent_browser/results_live.json"
+          if [ -f "$RESULTS_FILE" ]; then
             echo "Pushing results to Git-Bridge..."
+
+            # IMPORTANT: Copy file to /tmp BEFORE git operations (git clean will delete everything)
+            cp "$RESULTS_FILE" /tmp/results_live.json
 
             # Create orphan branch for this run
             BRANCH_NAME="artifacts/exp003-run-${{ github.run_id }}"
@@ -132,8 +135,8 @@ jobs:
             git rm -rf . 2>/dev/null || true
             git clean -fd
 
-            # Copy results and commit
-            cp /home/runner/work/project38-or/project38-or/experiments/exp_003_vercel_agent_browser/results_live.json ./results.json
+            # Copy results from temp location
+            cp /tmp/results_live.json ./results.json
 
             # Add metadata
             cat > metadata.json << EOF
@@ -154,87 +157,70 @@ jobs:
             git push origin "$BRANCH_NAME" --force
 
             echo "Results pushed to branch: $BRANCH_NAME"
+          else
+            echo "No results file found at $RESULTS_FILE"
           fi
 
       # ===== STRATEGY 3: IssueOps (fallback) =====
       # Creates issue with embedded JSON for API retrieval
+      # NOTE: Uses /tmp/results_live.json saved by Git-Bridge step (survives git checkout --orphan)
       - name: Create issue with results
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cd /home/runner/work/project38-or/project38-or/experiments/exp_003_vercel_agent_browser
-          if [ -f results_live.json ]; then
-            python3 << 'PYTHON'
-          import json
+          # Use file from /tmp (saved by Git-Bridge step before git clean)
+          if [ -f /tmp/results_live.json ]; then
+            cd /tmp
 
-          with open('results_live.json') as f:
-              data = json.load(f)
+            # Extract key values using jq
+            DECISION=$(jq -r '.decision // "UNKNOWN"' results_live.json)
+            SUCCESS_RATE=$(jq -r '(.metrics.success_rate // 0) * 100 | floor' results_live.json)
+            TOTAL_COST=$(jq -r '.metrics.total_cost_usd // 0' results_live.json)
+            AVG_LATENCY=$(jq -r '.metrics.avg_latency_ms // 0 | floor' results_live.json)
 
-          decision = data.get('decision', 'UNKNOWN')
-          success_rate = data['metrics'].get('success_rate', 0) * 100
-          total_cost = data['metrics'].get('total_cost_usd', 0)
-          avg_latency = data['metrics'].get('avg_latency_ms', 0)
+            # Create issue body
+            cat > issue_body.md << BODY
+          ## exp_003 Live Test Results
 
-          body = f"""## exp_003 Live Test Results
-
-          **Decision:** {decision}
-          **Success Rate:** {success_rate:.1f}%
-          **Total Cost:** ${total_cost:.4f}
-          **Avg Latency:** {avg_latency:.0f}ms
+          **Decision:** ${DECISION}
+          **Success Rate:** ${SUCCESS_RATE}%
+          **Total Cost:** \$${TOTAL_COST}
+          **Avg Latency:** ${AVG_LATENCY}ms
           **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
           ### Retrieval Methods (Proxy-Safe)
 
           **1. GHCR (Recommended):**
-          ```bash
+          \`\`\`bash
           oras pull ghcr.io/${{ github.repository }}/exp003-results:run-${{ github.run_id }}
-          ```
+          \`\`\`
 
           **2. Git-Bridge:**
-          ```bash
+          \`\`\`bash
           git fetch origin artifacts/exp003-run-${{ github.run_id }}
           git show FETCH_HEAD:results.json
-          ```
+          \`\`\`
 
           **3. Issue API (this issue):**
           Extract JSON from code block below.
 
-          ### Test Results Summary
-
-          | Test | Success | Cost | Latency |
-          |------|---------|------|---------|
-          """
-
-          for test in data.get('test_results', []):
-              status = "✅" if test['success'] else "❌"
-              body += f"| {test['test_case_id']} | {status} | ${test['cost_usd']:.4f} | {test['latency_ms']:.0f}ms |\n"
-
-          body += f"""
           ### Raw Results (JSON)
 
           <!-- MACHINE_READABLE_START -->
-          ```json
-          {json.dumps(data, indent=2)}
-          ```
+          \`\`\`json
+          $(cat results_live.json)
+          \`\`\`
           <!-- MACHINE_READABLE_END -->
-          """
-
-          with open('issue_body.md', 'w') as f:
-              f.write(body)
-
-          with open('decision.txt', 'w') as f:
-              f.write(f"{decision}|{success_rate:.1f}%")
-          PYTHON
-
-            DECISION=$(cut -d'|' -f1 decision.txt)
-            SUCCESS_RATE=$(cut -d'|' -f2 decision.txt)
+          BODY
 
             gh issue create \
-              --title "exp_003 Results [Run ${{ github.run_id }}]: $DECISION ($SUCCESS_RATE success)" \
+              --title "exp_003 Results [Run ${{ github.run_id }}]: $DECISION (${SUCCESS_RATE}% success)" \
               --body-file issue_body.md \
               --label "experiment,automated" \
               || echo "Issue creation failed - check other retrieval methods"
+          else
+            echo "No results file at /tmp/results_live.json - Git-Bridge step may have failed"
           fi
 
       - name: Summary

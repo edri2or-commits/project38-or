@@ -2505,6 +2505,56 @@ Always use `src.github_pr.create_pr()` instead of calling `gh pr create` directl
 
 ---
 
+## Experiment Results Retrieval (Proxy-Safe)
+
+**Problem:** Claude Code sessions behind Anthropic proxy cannot retrieve GitHub Actions artifacts (Azure Blob Storage blocked).
+
+**Solution:** `src/experiment_results.py` with triple-redundant retrieval:
+
+```python
+from src.experiment_results import get_results, ResultRetriever
+
+# Simple usage - tries all methods with fallback
+results = get_results("exp_003", run_id=21249388957)
+# Returns: {"decision": "ADOPT", "metrics": {...}, ...}
+
+# Advanced usage - specific method
+retriever = ResultRetriever()
+result = retriever.from_git_bridge("exp003", run_id=21249388957)
+result = retriever.from_ghcr("exp003", run_id=21249388957)  # Requires ORAS
+result = retriever.from_issue("exp_003", run_id=21249388957)
+```
+
+**Retrieval Methods (in fallback order):**
+
+| Method | Protocol | Proxy Status | Notes |
+|--------|----------|--------------|-------|
+| **GHCR (ORAS)** | HTTPS to ghcr.io | ✅ Allowed | Requires `oras` CLI |
+| **Git-Bridge** | Git protocol | ✅ Allowed | Orphan branches |
+| **IssueOps** | HTTPS to api.github.com | ✅ Allowed | JSON in Issue body |
+
+**CLI Usage:**
+```bash
+# Get from any method (auto-fallback)
+python3 src/experiment_results.py get exp_003 21249388957
+
+# Specific method
+python3 src/experiment_results.py git exp_003 21249388957
+python3 src/experiment_results.py issue exp_003 21249388957
+```
+
+**How Results Get Stored:**
+Workflow `.github/workflows/exp003-ghcr-results.yml` pushes to all three locations:
+1. `ghcr.io/edri2or-commits/project38-or/exp003-results:run-{ID}`
+2. Branch `artifacts/exp003-run-{ID}`
+3. Issue titled `exp_003 Results [Run {ID}]`
+
+**Key Insight:** `workflow_dispatch` triggers only work if workflow file exists on **default branch** (main).
+
+**Documentation:** `docs/research/notes/2026-01-22-permanent-ci-results-retrieval.md`
+
+---
+
 ## Troubleshooting: Git Push & Merge Conflicts
 
 ### Problem 1: HTTP 403 "The requested URL returned error: 403" on git push
