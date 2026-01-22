@@ -1800,12 +1800,13 @@ MCP Gateway (Railway) ← Bearer Token Auth
 - **Cloud Function URL**: `https://us-central1-project38-483612.cloudfunctions.net/mcp-router`
 - **Platform**: Cloud Run + Cloud Function Gen 1 proxy
 - **Authentication**: MCP_TUNNEL_TOKEN (mounted from GCP Secret Manager at runtime)
-- **Tools Available**: 27 tools across 5 categories
-  - **Railway (7)**: deploy, status, rollback, deployments, scale, restart, logs
+- **Tools Available**: 30 tools across 6 categories
+  - **Railway (9)**: deploy, status, rollback, deployments, service_info, list_services, create_domain, logs, logs_debug
   - **n8n (3)**: trigger, list, status
   - **Monitoring (4)**: health_check, get_metrics, deployment_health, http_get
   - **Google Workspace (10)**: gmail_send, gmail_list, calendar_list_events, calendar_create_event, drive_list_files, sheets_read, sheets_write, docs_create, docs_read, docs_append
-  - **GCP (3)**: gcp_secret_list, gcp_secret_get, gcp_project_info *(NEW - PR #349)*
+  - **GCP (3)**: gcp_secret_list, gcp_secret_get, gcp_project_info
+  - **Claude API (1)**: claude_complete *(NEW - 2026-01-22)* - Direct Claude API access from cloud environments
 
 **Permanent Setup (No Manual Steps)**:
 

@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Claude API Tool in MCP Tunnel** (2026-01-22)
+  - Added `claude_complete` tool to `cloud_functions/mcp_router/main.py`
+  - Enables direct Claude API calls from cloud environments blocked by proxy
+  - Features:
+    - Fetches ANTHROPIC-API key from GCP Secret Manager internally
+    - Supports all Claude models (Sonnet 4, Opus 4.5, Haiku 3.5)
+    - Returns full response with usage stats and latency metrics
+    - API key never exposed to clients (security by design)
+  - MCP Tunnel now has 30 tools (previously 29)
+  - Deployed to Cloud Run: `mcp-router-979429709900.us-central1.run.app`
+  - Verified working: 3643ms latency, successful API call
+
 - **Mock Providers for Testing** (2026-01-21)
   - Added `src/providers/mock.py` with mock provider implementations
   - `MockProvider` - Configurable mock for testing experiments
