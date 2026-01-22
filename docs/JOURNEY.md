@@ -5497,5 +5497,105 @@ Labels that bypass enforcement:
 
 ---
 
+## Phase 40: Test Coverage Expansion - 186 New Tests (2026-01-22)
+
+### Goal
+
+Systematically increase test coverage from 34.5% to higher levels by creating tests for untested modules in priority order.
+
+### Background
+
+Test coverage analysis revealed:
+- **116 production modules** in `src/`
+- **40 modules tested** (34.5%)
+- **61 modules untested** (52.6%)
+- **15 modules partially tested** (12.9%)
+- **795 test cases** across 33 test files
+
+### Implementation
+
+#### Priority P1: monitoring_loop Tests (2026-01-22)
+
+**Problem:** 47 tests in `skip_test_monitoring_loop.py` were skipped due to API mismatches between tests and production code.
+
+**Solution:**
+1. Fixed 4 bugs in `src/monitoring_loop.py`:
+   - `check_resource_usage()` - Fixed return type to include `status` field
+   - `_handle_anomaly()` - Fixed attribute error (`_running` → `running`)
+   - `_on_failure()` - Fixed undefined `scheduler_instance`
+   - `_trigger_action()` - Fixed unbound variable in except block
+
+2. Renamed `skip_test_monitoring_loop.py` → `test_monitoring_loop.py`
+3. Fixed 5 test failures related to async/mock patterns
+
+**Result:** 46 tests pass, 1 skipped (intentional)
+
+#### Priority P2: API Route Tests (2026-01-22)
+
+Created tests for 5 untested API route modules:
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `test_api_routes_costs.py` | 18 | Estimates, budgets, recommendations |
+| `test_api_routes_monitoring.py` | 17 | Start/stop/pause monitoring |
+| `test_api_routes_metrics.py` | 17 | System metrics, summaries |
+| `test_api_routes_tasks.py` | 17 | Task CRUD operations |
+| `test_api_routes_secrets_health.py` | 17 | Secrets health endpoints |
+
+**Techniques:**
+- FastAPI TestClient for HTTP testing
+- `patch.object()` for lazy import mocking
+- Skip conditions for missing dependencies (psutil)
+
+**Result:** 53 tests pass, 34 skipped (dependency-based)
+
+#### Priority P3: MCP Gateway Tests (2026-01-22)
+
+Created tests for 5 MCP Gateway modules:
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `test_mcp_gateway_auth.py` | 10 | Bearer token validation |
+| `test_mcp_gateway_config.py` | 6 | Config dataclass, caching |
+| `test_mcp_gateway_tools_railway.py` | 14 | Railway deployments, rollbacks |
+| `test_mcp_gateway_tools_n8n.py` | 15 | Workflow triggers, registry |
+| `test_mcp_gateway_tools_monitoring.py` | 8 | Health checks, metrics |
+
+**Techniques:**
+- `patch.object()` pattern for module-level mocking
+- Skip conditions for tenacity and cryptography dependencies
+- AsyncMock for async httpx client mocking
+
+**Result:** 53 tests (all skip gracefully when dependencies unavailable)
+
+### Summary
+
+| Priority | Focus Area | Tests Added | PRs |
+|----------|------------|-------------|-----|
+| P1 | monitoring_loop | 47 (re-enabled) | #431 |
+| P2 | API Routes | 86 | #432 |
+| P3 | MCP Gateway | 53 | #433 |
+| **Total** | **3 priorities** | **186 tests** | **3 PRs merged** |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 3 | JOURNEY.md | This entry (Phase 40) |
+| Layer 4 | changelog.md | 3 entries for P1, P2, P3 |
+
+### Evidence
+
+- **PR #431**: monitoring_loop fixes (merged 2026-01-22)
+- **PR #432**: API route tests (merged 2026-01-22)
+- **PR #433**: MCP Gateway tests (merged 2026-01-22)
+- **Commit**: ea71c31 - test(api): Add 86 tests for 5 API route modules
+
+### Status
+
+**Phase 40: ✅ COMPLETE - 186 New Tests Added**
+
+---
+
 *Last Updated: 2026-01-22 UTC*
-*Status: **Phase 39 Complete - Context Integrity Enforcement***
+*Status: **Phase 40 Complete - Test Coverage Expansion***
