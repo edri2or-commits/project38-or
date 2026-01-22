@@ -115,6 +115,21 @@
       "excludes": [],
       "requires": ["docs/research/issues/ISSUE-*.md"],
       "message": "New research note detected. Consider creating a local issue for classification (ADR-009 process)."
+    },
+    {
+      "id": "layer4-test-coverage-changelog",
+      "name": "Significant tests require changelog",
+      "description": "Large test additions must be documented in changelog",
+      "layer": 4,
+      "severity": "warn",
+      "triggers": [
+        "tests/**/*.py",
+        "tests/test_*.py"
+      ],
+      "excludes": [],
+      "requires": ["docs/changelog.md"],
+      "threshold_lines": 100,
+      "message": "Significant test additions detected (100+ lines). Update docs/changelog.md to document test coverage expansion."
     }
   ],
   "escape_hatches": {
