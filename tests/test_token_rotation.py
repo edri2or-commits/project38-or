@@ -5,8 +5,7 @@ Tests the token_rotation module in src/token_rotation.py.
 
 from __future__ import annotations
 
-import time
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -28,9 +27,9 @@ def _can_import_module() -> bool:
 
     try:
         from src.token_rotation import (
-            TokenRotationInterlock,
-            RotationState,
             RotationResult,
+            RotationState,
+            TokenRotationInterlock,
             get_rotation_interlock,
         )
         return True
@@ -155,8 +154,9 @@ class TestTokenRotationInterlock:
 
     def test_get_current_version_not_found(self):
         """Test getting version when secret not found."""
-        from src.token_rotation import TokenRotationInterlock
         from google.api_core import exceptions
+
+        from src.token_rotation import TokenRotationInterlock
 
         mock_client = MagicMock()
         mock_client.access_secret_version.side_effect = exceptions.NotFound("Not found")
@@ -226,7 +226,7 @@ class TestTokenRotationInterlock:
     @pytest.mark.asyncio
     async def test_rotate_token_success(self):
         """Test successful token rotation."""
-        from src.token_rotation import TokenRotationInterlock, RotationState
+        from src.token_rotation import RotationState, TokenRotationInterlock
 
         mock_client = MagicMock()
 
@@ -253,7 +253,7 @@ class TestTokenRotationInterlock:
     @pytest.mark.asyncio
     async def test_rotate_token_with_validator_success(self):
         """Test token rotation with successful validation."""
-        from src.token_rotation import TokenRotationInterlock, RotationState
+        from src.token_rotation import TokenRotationInterlock
 
         mock_client = MagicMock()
 
@@ -279,7 +279,7 @@ class TestTokenRotationInterlock:
     @pytest.mark.asyncio
     async def test_rotate_token_with_validator_failure(self):
         """Test token rotation with failed validation causes rollback."""
-        from src.token_rotation import TokenRotationInterlock, RotationState
+        from src.token_rotation import RotationState, TokenRotationInterlock
 
         mock_client = MagicMock()
 
@@ -307,7 +307,7 @@ class TestTokenRotationInterlock:
     @pytest.mark.asyncio
     async def test_rotate_token_already_in_progress(self):
         """Test rotation blocked when already in progress."""
-        from src.token_rotation import TokenRotationInterlock, RotationState
+        from src.token_rotation import TokenRotationInterlock
 
         with patch("src.token_rotation.secretmanager.SecretManagerServiceClient"):
             interlock = TokenRotationInterlock()
@@ -321,7 +321,7 @@ class TestTokenRotationInterlock:
     @pytest.mark.asyncio
     async def test_rotate_token_secret_not_found(self):
         """Test rotation when secret doesn't exist."""
-        from src.token_rotation import TokenRotationInterlock, RotationState
+        from src.token_rotation import TokenRotationInterlock
 
         mock_client = MagicMock()
         mock_client.access_secret_version.side_effect = Exception("Not found")
@@ -377,7 +377,7 @@ class TestTokenRotationInterlock:
 
     def test_get_rotation_history_with_filter(self):
         """Test getting rotation history with filter."""
-        from src.token_rotation import TokenRotationInterlock, RotationResult, RotationState
+        from src.token_rotation import RotationResult, RotationState, TokenRotationInterlock
 
         with patch("src.token_rotation.secretmanager.SecretManagerServiceClient"):
             interlock = TokenRotationInterlock()
@@ -411,8 +411,8 @@ class TestGlobalInterlock:
 
     def test_get_rotation_interlock_singleton(self):
         """Test that get_rotation_interlock returns singleton."""
-        from src.token_rotation import get_rotation_interlock
         import src.token_rotation as module
+        from src.token_rotation import get_rotation_interlock
 
         # Reset global
         module._interlock = None

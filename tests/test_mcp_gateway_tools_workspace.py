@@ -103,8 +103,9 @@ class TestWorkspaceAuth:
     @pytest.mark.asyncio
     async def test_get_access_token_uses_cached_when_valid(self):
         """Test cached token is used when still valid."""
-        from src.mcp_gateway.tools.workspace import WorkspaceAuth
         import time
+
+        from src.mcp_gateway.tools.workspace import WorkspaceAuth
 
         auth = WorkspaceAuth()
         auth._access_token = "cached-token"

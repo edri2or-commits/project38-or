@@ -1,9 +1,9 @@
 """Tests for src/api/routes/learning.py - Learning API Routes."""
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # Skip all tests if fastapi not installed
 pytest.importorskip("fastapi")
@@ -192,7 +192,7 @@ class TestRecordActionEndpoint:
     @pytest.mark.asyncio
     async def test_record_action_success(self):
         """record_action should record and return confirmation."""
-        from src.api.routes.learning import record_action, RecordActionRequest
+        from src.api.routes.learning import RecordActionRequest, record_action
 
         mock_record = MagicMock()
         mock_record.id = 1
@@ -216,7 +216,7 @@ class TestRecordActionEndpoint:
     @pytest.mark.asyncio
     async def test_record_action_with_error(self):
         """record_action should handle failure records."""
-        from src.api.routes.learning import record_action, RecordActionRequest
+        from src.api.routes.learning import RecordActionRequest, record_action
 
         mock_record = MagicMock()
         mock_record.id = 2

@@ -1,8 +1,9 @@
 """Tests for src/github_api.py - GitHub API Client."""
 
-import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
 import os
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestGitHubAPIInit:
@@ -446,7 +447,7 @@ class TestGetAPI:
 
     def test_get_api_returns_instance(self):
         """get_api should return GitHubAPI instance."""
-        from src.github_api import get_api, GitHubAPI
+        from src.github_api import GitHubAPI, get_api
 
         with patch.dict(os.environ, {"GH_TOKEN": "test_token"}):
             api = get_api()

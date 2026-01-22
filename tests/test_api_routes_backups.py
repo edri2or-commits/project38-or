@@ -1,8 +1,8 @@
 """Tests for src/api/routes/backups.py - Backup API Routes."""
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # Skip all tests if fastapi not installed
 pytest.importorskip("fastapi")
@@ -142,7 +142,7 @@ class TestCreateBackupEndpoint:
     @pytest.mark.asyncio
     async def test_create_backup_success(self):
         """create_backup should return success response."""
-        from src.api.routes.backups import create_backup, CreateBackupRequest
+        from src.api.routes.backups import CreateBackupRequest, create_backup
 
         # Mock the backup manager
         mock_result = MagicMock()
@@ -165,8 +165,9 @@ class TestCreateBackupEndpoint:
     @pytest.mark.asyncio
     async def test_create_backup_failure(self):
         """create_backup should raise HTTPException on failure."""
-        from src.api.routes.backups import create_backup, CreateBackupRequest
         from fastapi import HTTPException
+
+        from src.api.routes.backups import CreateBackupRequest, create_backup
 
         mock_result = MagicMock()
         mock_result.success = False
@@ -185,7 +186,7 @@ class TestCreateBackupEndpoint:
     @pytest.mark.asyncio
     async def test_create_backup_with_metadata(self):
         """create_backup should include metadata in response."""
-        from src.api.routes.backups import create_backup, CreateBackupRequest
+        from src.api.routes.backups import CreateBackupRequest, create_backup
 
         mock_metadata = MagicMock()
         mock_metadata.to_dict.return_value = {
@@ -289,7 +290,7 @@ class TestVerifyBackupEndpoint:
     @pytest.mark.asyncio
     async def test_verify_backup_success(self):
         """verify_backup should return verified status."""
-        from src.api.routes.backups import verify_backup, VerifyBackupRequest
+        from src.api.routes.backups import VerifyBackupRequest, verify_backup
 
         mock_backup = MagicMock()
         mock_backup.backup_id = "backup-001"
@@ -311,8 +312,9 @@ class TestVerifyBackupEndpoint:
     @pytest.mark.asyncio
     async def test_verify_backup_not_found(self):
         """verify_backup should return 404 for unknown backup."""
-        from src.api.routes.backups import verify_backup, VerifyBackupRequest
         from fastapi import HTTPException
+
+        from src.api.routes.backups import VerifyBackupRequest, verify_backup
 
         mock_manager = MagicMock()
         mock_manager.list_backups = AsyncMock(return_value=[])
@@ -327,7 +329,7 @@ class TestVerifyBackupEndpoint:
     @pytest.mark.asyncio
     async def test_verify_backup_failed(self):
         """verify_backup should return verified=False on checksum mismatch."""
-        from src.api.routes.backups import verify_backup, VerifyBackupRequest
+        from src.api.routes.backups import VerifyBackupRequest, verify_backup
 
         mock_backup = MagicMock()
         mock_backup.backup_id = "backup-001"

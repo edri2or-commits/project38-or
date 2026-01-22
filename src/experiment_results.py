@@ -31,7 +31,6 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -50,9 +49,9 @@ class RetrievalResult:
 
     success: bool
     method: RetrievalMethod
-    data: Optional[dict] = None
-    error: Optional[str] = None
-    source: Optional[str] = None  # URL or branch name
+    data: dict | None = None
+    error: str | None = None
+    source: str | None = None  # URL or branch name
 
 
 class ResultRetriever:
@@ -70,7 +69,7 @@ class ResultRetriever:
     def __init__(
         self,
         repo: str = "edri2or-commits/project38-or",
-        github_token: Optional[str] = None,
+        github_token: str | None = None,
     ):
         """
         Initialize retriever.
@@ -89,8 +88,8 @@ class ResultRetriever:
     def get_results(
         self,
         experiment_id: str,
-        run_id: Optional[int] = None,
-        methods: Optional[list[RetrievalMethod]] = None,
+        run_id: int | None = None,
+        methods: list[RetrievalMethod] | None = None,
     ) -> RetrievalResult:
         """
         Get experiment results using fallback chain.
@@ -135,7 +134,7 @@ class ResultRetriever:
     def from_ghcr(
         self,
         experiment_id: str = "exp_003",
-        run_id: Optional[int] = None,
+        run_id: int | None = None,
     ) -> RetrievalResult:
         """
         Retrieve results from GitHub Container Registry via ORAS.
@@ -266,7 +265,7 @@ class ResultRetriever:
     def from_git_bridge(
         self,
         experiment_id: str = "exp_003",
-        run_id: Optional[int] = None,
+        run_id: int | None = None,
     ) -> RetrievalResult:
         """
         Retrieve results from Git-Bridge (orphan branches).
@@ -395,7 +394,7 @@ class ResultRetriever:
     def from_issue(
         self,
         experiment_id: str = "exp_003",
-        run_id: Optional[int] = None,
+        run_id: int | None = None,
     ) -> RetrievalResult:
         """
         Retrieve results from GitHub Issues.
@@ -485,9 +484,9 @@ class ResultRetriever:
 
 def get_results(
     experiment_id: str,
-    run_id: Optional[int] = None,
+    run_id: int | None = None,
     repo: str = "edri2or-commits/project38-or",
-) -> Optional[dict]:
+) -> dict | None:
     """
     Simple function to get experiment results.
 
@@ -515,11 +514,11 @@ def get_results(
 def trigger_and_retrieve(
     workflow: str,
     experiment_id: str,
-    inputs: Optional[dict] = None,
+    inputs: dict | None = None,
     repo: str = "edri2or-commits/project38-or",
     timeout_seconds: int = 600,
     poll_interval: int = 15,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Trigger a workflow and wait for results.
 

@@ -1,10 +1,10 @@
 """Tests for src/evaluation/harness.py - Evaluation Harness."""
 
-import pytest
 import json
 import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 class TestDecisionEnum:
@@ -440,7 +440,7 @@ class TestEvaluationHarnessCompare:
 
     def test_compare_adopt_all_better(self):
         """compare should return ADOPT when all metrics improve."""
-        from src.evaluation.harness import EvaluationHarness, EvaluationResult, Decision
+        from src.evaluation.harness import Decision, EvaluationHarness, EvaluationResult
 
         harness = EvaluationHarness()
 
@@ -478,7 +478,7 @@ class TestEvaluationHarnessCompare:
 
     def test_compare_reject_quality_worse(self):
         """compare should return REJECT when quality degrades."""
-        from src.evaluation.harness import EvaluationHarness, EvaluationResult, Decision
+        from src.evaluation.harness import Decision, EvaluationHarness, EvaluationResult
 
         harness = EvaluationHarness()
 
@@ -516,7 +516,7 @@ class TestEvaluationHarnessCompare:
 
     def test_compare_needs_more_data_insufficient_tests(self):
         """compare should return NEEDS_MORE_DATA for insufficient tests."""
-        from src.evaluation.harness import EvaluationHarness, EvaluationResult, Decision
+        from src.evaluation.harness import Decision, EvaluationHarness, EvaluationResult
 
         harness = EvaluationHarness()
 
@@ -601,6 +601,7 @@ class TestEvaluationHarnessRunTestCase:
     async def test_run_test_case_success(self):
         """_run_test_case should return TestResult on success."""
         import asyncio
+
         from src.evaluation.harness import EvaluationHarness, TestCase
 
         harness = EvaluationHarness()
@@ -625,6 +626,7 @@ class TestEvaluationHarnessRunTestCase:
     async def test_run_test_case_error(self):
         """_run_test_case should handle errors gracefully."""
         import asyncio
+
         from src.evaluation.harness import EvaluationHarness, TestCase
 
         harness = EvaluationHarness()

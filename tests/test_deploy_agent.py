@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.multi_agent.base import AgentDomain, AgentResult, AgentTask, TaskPriority
+from src.multi_agent.base import AgentDomain, AgentTask
 from src.multi_agent.deploy_agent import DeployAgent, DeploymentConfig
 
 

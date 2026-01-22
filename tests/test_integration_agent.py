@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.multi_agent.base import AgentDomain, AgentResult, AgentTask
+from src.multi_agent.base import AgentDomain, AgentTask
 from src.multi_agent.integration_agent import IntegrationAgent, IntegrationConfig
 
 

@@ -12,11 +12,11 @@ def _can_import_module() -> bool:
     """Check if ingestion_agent module can be imported."""
     try:
         from src.research.ingestion_agent import (
-            ResearchInput,
             InferredFields,
+            ResearchInput,
             detect_source_type,
-            extract_key_findings,
             extract_hypothesis_from_text,
+            extract_key_findings,
             extract_metrics_from_text,
             infer_scope_from_description,
         )
@@ -265,8 +265,8 @@ class TestInferScopeFromDescription:
 
     def test_model_scope(self):
         """Test inferring Model scope."""
-        from src.research.ingestion_agent import infer_scope_from_description
         from src.research.classifier import ImpactScope
+        from src.research.ingestion_agent import infer_scope_from_description
 
         scope = infer_scope_from_description("New LLM prompting technique")
 
@@ -274,8 +274,8 @@ class TestInferScopeFromDescription:
 
     def test_security_scope(self):
         """Test inferring Security scope."""
-        from src.research.ingestion_agent import infer_scope_from_description
         from src.research.classifier import ImpactScope
+        from src.research.ingestion_agent import infer_scope_from_description
 
         scope = infer_scope_from_description("Security vulnerability in auth")
 
@@ -283,8 +283,8 @@ class TestInferScopeFromDescription:
 
     def test_architecture_scope(self):
         """Test inferring Architecture scope."""
-        from src.research.ingestion_agent import infer_scope_from_description
         from src.research.classifier import ImpactScope
+        from src.research.ingestion_agent import infer_scope_from_description
 
         scope = infer_scope_from_description("Major architecture redesign")
 
@@ -292,8 +292,8 @@ class TestInferScopeFromDescription:
 
     def test_tool_scope(self):
         """Test inferring Tool scope."""
-        from src.research.ingestion_agent import infer_scope_from_description
         from src.research.classifier import ImpactScope
+        from src.research.ingestion_agent import infer_scope_from_description
 
         scope = infer_scope_from_description("New API integration")
 
@@ -301,8 +301,8 @@ class TestInferScopeFromDescription:
 
     def test_orchestration_scope(self):
         """Test inferring Orchestration scope."""
-        from src.research.ingestion_agent import infer_scope_from_description
         from src.research.classifier import ImpactScope
+        from src.research.ingestion_agent import infer_scope_from_description
 
         scope = infer_scope_from_description("Multi-agent workflow improvement")
 
@@ -314,8 +314,8 @@ class TestInferEffort:
 
     def test_hours_effort_with_tool_scope(self):
         """Test inferring Hours effort for tool scope."""
-        from src.research.ingestion_agent import infer_effort
         from src.research.classifier import Effort, ImpactScope
+        from src.research.ingestion_agent import infer_effort
 
         effort = infer_effort("Quick fix", ImpactScope.TOOL)
 
@@ -323,8 +323,8 @@ class TestInferEffort:
 
     def test_weeks_effort_with_architecture_scope(self):
         """Test inferring Weeks effort for architecture scope."""
-        from src.research.ingestion_agent import infer_effort
         from src.research.classifier import Effort, ImpactScope
+        from src.research.ingestion_agent import infer_effort
 
         effort = infer_effort("Major redesign", ImpactScope.ARCHITECTURE)
 
@@ -336,8 +336,8 @@ class TestInferRisk:
 
     def test_high_risk_for_architecture(self):
         """Test high risk for architecture scope."""
+        from src.research.classifier import Effort, ImpactScope, Risk
         from src.research.ingestion_agent import infer_risk
-        from src.research.classifier import Risk, Effort, ImpactScope
 
         risk = infer_risk(ImpactScope.ARCHITECTURE, Effort.WEEKS)
 
@@ -345,8 +345,8 @@ class TestInferRisk:
 
     def test_low_risk_for_tool_hours(self):
         """Test low risk for tool scope with hours effort."""
+        from src.research.classifier import Effort, ImpactScope, Risk
         from src.research.ingestion_agent import infer_risk
-        from src.research.classifier import Risk, Effort, ImpactScope
 
         risk = infer_risk(ImpactScope.TOOL, Effort.HOURS)
 
@@ -358,12 +358,13 @@ class TestCreateResearchNote:
 
     def test_note_contains_title(self):
         """Test generated note contains title."""
+        import tempfile
+        from pathlib import Path
+
         from src.research.ingestion_agent import (
             ResearchInput,
             create_research_note,
         )
-        import tempfile
-        from pathlib import Path
 
         input_data = ResearchInput(
             source="https://example.com",
@@ -380,12 +381,13 @@ class TestCreateResearchNote:
 
     def test_note_contains_source_url(self):
         """Test generated note contains source URL."""
+        import tempfile
+        from pathlib import Path
+
         from src.research.ingestion_agent import (
             ResearchInput,
             create_research_note,
         )
-        import tempfile
-        from pathlib import Path
 
         input_data = ResearchInput(
             source="https://example.com/research",
@@ -400,12 +402,13 @@ class TestCreateResearchNote:
 
     def test_note_has_required_sections(self):
         """Test generated note has required sections."""
+        import tempfile
+        from pathlib import Path
+
         from src.research.ingestion_agent import (
             ResearchInput,
             create_research_note,
         )
-        import tempfile
-        from pathlib import Path
 
         input_data = ResearchInput(
             source="https://example.com",

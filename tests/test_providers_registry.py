@@ -1,7 +1,8 @@
 """Tests for src/providers/registry.py - Model Provider Registry."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 
 class TestModelRegistryBasics:
@@ -367,8 +368,8 @@ class TestModelRegistryGetCapabilitiesSummary:
 
     def test_get_capabilities_summary_returns_data(self):
         """get_capabilities_summary should return capabilities for all providers."""
-        from src.providers.registry import ModelRegistry
         from src.providers.base import ModelCapabilities
+        from src.providers.registry import ModelRegistry
 
         ModelRegistry.clear()
 

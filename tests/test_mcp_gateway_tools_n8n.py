@@ -121,9 +121,10 @@ class TestTriggerWorkflow:
     @pytest.mark.asyncio
     async def test_trigger_workflow_timeout(self):
         """Test workflow timeout handling."""
+        import httpx
+
         from src.mcp_gateway.tools import n8n as n8n_module
         from src.mcp_gateway.tools.n8n import trigger_workflow
-        import httpx
 
         mock_config = MagicMock()
         mock_config.n8n_base_url = "http://n8n.local"
@@ -147,7 +148,7 @@ class TestListWorkflows:
     async def test_list_workflows_returns_all_registered(self):
         """Test that list_workflows returns all registered workflows."""
         from src.mcp_gateway.tools import n8n as n8n_module
-        from src.mcp_gateway.tools.n8n import list_workflows, WORKFLOW_REGISTRY
+        from src.mcp_gateway.tools.n8n import WORKFLOW_REGISTRY, list_workflows
 
         mock_config = MagicMock()
         mock_config.n8n_base_url = "http://n8n.local"
@@ -264,7 +265,7 @@ class TestRegisterWorkflow:
 
     def test_register_workflow_adds_to_registry(self):
         """Test that register_workflow adds a new workflow."""
-        from src.mcp_gateway.tools.n8n import register_workflow, WORKFLOW_REGISTRY
+        from src.mcp_gateway.tools.n8n import WORKFLOW_REGISTRY, register_workflow
 
         # Clean up test workflow if it exists from previous runs
         test_name = "test-workflow-xyz"
@@ -288,7 +289,7 @@ class TestRegisterWorkflow:
 
     def test_register_workflow_default_method(self):
         """Test that register_workflow defaults to POST method."""
-        from src.mcp_gateway.tools.n8n import register_workflow, WORKFLOW_REGISTRY
+        from src.mcp_gateway.tools.n8n import WORKFLOW_REGISTRY, register_workflow
 
         test_name = "test-default-method"
         if test_name in WORKFLOW_REGISTRY:

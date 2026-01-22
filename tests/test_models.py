@@ -1,7 +1,8 @@
 """Tests for src/models - Agent, Task, ActionRecord models."""
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 # Skip all tests if sqlmodel not installed
 pytest.importorskip("sqlmodel")

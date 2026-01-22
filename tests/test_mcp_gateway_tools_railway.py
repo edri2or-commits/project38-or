@@ -23,10 +23,10 @@ def _can_import_railway() -> bool:
     """Check if railway module can be imported."""
     try:
         from src.mcp_gateway.tools.railway import (
-            trigger_deployment,
+            execute_rollback,
             get_deployment_status,
             get_recent_deployments,
-            execute_rollback,
+            trigger_deployment,
         )
         return True
     except ImportError:
@@ -341,8 +341,8 @@ class TestGraphQLRequest:
     @pytest.mark.asyncio
     async def test_graphql_request_uses_config_token(self):
         """Test that GraphQL request uses token from config."""
+
         from src.mcp_gateway.tools.railway import _graphql_request
-        import httpx
 
         mock_config = MagicMock()
         mock_config.railway_token = "test-bearer-token"

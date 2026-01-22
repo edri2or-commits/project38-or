@@ -19,7 +19,6 @@ import json
 import os
 import re
 import time
-from typing import Optional
 
 import requests
 
@@ -44,7 +43,7 @@ def get_experiment_results(
     experiment_id: str,
     repo: str = "edri2or-commits/project38-or",
     labels: str = "experiment",
-) -> Optional[dict]:
+) -> dict | None:
     """
     Retrieve experiment results from GitHub Issue.
 
@@ -123,7 +122,7 @@ def wait_for_results(
     timeout_seconds: int = 300,
     poll_interval: int = 10,
     repo: str = "edri2or-commits/project38-or",
-) -> Optional[dict]:
+) -> dict | None:
     """
     Wait for experiment results to appear in GitHub Issues.
 
@@ -196,10 +195,10 @@ def list_experiment_issues(
 def trigger_and_wait(
     workflow: str,
     experiment_id: str,
-    inputs: Optional[dict] = None,
+    inputs: dict | None = None,
     repo: str = "edri2or-commits/project38-or",
     timeout_seconds: int = 600,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Trigger a workflow and wait for results in GitHub Issue.
 

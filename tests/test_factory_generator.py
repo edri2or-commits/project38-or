@@ -1,7 +1,8 @@
 """Tests for src/factory/generator.py - Agent Code Generator."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
 # Skip all tests if dependencies not installed
 pytest.importorskip("anthropic")
@@ -30,8 +31,9 @@ class TestAgentGenerationPrompt:
 
     def test_prompt_is_jinja_template(self):
         """Prompt should be a Jinja2 Template."""
-        from src.factory.generator import AGENT_GENERATION_PROMPT
         from jinja2 import Template
+
+        from src.factory.generator import AGENT_GENERATION_PROMPT
 
         assert isinstance(AGENT_GENERATION_PROMPT, Template)
 
@@ -135,7 +137,7 @@ class TestGenerateAgentCode:
     @pytest.mark.asyncio
     async def test_empty_response_raises_generator_error(self):
         """Empty API response should raise GeneratorError."""
-        from src.factory.generator import generate_agent_code, GeneratorError
+        from src.factory.generator import GeneratorError, generate_agent_code
 
         mock_response = MagicMock()
         mock_response.content = []
@@ -148,8 +150,9 @@ class TestGenerateAgentCode:
     @pytest.mark.asyncio
     async def test_api_error_raises_generator_error(self):
         """API error should raise GeneratorError."""
-        from src.factory.generator import generate_agent_code, GeneratorError
         from anthropic import APIError
+
+        from src.factory.generator import GeneratorError, generate_agent_code
 
         with patch("src.factory.generator.Anthropic") as mock_client:
             mock_client.return_value.messages.create.side_effect = APIError(

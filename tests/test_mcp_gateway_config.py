@@ -6,7 +6,7 @@ Tests the config module in src/mcp_gateway/config.py.
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -26,7 +26,7 @@ def _has_cryptography() -> bool:
 def _can_import_config() -> bool:
     """Check if config module can be imported."""
     try:
-        from src.mcp_gateway.config import MCPGatewayConfig, get_config, clear_config
+        from src.mcp_gateway.config import MCPGatewayConfig, clear_config, get_config
         return True
     except ImportError:
         return False
@@ -111,8 +111,8 @@ class TestGetConfig:
 
     def test_get_config_with_env_vars_fallback(self):
         """Test that get_config falls back to environment variables."""
-        from src.mcp_gateway.config import get_config, clear_config
         import src.mcp_gateway.config as config_module
+        from src.mcp_gateway.config import clear_config, get_config
 
         env_vars = {
             "RAILWAY_API_TOKEN": "env-railway-token",
@@ -138,8 +138,8 @@ class TestGetConfig:
 
     def test_get_config_caches_result(self):
         """Test that get_config caches the configuration."""
-        from src.mcp_gateway.config import get_config, clear_config
         import src.mcp_gateway.config as config_module
+        from src.mcp_gateway.config import clear_config, get_config
 
         clear_config()
         with patch.dict(os.environ, {"RAILWAY_API_TOKEN": "cached", "N8N_API_KEY": "k", "MCP_GATEWAY_TOKEN": "t"}):
@@ -152,8 +152,8 @@ class TestGetConfig:
 
     def test_clear_config_clears_cache(self):
         """Test that clear_config clears the cached configuration."""
-        from src.mcp_gateway.config import get_config, clear_config
         import src.mcp_gateway.config as config_module
+        from src.mcp_gateway.config import clear_config, get_config
 
         clear_config()
         with patch.dict(os.environ, {"RAILWAY_API_TOKEN": "first", "N8N_API_KEY": "k", "MCP_GATEWAY_TOKEN": "t"}):

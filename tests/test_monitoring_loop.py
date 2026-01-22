@@ -36,6 +36,7 @@ def _has_cryptography() -> bool:
     try:
         # Check for _cffi_backend first - if missing, cryptography will panic
         import _cffi_backend  # noqa: F401
+
         # Then verify cryptography itself loads
         import cryptography.hazmat.primitives  # noqa: F401
         return True

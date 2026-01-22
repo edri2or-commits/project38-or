@@ -5,7 +5,6 @@ Tests the credential_lifecycle module in src/credential_lifecycle.py.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -28,11 +27,11 @@ def _can_import_module() -> bool:
     """Check if credential_lifecycle module can be imported."""
     try:
         from src.credential_lifecycle import (
-            CredentialLifecycleManager,
-            CredentialType,
-            CredentialTier,
-            CredentialStatus,
             CredentialHealth,
+            CredentialLifecycleManager,
+            CredentialStatus,
+            CredentialTier,
+            CredentialType,
             RecoveryAction,
         )
         return True
@@ -93,8 +92,8 @@ class TestCredentialStatus:
         """Test creating a credential status."""
         from src.credential_lifecycle import (
             CredentialStatus,
-            CredentialType,
             CredentialTier,
+            CredentialType,
         )
 
         status = CredentialStatus(
@@ -113,8 +112,8 @@ class TestCredentialStatus:
         """Test credential status with expiration."""
         from src.credential_lifecycle import (
             CredentialStatus,
-            CredentialType,
             CredentialTier,
+            CredentialType,
         )
 
         expires = datetime.now(UTC) + timedelta(hours=1)
@@ -131,8 +130,8 @@ class TestCredentialStatus:
         """Test credential status with error."""
         from src.credential_lifecycle import (
             CredentialStatus,
-            CredentialType,
             CredentialTier,
+            CredentialType,
             RecoveryAction,
         )
 
@@ -157,8 +156,8 @@ class TestCredentialHealth:
         from src.credential_lifecycle import (
             CredentialHealth,
             CredentialStatus,
-            CredentialType,
             CredentialTier,
+            CredentialType,
         )
 
         statuses = {
@@ -184,8 +183,8 @@ class TestCredentialHealth:
         from src.credential_lifecycle import (
             CredentialHealth,
             CredentialStatus,
-            CredentialType,
             CredentialTier,
+            CredentialType,
         )
 
         statuses = {
@@ -211,8 +210,8 @@ class TestCredentialHealth:
         from src.credential_lifecycle import (
             CredentialHealth,
             CredentialStatus,
-            CredentialType,
             CredentialTier,
+            CredentialType,
         )
 
         # One expiring in 1 hour, one expiring in 48 hours
@@ -244,12 +243,11 @@ class TestCredentialLifecycleManager:
     @pytest.mark.asyncio
     async def test_check_gcp_wif_healthy(self):
         """Test GCP WIF check when healthy."""
+        import src.credential_lifecycle as lifecycle_module
         from src.credential_lifecycle import (
             CredentialLifecycleManager,
             CredentialType,
-            CredentialTier,
         )
-        import src.credential_lifecycle as lifecycle_module
 
         manager = CredentialLifecycleManager()
 
@@ -298,8 +296,6 @@ class TestCredentialLifecycleManager:
         """Test checking unknown credential type."""
         from src.credential_lifecycle import (
             CredentialLifecycleManager,
-            CredentialType,
-            CredentialTier,
         )
 
         manager = CredentialLifecycleManager()
@@ -318,11 +314,11 @@ class TestCredentialLifecycleManager:
     def test_get_expiration_report(self):
         """Test expiration report generation."""
         from src.credential_lifecycle import (
-            CredentialLifecycleManager,
             CredentialHealth,
+            CredentialLifecycleManager,
             CredentialStatus,
-            CredentialType,
             CredentialTier,
+            CredentialType,
         )
 
         manager = CredentialLifecycleManager()
@@ -352,11 +348,11 @@ class TestCredentialLifecycleManager:
     def test_get_expiration_report_expiring_soon(self):
         """Test expiration report with expiring credentials."""
         from src.credential_lifecycle import (
-            CredentialLifecycleManager,
             CredentialHealth,
+            CredentialLifecycleManager,
             CredentialStatus,
-            CredentialType,
             CredentialTier,
+            CredentialType,
         )
 
         manager = CredentialLifecycleManager()
