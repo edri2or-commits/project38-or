@@ -1,4 +1,4 @@
-name: exp_003 Live Browser Test
+name: Run exp_003 Browser Test
 
 on:
   workflow_dispatch:
