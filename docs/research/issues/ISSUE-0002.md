@@ -58,6 +58,8 @@ Claude 4.5 Opus is Anthropic's most capable model with enhanced reasoning, codin
 
 ### Real Provider Run Results (2026-01-22)
 
+#### Haiku vs Sonnet
+
 | Metric | Claude Haiku (Baseline) | Claude Sonnet (Experiment) | Delta |
 |--------|-------------------------|----------------------------|-------|
 | **Quality** | **93.33%** | **93.75%** | +0.42% |
@@ -68,7 +70,21 @@ Claude 4.5 Opus is Anthropic's most capable model with enhanced reasoning, codin
 **Decision:** ❌ **REJECT**
 **Reasoning:** Cost +276% (3.76x) without meaningful quality improvement (+0.42%)
 
-**Key Finding:** Claude Haiku achieves 93.33% quality at ~4x lower cost than Sonnet. For basic autonomous tasks, Haiku is sufficient.
+#### Haiku vs Opus (Original Hypothesis Test)
+
+| Metric | Claude Haiku (Baseline) | Claude Opus (Experiment) | Delta |
+|--------|-------------------------|--------------------------|-------|
+| **Quality** | **95.83%** | **95.00%** | **-0.83%** |
+| **Latency** | 4,216ms | 5,638ms | 1.34x |
+| **Cost** | $0.018 | $0.342 | **18.95x** |
+| Pass Rate | 90% (18/20) | 90% (18/20) | same |
+
+**Decision:** ❌ **REJECT**
+**Reasoning:** Cost +1795% (18.95x) with quality **regression** (-0.83%)
+
+**Hypothesis DISPROVEN:** The original hypothesis stated Opus would improve quality by 10-15% at 2-3x cost. Actual result: quality decreased by 0.83% at 19x cost.
+
+**Key Finding:** Claude Haiku achieves the best cost/quality ratio. Both Sonnet and Opus provide no meaningful quality improvement for basic autonomous evaluation tasks, yet cost 4-19x more.
 
 ### Experiment
 
