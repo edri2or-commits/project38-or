@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test results: 46 passed, 1 skipped (cryptography dependency)
 
 ### Added
+- **API Route Tests for 5 Modules** (2026-01-22)
+  - Created `tests/test_api_routes_costs.py` (19 tests) - costs estimation, budget, recommendations
+  - Created `tests/test_api_routes_monitoring.py` (22 tests) - monitoring loop control endpoints
+  - Created `tests/test_api_routes_metrics.py` (13 tests) - system metrics, agent status
+  - Created `tests/test_api_routes_tasks.py` (15 tests) - task CRUD and retry operations
+  - Created `tests/test_api_routes_secrets_health.py` (17 tests) - secrets health monitoring
+  - Total: 86 new tests for previously untested API routes
+  - Graceful skipping for tests requiring psutil/cryptography dependencies
+
 - **ADR-012: Context Integrity Enforcement Architecture** (2026-01-22)
   - Implements Hybrid Enforcement Model for 4-layer documentation
   - Based on Deep Research: "Policy-as-Code Architecture for Autonomous AI Systems"
