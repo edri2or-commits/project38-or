@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `get_results()` simple function with auto-fallback
     - `trigger_and_retrieve()` for full automation
   - Key insight: `workflow_dispatch` must exist on default branch (main) to register
-  - PRs: #417 (initial), #419 (docs + Git-Bridge fix), #420, #421 (IssueOps fix)
+  - PRs: #417 (initial), #419 (docs + Git-Bridge fix), #420, #421 (IssueOps attempts), #423 (IssueOps final fix - standalone script)
   - Verified: Git-Bridge retrieval working from Claude Code environment
   - Documentation: `docs/research/notes/2026-01-22-permanent-ci-results-retrieval.md`
 
