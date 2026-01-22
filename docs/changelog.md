@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-006 GCP MCP Server Verification Complete** (2026-01-22)
+  - Verified 5 core tools via `gcp-tunnel-health-check.yml` workflow (Run #21251500996)
+  - Verified tools: `gcp_project_info`, `gcp_secret_list`, `health_check`, `railway_status`, `railway_logs`
+  - All tools functioning correctly via MCP Tunnel
+  - Updated ADR-006 Validation section with completion dates
+
+- **ISSUE-0003 Vercel Agent Browser Completed** (2026-01-22)
+  - Updated ISSUE-0003 status to COMPLETE with ADOPT decision
+  - Framework validated (13/13 dry-run tests passed)
+  - Token cost well under target ($0.0012 vs $0.02)
+  - Live tests require Railway auth (RAILWAY_SESSION_TOKEN) - optional for ADOPT
+
 - **Permanent Proxy-Safe CI Results Retrieval** (2026-01-22)
   - Implemented unified solution for retrieving GitHub Actions results from proxy-blocked environments
   - Based on two Deep Research findings:

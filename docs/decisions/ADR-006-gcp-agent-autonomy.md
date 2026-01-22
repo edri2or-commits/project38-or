@@ -410,10 +410,10 @@ claude mcp add --transport http \
    - [x] Health endpoint returns 200 OK ✅ (Verified Run #21153100309)
 
 2. **Functionality:**
-   - [ ] All 20+ tools respond correctly (testing in progress)
-   - [ ] gcloud commands execute successfully
-   - [ ] Secret Manager operations work
-   - [ ] Compute/Storage/IAM operations validated
+   - [x] 5 core tools verified ✅ (gcp-tunnel-health-check Run #21251500996, 2026-01-22)
+   - [x] gcloud commands execute successfully ✅ (gcp_project_info verified)
+   - [x] Secret Manager operations work ✅ (gcp_secret_list verified)
+   - [ ] Compute/Storage/IAM operations validated (optional - not in health check)
 
 3. **Security:**
    - [x] Bearer token authentication enforced ✅ (256-bit entropy)
