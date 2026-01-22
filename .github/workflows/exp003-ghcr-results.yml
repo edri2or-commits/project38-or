@@ -163,74 +163,82 @@ jobs:
 
       # ===== STRATEGY 3: IssueOps (fallback) =====
       # Creates issue with embedded JSON for API retrieval
+      # NOTE: Uses /tmp/results_live.json saved by Git-Bridge step (survives git checkout --orphan)
       - name: Create issue with results
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          cd /home/runner/work/project38-or/project38-or/experiments/exp_003_vercel_agent_browser
-          if [ -f results_live.json ]; then
+          # Use file from /tmp (saved by Git-Bridge step before git clean)
+          if [ -f /tmp/results_live.json ]; then
+            cd /tmp
             python3 << 'PYTHON'
-          import json
+import json
+import os
 
-          with open('results_live.json') as f:
-              data = json.load(f)
+with open('results_live.json') as f:
+    data = json.load(f)
 
-          decision = data.get('decision', 'UNKNOWN')
-          success_rate = data['metrics'].get('success_rate', 0) * 100
-          total_cost = data['metrics'].get('total_cost_usd', 0)
-          avg_latency = data['metrics'].get('avg_latency_ms', 0)
+repo = os.environ['REPO']
+run_id = os.environ['RUN_ID']
 
-          body = f"""## exp_003 Live Test Results
+decision = data.get('decision', 'UNKNOWN')
+success_rate = data['metrics'].get('success_rate', 0) * 100
+total_cost = data['metrics'].get('total_cost_usd', 0)
+avg_latency = data['metrics'].get('avg_latency_ms', 0)
 
-          **Decision:** {decision}
-          **Success Rate:** {success_rate:.1f}%
-          **Total Cost:** ${total_cost:.4f}
-          **Avg Latency:** {avg_latency:.0f}ms
-          **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+body = f"""## exp_003 Live Test Results
 
-          ### Retrieval Methods (Proxy-Safe)
+**Decision:** {decision}
+**Success Rate:** {success_rate:.1f}%
+**Total Cost:** ${total_cost:.4f}
+**Avg Latency:** {avg_latency:.0f}ms
+**Run:** https://github.com/{repo}/actions/runs/{run_id}
 
-          **1. GHCR (Recommended):**
-          ```bash
-          oras pull ghcr.io/${{ github.repository }}/exp003-results:run-${{ github.run_id }}
-          ```
+### Retrieval Methods (Proxy-Safe)
 
-          **2. Git-Bridge:**
-          ```bash
-          git fetch origin artifacts/exp003-run-${{ github.run_id }}
-          git show FETCH_HEAD:results.json
-          ```
+**1. GHCR (Recommended):**
+```bash
+oras pull ghcr.io/{repo}/exp003-results:run-{run_id}
+```
 
-          **3. Issue API (this issue):**
-          Extract JSON from code block below.
+**2. Git-Bridge:**
+```bash
+git fetch origin artifacts/exp003-run-{run_id}
+git show FETCH_HEAD:results.json
+```
 
-          ### Test Results Summary
+**3. Issue API (this issue):**
+Extract JSON from code block below.
 
-          | Test | Success | Cost | Latency |
-          |------|---------|------|---------|
-          """
+### Test Results Summary
 
-          for test in data.get('test_results', []):
-              status = "✅" if test['success'] else "❌"
-              body += f"| {test['test_case_id']} | {status} | ${test['cost_usd']:.4f} | {test['latency_ms']:.0f}ms |\n"
+| Test | Success | Cost | Latency |
+|------|---------|------|---------|
+"""
 
-          body += f"""
-          ### Raw Results (JSON)
+for test in data.get('test_results', []):
+    status = "✅" if test['success'] else "❌"
+    body += f"| {test['test_case_id']} | {status} | ${test['cost_usd']:.4f} | {test['latency_ms']:.0f}ms |\n"
 
-          <!-- MACHINE_READABLE_START -->
-          ```json
-          {json.dumps(data, indent=2)}
-          ```
-          <!-- MACHINE_READABLE_END -->
-          """
+body += f"""
+### Raw Results (JSON)
 
-          with open('issue_body.md', 'w') as f:
-              f.write(body)
+<!-- MACHINE_READABLE_START -->
+```json
+{json.dumps(data, indent=2)}
+```
+<!-- MACHINE_READABLE_END -->
+"""
 
-          with open('decision.txt', 'w') as f:
-              f.write(f"{decision}|{success_rate:.1f}%")
-          PYTHON
+with open('issue_body.md', 'w') as f:
+    f.write(body)
+
+with open('decision.txt', 'w') as f:
+    f.write(f"{decision}|{success_rate:.1f}%")
+PYTHON
 
             DECISION=$(cut -d'|' -f1 decision.txt)
             SUCCESS_RATE=$(cut -d'|' -f2 decision.txt)
@@ -240,6 +248,8 @@ jobs:
               --body-file issue_body.md \
               --label "experiment,automated" \
               || echo "Issue creation failed - check other retrieval methods"
+          else
+            echo "No results file at /tmp/results_live.json - Git-Bridge step may have failed"
           fi
 
       - name: Summary
