@@ -1,0 +1,95 @@
+# Documentation Enforcement Workflow
+#
+# Implements the "Hard Gate" for 4-Layer Documentation Architecture
+# Based on: Deep Research - Policy-as-Code Architecture for Autonomous AI Systems (2026)
+#
+# This workflow ensures that code changes are accompanied by documentation updates:
+# - Layer 1 (CLAUDE.md): AI agent context
+# - Layer 2 (ADRs): Architecture decisions
+# - Layer 3 (JOURNEY.md): Project timeline
+# - Layer 4 (changelog): Technical artifacts
+#
+# Reference: ADR-012 Context Integrity Architecture
+
+name: Documentation Enforcement
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: enforce-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  enforce-docs:
+    name: 4-Layer Documentation Check
+    runs-on: ubuntu-latest
+
+    # Skip for specific paths that never need doc updates
+    if: |
+      !contains(github.event.pull_request.labels.*.name, 'skip-docs') &&
+      !contains(github.event.pull_request.labels.*.name, 'dependencies')
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # Full history needed for accurate diff comparison
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Create package.json for Danger
+        run: |
+          cat > package.json << 'EOF'
+          {
+            "name": "danger-docs-enforcement",
+            "version": "1.0.0",
+            "private": true,
+            "type": "module",
+            "devDependencies": {
+              "danger": "^12.3.0",
+              "minimatch": "^9.0.0",
+              "typescript": "^5.4.0"
+            }
+          }
+          EOF
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run DangerJS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Danger uses this to post comments
+          DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx danger ci --failOnErrors
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Documentation Enforcement Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See PR comments for detailed report." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Reference" >> $GITHUB_STEP_SUMMARY
+          echo "| Layer | File | Purpose |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| L1 | CLAUDE.md | AI agent context |" >> $GITHUB_STEP_SUMMARY
+          echo "| L2 | docs/decisions/ADR-*.md | Architecture decisions |" >> $GITHUB_STEP_SUMMARY
+          echo "| L3 | docs/JOURNEY.md | Project timeline |" >> $GITHUB_STEP_SUMMARY
+          echo "| L4 | docs/changelog.md | Change log |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> Add label \`skip-docs\` to bypass checks for hotfixes." >> $GITHUB_STEP_SUMMARY

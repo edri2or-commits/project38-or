@@ -1,0 +1,104 @@
+# CodeRabbit Configuration
+#
+# Implements the "Soft Gate" for semantic documentation verification
+# Based on: Deep Research - Policy-as-Code Architecture for Autonomous AI Systems (2026)
+#
+# This provides AI-powered review that WARNS but does NOT BLOCK
+# The Hard Gate (DangerJS) handles blocking enforcement
+#
+# Reference: ADR-012 Context Integrity Architecture
+
+language: "en-US"
+tone_instructions: "Be concise and actionable. Focus on documentation completeness and context integrity."
+early_access: true
+
+reviews:
+  # Generate high-level summary of changes
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+
+  # Auto-review configuration
+  auto_review:
+    enabled: true
+    # Don't auto-review drafts
+    drafts: false
+    # Review on every push
+    base_branches:
+      - main
+
+  # Path-specific instructions for 4-layer documentation
+  path_instructions:
+    # Layer 1: AI Context
+    - path: "CLAUDE.md"
+      instructions: |
+        This is the AI agent context file (Layer 1).
+        Verify that:
+        1. Any new environment variables mentioned in code are documented here
+        2. Any new skills added are listed in the Available Skills section
+        3. Any new MCP tools are documented in the MCP Gateway section
+        4. File structure section reflects actual directory structure
+        5. The content is accurate and not just placeholder text
+
+    # Layer 2: Architecture Decision Records
+    - path: "docs/decisions/ADR-*.md"
+      instructions: |
+        This is an Architecture Decision Record (Layer 2).
+        Verify that:
+        1. Status field is set (Proposed/Accepted/Rejected/Superseded)
+        2. Context section explains WHY this decision is needed
+        3. Decision section clearly states WHAT was decided
+        4. Consequences section lists both positive and negative impacts
+        5. The ADR follows the project's ADR template format
+
+    # Layer 3: Project Timeline
+    - path: "docs/JOURNEY.md"
+      instructions: |
+        This is the project journey/timeline file (Layer 3).
+        Verify that:
+        1. New entries include a Phase number (sequential)
+        2. Each phase has a clear Goal section
+        3. Implementation details are specific (file names, line counts)
+        4. Evidence section includes PR numbers and commit hashes
+        5. Status is clearly marked (IN PROGRESS or COMPLETE)
+
+    # Layer 4: Changelog
+    - path: "docs/changelog.md"
+      instructions: |
+        This is the changelog file (Layer 4).
+        Verify that:
+        1. Entry is under the correct section (Added/Changed/Fixed/Removed/Security)
+        2. Entry date is accurate (YYYY-MM-DD format)
+        3. Entry describes WHAT changed and WHY it matters
+        4. Entry links to relevant PRs or issues if applicable
+        5. Entry is under [Unreleased] section for non-released changes
+
+    # Source code documentation
+    - path: "src/**/*.py"
+      instructions: |
+        For Python source files:
+        1. Check if docstrings follow Google style
+        2. Verify type hints are present for public functions
+        3. If this adds new functionality, check if CLAUDE.md should be updated
+        4. If this is a significant change, suggest JOURNEY.md update
+
+    # Skill definitions
+    - path: ".claude/skills/**/SKILL.md"
+      instructions: |
+        This is a Claude Code skill definition.
+        Verify that:
+        1. YAML frontmatter is valid (name, description, version, allowed-tools)
+        2. Trigger keywords are appropriate for the skill's purpose
+        3. Safety section is present with clear constraints
+        4. Success metrics are defined and measurable
+
+chat:
+  # Enable chat interactions
+  auto_reply: true
+
+# Knowledge base (helps AI understand project context)
+knowledge_base:
+  # Include key documentation
+  opt_in:
+    - "CLAUDE.md"
+    - "docs/decisions/*.md"
+    - ".claude/skills/README.md"
