@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test results: 46 passed, 1 skipped (cryptography dependency)
 
 ### Added
+- **MCP Gateway Tests for 5 Modules** (2026-01-22)
+  - Created `tests/test_mcp_gateway_auth.py` (10 tests) - bearer token validation
+  - Created `tests/test_mcp_gateway_config.py` (6 tests) - configuration loading
+  - Created `tests/test_mcp_gateway_tools_railway.py` (14 tests) - Railway deployment operations
+  - Created `tests/test_mcp_gateway_tools_n8n.py` (15 tests) - n8n workflow operations
+  - Created `tests/test_mcp_gateway_tools_monitoring.py` (8 tests) - health checks and metrics
+  - Total: 53 new tests for MCP Gateway modules
+  - Graceful skipping for tests requiring tenacity/cryptography dependencies
+
 - **API Route Tests for 5 Modules** (2026-01-22)
   - Created `tests/test_api_routes_costs.py` (19 tests) - costs estimation, budget, recommendations
   - Created `tests/test_api_routes_monitoring.py` (22 tests) - monitoring loop control endpoints
