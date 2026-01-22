@@ -1,0 +1,149 @@
+{
+  "experiment_id": "exp_003",
+  "title": "Vercel Agent Browser - Autonomous UI Navigation",
+  "hypothesis": "If we integrate Vercel Agent Browser CLI for UI interactions, then autonomous operations coverage will increase by 50%+ (from API-only to API+UI) while maintaining acceptable token costs (<$0.05 per complex operation).",
+  "timestamp": "2026-01-22T12:42:28.074210",
+  "configuration": {
+    "phases": [
+      "BASIC_NAVIGATION",
+      "INTERACTIVE",
+      "COMPLEX_WORKFLOWS"
+    ],
+    "dry_run": false,
+    "test_cases_run": 13
+  },
+  "metrics": {
+    "success_rate": 0.7692307692307693,
+    "total_tokens": 1834,
+    "total_cost_usd": 0.012,
+    "avg_cost_per_test": 0.0009230769230769231,
+    "avg_latency_ms": 1391.2949928870569,
+    "loop_detection_rate": 1.0
+  },
+  "evaluation": {
+    "success_rate": false,
+    "token_cost": true,
+    "latency": true,
+    "loop_detection": true
+  },
+  "decision": "NEEDS_MORE_DATA",
+  "test_results": [
+    {
+      "test_case_id": "nav_001",
+      "success": true,
+      "tokens": 138,
+      "cost_usd": 0.0009029999999999999,
+      "latency_ms": 2302.6061058044434,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "nav_002",
+      "success": true,
+      "tokens": 152,
+      "cost_usd": 0.000993,
+      "latency_ms": 3751.041889190674,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "nav_003",
+      "success": false,
+      "tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "loop_detected": false,
+      "error": "Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"https://railway.app/project/delightful-cat\", waiting until \"networkidle\"\n"
+    },
+    {
+      "test_case_id": "nav_004",
+      "success": false,
+      "tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "loop_detected": false,
+      "error": "Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"https://railway.app/project/delightful-cat/service/xxx/logs\", waiting until \"networkidle\"\n"
+    },
+    {
+      "test_case_id": "nav_005",
+      "success": true,
+      "tokens": 174,
+      "cost_usd": 0.001143,
+      "latency_ms": 1475.665807723999,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "int_001",
+      "success": true,
+      "tokens": 202,
+      "cost_usd": 0.001323,
+      "latency_ms": 9267.890930175781,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "int_002",
+      "success": true,
+      "tokens": 106,
+      "cost_usd": 0.000687,
+      "latency_ms": 0.022649765014648438,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "int_003",
+      "success": true,
+      "tokens": 162,
+      "cost_usd": 0.001059,
+      "latency_ms": 0.03552436828613281,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "int_004",
+      "success": true,
+      "tokens": 156,
+      "cost_usd": 0.0010170000000000001,
+      "latency_ms": 0.019788742065429688,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "int_005",
+      "success": true,
+      "tokens": 156,
+      "cost_usd": 0.0010170000000000001,
+      "latency_ms": 0.017881393432617188,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "wf_001",
+      "success": false,
+      "tokens": 0,
+      "cost_usd": 0.0,
+      "latency_ms": 0,
+      "loop_detected": false,
+      "error": "Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"https://railway.app/project/delightful-cat\", waiting until \"networkidle\"\n"
+    },
+    {
+      "test_case_id": "wf_002",
+      "success": true,
+      "tokens": 212,
+      "cost_usd": 0.001389,
+      "latency_ms": 0.09822845458984375,
+      "loop_detected": false,
+      "error": ""
+    },
+    {
+      "test_case_id": "wf_003",
+      "success": true,
+      "tokens": 376,
+      "cost_usd": 0.002469,
+      "latency_ms": 1289.4361019134521,
+      "loop_detected": false,
+      "error": ""
+    }
+  ]
+}
