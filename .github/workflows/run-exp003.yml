@@ -1,0 +1,183 @@
+name: Run exp_003 Browser Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: 'Phase to run (1=Basic, 2=Interactive, 3=Complex, all=All)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - 'all'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: exp003-live-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-live-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright anthropic
+          playwright install chromium --with-deps
+
+      - name: Run live tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+
+          if [ "${{ inputs.phase }}" = "all" ]; then
+            python run.py --all --live --output results_live.json
+          else
+            python run.py --phase ${{ inputs.phase }} --live --output results_live.json
+          fi
+
+      - name: Display results and write to summary
+        if: always()
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            echo "=== LIVE TEST RESULTS ==="
+            cat results_live.json | python -m json.tool
+
+            # Write to Job Summary (accessible via API)
+            echo "# exp_003 Live Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Extract key metrics
+            python3 << 'PYTHON'
+import json
+import os
+
+with open('results_live.json') as f:
+    data = json.load(f)
+
+summary = []
+summary.append("## Summary")
+summary.append("")
+summary.append(f"**Decision:** {data.get('decision', 'N/A')}")
+summary.append(f"**Success Rate:** {data['metrics'].get('success_rate', 0)*100:.1f}%")
+summary.append(f"**Total Cost:** ${data['metrics'].get('total_cost_usd', 0):.4f}")
+summary.append(f"**Avg Latency:** {data['metrics'].get('avg_latency_ms', 0):.0f}ms")
+summary.append("")
+summary.append("## Test Results")
+summary.append("")
+summary.append("| Test | Success | Tokens | Cost | Latency |")
+summary.append("|------|---------|--------|------|---------|")
+
+for test in data.get('test_results', []):
+    status = "✅" if test['success'] else "❌"
+    summary.append(f"| {test['test_case_id']} | {status} | {test['tokens']} | ${test['cost_usd']:.4f} | {test['latency_ms']:.0f}ms |")
+
+summary.append("")
+summary.append("## Raw JSON")
+summary.append("")
+summary.append("```json")
+summary.append(json.dumps(data, indent=2))
+summary.append("```")
+
+with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+    f.write('\n'.join(summary))
+PYTHON
+          else
+            echo "No results file generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exp003-live-results
+          path: experiments/exp_003_vercel_agent_browser/results_live.json
+          if-no-files-found: warn
+
+      - name: Create issue with results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            # Generate issue body with embedded JSON (for autonomous retrieval)
+            python3 << 'PYTHON'
+import json
+
+with open('results_live.json') as f:
+    data = json.load(f)
+
+decision = data.get('decision', 'UNKNOWN')
+success_rate = data['metrics'].get('success_rate', 0) * 100
+total_cost = data['metrics'].get('total_cost_usd', 0)
+avg_latency = data['metrics'].get('avg_latency_ms', 0)
+
+# Build markdown with embedded JSON for API retrieval
+body = f"""## exp_003 Live Test Results
+
+**Decision:** {decision}
+**Success Rate:** {success_rate:.1f}%
+**Total Cost:** ${total_cost:.4f}
+**Avg Latency:** {avg_latency:.0f}ms
+**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+### Test Results Summary
+
+| Test | Success | Cost | Latency |
+|------|---------|------|---------|
+"""
+
+for test in data.get('test_results', []):
+    status = "✅" if test['success'] else "❌"
+    body += f"| {test['test_case_id']} | {status} | ${test['cost_usd']:.4f} | {test['latency_ms']:.0f}ms |\n"
+
+body += f"""
+### Raw Results (JSON)
+
+```json
+{json.dumps(data, indent=2)}
+```
+"""
+
+with open('issue_body.md', 'w') as f:
+    f.write(body)
+
+# Also save decision for title
+with open('decision.txt', 'w') as f:
+    f.write(f"{decision}|{success_rate:.1f}%")
+PYTHON
+
+            # Read decision for title
+            DECISION=$(cut -d'|' -f1 decision.txt)
+            SUCCESS_RATE=$(cut -d'|' -f2 decision.txt)
+
+            gh issue create \
+              --title "exp_003 Live Results: $DECISION ($SUCCESS_RATE success)" \
+              --body-file issue_body.md \
+              --label "experiment" \
+              || echo "Issue creation failed - results in Job Summary"
+          fi
