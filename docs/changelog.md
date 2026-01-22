@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test results: 46 passed, 1 skipped (cryptography dependency)
 
 ### Added
+- **Factory & Harness Module Tests** (2026-01-22)
+  - Created `tests/test_factory_generator.py` (20 tests) - agent code generation, cost estimation
+  - Created `tests/test_factory_validator.py` (31 tests) - security patterns, ruff/pydocstyle validation
+  - Created `tests/test_factory_ralph_loop.py` (24 tests) - recursive test→fix→test cycle
+  - Created `tests/test_harness_executor.py` (19 tests) - subprocess execution, timeout, error handling
+  - Created `tests/test_harness_handoff.py` (29 tests) - state persistence, artifact serialization
+  - Created `tests/test_harness_resources.py` (22 tests) - resource limits, semaphore concurrency
+  - Created `tests/test_harness_scheduler.py` (27 tests) - advisory locks, cron scheduling
+  - Total: 172 new tests for Factory/Harness modules
+  - Auto-skip when dependencies (anthropic, psutil, apscheduler) not installed
+
 - **Research Module Tests** (2026-01-22)
   - Created `tests/test_research_classifier.py` (34 tests) - classification enums, parsing, auto-classify
   - Created `tests/test_research_experiment_creator.py` (20 tests) - experiment config, skeleton creation
