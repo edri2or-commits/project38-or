@@ -1,0 +1,87 @@
+name: exp_003 Live Browser Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: 'Phase to run (1=Basic, 2=Interactive, 3=Complex, all=All)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - 'all'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: exp003-live-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-live-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright anthropic
+          playwright install chromium --with-deps
+
+      - name: Run live tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+
+          if [ "${{ inputs.phase }}" = "all" ]; then
+            python run.py --all --live --output results_live.json
+          else
+            python run.py --phase ${{ inputs.phase }} --live --output results_live.json
+          fi
+
+      - name: Display results
+        if: always()
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            echo "=== LIVE TEST RESULTS ==="
+            cat results_live.json | python -m json.tool
+          else
+            echo "No results file generated"
+          fi
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exp003-live-results
+          path: experiments/exp_003_vercel_agent_browser/results_live.json
+          if-no-files-found: warn
+
+      - name: Commit results if successful
+        if: success()
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add results_live.json
+            git commit -m "feat(exp_003): Add live test results" || echo "No changes to commit"
+            git push || echo "Push failed - results saved as artifact"
+          fi
