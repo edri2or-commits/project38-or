@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test results: 46 passed, 1 skipped (cryptography dependency)
 
 ### Added
+- **Research Module Tests** (2026-01-22)
+  - Created `tests/test_research_classifier.py` (34 tests) - classification enums, parsing, auto-classify
+  - Created `tests/test_research_experiment_creator.py` (20 tests) - experiment config, skeleton creation
+  - Created `tests/test_research_ingestion_agent.py` (37 tests) - source detection, text extraction, note creation
+  - Total: 91 new tests for ADR-009 Phase 5 research modules
+
 - **Credential Management Tests** (2026-01-22)
   - Created `tests/test_credential_lifecycle.py` (28 tests) - credential health checks, auto-refresh
   - Created `tests/test_token_rotation.py` (22 tests) - token rotation interlock with rollback
