@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **ADR-011: ADR Architect - Structured Request Processing** (2026-01-22)
+  - New architectural decision record for handling scattered/vague user requests
+  - Defines 9-step workflow: Intake → System Mapping → Reality Check → Decision Analysis → External Research → Pattern from History → Impulsivity Check → Plan → Deliverable
+  - Implements "Truth Protocol" - all claims must be evidence-backed
+  - Created new `adr-architect` skill (v1.0.0) in `.claude/skills/adr-architect/`
+  - Skill transforms vague ideas into structured ADRs with proof of work
+  - Includes impulsivity detection (non-diagnostic) and historical pattern analysis
+  - Files: `docs/decisions/ADR-011-adr-architect-structured-request-processing.md`, `.claude/skills/adr-architect/SKILL.md`
+  - Updated CLAUDE.md with new skill documentation
+
 - **ADR-006 GCP MCP Server Verification Complete** (2026-01-22)
   - Verified 5 core tools via `gcp-tunnel-health-check.yml` workflow (Run #21251500996)
   - Verified tools: `gcp_project_info`, `gcp_secret_list`, `health_check`, `railway_status`, `railway_logs`

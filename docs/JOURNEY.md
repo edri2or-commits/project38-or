@@ -5345,5 +5345,71 @@ python3 src/experiment_results.py get exp003 21249388957
 
 ---
 
+## Phase 38: ADR Architect - Structured Request Processing (2026-01-22)
+
+### Goal
+
+Create a systematic process to transform scattered/vague user requests into structured, evidence-backed Architecture Decision Records (ADRs).
+
+### Background
+
+User (non-technical, ADHD) generates ideas/requests that are often scattered, ambiguous, or impulsive. Without a structured process:
+- Development effort may be wasted on unclear requirements
+- System changes may not match actual user needs
+- No accountability trail for decisions
+- AI agent may exploit user's lack of technical knowledge
+
+### Solution
+
+Implemented **ADR-011** and **adr-architect skill** with 9-step workflow:
+
+| Step | Purpose |
+|------|---------|
+| 1. INTAKE | Parse raw request, extract intent |
+| 2. SYSTEM MAPPING | Investigate codebase, document proof of work |
+| 3. REALITY CHECK | Compare user expectation vs actual system |
+| 4. DECISION ANALYSIS | Present 2-4 options with pros/cons |
+| 5. EXTERNAL RESEARCH | Search for best practices |
+| 6. PATTERN FROM HISTORY | Check past similar requests |
+| 7. IMPULSIVITY CHECK | Non-diagnostic detection of impulsive requests |
+| 8. PLAN | Create implementation plan with metrics |
+| 9. DELIVERABLE | Full ADR + executive summary + questions |
+
+### Key Innovation: Truth Protocol
+
+All claims must be evidence-backed:
+- Internal sources: `file:line` with commit reference
+- External sources: URL + access date + quote
+- Uncertainty must be explicit: "אין באפשרותי לאשר זאת"
+- No filler text - every paragraph must contribute
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `docs/decisions/ADR-011-adr-architect-structured-request-processing.md` | 425 | ADR defining the process |
+| `.claude/skills/adr-architect/SKILL.md` | 488 | Skill implementing the workflow |
+
+### 4-Layer Documentation Updates
+
+| Layer | File | Update |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | Added adr-architect skill (lines 1607-1660) |
+| Layer 2 | `docs/decisions/ADR-011-*.md` | New ADR created |
+| Layer 3 | `docs/JOURNEY.md` | This entry (Phase 38) |
+| Layer 4 | `docs/changelog.md` | Added ADR-011 entry |
+
+### Evidence
+
+- **Commit**: fd0fa81 - feat(skill): Add adr-architect skill
+- **PR**: #429 - https://github.com/edri2or-commits/project38-or/pull/429
+- **Skill triggers**: `בקשה`, `רעיון`, `שינוי`, `מחשבה`, `בעיה`, `מפוזר`
+
+### Status
+
+**Phase 38: ✅ COMPLETE - ADR Architect for Structured Request Processing**
+
+---
+
 *Last Updated: 2026-01-22 UTC*
-*Status: **Phase 37 Complete - Permanent CI Results Retrieval***
+*Status: **Phase 38 Complete - ADR Architect Structured Request Processing***
