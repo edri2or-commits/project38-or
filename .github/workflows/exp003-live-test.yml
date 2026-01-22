@@ -17,6 +17,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 concurrency:
   group: exp003-live-${{ github.ref }}
@@ -55,15 +56,57 @@ jobs:
             python run.py --phase ${{ inputs.phase }} --live --output results_live.json
           fi
 
-      - name: Display results
+      - name: Display results and write to summary
         if: always()
         run: |
           cd experiments/exp_003_vercel_agent_browser
           if [ -f results_live.json ]; then
             echo "=== LIVE TEST RESULTS ==="
             cat results_live.json | python -m json.tool
+
+            # Write to Job Summary (accessible via API)
+            echo "# exp_003 Live Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Extract key metrics
+            python3 << 'PYTHON'
+import json
+import os
+
+with open('results_live.json') as f:
+    data = json.load(f)
+
+summary = []
+summary.append("## Summary")
+summary.append("")
+summary.append(f"**Decision:** {data.get('decision', 'N/A')}")
+summary.append(f"**Success Rate:** {data['metrics'].get('success_rate', 0)*100:.1f}%")
+summary.append(f"**Total Cost:** ${data['metrics'].get('total_cost_usd', 0):.4f}")
+summary.append(f"**Avg Latency:** {data['metrics'].get('avg_latency_ms', 0):.0f}ms")
+summary.append("")
+summary.append("## Test Results")
+summary.append("")
+summary.append("| Test | Success | Tokens | Cost | Latency |")
+summary.append("|------|---------|--------|------|---------|")
+
+for test in data.get('test_results', []):
+    status = "✅" if test['success'] else "❌"
+    summary.append(f"| {test['test_case_id']} | {status} | {test['tokens']} | ${test['cost_usd']:.4f} | {test['latency_ms']:.0f}ms |")
+
+summary.append("")
+summary.append("## Raw JSON")
+summary.append("")
+summary.append("```json")
+summary.append(json.dumps(data, indent=2))
+summary.append("```")
+
+with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+    f.write('\n'.join(summary))
+PYTHON
           else
-            echo "No results file generated"
+            echo "No results file generated" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload results artifact
@@ -74,14 +117,31 @@ jobs:
           path: experiments/exp_003_vercel_agent_browser/results_live.json
           if-no-files-found: warn
 
-      - name: Commit results if successful
-        if: success()
+      - name: Create issue with results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           cd experiments/exp_003_vercel_agent_browser
           if [ -f results_live.json ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add results_live.json
-            git commit -m "feat(exp_003): Add live test results" || echo "No changes to commit"
-            git push || echo "Push failed - results saved as artifact"
+            # Extract decision
+            DECISION=$(python3 -c "import json; print(json.load(open('results_live.json')).get('decision', 'UNKNOWN'))")
+            SUCCESS_RATE=$(python3 -c "import json; print(f\"{json.load(open('results_live.json'))['metrics'].get('success_rate', 0)*100:.1f}%\")")
+
+            # Create issue body
+            cat << EOF > issue_body.md
+## exp_003 Live Test Results
+
+**Decision:** $DECISION
+**Success Rate:** $SUCCESS_RATE
+**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+Full results in Job Summary above.
+EOF
+
+            gh issue create \
+              --title "exp_003 Live Results: $DECISION ($SUCCESS_RATE success)" \
+              --body-file issue_body.md \
+              --label "experiment" \
+              || echo "Issue creation failed - results in Job Summary"
           fi
