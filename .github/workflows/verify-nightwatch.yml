@@ -1,0 +1,193 @@
+name: Verify Night Watch
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PRODUCTION_URL: https://or-infra.com
+  TELEGRAM_BOT_URL: https://telegram-bot-production-053d.up.railway.app
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Production Health
+        id: health
+        run: |
+          echo "## Production Health Check" >> $GITHUB_STEP_SUMMARY
+
+          RESPONSE=$(curl -s -m 30 "${{ env.PRODUCTION_URL }}/api/health" || echo '{"error":"timeout"}')
+          echo "Response: $RESPONSE"
+
+          STATUS=$(echo "$RESPONSE" | jq -r '.status // "unknown"')
+          DB=$(echo "$RESPONSE" | jq -r '.database // "unknown"')
+
+          echo "- Status: $STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- Database: $DB" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$STATUS" = "healthy" ]; then
+            echo "✅ Production is healthy" >> $GITHUB_STEP_SUMMARY
+            echo "healthy=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Production is NOT healthy" >> $GITHUB_STEP_SUMMARY
+            echo "healthy=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Test Night Watch Tick Endpoint
+        id: tick
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Night Watch Tick Test" >> $GITHUB_STEP_SUMMARY
+
+          RESPONSE=$(curl -s -m 60 -X POST "${{ env.PRODUCTION_URL }}/api/nightwatch/tick" \
+            -H "Content-Type: application/json" || echo '{"error":"timeout"}')
+          echo "Response: $RESPONSE"
+
+          # Check if response has expected fields
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success // .status // "unknown"')
+
+          echo "Raw response:" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+            echo "❌ Tick endpoint returned error" >> $GITHUB_STEP_SUMMARY
+            echo "tick_works=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Tick endpoint responded" >> $GITHUB_STEP_SUMMARY
+            echo "tick_works=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Test Telegram Bot /send Endpoint
+        id: telegram
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Telegram Bot Test" >> $GITHUB_STEP_SUMMARY
+
+          # First check if bot is alive
+          BOT_HEALTH=$(curl -s -m 10 "${{ env.TELEGRAM_BOT_URL }}/health" || echo '{"error":"timeout"}')
+          echo "Bot health: $BOT_HEALTH"
+          echo "- Bot health: $BOT_HEALTH" >> $GITHUB_STEP_SUMMARY
+
+          # Check /chats endpoint
+          CHATS=$(curl -s -m 10 "${{ env.TELEGRAM_BOT_URL }}/chats" || echo '{"error":"timeout"}')
+          echo "Chats: $CHATS"
+          echo "- Chats endpoint: $(echo $CHATS | jq -r '.chats | length // 0') known chats" >> $GITHUB_STEP_SUMMARY
+
+          if echo "$BOT_HEALTH" | jq -e '.status == "ok"' > /dev/null 2>&1; then
+            echo "✅ Telegram bot is running" >> $GITHUB_STEP_SUMMARY
+            echo "bot_works=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Telegram bot not responding properly" >> $GITHUB_STEP_SUMMARY
+            echo "bot_works=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Test Night Watch Telegram Integration
+        id: integration
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Night Watch → Telegram Integration" >> $GITHUB_STEP_SUMMARY
+
+          # Call the test-telegram endpoint
+          RESPONSE=$(curl -s -m 30 -X POST "${{ env.PRODUCTION_URL }}/api/nightwatch/test-telegram" \
+            -H "Content-Type: application/json" || echo '{"error":"timeout"}')
+          echo "Response: $RESPONSE"
+
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Check result
+          if echo "$RESPONSE" | jq -e '.status == "sent"' > /dev/null 2>&1; then
+            echo "✅ Test message sent successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "integration_works=true" >> $GITHUB_OUTPUT
+          elif echo "$RESPONSE" | jq -e '.status == "skipped"' > /dev/null 2>&1; then
+            REASON=$(echo "$RESPONSE" | jq -r '.reason')
+            echo "⚠️ Skipped: $REASON" >> $GITHUB_STEP_SUMMARY
+            echo "integration_works=false" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Integration test failed" >> $GITHUB_STEP_SUMMARY
+            echo "integration_works=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Railway Cron Configuration
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Railway Cron Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Expected cron jobs in railway.toml:" >> $GITHUB_STEP_SUMMARY
+          echo '```toml' >> $GITHUB_STEP_SUMMARY
+          echo '[[crons]]' >> $GITHUB_STEP_SUMMARY
+          echo 'schedule = "0 0-6 * * *"' >> $GITHUB_STEP_SUMMARY
+          echo 'endpoint = "/api/nightwatch/tick"' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '[[crons]]' >> $GITHUB_STEP_SUMMARY
+          echo 'schedule = "0 6 * * *"' >> $GITHUB_STEP_SUMMARY
+          echo 'endpoint = "/api/nightwatch/morning-summary"' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ Note: Railway cron activation cannot be verified via API." >> $GITHUB_STEP_SUMMARY
+          echo "Check Railway Dashboard → Settings → Cron Jobs to confirm." >> $GITHUB_STEP_SUMMARY
+
+      - name: Final Summary
+        env:
+          HEALTHY: ${{ steps.health.outputs.healthy }}
+          TICK: ${{ steps.tick.outputs.tick_works }}
+          BOT: ${{ steps.telegram.outputs.bot_works }}
+          INTEGRATION: ${{ steps.integration.outputs.integration_works }}
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "## Final Verification Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count successes
+          SUCCESS=0
+          TOTAL=4
+
+          if [ "$HEALTHY" = "true" ]; then
+            echo "✅ Production Health: PASS" >> $GITHUB_STEP_SUMMARY
+            SUCCESS=$((SUCCESS + 1))
+          else
+            echo "❌ Production Health: FAIL" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$TICK" = "true" ]; then
+            echo "✅ Tick Endpoint: PASS" >> $GITHUB_STEP_SUMMARY
+            SUCCESS=$((SUCCESS + 1))
+          else
+            echo "❌ Tick Endpoint: FAIL" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$BOT" = "true" ]; then
+            echo "✅ Telegram Bot: PASS" >> $GITHUB_STEP_SUMMARY
+            SUCCESS=$((SUCCESS + 1))
+          else
+            echo "❌ Telegram Bot: FAIL" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$INTEGRATION" = "true" ]; then
+            echo "✅ Telegram Integration: PASS" >> $GITHUB_STEP_SUMMARY
+            SUCCESS=$((SUCCESS + 1))
+          else
+            echo "❌ Telegram Integration: FAIL" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Result: $SUCCESS/$TOTAL checks passed**" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$SUCCESS" -eq "$TOTAL" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 **Night Watch is fully operational!**" >> $GITHUB_STEP_SUMMARY
+          elif [ "$SUCCESS" -ge 2 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Night Watch partially working - check failed components**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Night Watch has critical issues**" >> $GITHUB_STEP_SUMMARY
+          fi
