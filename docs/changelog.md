@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test results: 46 passed, 1 skipped (cryptography dependency)
 
 ### Added
+- **P7 Remaining Module Tests** (2026-01-22)
+  - Created `tests/test_models.py` (34 tests) - Agent, Task, ActionRecord SQLModel entities
+  - Created `tests/test_providers_base.py` (30 tests) - ModelProvider ABC, exceptions
+  - Created `tests/test_providers_registry.py` (26 tests) - ModelRegistry singleton
+  - Created `tests/test_providers_mock.py` (30 tests) - MockProvider variants (Opus, Sonnet, Haiku)
+  - Created `tests/test_config_feature_flags.py` (35 tests) - Flag dataclass, percentage rollout
+  - Created `tests/test_api_routes_backups.py` (23 tests) - backup API endpoints
+  - Created `tests/test_api_routes_learning.py` (26 tests) - learning service endpoints
+  - Created `tests/test_evaluation_harness.py` (34 tests) - EvaluationHarness, TestCase, Decision
+  - Created `tests/test_github_api.py` (27 tests) - GitHub API client methods
+  - Total: 265 new tests for remaining untested modules (PR #438)
+  - Graceful skipping for tests requiring sqlmodel/fastapi/yaml dependencies
+
 - **Factory & Harness Module Tests** (2026-01-22)
   - Created `tests/test_factory_generator.py` (20 tests) - agent code generation, cost estimation
   - Created `tests/test_factory_validator.py` (31 tests) - security patterns, ruff/pydocstyle validation
