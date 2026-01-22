@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from src.ml_anomaly_detector import MLAnomalyDetector
+from src.ml_anomaly_detector import DetectionMethod, MLAnomalyDetector
 
 if TYPE_CHECKING:
     from src.anomaly_response_integrator import AnomalyResponseIntegrator
@@ -469,11 +469,12 @@ class MonitoringLoop:
 
             # Run anomaly detection
             detection_result = self.detector.detect_anomaly(
+                metric=full_metric_name,
                 value=value,
-                metric_name=full_metric_name,
             )
 
-            if detection_result.is_anomaly:
+            # detect_anomaly returns MLAnomaly | None
+            if detection_result is not None:
                 self.stats["anomalies_detected"] += 1
                 self.stats["last_anomaly_time"] = datetime.now(UTC).isoformat()
 
@@ -531,7 +532,7 @@ class MonitoringLoop:
             "endpoints_count": len(self.collector.endpoints),
             "enabled_endpoints": sum(1 for ep in self.collector.endpoints if ep.enabled),
             "history_size": len(self._metrics_history),
-            "detector_algorithms": len(self.detector.algorithms),
+            "detector_algorithms": len(DetectionMethod),
         }
 
     def get_recent_metrics(self, limit: int = 10) -> list[dict[str, Any]]:

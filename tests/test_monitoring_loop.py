@@ -26,8 +26,21 @@ from src.monitoring_loop import (
     create_railway_monitoring_loop,
 )
 
-# Skip all tests in this module temporarily
-pytestmark = pytest.mark.skip(reason="Temporarily skipped to diagnose CI issues")
+
+def _has_cryptography() -> bool:
+    """Check if cryptography module is available (needed for JWT/controller imports).
+
+    Tests for _cffi_backend which is required for cryptography to work properly.
+    This check avoids triggering the Rust panic that occurs on import.
+    """
+    try:
+        # Check for _cffi_backend first - if missing, cryptography will panic
+        import _cffi_backend  # noqa: F401
+        # Then verify cryptography itself loads
+        import cryptography.hazmat.primitives  # noqa: F401
+        return True
+    except (ImportError, ModuleNotFoundError):
+        return False
 
 
 class TestMetricsEndpoint:
@@ -272,12 +285,14 @@ class TestMetricsCollector:
     async def test_close_client(self) -> None:
         """Test closing the HTTP client."""
         collector = MetricsCollector()
-        collector._client = AsyncMock()
-        collector._client.is_closed = False
+        mock_client = AsyncMock()
+        mock_client.is_closed = False
+        collector._client = mock_client
 
         await collector.close()
 
-        collector._client.aclose.assert_called_once()
+        # Verify aclose was called (client is set to None after close)
+        mock_client.aclose.assert_called_once()
 
 
 class TestMonitoringLoop:
@@ -498,10 +513,9 @@ class TestMonitoringLoop:
         """Test processing normal metrics (no anomaly)."""
         loop = MonitoringLoop()
 
-        # Mock the detector to return no anomaly
-        mock_result = MagicMock()
-        mock_result.is_anomaly = False
-        loop.detector.detect_anomaly = MagicMock(return_value=mock_result)
+        # Mock the detector to return None (no anomaly detected)
+        # Note: detect_anomaly returns MLAnomaly | None
+        loop.detector.detect_anomaly = MagicMock(return_value=None)
 
         now = datetime.now(UTC)
         metrics_data = CollectedMetrics(
@@ -575,10 +589,9 @@ class TestMonitoringLoop:
         )
         loop.collector.collect_all = AsyncMock(return_value=[mock_metrics])
 
-        # Mock detector
-        mock_result = MagicMock()
-        mock_result.is_anomaly = False
-        loop.detector.detect_anomaly = MagicMock(return_value=mock_result)
+        # Mock detector - return None for no anomaly
+        # Note: detect_anomaly returns MLAnomaly | None
+        loop.detector.detect_anomaly = MagicMock(return_value=None)
 
         await loop._run_collection_cycle()
 
@@ -617,6 +630,10 @@ class TestCreateRailwayMonitoringLoop:
         assert endpoints[0].url == "https://custom.example.com/api/health"
         assert endpoints[1].url == "https://custom.example.com/api/metrics/summary"
 
+    @pytest.mark.skipif(
+        not _has_cryptography(),
+        reason="Requires cryptography module for AnomalyResponseIntegrator import"
+    )
     def test_create_with_controller(self) -> None:
         """Test creating loop with controller."""
         mock_controller = MagicMock()

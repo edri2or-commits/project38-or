@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **monitoring_loop.py API alignment and test re-enablement** (2026-01-22)
+  - Fixed `detect_anomaly()` call: parameter `metric_name` → `metric` (line 471-474)
+  - Fixed `get_stats()`: removed non-existent `self.detector.algorithms` → `len(DetectionMethod)` (line 534)
+  - Fixed anomaly detection check: `detection_result.is_anomaly` → `detection_result is not None`
+  - Re-enabled 47 tests in `tests/test_monitoring_loop.py` (previously skipped for CI diagnosis)
+  - Added graceful skip for `test_create_with_controller` when cryptography unavailable
+  - Test results: 46 passed, 1 skipped (cryptography dependency)
+
 ### Added
 - **ADR-012: Context Integrity Enforcement Architecture** (2026-01-22)
   - Implements Hybrid Enforcement Model for 4-layer documentation
