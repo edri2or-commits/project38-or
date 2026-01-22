@@ -5597,5 +5597,92 @@ Created tests for 5 MCP Gateway modules:
 
 ---
 
+## Phase 41: Test Coverage Expansion P4-P7 - 578 New Tests (2026-01-22)
+
+### Goal
+
+Continue systematic test coverage expansion with P4-P7 priorities, covering credentials, research, factory/harness, and remaining modules.
+
+### Implementation
+
+#### Priority P4: Credential Management Tests (2026-01-22)
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `test_credential_lifecycle.py` | 28 | Credential health checks, auto-refresh |
+| `test_token_rotation.py` | 22 | Token rotation interlock, rollback |
+
+**Result:** 50 tests (PR #435)
+
+#### Priority P5: Research Module Tests (2026-01-22)
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `test_research_classifier.py` | 34 | Classification enums, auto-classify |
+| `test_research_experiment_creator.py` | 20 | Experiment config, skeleton creation |
+| `test_research_ingestion_agent.py` | 37 | Source detection, note creation |
+
+**Result:** 91 tests (ADR-009 Phase 5 modules)
+
+#### Priority P6: Factory/Harness Module Tests (2026-01-22)
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `test_factory_generator.py` | 20 | Agent code generation, cost estimation |
+| `test_factory_validator.py` | 31 | Security patterns, ruff validation |
+| `test_factory_ralph_loop.py` | 24 | Recursive test→fix→test cycle |
+| `test_harness_executor.py` | 19 | Subprocess execution, timeout |
+| `test_harness_handoff.py` | 29 | State persistence, artifacts |
+| `test_harness_resources.py` | 22 | Resource limits, semaphores |
+| `test_harness_scheduler.py` | 27 | Advisory locks, cron scheduling |
+
+**Result:** 172 tests (PR #437)
+
+#### Priority P7: Remaining Module Tests (2026-01-22)
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `test_models.py` | 34 | Agent, Task, ActionRecord entities |
+| `test_providers_base.py` | 30 | ModelProvider ABC, exceptions |
+| `test_providers_registry.py` | 26 | ModelRegistry singleton |
+| `test_providers_mock.py` | 30 | MockProvider variants |
+| `test_config_feature_flags.py` | 35 | Feature flags, percentage rollout |
+| `test_api_routes_backups.py` | 23 | Backup API endpoints |
+| `test_api_routes_learning.py` | 26 | Learning service endpoints |
+| `test_evaluation_harness.py` | 34 | EvaluationHarness, decisions |
+| `test_github_api.py` | 27 | GitHub API client |
+
+**Result:** 265 tests (PR #438)
+
+### Summary
+
+| Priority | Focus Area | Tests | PRs |
+|----------|------------|-------|-----|
+| P4 | Credentials | 50 | #435 |
+| P5 | Research | 91 | - |
+| P6 | Factory/Harness | 172 | #437 |
+| P7 | Remaining | 265 | #438 |
+| **Total** | **4 priorities** | **578 tests** | **3 PRs** |
+
+### Running Total After Phase 41
+
+| Phase | Tests | Cumulative |
+|-------|-------|------------|
+| Phase 40 (P1-P3) | 186 | 186 |
+| Phase 41 (P4-P7) | 578 | 764 |
+| **Total** | | **764 new tests** |
+
+### Evidence
+
+- **PR #435**: Credential tests (merged 2026-01-22)
+- **PR #437**: Factory/Harness tests (merged 2026-01-22)
+- **PR #438**: P7 remaining tests (merged 2026-01-22)
+
+### Status
+
+**Phase 41: ✅ COMPLETE - 578 New Tests Added**
+
+---
+
 *Last Updated: 2026-01-22 UTC*
-*Status: **Phase 40 Complete - Test Coverage Expansion***
+*Status: **Phase 41 Complete - Test Coverage Expansion P4-P7***
