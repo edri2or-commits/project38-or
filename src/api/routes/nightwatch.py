@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.database import get_session as get_db_session
-from src.models.activity_log import ActivityLog, NightWatchSummary
+from src.models.activity_log import ActivityLog
 from src.nightwatch import get_night_watch
 
 logger = logging.getLogger(__name__)
@@ -178,7 +178,7 @@ async def get_summary(
 
     except Exception as e:
         logger.error(f"Summary generation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/api/nightwatch/activities")
@@ -235,7 +235,7 @@ async def list_activities(
 
     except Exception as e:
         logger.error(f"Failed to list activities: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/api/nightwatch/test-telegram")

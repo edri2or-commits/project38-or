@@ -338,11 +338,12 @@ class NightWatchService:
         """Attempt automatic healing actions."""
         # For now, just log that we would attempt healing
         # Full implementation would call AutonomousController
+        anomalies_count = anomaly_result.get("anomalies_found", 0)
         await self._log_activity(
             db_session,
             ActivityType.SELF_HEALING,
             ActivitySeverity.INFO,
-            description=f"Self-healing triggered for {anomaly_result.get('anomalies_found', 0)} anomalies",
+            description=f"Self-healing triggered for {anomalies_count} anomalies",
             details=json.dumps(anomaly_result),
         )
 
@@ -391,7 +392,7 @@ class NightWatchService:
         Returns:
             NightWatchSummary: Aggregated summary of night activities
         """
-        from sqlalchemy import func, select
+        from sqlalchemy import select
 
         now = datetime.now(UTC)
         night_start = now.replace(
@@ -530,15 +531,20 @@ class NightWatchService:
         warning = "\u26a0\ufe0f"
 
         emoji = status_emoji.get(summary.overall_status, unknown_emoji)
+        start_time = summary.period_start.strftime("%H:%M")
+        end_time = summary.period_end.strftime("%H:%M")
+        passed = summary.health_checks_passed
+        failed = summary.health_checks_failed
+
         lines = [
             "<b>\U0001f319 Night Watch Summary</b>",  # 🌙
-            f"<code>{summary.period_start.strftime('%H:%M')} - {summary.period_end.strftime('%H:%M')} UTC</code>",
+            f"<code>{start_time} - {end_time} UTC</code>",
             "",
             f"Status: {emoji} <b>{summary.overall_status.upper()}</b>",
             "",
             "\U0001f4ca <b>Statistics:</b>",  # 📊
             f"  {bullet} Total activities: {summary.total_activities}",
-            f"  {bullet} Health checks: {summary.health_checks_passed}{check_mark} / {summary.health_checks_failed}{cross_mark}",
+            f"  {bullet} Health checks: {passed}{check_mark} / {failed}{cross_mark}",
             f"  {bullet} Anomalies detected: {summary.anomalies_detected}",
             f"  {bullet} Self-healing actions: {summary.self_healing_actions}",
         ]
