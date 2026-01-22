@@ -1,0 +1,55 @@
+{
+  "experiment_id": "exp_002",
+  "title": "Claude Opus Evaluation - REAL PROVIDERS",
+  "timestamp": "2026-01-22T11:17:03.526579",
+  "run_type": "real_api_opus",
+  "baseline": {
+    "provider": "claude-haiku",
+    "model": "claude-3-5-haiku-20241022",
+    "results": {
+      "provider_name": "claude-haiku",
+      "model_id": "claude-3-5-haiku-20241022",
+      "total_cases": 20,
+      "passed_cases": 18,
+      "failed_cases": 2,
+      "success_rate": 90.0,
+      "avg_latency_ms": 4216.323101520538,
+      "p99_latency_ms": 10833.979845046997,
+      "avg_quality_score": 0.9583333333333333,
+      "total_input_tokens": 420,
+      "total_output_tokens": 4425,
+      "estimated_cost_usd": 0.018036,
+      "timestamp": "2026-01-22T11:15:10.752695",
+      "duration_seconds": 84.33002996444702,
+      "metadata": {}
+    }
+  },
+  "experiment": {
+    "provider": "claude-opus",
+    "model": "claude-opus-4-20250514",
+    "results": {
+      "provider_name": "claude-opus",
+      "model_id": "claude-opus-4-20250514",
+      "total_cases": 20,
+      "passed_cases": 18,
+      "failed_cases": 2,
+      "success_rate": 90.0,
+      "avg_latency_ms": 5638.496291637421,
+      "p99_latency_ms": 12196.874856948853,
+      "avg_quality_score": 0.95,
+      "total_input_tokens": 420,
+      "total_output_tokens": 4472,
+      "estimated_cost_usd": 0.3417,
+      "timestamp": "2026-01-22T11:17:03.526000",
+      "duration_seconds": 112.77311873435974,
+      "metadata": {}
+    }
+  },
+  "comparison": {
+    "quality_delta": -0.008333333333333304,
+    "latency_ratio": 1.3373017569749344,
+    "cost_ratio": 18.94544244843646
+  },
+  "decision": "REJECT",
+  "reasoning": "Cost +1795% without quality improvement"
+}

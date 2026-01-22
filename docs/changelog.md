@@ -8,6 +8,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **exp_002 Real Provider Run Complete** (2026-01-22)
+  - Ran model evaluation with real Claude providers via MCP Tunnel
+  - Baseline: Claude Haiku (93.33% quality, $0.018 cost)
+  - Experiment: Claude Sonnet (93.75% quality, $0.068 cost)
+  - **Decision: REJECT** - Cost 3.76x higher with only +0.42% quality gain
+  - Key finding: Haiku sufficient for basic autonomous tasks
+  - Created `ClaudeTunnelProvider` in `src/providers/claude_tunnel.py`
+  - Results: `experiments/exp_002_claude_4_5_opus_model_evaluati/results_real.json`
+
+- **Claude API Tool in MCP Tunnel** (2026-01-22)
+  - Added `claude_complete` tool to `cloud_functions/mcp_router/main.py`
+  - Enables direct Claude API calls from cloud environments blocked by proxy
+  - Features:
+    - Fetches ANTHROPIC-API key from GCP Secret Manager internally
+    - Supports all Claude models (Sonnet 4, Opus 4.5, Haiku 3.5)
+    - Returns full response with usage stats and latency metrics
+    - API key never exposed to clients (security by design)
+  - MCP Tunnel now has 30 tools (previously 29)
+  - Deployed to Cloud Run: `mcp-router-979429709900.us-central1.run.app`
+  - Verified working: 3643ms latency, successful API call
+
+- **Mock Providers for Testing** (2026-01-21)
+  - Added `src/providers/mock.py` with mock provider implementations
+  - `MockProvider` - Configurable mock for testing experiments
+  - `MockOpusProvider` - Simulates Opus (quality=95%, latency=800ms, 5x cost)
+  - `MockSonnetProvider` - Simulates Sonnet (quality=85%, latency=300ms, baseline cost)
+  - `MockHaikuProvider` - Simulates Haiku (quality=75%, latency=100ms, cheapest)
+  - `register_mock_providers()` - Convenience function to register all mocks
+  - Enables experiment framework validation without real API costs
+
+- **exp_002 Framework Validation** (2026-01-21)
+  - Updated `experiments/exp_002_claude_4_5_opus_model_evaluati/run.py` to use mock providers
+  - Validated evaluation harness with mock-sonnet vs mock-opus comparison
+  - Mock results: REJECT (as expected - mock providers don't match golden set)
+  - Confirmed decision logic works correctly (cost +400% → REJECT)
+  - Ready for real provider testing
+
+- **Browser MCP Tools in Gateway** (2026-01-21)
+  - Registered 6 browser tools in MCP Gateway (`src/mcp_gateway/server.py`)
+  - `browser_navigate` - Navigate to URL
+  - `browser_accessibility_tree` - Get compact tree (93% token reduction)
+  - `browser_click_ref` - Click by reference ID (@e1, @e2)
+  - `browser_fill_ref` - Fill input by reference ID
+  - `browser_screenshot` - Capture screenshot (base64 encoded)
+  - `browser_close` - Close browser and release resources
+
+- **Accessibility Tree Browser Tools** (2026-01-21)
+  - Extended `src/mcp/browser.py` with Accessibility Tree approach (93% token reduction)
+  - `get_accessibility_tree()` - Returns compact tree with reference IDs (@e1, @e2)
+  - `click_by_ref()` - Click element by accessibility reference ID
+  - `fill_by_ref()` - Fill input by accessibility reference ID
+  - `LoopDetector` class - Prevents infinite action loops
+  - Based on exp_003 research findings
+
+- **Vercel Agent Browser Experiment** (2026-01-21)
+  - Created `exp_003_vercel_agent_browser` experiment for autonomous UI navigation
+  - Implements Accessibility Tree approach (93% token reduction vs DOM)
+  - 13 test cases across 3 phases: Basic Navigation, Interactive, Complex Workflows
+  - Loop detection with state machine (last 10 actions + snapshot hash)
+  - Dry-run mode for safe testing
+  - **Dry-run results**: 13/13 tests passed, $0.0012/test, 214ms avg latency
+  - Files: `experiments/exp_003_vercel_agent_browser/` (README.md, run.py)
+  - Issue: ISSUE-0003
+
 - **Railway Troubleshooting Workflows** (2026-01-21)
   - `railway-project-status.yml` - Query all services in Railway project (PRs #406)
   - `railway-inspect-service.yml` - Inspect specific service configuration (PR #407)

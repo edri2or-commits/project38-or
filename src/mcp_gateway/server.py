@@ -474,6 +474,134 @@ def create_mcp_server() -> Any | None:
 
         return await docs_append(document_id, text)
 
+    # =========================================================================
+    # Browser Automation Tools (exp_003 - Accessibility Tree approach)
+    # =========================================================================
+
+    @mcp.tool
+    async def browser_navigate(url: str) -> dict:
+        """
+        Navigate browser to URL.
+
+        Args:
+            url: Target URL (must start with http:// or https://)
+
+        Returns:
+            Navigation result with current URL
+        """
+        from ..mcp.browser import get_browser_server
+
+        server = get_browser_server()
+        if not server.is_running:
+            await server.start()
+        result = await server.navigate(url)
+        return result.to_dict()
+
+    @mcp.tool
+    async def browser_accessibility_tree() -> dict:
+        """
+        Get Accessibility Tree snapshot (93% token reduction vs DOM).
+
+        Returns compact representation using ARIA roles and reference IDs
+        (@e1, @e2, etc.) instead of full DOM.
+
+        Returns:
+            Accessibility tree with reference IDs, hash, and token estimate
+        """
+        from ..mcp.browser import get_browser_server
+
+        server = get_browser_server()
+        if not server.is_running:
+            return {"success": False, "error": "Browser not started. Call browser_navigate first."}
+        result = await server.get_accessibility_tree()
+        return result.to_dict()
+
+    @mcp.tool
+    async def browser_click_ref(ref: str) -> dict:
+        """
+        Click element by accessibility reference ID.
+
+        Uses ARIA roles and accessible names instead of CSS selectors.
+
+        Args:
+            ref: Reference ID from accessibility tree (e.g., "@e1", "@e3")
+
+        Returns:
+            Click result with element info
+        """
+        from ..mcp.browser import get_browser_server
+
+        server = get_browser_server()
+        if not server.is_running:
+            return {"success": False, "error": "Browser not started. Call browser_navigate first."}
+        result = await server.click_by_ref(ref)
+        return result.to_dict()
+
+    @mcp.tool
+    async def browser_fill_ref(ref: str, value: str) -> dict:
+        """
+        Fill input element by accessibility reference ID.
+
+        Args:
+            ref: Reference ID from accessibility tree
+            value: Value to enter (will not be logged for security)
+
+        Returns:
+            Fill result
+        """
+        from ..mcp.browser import get_browser_server
+
+        server = get_browser_server()
+        if not server.is_running:
+            return {"success": False, "error": "Browser not started. Call browser_navigate first."}
+        result = await server.fill_by_ref(ref, value)
+        return result.to_dict()
+
+    @mcp.tool
+    async def browser_screenshot(full_page: bool = False) -> dict:
+        """
+        Capture screenshot of current page.
+
+        Args:
+            full_page: Capture full scrollable page (default: False)
+
+        Returns:
+            Screenshot as base64 encoded image
+        """
+        import base64
+
+        from ..mcp.browser import get_browser_server
+
+        server = get_browser_server()
+        if not server.is_running:
+            return {"success": False, "error": "Browser not started. Call browser_navigate first."}
+        result = await server.screenshot(full_page=full_page)
+        if result.success and result.data:
+            # Convert bytes to base64 for JSON serialization
+            return {
+                "success": True,
+                "data": base64.b64encode(result.data).decode("utf-8"),
+                "url": result.url,
+                "duration": result.duration,
+            }
+        return result.to_dict()
+
+    @mcp.tool
+    async def browser_close() -> dict:
+        """
+        Close browser and release resources.
+
+        Returns:
+            Close result
+        """
+        from ..mcp.browser import get_browser_server
+
+        server = get_browser_server()
+        if server.is_running:
+            await server.stop()
+            return {"success": True, "message": "Browser closed"}
+        return {"success": True, "message": "Browser was not running"}
+
     return mcp
 
 
@@ -529,5 +657,12 @@ if __name__ == "__main__":
     print("    - drive_list_files, drive_create_folder")
     print("    - sheets_read, sheets_write, sheets_create")
     print("    - docs_create, docs_read, docs_append")
+    print("  Browser (exp_003 - Accessibility Tree):")
+    print("    - browser_navigate: Navigate to URL")
+    print("    - browser_accessibility_tree: Get compact tree (93% token reduction)")
+    print("    - browser_click_ref: Click by reference ID (@e1, @e2)")
+    print("    - browser_fill_ref: Fill input by reference ID")
+    print("    - browser_screenshot: Capture screenshot")
+    print("    - browser_close: Close browser")
 
     mcp.run(transport="streamable-http", host=host, port=port)

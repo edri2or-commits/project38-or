@@ -117,16 +117,17 @@ _Filled during weekly review._
 
 **Reviewed:** 2026-01-21
 **Decision:** Spike
-**Issue/PR:** TBD
-**Experiment ID:** TBD (exp_003_vercel_agent_browser suggested)
+**Issue/PR:** ISSUE-0003
+**Experiment ID:** exp_003_vercel_agent_browser
 
 ---
 
 ## Related
 
 - Related ADRs: ADR-003 (Railway Autonomous Control), ADR-006 (GCP Agent Autonomy)
-- Related experiments: None yet
+- Related experiments: [exp_003_vercel_agent_browser](../../../experiments/exp_003_vercel_agent_browser/)
 - Related research notes: None yet
+- Related issues: [ISSUE-0003](../issues/ISSUE-0003.md)
 
 ---
 
