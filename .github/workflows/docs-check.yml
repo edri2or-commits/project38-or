@@ -111,3 +111,28 @@ jobs:
             exit 1
           }
           echo "✅ All docstrings valid - PASS"
+
+  # Final status check - required for branch protection
+  # Provides the "docs-check" status that branch protection expects
+  docs-check-status:
+    name: docs-check
+    runs-on: ubuntu-latest
+    needs: [check-changelog, check-docstrings]
+    if: always()
+    steps:
+      - name: Check status
+        run: |
+          if [ "${{ needs.check-changelog.result }}" == "success" ] && \
+             [ "${{ needs.check-docstrings.result }}" == "success" ]; then
+            echo "✅ All documentation checks passed"
+            exit 0
+          elif [ "${{ needs.check-changelog.result }}" == "skipped" ] && \
+               [ "${{ needs.check-docstrings.result }}" == "skipped" ]; then
+            echo "✅ Documentation checks skipped (no relevant changes)"
+            exit 0
+          else
+            echo "❌ Documentation checks failed"
+            echo "  check-changelog: ${{ needs.check-changelog.result }}"
+            echo "  check-docstrings: ${{ needs.check-docstrings.result }}"
+            exit 1
+          fi

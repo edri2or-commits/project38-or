@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Research Note: AI-Native Automation Migration** (2026-01-22)
+  - Comprehensive analysis of migrating from n8n/Make to AI-native serverless architectures
+  - Key finding: Claude 3.5 Sonnet outperforms GPT-4o for code generation (92% vs 87.2%)
+  - Master Agent architecture replacing workflow engines with serverless + database
+  - Self-healing automation via automatic PR creation (Ralph agent: 132 bugs fixed)
+  - Cost analysis: AI stack ~$100-150/mo vs n8n $500-2000+/mo at 1M executions
+  - Classification: Spike - proposes n8n → Edge Functions migration
+  - File: `docs/research/notes/2026-01-22-ai-native-automation-migration.md`
+
 - **Skill Trigger Router** (2026-01-22)
   - Added mandatory section to CLAUDE.md that enforces skill activation on trigger detection
   - Maps 11 skill triggers (Hebrew + English) to their corresponding skills
@@ -16,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes issue where trigger_keywords in SKILL.md files were ignored
 
 ### Fixed
+- **CI: Smart path filtering for lint and test workflows** (2026-01-22)
+  - Problem: Docs-only PRs were blocked by unrelated code lint/test failures
+  - Root cause: Required checks didn't run → GitHub showed "pending" forever
+  - Solution: Job-level conditional using `dorny/paths-filter@v3`
+  - Architecture: `changes` job detects files → `test/lint` job runs if code changed → `status` job reports result
+  - Result: Docs-only PRs get immediate "success" status, code PRs get full testing
+  - Fixes GitHub Actions + Branch Protection incompatibility with path filters
+
 - **monitoring_loop.py API alignment and test re-enablement** (2026-01-22)
   - Fixed `detect_anomaly()` call: parameter `metric_name` → `metric` (line 471-474)
   - Fixed `get_stats()`: removed non-existent `self.detector.algorithms` → `len(DetectionMethod)` (line 534)
