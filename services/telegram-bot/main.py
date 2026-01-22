@@ -246,9 +246,9 @@ async def list_chats() -> dict:
     Returns:
         dict: List of unique chat_ids
     """
+    from database import get_session
     from sqlmodel import select
 
-    from database import get_session
     from models import ConversationMessage
 
     try:
