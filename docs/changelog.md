@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
+  - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
+  - Created `src/models/activity_log.py` - ActivityLog, NightWatchSummary, NightWatchConfig models
+  - Created `src/api/routes/nightwatch.py` - API endpoints: /tick, /morning-summary, /status, /activities
+  - Added `/send` endpoint to Telegram Bot for proactive messaging
+  - Added `/chats` endpoint to Telegram Bot for listing known chat IDs
+  - Added Railway cron configuration in `railway.toml` for hourly night checks
+  - Added `MONITORING_AUTO_START` option for MonitoringLoop
+  - Features: health checks, metric collection, anomaly detection, self-healing, morning summaries
+
 - **Research Note: AI-Native Automation Migration** (2026-01-22)
   - Comprehensive analysis of migrating from n8n/Make to AI-native serverless architectures
   - Key finding: Claude 3.5 Sonnet outperforms GPT-4o for code generation (92% vs 87.2%)

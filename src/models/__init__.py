@@ -9,6 +9,13 @@ from src.models.action_record import (
     ConfidenceAdjustment,
     LearningInsight,
 )
+from src.models.activity_log import (
+    ActivityLog,
+    ActivitySeverity,
+    ActivityType,
+    NightWatchConfig,
+    NightWatchSummary,
+)
 from src.models.agent import Agent
 from src.models.task import Task
 
@@ -19,4 +26,9 @@ __all__ = [
     "ActionStats",
     "LearningInsight",
     "ConfidenceAdjustment",
+    "ActivityLog",
+    "ActivityType",
+    "ActivitySeverity",
+    "NightWatchSummary",
+    "NightWatchConfig",
 ]

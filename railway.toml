@@ -14,3 +14,14 @@ restartPolicyMaxRetries = 10
 # DATABASE_URL - PostgreSQL connection string (auto-provided by Railway)
 # PYTHONPATH - Set to /app
 # PORT - Auto-provided by Railway
+
+# Night Watch cron jobs (ADR-013)
+# Runs every hour during night hours (00:00-06:00 UTC)
+[[crons]]
+schedule = "0 0-6 * * *"
+endpoint = "/api/nightwatch/tick"
+
+# Morning summary at 06:00 UTC
+[[crons]]
+schedule = "0 6 * * *"
+endpoint = "/api/nightwatch/morning-summary"
