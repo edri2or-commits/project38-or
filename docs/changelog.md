@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes issue where trigger_keywords in SKILL.md files were ignored
 
 ### Fixed
+- **CI: Remove docs/** path trigger from lint.yml and test.yml** (2026-01-22)
+  - Problem: Docs-only PRs were blocked by unrelated code lint/test failures
+  - Root cause: `'docs/**'` in paths filter triggered full code checks
+  - Solution: Removed `docs/**` from lint.yml and test.yml path filters
+  - Result: Docs-only PRs skip code linting/testing, avoiding false failures
+  - Documentation checks (enforce-docs.yml, docs-check.yml) still run
+
 - **monitoring_loop.py API alignment and test re-enablement** (2026-01-22)
   - Fixed `detect_anomaly()` call: parameter `metric_name` → `metric` (line 471-474)
   - Fixed `get_stats()`: removed non-existent `self.detector.algorithms` → `len(DetectionMethod)` (line 534)

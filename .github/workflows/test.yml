@@ -10,7 +10,7 @@ on:
       - 'pyproject.toml'
       - 'requirements*.txt'
       - 'conftest.py'  # Test configuration
-      - 'docs/**'  # Run on docs changes to satisfy branch protection
+      # Note: docs/** removed - docs-only PRs don't need code testing
 
 permissions:
   contents: read

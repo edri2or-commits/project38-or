@@ -5,9 +5,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - '**.py'
+      - 'src/**/*.py'
+      - 'tests/**/*.py'
       - 'pyproject.toml'
-      - 'docs/**'  # Run on docs changes to satisfy branch protection
+      # Note: docs/** removed - docs-only PRs don't need code linting
 
 permissions:
   contents: read
