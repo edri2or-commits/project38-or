@@ -1,0 +1,95 @@
+name: exp_003 Browser Test (Dispatch)
+
+on:
+  repository_dispatch:
+    types: [run-exp003]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  run-live-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright anthropic
+          playwright install chromium --with-deps
+
+      - name: Run live tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          python run.py --all --live --output results_live.json
+
+      - name: Create issue with results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd experiments/exp_003_vercel_agent_browser
+          if [ -f results_live.json ]; then
+            python3 << 'PYTHON'
+import json
+
+with open('results_live.json') as f:
+    data = json.load(f)
+
+decision = data.get('decision', 'UNKNOWN')
+success_rate = data['metrics'].get('success_rate', 0) * 100
+total_cost = data['metrics'].get('total_cost_usd', 0)
+avg_latency = data['metrics'].get('avg_latency_ms', 0)
+
+body = f"""## exp_003 Live Test Results
+
+**Decision:** {decision}
+**Success Rate:** {success_rate:.1f}%
+**Total Cost:** ${total_cost:.4f}
+**Avg Latency:** {avg_latency:.0f}ms
+**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+### Test Results Summary
+
+| Test | Success | Cost | Latency |
+|------|---------|------|---------|
+"""
+
+for test in data.get('test_results', []):
+    status = "✅" if test['success'] else "❌"
+    body += f"| {test['test_case_id']} | {status} | ${test['cost_usd']:.4f} | {test['latency_ms']:.0f}ms |\n"
+
+body += f"""
+### Raw Results (JSON)
+
+```json
+{json.dumps(data, indent=2)}
+```
+"""
+
+with open('issue_body.md', 'w') as f:
+    f.write(body)
+
+with open('decision.txt', 'w') as f:
+    f.write(f"{decision}|{success_rate:.1f}%")
+PYTHON
+
+            DECISION=$(cut -d'|' -f1 decision.txt)
+            SUCCESS_RATE=$(cut -d'|' -f2 decision.txt)
+
+            gh issue create \
+              --title "exp_003 Live Results: $DECISION ($SUCCESS_RATE success)" \
+              --body-file issue_body.md \
+              --label "experiment"
+          fi
