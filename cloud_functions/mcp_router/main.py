@@ -224,6 +224,9 @@ class MCPRouter:
         self.tools["gcp_secret_get"] = self._gcp_secret_get
         self.tools["gcp_project_info"] = self._gcp_project_info
 
+        # Claude API tools (enables real API calls from cloud environments)
+        self.tools["claude_complete"] = self._claude_complete
+
         logger.info(f"Registered {len(self.tools)} tools")
 
     def process_request(self, mcp_message: dict) -> dict:
@@ -1477,10 +1480,123 @@ class MCPRouter:
                 "gcp_secret_list - List all secrets",
                 "gcp_secret_get - Get secret value (masked)",
                 "gcp_project_info - This tool",
+                "claude_complete - Call Claude API directly",
             ],
             "note": "These tools bypass Anthropic proxy via Cloud Function tunnel",
             "documentation": "See ADR-006 for full GCP MCP Server details",
         }
+
+    def _claude_complete(
+        self,
+        messages: list[dict[str, str]],
+        model: str = "claude-sonnet-4-20250514",
+        max_tokens: int = 4096,
+        system: str | None = None,
+        temperature: float = 0.7,
+    ) -> dict:
+        """
+        Call Claude API directly from the MCP Tunnel.
+
+        This tool enables real Claude API calls from cloud environments
+        that are blocked by Anthropic proxy. The API key is fetched
+        from GCP Secret Manager internally and never exposed.
+
+        Args:
+            messages: List of message dicts with 'role' and 'content' keys
+            model: Claude model to use (default: claude-sonnet-4-20250514)
+            max_tokens: Maximum tokens in response (default: 4096)
+            system: Optional system prompt
+            temperature: Sampling temperature 0-1 (default: 0.7)
+
+        Returns:
+            dict with response content, usage stats, and metadata
+
+        Example:
+            claude_complete(
+                messages=[{"role": "user", "content": "Hello!"}],
+                model="claude-sonnet-4-20250514"
+            )
+        """
+        start_time = time.time()
+
+        try:
+            # Get API key from Secret Manager (never exposed externally)
+            api_key = get_secret("ANTHROPIC-API")
+            if not api_key:
+                return {
+                    "success": False,
+                    "error": "Failed to retrieve ANTHROPIC-API secret",
+                }
+
+            # Build request payload
+            payload: dict[str, Any] = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "messages": messages,
+                "temperature": temperature,
+            }
+
+            if system:
+                payload["system"] = system
+
+            # Call Anthropic API
+            response = httpx.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json=payload,
+                timeout=120,
+            )
+
+            latency_ms = (time.time() - start_time) * 1000
+
+            if response.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"API error: {response.status_code}",
+                    "details": response.text[:500],
+                    "latency_ms": latency_ms,
+                }
+
+            result = response.json()
+
+            # Extract content from response
+            content = ""
+            if result.get("content"):
+                for block in result["content"]:
+                    if block.get("type") == "text":
+                        content += block.get("text", "")
+
+            # Get usage stats
+            usage = result.get("usage", {})
+
+            return {
+                "success": True,
+                "content": content,
+                "model": result.get("model", model),
+                "stop_reason": result.get("stop_reason"),
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+                "latency_ms": latency_ms,
+                "message": "Claude API call successful via MCP Tunnel",
+            }
+
+        except httpx.TimeoutException:
+            return {
+                "success": False,
+                "error": "API request timed out after 120 seconds",
+                "latency_ms": (time.time() - start_time) * 1000,
+            }
+        except Exception as e:
+            logger.error(f"claude_complete failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "latency_ms": (time.time() - start_time) * 1000,
+            }
 
 
 # Global router instance
