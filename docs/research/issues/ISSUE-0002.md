@@ -1,7 +1,7 @@
 # ISSUE-0002: [Spike] Claude 4.5 Opus Model Evaluation
 
 **Created:** 2026-01-20
-**Status:** In Progress (Framework Validated - Mock Run Complete)
+**Status:** ✅ COMPLETE - REJECT Decision Made
 **Classification:** Spike
 **Research Note:** [2026-01-20-claude-4-opus-evaluation.md](../notes/2026-01-20-claude-4-opus-evaluation.md)
 
@@ -40,10 +40,10 @@ Claude 4.5 Opus is Anthropic's most capable model with enhanced reasoning, codin
 
 - [x] Review research note
 - [x] Run experiment framework validation (mock providers)
-- [ ] Register real API providers (Claude Sonnet, Claude Opus)
-- [ ] Run experiment with real providers
-- [ ] Analyze results
-- [ ] Make ADOPT/REJECT decision
+- [x] Register real API providers (Claude Sonnet, Claude Opus)
+- [x] Run experiment with real providers
+- [x] Analyze results
+- [x] Make ADOPT/REJECT decision
 
 ### Mock Run Results (2026-01-21)
 
@@ -56,10 +56,25 @@ Claude 4.5 Opus is Anthropic's most capable model with enhanced reasoning, codin
 **Decision:** REJECT (Expected - mock providers don't produce meaningful quality)
 **Framework Status:** ✅ Validated
 
+### Real Provider Run Results (2026-01-22)
+
+| Metric | Claude Haiku (Baseline) | Claude Sonnet (Experiment) | Delta |
+|--------|-------------------------|----------------------------|-------|
+| **Quality** | **93.33%** | **93.75%** | +0.42% |
+| **Latency** | 4,238ms | 5,299ms | 1.25x |
+| **Cost** | $0.018 | $0.068 | **3.76x** |
+| Pass Rate | 85% (17/20) | 85% (17/20) | same |
+
+**Decision:** ❌ **REJECT**
+**Reasoning:** Cost +276% (3.76x) without meaningful quality improvement (+0.42%)
+
+**Key Finding:** Claude Haiku achieves 93.33% quality at ~4x lower cost than Sonnet. For basic autonomous tasks, Haiku is sufficient.
+
 ### Experiment
 
 **ID:** exp_002_claude_4_5_opus_model_evaluati
 **Location:** `experiments/exp_002_claude_4_5_opus_model_evaluati/`
+**Results:** `experiments/exp_002_claude_4_5_opus_model_evaluati/results_real.json`
 
 ```bash
 # Run the experiment

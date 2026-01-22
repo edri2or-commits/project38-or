@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **exp_002 Real Provider Run Complete** (2026-01-22)
+  - Ran model evaluation with real Claude providers via MCP Tunnel
+  - Baseline: Claude Haiku (93.33% quality, $0.018 cost)
+  - Experiment: Claude Sonnet (93.75% quality, $0.068 cost)
+  - **Decision: REJECT** - Cost 3.76x higher with only +0.42% quality gain
+  - Key finding: Haiku sufficient for basic autonomous tasks
+  - Created `ClaudeTunnelProvider` in `src/providers/claude_tunnel.py`
+  - Results: `experiments/exp_002_claude_4_5_opus_model_evaluati/results_real.json`
+
 - **Claude API Tool in MCP Tunnel** (2026-01-22)
   - Added `claude_complete` tool to `cloud_functions/mcp_router/main.py`
   - Enables direct Claude API calls from cloud environments blocked by proxy
