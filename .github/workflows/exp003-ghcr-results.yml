@@ -117,9 +117,12 @@ jobs:
       - name: Push results to Git-Bridge
         if: always()
         run: |
-          cd experiments/exp_003_vercel_agent_browser
-          if [ -f results_live.json ]; then
+          RESULTS_FILE="${GITHUB_WORKSPACE}/experiments/exp_003_vercel_agent_browser/results_live.json"
+          if [ -f "$RESULTS_FILE" ]; then
             echo "Pushing results to Git-Bridge..."
+
+            # IMPORTANT: Copy file to /tmp BEFORE git operations (git clean will delete everything)
+            cp "$RESULTS_FILE" /tmp/results_live.json
 
             # Create orphan branch for this run
             BRANCH_NAME="artifacts/exp003-run-${{ github.run_id }}"
@@ -132,8 +135,8 @@ jobs:
             git rm -rf . 2>/dev/null || true
             git clean -fd
 
-            # Copy results and commit
-            cp /home/runner/work/project38-or/project38-or/experiments/exp_003_vercel_agent_browser/results_live.json ./results.json
+            # Copy results from temp location
+            cp /tmp/results_live.json ./results.json
 
             # Add metadata
             cat > metadata.json << EOF
@@ -154,6 +157,8 @@ jobs:
             git push origin "$BRANCH_NAME" --force
 
             echo "Results pushed to branch: $BRANCH_NAME"
+          else
+            echo "No results file found at $RESULTS_FILE"
           fi
 
       # ===== STRATEGY 3: IssueOps (fallback) =====
