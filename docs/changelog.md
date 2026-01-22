@@ -25,12 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixes issue where trigger_keywords in SKILL.md files were ignored
 
 ### Fixed
-- **CI: Remove docs/** path trigger from lint.yml and test.yml** (2026-01-22)
+- **CI: Smart path filtering for lint and test workflows** (2026-01-22)
   - Problem: Docs-only PRs were blocked by unrelated code lint/test failures
-  - Root cause: `'docs/**'` in paths filter triggered full code checks
-  - Solution: Removed `docs/**` from lint.yml and test.yml path filters
-  - Result: Docs-only PRs skip code linting/testing, avoiding false failures
-  - Documentation checks (enforce-docs.yml, docs-check.yml) still run
+  - Root cause: Required checks didn't run → GitHub showed "pending" forever
+  - Solution: Job-level conditional using `dorny/paths-filter@v3`
+  - Architecture: `changes` job detects files → `test/lint` job runs if code changed → `status` job reports result
+  - Result: Docs-only PRs get immediate "success" status, code PRs get full testing
+  - Fixes GitHub Actions + Branch Protection incompatibility with path filters
 
 - **monitoring_loop.py API alignment and test re-enablement** (2026-01-22)
   - Fixed `detect_anomaly()` call: parameter `metric_name` → `metric` (line 471-474)
