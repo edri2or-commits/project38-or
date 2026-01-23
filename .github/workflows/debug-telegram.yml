@@ -1,0 +1,79 @@
+name: Debug Telegram Integration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    env:
+      PRODUCTION_URL: https://or-infra.com
+      TELEGRAM_BOT_URL: https://telegram-bot-production-053d.up.railway.app
+    steps:
+      - name: Check Bot Health
+        run: |
+          echo "## Telegram Bot Health" >> $GITHUB_STEP_SUMMARY
+          RESPONSE=$(curl -s -m 10 "$TELEGRAM_BOT_URL/health" || echo '{"error":"timeout"}')
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Check Known Chats
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Known Chat IDs in Bot Database" >> $GITHUB_STEP_SUMMARY
+          RESPONSE=$(curl -s -m 10 "$TELEGRAM_BOT_URL/chats" || echo '{"error":"timeout"}')
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Check Night Watch Status
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Night Watch Status" >> $GITHUB_STEP_SUMMARY
+          RESPONSE=$(curl -s -m 10 "$PRODUCTION_URL/api/nightwatch/status" || echo '{"error":"timeout"}')
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Extract configured chat_id
+          CHAT_ID=$(echo "$RESPONSE" | jq -r '.telegram_chat_id // "not shown"')
+          TELEGRAM_CONFIGURED=$(echo "$RESPONSE" | jq -r '.telegram_configured')
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Telegram configured: $TELEGRAM_CONFIGURED" >> $GITHUB_STEP_SUMMARY
+
+      - name: Test Direct Send to Bot
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Direct Send Test (chat_id=5786217215)" >> $GITHUB_STEP_SUMMARY
+
+          RESPONSE=$(curl -s -m 30 -X POST "$TELEGRAM_BOT_URL/send" \
+            -G \
+            --data-urlencode "chat_id=5786217215" \
+            --data-urlencode "text=🔔 Direct test from debug workflow" \
+            --data-urlencode "parse_mode=HTML" || echo '{"error":"timeout"}')
+
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Test via Night Watch Endpoint
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Night Watch Test Telegram" >> $GITHUB_STEP_SUMMARY
+
+          RESPONSE=$(curl -s -m 30 -X POST "$PRODUCTION_URL/api/nightwatch/test-telegram" || echo '{"error":"timeout"}')
+
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Final Analysis
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "## Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "Check the responses above to identify the issue:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Is chat_id 5786217215 in the known chats list?" >> $GITHUB_STEP_SUMMARY
+          echo "2. Does the direct send return a message_id?" >> $GITHUB_STEP_SUMMARY
+          echo "3. Does the Night Watch test return status=sent?" >> $GITHUB_STEP_SUMMARY
