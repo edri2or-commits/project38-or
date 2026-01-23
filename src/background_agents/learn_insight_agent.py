@@ -209,19 +209,26 @@ Respond ONLY with the JSON object, no markdown."""
             prompt = self._build_prompt(learning_data)
 
             # Call LLM via LiteLLM Gateway
+            logger.info(f"Creating OpenAI client with base_url={self.litellm_url}")
             client = AsyncOpenAI(
                 base_url=self.litellm_url,
                 api_key="dummy",  # Self-hosted gateway doesn't need key
             )
 
             model = MODEL_MAPPING.get(self.MODEL_TASK_TYPE, "claude-sonnet")
+            logger.info(f"Calling LLM with model={model}")
 
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.5,  # Higher temperature for creative insights
-                max_tokens=2500,
-            )
+            try:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.5,  # Higher temperature for creative insights
+                    max_tokens=2500,
+                )
+                logger.info(f"LLM call successful, model_used={response.model}")
+            except Exception as llm_error:
+                logger.error(f"LLM call failed: {type(llm_error).__name__}: {llm_error}")
+                raise
 
             # Extract response
             content = response.choices[0].message.content

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Background Agents Workflow** (2026-01-23)
+  - Fixed silent failure in GitHub Actions workflow by using `tee` for output capture
+  - Use `${PIPESTATUS[0]}` to correctly capture exit code from piped commands
+  - Add automatic GitHub issue creation on agent failure for debugging
+  - Add top-level error handling in runner.py for single agent runs
+  - All 3 agents verified working: runs #9 and #10 succeeded
+
 ### Added
 - **Background Agents - ADR-013 Phase 3** (2026-01-23)
   - Implemented 3 autonomous LLM-powered agents with scheduled execution:
