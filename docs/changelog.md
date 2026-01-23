@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Email Agent: Replaced broken MCP calls with direct Gmail API** (2026-01-23)
+  - The email agent was calling non-existent MCP Gateway REST endpoints (`/tools/gmail_search`)
+  - Created `src/agents/gmail_client.py` - Direct Gmail API client using OAuth
+  - Updated `email_agent.py` to use `GmailClient` instead of MCP calls
+  - Updated `send_to_telegram` to use direct Telegram API (not bot service)
+  - Expanded system email filter patterns: added Railway, Vercel, Netlify, Heroku, AWS, GCP, Azure, CircleCI
+  - Created `scripts/run_email_agent.py` for workflow execution
+  - Created `.github/workflows/email-scan-direct.yml` with daily cron (6:00 AM Israel)
+  - Status: ✅ Workflow tested and working
+
 ### Added
 - **Smart Email Agent - ADR-014 Complete (Phase 1, 2 & 3)** (2026-01-23)
   - **Phase 1 - Core Agent:**
