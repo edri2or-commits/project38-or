@@ -88,12 +88,30 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           AGENT="${{ needs.determine-agent.outputs.agent }}"
+          echo "Running agent: $AGENT"
+          echo "LiteLLM URL: $LITELLM_URL"
 
+          # Capture output and errors for debugging
+          set +e  # Don't exit on error
           if [ "$AGENT" == "all" ]; then
-            python -m src.background_agents.runner --all --litellm-url "$LITELLM_URL" --output-json
+            OUTPUT=$(python -m src.background_agents.runner --all --litellm-url "$LITELLM_URL" --output-json 2>&1)
+            EXIT_CODE=$?
           else
-            python -m src.background_agents.runner --agent "$AGENT" --litellm-url "$LITELLM_URL" --output-json
+            OUTPUT=$(python -m src.background_agents.runner --agent "$AGENT" --litellm-url "$LITELLM_URL" --output-json 2>&1)
+            EXIT_CODE=$?
           fi
+
+          echo "Exit code: $EXIT_CODE"
+          echo "Output:"
+          echo "$OUTPUT"
+
+          # Write to step summary
+          echo "### Agent Output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          exit $EXIT_CODE
 
       - name: Upload metrics artifacts
         uses: actions/upload-artifact@v4
