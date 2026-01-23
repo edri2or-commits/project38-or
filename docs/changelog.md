@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent - ADR-014** (2026-01-23)
+  - Autonomous email agent that scans Gmail inbox daily and sends summary to Telegram
+  - P1-P4 priority classification with Hebrew categories (בירוקרטיה, כספים, דחוף, etc.)
+  - Calendar context awareness - integrates with Google Calendar
+  - Smart action suggestions via LLM analysis (drafts, not auto-send)
+  - Form/link extraction for bureaucracy emails
+  - Safety rules: NEVER auto-sends emails, payments, or form submissions
+  - GitHub Actions workflow: `daily-email-agent.yml` runs at 07:00 Israel time
+  - Files: `src/agents/email_agent.py` (~500 lines), `docs/decisions/ADR-014-smart-email-agent.md`
+
 - **Background Agents Real Data Integration** (2026-01-23)
   - Connected CostOptAgent to real Railway cost data via MCP Gateway
   - Connected HealthSynthAgent to real production health endpoints (main-api, litellm-gateway, mcp-gateway, telegram-bot)
