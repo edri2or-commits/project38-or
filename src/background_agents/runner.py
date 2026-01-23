@@ -74,6 +74,8 @@ async def run_all_agents(litellm_url: str) -> dict:
     Returns:
         Dictionary mapping agent names to their results
     """
+    import traceback
+
     results = {}
 
     for agent_name in AGENTS:
@@ -81,8 +83,13 @@ async def run_all_agents(litellm_url: str) -> dict:
             result = await run_agent(agent_name, litellm_url)
             results[agent_name] = result
         except Exception as e:
-            logger.error(f"Agent {agent_name} failed: {e}")
-            results[agent_name] = {"success": False, "error": str(e)}
+            error_detail = traceback.format_exc()
+            logger.error(f"Agent {agent_name} failed:\n{error_detail}")
+            results[agent_name] = {
+                "success": False,
+                "error": str(e),
+                "traceback": error_detail,
+            }
 
     return results
 
@@ -152,8 +159,63 @@ def main() -> int:
         action="store_true",
         help="Output results as JSON",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Test infrastructure without making LLM calls",
+    )
 
     args = parser.parse_args()
+
+    # Handle dry-run mode
+    if args.dry_run:
+        print("=== DRY RUN MODE ===")
+        print("Testing infrastructure without LLM calls...")
+        print()
+
+        # Test imports
+        print("1. Testing imports...")
+        from src.smart_llm.classifier import MODEL_COSTS, MODEL_MAPPING, TaskType
+
+        print(f"   ✅ MODEL_MAPPING loaded ({len(MODEL_MAPPING)} task types)")
+        print(f"   ✅ MODEL_COSTS loaded ({len(MODEL_COSTS)} models)")
+
+        # Test agent instantiation
+        print("2. Testing agent creation...")
+        for name, agent_class in AGENTS.items():
+            agent = agent_class(litellm_url=args.litellm_url)
+            model = MODEL_MAPPING.get(agent.MODEL_TASK_TYPE, "unknown")
+            print(f"   ✅ {name}: {agent.AGENT_NAME} → {model}")
+
+        # Test metrics
+        print("3. Testing metrics...")
+        collector = MetricsCollector()
+        from src.background_agents.metrics import AgentMetrics, generate_run_id
+
+        test_metrics = AgentMetrics(
+            agent_name="dry_run_test",
+            run_id=generate_run_id(),
+            success=True,
+        )
+        path = collector.store(test_metrics)
+        print(f"   ✅ Metrics stored at: {path}")
+
+        # Test LiteLLM Gateway connectivity
+        print(f"4. Testing LiteLLM Gateway connectivity ({args.litellm_url})...")
+        try:
+            import httpx
+
+            response = httpx.get(f"{args.litellm_url}/health", timeout=10.0)
+            if response.status_code == 200:
+                print(f"   ✅ Gateway healthy: {response.json()}")
+            else:
+                print(f"   ⚠️  Gateway returned: {response.status_code}")
+        except Exception as e:
+            print(f"   ⚠️  Gateway not reachable: {e}")
+
+        print()
+        print("=== DRY RUN COMPLETE ===")
+        return 0
 
     if args.summary:
         summary = get_metrics_summary()
