@@ -157,32 +157,36 @@ jobs:
           RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
           SERVICE_ID: ${{ steps.railway.outputs.telegram_service_id }}
         run: |
+          set +e  # Don't exit on error
           echo "" >> railway_info.md
           echo "## ⚠️ DELETING Telegram Bot Service" >> railway_info.md
           echo "Service ID: $SERVICE_ID" >> railway_info.md
 
           if [ -z "$SERVICE_ID" ]; then
             echo "❌ No telegram service ID found, cannot delete" >> railway_info.md
-            exit 0
-          fi
-
-          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query": "mutation { serviceDelete(id: \"'$SERVICE_ID'\") }"}')
-
-          echo "Delete result:" >> railway_info.md
-          echo '```json' >> railway_info.md
-          echo "$RESPONSE" | jq '.' >> railway_info.md
-          echo '```' >> railway_info.md
-
-          if echo "$RESPONSE" | jq -e '.data.serviceDelete' > /dev/null 2>&1; then
-            echo "✅ **Service deleted successfully!**" >> railway_info.md
-            echo "" >> railway_info.md
-            echo "You will need to redeploy telegram-bot from the Railway dashboard or GitHub." >> railway_info.md
           else
-            echo "❌ **Delete failed**" >> railway_info.md
+            echo "Attempting serviceDelete mutation..." >> railway_info.md
+            RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { serviceDelete(id: \"'$SERVICE_ID'\") }"}')
+
+            echo "Raw response:" >> railway_info.md
+            echo '```' >> railway_info.md
+            echo "$RESPONSE" >> railway_info.md
+            echo '```' >> railway_info.md
+
+            if echo "$RESPONSE" | grep -q '"errors"'; then
+              echo "❌ **Delete failed - API error**" >> railway_info.md
+              echo "Note: Railway API may not support serviceDelete mutation." >> railway_info.md
+              echo "You may need to delete the service manually from Railway dashboard." >> railway_info.md
+            elif echo "$RESPONSE" | grep -q '"serviceDelete":true'; then
+              echo "✅ **Service deleted successfully!**" >> railway_info.md
+            else
+              echo "⚠️ **Unknown response**" >> railway_info.md
+            fi
           fi
+          echo "Delete step completed (not failing workflow)"
 
       - name: Fix Telegram Bot Service
         if: inputs.fix_bot == true || inputs.fix_bot == 'true' && steps.railway.outputs.telegram_found == 'true'
