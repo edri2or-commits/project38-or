@@ -1,0 +1,145 @@
+name: Background Agents
+
+on:
+  schedule:
+    # CostOptAgent: every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+    # HealthSynthAgent: every 4 hours (00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC)
+    - cron: '0 */4 * * *'
+    # LearnInsightAgent: every 8 hours (00:00, 08:00, 16:00 UTC)
+    - cron: '0 */8 * * *'
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Agent to run (cost_opt, health_synth, learn_insight, all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - cost_opt
+          - health_synth
+          - learn_insight
+          - summary
+      debug:
+        description: 'Enable debug mode'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: background-agents-${{ github.event.schedule || 'manual' }}
+  cancel-in-progress: false
+
+env:
+  LITELLM_URL: https://litellm-gateway-production-0339.up.railway.app
+
+jobs:
+  determine-agent:
+    runs-on: ubuntu-latest
+    outputs:
+      agent: ${{ steps.determine.outputs.agent }}
+    steps:
+      - name: Determine which agent to run
+        id: determine
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "agent=${{ inputs.agent }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 */6 * * *" ]; then
+            echo "agent=cost_opt" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 */4 * * *" ]; then
+            echo "agent=health_synth" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 */8 * * *" ]; then
+            echo "agent=learn_insight" >> $GITHUB_OUTPUT
+          else
+            echo "agent=all" >> $GITHUB_OUTPUT
+          fi
+
+  run-agent:
+    needs: determine-agent
+    runs-on: ubuntu-latest
+    if: needs.determine-agent.outputs.agent != 'summary'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install openai httpx
+
+      - name: Run agent
+        id: run
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          AGENT="${{ needs.determine-agent.outputs.agent }}"
+
+          if [ "$AGENT" == "all" ]; then
+            python -m src.background_agents.runner --all --litellm-url "$LITELLM_URL" --output-json
+          else
+            python -m src.background_agents.runner --agent "$AGENT" --litellm-url "$LITELLM_URL" --output-json
+          fi
+
+      - name: Upload metrics artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-metrics-${{ github.run_id }}
+          path: data/agent_metrics/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Post results to summary
+        if: always()
+        run: |
+          echo "## Background Agent Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Agent:** ${{ needs.determine-agent.outputs.agent }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "data/agent_metrics" ]; then
+            echo "### Metrics Files Created" >> $GITHUB_STEP_SUMMARY
+            find data/agent_metrics -name "*.json" -type f | while read f; do
+              echo "- \`$f\`" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+  daily-summary:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.agent == 'summary'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download all metrics artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: agent-metrics-*
+          path: data/agent_metrics/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Generate summary
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -m src.background_agents.runner --summary
+
+      - name: Post summary
+        run: |
+          echo "## Daily Agent Metrics Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          python -m src.background_agents.runner --summary >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No metrics found yet"
