@@ -69,35 +69,50 @@ def classify_email(email: dict) -> tuple[str, str]:
     sender = email["sender"].lower()
     snippet = email["snippet"].lower()
 
-    # P1 - Urgent
-    if any(kw in subject or kw in snippet for kw in [
-        "דחוף", "urgent", "asap", "מיידי", "חשוב מאוד",
-        "ביטוח לאומי", "מס הכנסה", "בנק", "תשלום", "חוב"
+    # P5 - Automated/System (filter out)
+    if any(kw in sender for kw in [
+        "github.com", "noreply", "notifications@", "no-reply",
+        "automated", "jenkins", "gitlab", "bitbucket"
     ]):
-        if "ביטוח לאומי" in sender or "btl.gov.il" in sender:
-            return "P1", "בירוקרטיה"
-        if "בנק" in sender or "bank" in sender:
-            return "P1", "כספים"
+        return "P5", "מערכת"
+
+    # P1 - Urgent (Government/Finance)
+    if any(kw in subject or kw in snippet or kw in sender for kw in [
+        "ביטוח לאומי", "btl.gov.il", "מס הכנסה", "tax.gov.il",
+        "משרד הפנים", "gov.il", "בנק", "bank", "leumi", "hapoalim",
+        "discount", "mizrahi", "תשלום", "חוב", "פיגור", "עיקול"
+    ]):
+        return "P1", "בירוקרטיה"
+
+    # P1 - Urgent keywords
+    if any(kw in subject for kw in [
+        "דחוף", "urgent", "asap", "מיידי", "חשוב מאוד", "action required"
+    ]):
         return "P1", "דחוף"
 
-    # P2 - Important
+    # P2 - Calendar/Meetings
     if any(kw in subject or kw in snippet for kw in [
-        "פגישה", "meeting", "תזכורת", "reminder", "אישור", "confirm"
+        "פגישה", "meeting", "תזכורת", "reminder", "אישור", "confirm",
+        "calendar", "invite", "הזמנה", "zoom", "teams", "google meet"
     ]):
         return "P2", "יומן"
 
-    # P3 - Normal
-    if any(kw in subject or kw in snippet for kw in [
-        "newsletter", "עדכון", "update", "הודעה"
-    ]):
-        return "P3", "מידע"
+    # P2 - Personal (known contacts or personal domain)
+    if any(kw in sender for kw in [
+        "gmail.com", "yahoo.com", "hotmail.com", "outlook.com"
+    ]) and "noreply" not in sender and "no-reply" not in sender:
+        # Check if it seems personal
+        if not any(kw in subject for kw in ["newsletter", "subscription", "unsubscribe"]):
+            return "P2", "אישי"
 
-    # P4 - Low
+    # P4 - Promotions
     if any(kw in subject or kw in snippet for kw in [
-        "הנחה", "sale", "מבצע", "promotion"
+        "הנחה", "sale", "מבצע", "promotion", "off", "% הנחה",
+        "קופון", "coupon", "deal", "special offer"
     ]):
         return "P4", "פרסום"
 
+    # P3 - Everything else
     return "P3", "מידע"
 
 
@@ -116,12 +131,16 @@ def format_telegram_message(emails: list[dict]) -> str:
     p2 = [e for e in classified if e[1] == "P2"]
     p3 = [e for e in classified if e[1] == "P3"]
     p4 = [e for e in classified if e[1] == "P4"]
+    p5 = [e for e in classified if e[1] == "P5"]  # System notifications
+
+    # Real emails (excluding automated)
+    real_count = len(p1) + len(p2) + len(p3) + len(p4)
 
     lines = [
         f"🌅 *סיכום מיילים - {now}*",
         "",
         f"📊 *סטטיסטיקה:*",
-        f"• {len(emails)} מיילים חדשים",
+        f"• {real_count} מיילים ({len(p5)} התראות מערכת הוסתרו)",
         f"• 🔴 דחוף: {len(p1)} | 🟠 חשוב: {len(p2)}",
         f"• 🟡 מידע: {len(p3)} | ⚪ פרסום: {len(p4)}",
         "",
@@ -162,13 +181,16 @@ def format_telegram_message(emails: list[dict]) -> str:
         lines.append("")
         lines.append(f"⚪ *פרסום:* {len(p4)} מיילים")
 
-    if not emails:
+    if not emails or real_count == 0:
         lines = [
             f"🌅 *סיכום מיילים - {now}*",
             "",
             "✅ *אין מיילים חדשים!*",
-            "_תיבה נקייה - יום טוב!_"
         ]
+        if p5:
+            lines.append(f"_({len(p5)} התראות מערכת הוסתרו)_")
+        else:
+            lines.append("_תיבה נקייה - יום טוב!_")
 
     lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━━━━━")
