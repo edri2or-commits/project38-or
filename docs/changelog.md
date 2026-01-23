@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Background Agents - ADR-013 Phase 3** (2026-01-23)
+  - Implemented 3 autonomous LLM-powered agents with scheduled execution:
+    - `CostOptAgent`: Analyzes Railway costs → claude-haiku (Tier 2) - every 6h
+    - `HealthSynthAgent`: Synthesizes health metrics → gemini-flash (Tier 1) - every 4h
+    - `LearnInsightAgent`: Generates strategic insights → claude-sonnet (Tier 3) - every 8h
+  - Created metrics collection system (`src/background_agents/metrics.py`)
+  - Added GitHub Actions workflow for scheduled execution (`background-agents.yml`)
+  - Expected 24h metrics: 13 runs across 3 model tiers, ~$0.10 total cost
+  - Measurable outputs: recommendations count, savings identified, insights generated
+  - Files: `src/background_agents/` (6 files, ~900 lines)
+
 - **ADR-013: Smart Model Routing Implementation** (2026-01-23)
   - Gap analysis: Only ~3% of codebase actually uses LLMs despite full infrastructure
   - 4-phase implementation plan:
