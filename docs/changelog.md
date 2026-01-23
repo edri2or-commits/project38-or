@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **ADR-013: Smart Model Routing Implementation** (2026-01-23)
+  - Gap analysis: Only ~3% of codebase actually uses LLMs despite full infrastructure
+  - 4-phase implementation plan:
+    - Phase 1: Add Haiku to LiteLLM, fix Factory Generator, create SmartLLMClient
+    - Phase 2: Task complexity classifier (simple→Haiku, coding→Sonnet, architecture→Opus)
+    - Phase 3: Background autonomous jobs (daily summaries, PR reviews, cost analysis)
+    - Phase 4: Continuous optimization with ML-based adaptive routing
+  - Target: 40-80% cost reduction, eliminate Claude Code usage limits
+  - Research sources: claude-router, Model Cascading pattern, Anthropic pricing 2026
+
 ### Changed
 - **Skills Architecture Improvements** (2026-01-23) - SKILL.md Standard Adoption
   - **Phase 1** (test-runner, preflight-check):
