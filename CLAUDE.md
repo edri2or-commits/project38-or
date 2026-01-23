@@ -1155,122 +1155,71 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 
 **Critical:** This is a **PUBLIC repository** - any secret committed is permanently exposed.
 
-### pr-helper (v1.0.0)
+### pr-helper (v2.0.0)
 
-**Purpose:** Standardized Pull Request creation with consistent formatting and comprehensive context.
+**Purpose:** Standardized Pull Request creation with consistent formatting.
 
 **Triggers:**
 - Keywords: `pull request`, `pr`, `create pr`, `open pr`, `ready to merge`
-- After passing all checks (tests, security, docs)
 
 **What it does:**
-1. Verifies prerequisites (branch pushed, not on main)
-2. Analyzes branch changes with `git log` and `git diff`
-3. Determines change type (feat, fix, docs, refactor, etc.)
-4. Drafts PR title following conventional commits format
-5. Generates comprehensive PR description:
-   - Summary of changes
-   - Key changes list
-   - Files added/modified
-   - Test plan
-   - Related issues/PRs
-6. Creates PR using `gh pr create`
-7. Reports PR URL and checks status
+1. Auto-gathers branch context via preprocessing (commits, files, suggested type)
+2. Verifies prerequisites (not main, pushed, has commits)
+3. Drafts PR title using conventional commit format
+4. Creates PR with template from reference file
 
-**When to use:**
-```bash
-# After completing feature
-"Create PR for my changes"
-
-# Ready to merge
-"Ready to merge"
-
-# Specific request
-"Open pull request for the skills I added"
-```
-
-**Integration with other skills:**
-```
-Code changes complete
-    ↓
-test-runner: All tests pass ✅
-    ↓
-doc-updater: Documentation updated ✅
-    ↓
-security-checker: No secrets found ✅
-    ↓
-pr-helper: Create PR ✅
-```
+**Architecture (v2.0.0):**
+- **Preprocessing**: `!`bash scripts/gather_info.sh`` auto-gathers git context
+- **Reference files**: `reference/templates.md` for PR templates
+- **Reduced**: 672→150 lines (78% reduction)
 
 **Files:**
 - Skill definition: `.claude/skills/pr-helper/SKILL.md`
+- Context script: `.claude/skills/pr-helper/scripts/gather_info.sh`
+- Templates: `.claude/skills/pr-helper/reference/templates.md`
 
 **Safety:**
-- `plan_mode_required: false` (creates PR, doesn't modify code)
-- Allowed tools: Read, Bash (git, gh), Grep, Glob
-- Verifies branch before creating PR
+- `plan_mode_required: false`
 - Never creates PR from main branch
 - Never pushes --force without permission
 
 **Success metrics:**
 - ✅ All PRs follow consistent format
-- ✅ Reviewers have complete context
-- ✅ PRs link to issues and related work
-- ✅ Comprehensive test plans
-- ✅ PR creation takes < 1 minute
+- ✅ PR creation < 1 minute
 
-### dependency-checker (v1.0.0)
+### dependency-checker (v2.0.0)
 
-**Purpose:** Audits Python dependencies for security vulnerabilities, outdated versions, and best practices.
+**Purpose:** Audits Python dependencies for security vulnerabilities and best practices.
 
 **Triggers:**
-- Changes to `requirements*.txt` files
-- Keywords: `dependencies`, `vulnerabilities`, `outdated packages`, `audit dependencies`, `security audit`, `check dependencies`
+- Keywords: `dependencies`, `vulnerabilities`, `outdated packages`, `audit dependencies`, `security audit`
 
 **What it does:**
-1. Scans for known security vulnerabilities using pip-audit
-2. Identifies outdated packages with available updates
-3. Validates requirements.txt format (pinning, version constraints)
-4. Checks for dependency conflicts (pip check)
-5. Verifies lock files are synchronized
-6. Generates prioritized remediation plan (Priority 1-4)
-7. Blocks deployment on CRITICAL/HIGH vulnerabilities
+1. Auto-executes Python scanner via preprocessing
+2. Checks security vulnerabilities (pip-audit)
+3. Identifies outdated packages
+4. Validates version pinning format
+5. Checks for dependency conflicts
 
-**When to use:**
-```bash
-# After updating dependencies
-"Check dependencies for vulnerabilities"
-
-# Periodic audit
-"Run dependency audit"
-
-# Before PR
-"Audit dependencies before creating PR"
-```
-
-**Integration with CI:**
-- Skill runs **proactively** during development (local)
-- CI validates before merge (GitHub Actions - future)
-- Together they enforce **Zero Known Vulnerabilities**
+**Architecture (v2.0.0):**
+- **Preprocessing**: `!`python scripts/check_deps.py`` runs automatically
+- **Reference files**: `reference/policy.md` for commands and policies
+- **Reduced**: 893→128 lines (86% reduction)
 
 **Files:**
 - Skill definition: `.claude/skills/dependency-checker/SKILL.md`
+- Scanner script: `.claude/skills/dependency-checker/scripts/check_deps.py`
+- Policy reference: `.claude/skills/dependency-checker/reference/policy.md`
 
 **Safety:**
 - `plan_mode_required: false` (read-only scanning)
-- Allowed tools: Read, Bash (pip, pip-audit, safety), Grep, Glob
-- Never auto-updates dependencies without approval
-- Always blocks on CRITICAL/HIGH vulnerabilities
-- Requires testing after any dependency update
+- Never auto-updates without approval
+- Blocks on CRITICAL/HIGH vulnerabilities
 
 **Success metrics:**
-- ✅ Zero CRITICAL/HIGH vulnerabilities in production
-- ✅ All dependencies pinned with exact versions
-- ✅ Lock files stay synchronized
-- ✅ Clear remediation guidance provided
-- ✅ Monthly security audits completed
-
-**Critical:** This skill enforces **Zero Tolerance for Critical Vulnerabilities** - any CRITICAL or HIGH severity vulnerability will block deployment until fixed. All production dependencies must use exact version pinning (e.g., `package==1.2.3`).
+- ✅ Zero CRITICAL/HIGH vulnerabilities
+- ✅ All deps pinned with `==`
+- ✅ Audit completes in < 30 seconds
 
 ### changelog-updater (v1.0.0)
 
