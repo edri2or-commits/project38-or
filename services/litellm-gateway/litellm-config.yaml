@@ -1,33 +1,98 @@
 # LiteLLM Gateway Configuration
 # Documentation: https://docs.litellm.ai/docs/proxy/configs
 # Date: 2026-01-17
-# Updated: 2026-01-20 (Phase 2: Production Hardening - ADR-010)
+# Updated: 2026-01-23 (ADR-013: Smart Model Routing - Multi-Provider Strategy)
 
-# Model definitions
+# =============================================================================
+# MODEL DEFINITIONS - 4-Tier Cost Optimization Strategy
+# =============================================================================
+# TIER 1 (Ultra-Cheap): < $1/1M output - simple tasks, Q&A, formatting
+# TIER 2 (Budget): $1-5/1M output - coding, analysis, reviews
+# TIER 3 (Premium): $5-15/1M output - features, complex work
+# TIER 4 (Premium+): $15+/1M output - architecture, critical decisions
+# =============================================================================
+
 model_list:
-  # Primary: Claude 3.7 Sonnet (balanced performance/cost)
-  - model_name: claude-sonnet
+  # =========================================================================
+  # TIER 1: Ultra-Cheap (< $1/1M output) - Use for simple tasks
+  # =========================================================================
+
+  # DeepSeek V3 - x13 cheaper than Sonnet, excellent for coding
+  # Cost: $0.27/1M input, $1.10/1M output
+  - model_name: deepseek-v3
     litellm_params:
-      model: anthropic/claude-3-5-sonnet-20241022
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+      max_tokens: 8192
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: false
+      input_cost_per_token: 0.00000027
+      output_cost_per_token: 0.0000011
+
+  # Gemini Flash - x50 cheaper than Sonnet
+  # Cost: $0.075/1M input, $0.30/1M output
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-1.5-flash-latest
+      api_key: os.environ/GEMINI_API_KEY
+      max_tokens: 8192
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.000000075
+      output_cost_per_token: 0.0000003
+
+  # GPT-4o-mini - x25 cheaper than Sonnet
+  # Cost: $0.15/1M input, $0.60/1M output
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+      max_tokens: 16384
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.00000015
+      output_cost_per_token: 0.0000006
+
+  # =========================================================================
+  # TIER 2: Budget ($1-5/1M output) - Balanced quality/cost
+  # =========================================================================
+
+  # Claude Haiku - x3 cheaper than Sonnet, fast
+  # Cost: $1.00/1M input, $5.00/1M output
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-3-5-haiku-20241022
       api_key: os.environ/ANTHROPIC_API_KEY
       max_tokens: 4096
     model_info:
       mode: chat
       supports_function_calling: true
       supports_vision: false
+      input_cost_per_token: 0.000001
+      output_cost_per_token: 0.000005
 
-  # Secondary: GPT-4o (fallback, vision support)
-  - model_name: gpt-4o
+  # DeepSeek R1 - Reasoning model, x7 cheaper than Opus
+  # Cost: $0.55/1M input, $2.19/1M output
+  - model_name: deepseek-r1
     litellm_params:
-      model: gpt-4o
-      api_key: os.environ/OPENAI_API_KEY
-      max_tokens: 4096
+      model: deepseek/deepseek-reasoner
+      api_key: os.environ/DEEPSEEK_API_KEY
+      max_tokens: 8192
     model_info:
       mode: chat
-      supports_function_calling: true
-      supports_vision: true
+      supports_function_calling: false
+      supports_vision: false
+      input_cost_per_token: 0.00000055
+      output_cost_per_token: 0.00000219
 
-  # Tertiary: Gemini 1.5 Pro (cheap fallback, multimodal)
+  # Gemini Pro - Long context, multimodal
+  # Cost: $1.25/1M input, $5.00/1M output
   - model_name: gemini-pro
     litellm_params:
       model: gemini/gemini-1.5-pro-latest
@@ -37,35 +102,100 @@ model_list:
       mode: chat
       supports_function_calling: true
       supports_vision: true
+      input_cost_per_token: 0.00000125
+      output_cost_per_token: 0.000005
 
-  # Budget option: Gemini Flash (ultra-cheap)
-  - model_name: gemini-flash
+  # =========================================================================
+  # TIER 3: Premium ($5-15/1M output) - High quality
+  # =========================================================================
+
+  # Claude Sonnet - Balanced performance (baseline)
+  # Cost: $3.00/1M input, $15.00/1M output
+  - model_name: claude-sonnet
     litellm_params:
-      model: gemini/gemini-1.5-flash-latest
-      api_key: os.environ/GEMINI_API_KEY
-      max_tokens: 8192
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+      max_tokens: 4096
     model_info:
       mode: chat
       supports_function_calling: true
-      supports_vision: false
+      supports_vision: true
+      input_cost_per_token: 0.000003
+      output_cost_per_token: 0.000015
 
-# Router configuration
+  # GPT-4o - Vision support, general purpose
+  # Cost: $2.50/1M input, $10.00/1M output
+  - model_name: gpt-4o
+    litellm_params:
+      model: gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+      max_tokens: 4096
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.0000025
+      output_cost_per_token: 0.00001
+
+  # =========================================================================
+  # TIER 4: Premium+ ($15+/1M output) - Complex reasoning only
+  # =========================================================================
+
+  # Claude Opus - Maximum intelligence, architecture decisions
+  # Cost: $15.00/1M input, $75.00/1M output
+  - model_name: claude-opus
+    litellm_params:
+      model: anthropic/claude-opus-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+      max_tokens: 4096
+    model_info:
+      mode: chat
+      supports_function_calling: true
+      supports_vision: true
+      input_cost_per_token: 0.000015
+      output_cost_per_token: 0.000075
+
+# =============================================================================
+# ROUTER CONFIGURATION - Smart Fallback Chains
+# =============================================================================
 router_settings:
-  # Routing strategy: usage-based (prefer cheaper models when quality is similar)
+  # Routing strategy: cost-based (prefer cheaper models first)
   routing_strategy: usage-based-routing
 
-  # Fallback chains (if primary fails, try secondary, then tertiary)
+  # Fallback chains optimized for cost
   fallbacks:
-    - claude-sonnet: [gpt-4o, gemini-pro]
-    - gpt-4o: [claude-sonnet, gemini-pro]
-    - gemini-pro: [gemini-flash]
+    # Tier 1 fallbacks
+    - deepseek-v3: [gemini-flash, gpt-4o-mini, claude-haiku]
+    - gemini-flash: [gpt-4o-mini, deepseek-v3, claude-haiku]
+    - gpt-4o-mini: [gemini-flash, deepseek-v3, claude-haiku]
+    # Tier 2 fallbacks
+    - claude-haiku: [gemini-pro, deepseek-v3, claude-sonnet]
+    - deepseek-r1: [claude-haiku, gemini-pro, claude-sonnet]
+    - gemini-pro: [claude-haiku, gpt-4o, claude-sonnet]
+    # Tier 3 fallbacks
+    - claude-sonnet: [gpt-4o, claude-haiku, gemini-pro]
+    - gpt-4o: [claude-sonnet, gemini-pro, claude-haiku]
+    # Tier 4 fallbacks (expensive, but critical)
+    - claude-opus: [claude-sonnet, deepseek-r1, gpt-4o]
 
   # Retry logic
   num_retries: 2
   timeout: 60  # seconds
 
-  # Load balancing (if multiple deployments exist)
+  # Model group aliases for easy selection
   model_group_alias:
+    # By task type (SmartLLMClient uses these)
+    cheap: deepseek-v3
+    coding: deepseek-v3
+    simple: gemini-flash
+    fast: gemini-flash
+    balanced: claude-haiku
+    analysis: claude-haiku
+    quality: claude-sonnet
+    reasoning: deepseek-r1
+    vision: gpt-4o
+    premium: claude-opus
+    # Legacy aliases
     claude: claude-sonnet
     gpt4: gpt-4o
     gemini: gemini-pro
@@ -189,7 +319,17 @@ general_settings:
   default_budget: 5.0  # $5 default budget per user
   default_budget_duration: 1d  # Daily reset
 
-# Environment variables required (Phase 2):
+# =============================================================================
+# ENVIRONMENT VARIABLES REQUIRED
+# =============================================================================
+#
+# API Keys (from GCP Secret Manager):
+# - ANTHROPIC_API_KEY: Claude models (Haiku, Sonnet, Opus)
+# - OPENAI_API_KEY: OpenAI models (GPT-4o, GPT-4o-mini)
+# - GEMINI_API_KEY: Google models (Gemini Pro, Gemini Flash)
+# - DEEPSEEK_API_KEY: DeepSeek models (V3, R1) ← NEW for ADR-013
+#
+# Infrastructure (Phase 2):
 # - LITELLM_MASTER_KEY: Admin API key (generate with: openssl rand -hex 32)
 # - DATABASE_URL: PostgreSQL connection string
 # - REDIS_HOST: Redis hostname
@@ -199,6 +339,6 @@ general_settings:
 # - OTEL_EXPORTER_OTLP_ENDPOINT: OpenTelemetry collector endpoint
 # - OTEL_SERVICE_NAME: Service name for traces (default: litellm-gateway)
 #
-# Environment variables for Phase 3 (Monitoring):
+# Monitoring (Phase 3):
 # - PROMETHEUS_MULTIPROC_DIR: Directory for multi-worker metrics aggregation
 #   (Optional, only needed for multiple workers. Pre-set in Dockerfile)

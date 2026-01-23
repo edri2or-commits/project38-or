@@ -13,6 +13,7 @@ on:
           - create-service
           - status
           - setup-phase2
+          - add-deepseek
 
 permissions:
   contents: read
@@ -48,14 +49,17 @@ jobs:
           ANTHROPIC_KEY=$(gcloud secrets versions access latest --secret="ANTHROPIC-API" --project=project38-483612)
           OPENAI_KEY=$(gcloud secrets versions access latest --secret="OPENAI-API" --project=project38-483612)
           GEMINI_KEY=$(gcloud secrets versions access latest --secret="GEMINI-API" --project=project38-483612)
+          DEEPSEEK_KEY=$(gcloud secrets versions access latest --secret="DEEPSEEK-API" --project=project38-483612)
 
           echo "::add-mask::$ANTHROPIC_KEY"
           echo "::add-mask::$OPENAI_KEY"
           echo "::add-mask::$GEMINI_KEY"
+          echo "::add-mask::$DEEPSEEK_KEY"
 
           echo "anthropic_key=$ANTHROPIC_KEY" >> $GITHUB_OUTPUT
           echo "openai_key=$OPENAI_KEY" >> $GITHUB_OUTPUT
           echo "gemini_key=$GEMINI_KEY" >> $GITHUB_OUTPUT
+          echo "deepseek_key=$DEEPSEEK_KEY" >> $GITHUB_OUTPUT
 
       - name: Check Railway Status
         if: inputs.action == 'status'
@@ -85,6 +89,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ steps.llm-keys.outputs.anthropic_key }}
           OPENAI_API_KEY: ${{ steps.llm-keys.outputs.openai_key }}
           GEMINI_API_KEY: ${{ steps.llm-keys.outputs.gemini_key }}
+          DEEPSEEK_API_KEY: ${{ steps.llm-keys.outputs.deepseek_key }}
         run: |
           echo "Creating LiteLLM Gateway service via GraphQL API..."
 
@@ -152,6 +157,15 @@ jobs:
               "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"GEMINI_API_KEY\", value: \"'$GEMINI_API_KEY'\" }) }"
             }'
 
+          # DeepSeek API Key (ADR-013: Smart Model Routing)
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"DEEPSEEK_API_KEY\", value: \"'$DEEPSEEK_API_KEY'\" }) }"
+            }'
+
           # Port
           curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
@@ -169,6 +183,55 @@ jobs:
           echo "Next: Go to Railway dashboard and connect this service to GitHub repo"
           echo "Path: services/litellm-gateway"
           echo "Or run this workflow again with action: deploy"
+
+      # =================================================================
+      # ADR-013: Add DeepSeek API Key to existing service
+      # =================================================================
+      - name: Add DeepSeek API Key
+        if: inputs.action == 'add-deepseek'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          DEEPSEEK_API_KEY: ${{ steps.llm-keys.outputs.deepseek_key }}
+        run: |
+          echo "🚀 Adding DeepSeek API Key to LiteLLM Gateway (ADR-013)..."
+
+          # Get service ID
+          SERVICES_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }')
+
+          SERVICE_ID=$(echo "$SERVICES_RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name == "litellm-gateway") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ LiteLLM Gateway service not found."
+            exit 1
+          fi
+
+          echo "📍 Service ID: $SERVICE_ID"
+
+          # Add DeepSeek API Key
+          curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"DEEPSEEK_API_KEY\", value: \"'$DEEPSEEK_API_KEY'\" }) }"
+            }' > /dev/null
+
+          echo ""
+          echo "✅ DEEPSEEK_API_KEY added to LiteLLM Gateway!"
+          echo ""
+          echo "New models available:"
+          echo "  • deepseek-v3 - Coding/Math ($1.10/1M output)"
+          echo "  • deepseek-r1 - Reasoning ($2.19/1M output)"
+          echo ""
+          echo "Next: Run 'deploy' action to apply changes"
 
       - name: Deploy LiteLLM Gateway
         if: inputs.action == 'deploy'
@@ -345,6 +408,7 @@ jobs:
           echo "| Anthropic API Key | ✅ |"
           echo "| OpenAI API Key | ✅ |"
           echo "| Gemini API Key | ✅ |"
+          echo "| DeepSeek API Key | ✅ |"
           echo ""
           if [ "${{ inputs.action }}" = "setup-phase2" ]; then
             echo "### Phase 2 Configuration"

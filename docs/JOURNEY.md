@@ -5866,5 +5866,68 @@ $ python .claude/skills/dependency-checker/scripts/check_deps.py
 
 ---
 
+## Phase 44: Smart Model Routing - Theory to Practice (2026-01-23)
+
+### Context
+
+User feedback revealed significant gap between documented multi-LLM architecture and actual implementation:
+
+> "אני מרגיש שאנחנו לא מספיק משתמשים בפרקטיקה של שימוש במודלים שונים לכל משימה וחיסכון בכסף ובטוקנים... ואני הגעתי להגבלה בעבודה עם קלוד קוד למרות שאני במנוי מאקס"
+
+### Gap Analysis
+
+Investigation using **adr-architect** skill revealed:
+
+| Component | Documentation Promise | Reality |
+|-----------|----------------------|---------|
+| **LiteLLM Gateway** | "Multi-service routing" | Only Telegram Bot uses it |
+| **Model Providers** | "Agent decision-making" | Experiments only |
+| **Agents (3,200 LOC)** | "Intelligent autonomous" | Rule-based, 0 LLM calls |
+| **OODA Orchestrator** | "Autonomous decisions" | Threshold-based, 0 LLM |
+| **Factory Generator** | "Provider abstraction" | Direct Anthropic API |
+
+**Finding**: Only ~3% of codebase actually uses LLMs despite full infrastructure.
+
+### Research
+
+External research on cost optimization patterns:
+
+| Source | Pattern | Savings |
+|--------|---------|---------|
+| [claude-router](https://github.com/0xrdan/claude-router) | Intelligent Haiku/Sonnet/Opus routing | Up to 80% |
+| [Caylent Blog](https://caylent.com/blog/claude-haiku-4-5-deep-dive) | Model Cascading (Haiku filters, Opus escalates) | 40-60% |
+| Adaptive Selection | Track patterns, route by task type | ~62% vs quality profile |
+
+### ADR-013 Created
+
+4-phase implementation plan:
+
+| Phase | Focus | Timeline |
+|-------|-------|----------|
+| **Phase 1** | Add Haiku to LiteLLM, fix Factory Generator, SmartLLMClient | 1-2 days |
+| **Phase 2** | Task complexity classifier (simple→Haiku, coding→Sonnet, arch→Opus) | 3-5 days |
+| **Phase 3** | Background autonomous jobs (daily summaries, PR reviews) | 1-2 weeks |
+| **Phase 4** | ML-based adaptive routing, cost reports | Ongoing |
+
+**Target Metrics**:
+- LLM cost: $100/mo → $40/mo (60% reduction)
+- Claude Code limits: Weekly → Never
+- Background jobs: 0 → 5+ daily
+- Smart routing coverage: 3% → 80%
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `docs/decisions/ADR-013-smart-model-routing-implementation.md` | Full implementation plan |
+| `docs/changelog.md` | Updated with ADR-013 entry |
+| `docs/JOURNEY.md` | This phase documentation |
+
+### Status
+
+**Phase 44: 🟡 IN PROGRESS - ADR Created, Awaiting Implementation**
+
+---
+
 *Last Updated: 2026-01-23 UTC*
-*Status: **Phase 43 Complete - Skills Architecture Improvements***
+*Status: **Phase 44 In Progress - Smart Model Routing***
