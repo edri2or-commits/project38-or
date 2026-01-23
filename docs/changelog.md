@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - ADHD-Friendly Design (cognitive load reduction, time blindness helpers, progressive disclosure)
     - **Continuous Learning** (Mem0 integration, preference/content/behavioral learning, feedback loops)
     - **Thread Context & History Search** (Gmail thread API, sender history, semantic RAG search, context injection)
+    - **Proactive Problem-Solving Research** (fines/BTL/tax solutions, legal discounts, exemptions, appeals, Israeli gov integration)
   - Implementation plan: 4 phases over 4 weeks
   - Files: `docs/decisions/ADR-014-smart-email-agent-architecture.md`
   - Research notes: `docs/research/notes/2026-01-23-smart-email-agent-implementation-plan.md`

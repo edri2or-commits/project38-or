@@ -1700,6 +1700,471 @@ workflow.add_edge("context_retrieval", "recall_memory")  # Then Mem0
 workflow.add_edge("recall_memory", "classify")
 ```
 
+### Proactive Problem-Solving Research (חקירות פתרון בעיות)
+
+**Sources**: [ביטוח לאומי - זכויות והטבות](https://www.btl.gov.il/English%20Homepage/Benefits/), [Israel Tax Changes 2026](https://www.cwsisrael.com/israeli-tax-changes-2026-complete-guide/), [Consumer Rights Israel](https://www.jdsupra.com/topics/artificial-intelligence/consumer-protection-laws/israel/), [Kol Zchut - כל זכות](https://www.kolzchut.org.il/)
+
+#### הרעיון המרכזי
+
+כשמגיע מייל "לא נעים" (דוח, חיוב, דרישה ממשלתית), הסוכן לא רק מדווח - הוא **מחפש פתרונות**:
+
+```
+📧 מייל נכנס: "דוח חניה - ₪500"
+
+🤖 סוכן רגיל:
+   "יש לך דוח חניה על ₪500. תשלם עד 15/02."
+   ❌ סתם מביא בשורות רעות
+
+🤖 סוכן חכם:
+   "יש לך דוח חניה על ₪500.
+
+   💡 מצאתי כמה אפשרויות:
+   1. ⏰ תשלום מוקדם (תוך 30 יום): הנחה 20% → ₪400
+   2. 📝 ערעור: המקום מסומן לא ברור (הצלחה ~40%)
+   3. 💳 פריסה: עד 3 תשלומים ללא ריבית
+
+   🔗 מקורות: עיריית ת"א, כל זכות, חוות דעת משפטית"
+   ✅ מביא פתרונות יצירתיים
+```
+
+#### סוגי בעיות נתמכות
+
+| קטגוריה | סוג מייל | מה הסוכן מחפש |
+|---------|----------|---------------|
+| **דוחות** | חניה, מהירות, אי-חגירה | הנחות, ערעורים, פריסה |
+| **ביטוח לאומי** | דרישות תשלום, דחיות | זכאויות לא מנוצלות, פטורים |
+| **מיסים** | שומות, דרישות | זיכויים, ניכויים, הקלות |
+| **חשבונות** | חשמל, מים, ארנונה | הנחות לזכאים, תעריפים |
+| **בנקים** | עמלות, חיובים | ביטול עמלות, משא ומתן |
+| **ביטוחים** | דחיות תביעות | ערעורים, הממונה על הביטוח |
+| **ממשלתי** | אגרות, היטלים | פטורים, הנחות, ערר |
+
+#### ארכיטקטורת החקירה
+
+```python
+from enum import Enum
+from dataclasses import dataclass
+
+class ProblemCategory(Enum):
+    FINE = "fine"                    # דוחות
+    NATIONAL_INSURANCE = "btl"       # ביטוח לאומי
+    TAX = "tax"                      # מס הכנסה
+    MUNICIPAL = "municipal"          # עירייה (ארנונה, מים)
+    UTILITY = "utility"              # חשמל, גז
+    BANK = "bank"                    # בנקים
+    INSURANCE = "insurance"          # ביטוח פרטי
+    GOVERNMENT = "government"        # ממשלתי אחר
+
+@dataclass
+class ProblemEmail:
+    """Email identified as containing a problem to solve."""
+    category: ProblemCategory
+    amount: float | None             # סכום אם רלוונטי
+    deadline: datetime | None        # דד-ליין לתשלום/תגובה
+    institution: str                 # הגוף הדורש
+    reference_number: str | None     # מספר אסמכתא
+    original_email: Email
+
+@dataclass
+class Solution:
+    """A potential solution found for the problem."""
+    solution_type: str               # "discount", "appeal", "exemption", etc.
+    description_he: str              # תיאור בעברית
+    potential_savings: float | None  # חיסכון פוטנציאלי
+    success_probability: str         # "high", "medium", "low"
+    effort_required: str             # "easy", "moderate", "complex"
+    deadline: datetime | None        # עד מתי אפשר לנצל
+    steps: list[str]                 # צעדים לביצוע
+    sources: list[str]               # מקורות מידע
+    verified: bool                   # האם מאומת מגוף רשמי
+
+@dataclass
+class ProblemAnalysis:
+    """Complete analysis of a problem email."""
+    problem: ProblemEmail
+    solutions: list[Solution]
+    recommended_action: str
+    research_summary: str
+    sources_consulted: list[str]
+    research_time_seconds: float
+```
+
+#### מקורות מידע לחיפוש
+
+```python
+RESEARCH_SOURCES = {
+    # מקורות רשמיים (עדיפות גבוהה)
+    "official": [
+        {"name": "כל זכות", "url": "kolzchut.org.il", "type": "rights_database"},
+        {"name": "ביטוח לאומי", "url": "btl.gov.il", "type": "government"},
+        {"name": "רשות המיסים", "url": "taxes.gov.il", "type": "government"},
+        {"name": "gov.il", "url": "gov.il", "type": "government_portal"},
+    ],
+
+    # מקורות משפטיים
+    "legal": [
+        {"name": "נבו", "url": "nevo.co.il", "type": "legal_database"},
+        {"name": "פסקדין", "url": "psakdin.co.il", "type": "court_decisions"},
+    ],
+
+    # מקורות קהילתיים (אימות נדרש)
+    "community": [
+        {"name": "פייסבוק קבוצות", "type": "social", "verify": True},
+        {"name": "פורומים", "type": "forums", "verify": True},
+        {"name": "Reddit Israel", "type": "social", "verify": True},
+    ],
+
+    # מקורות פיננסיים
+    "financial": [
+        {"name": "בנק ישראל", "url": "boi.org.il", "type": "regulator"},
+        {"name": "הממונה על הביטוח", "url": "mof.gov.il", "type": "regulator"},
+        {"name": "כלכליסט", "url": "calcalist.co.il", "type": "news"},
+    ],
+}
+```
+
+#### לוגיקת חקירה לפי קטגוריה
+
+##### 1. דוחות (חניה, תנועה)
+
+```python
+async def research_fine_solutions(fine: ProblemEmail) -> list[Solution]:
+    """Find solutions for traffic/parking fines."""
+    solutions = []
+
+    # 1. בדוק הנחת תשלום מוקדם
+    if fine.deadline and (fine.deadline - datetime.now()).days > 30:
+        solutions.append(Solution(
+            solution_type="early_payment",
+            description_he="תשלום מוקדם תוך 30 יום - הנחה 20%",
+            potential_savings=fine.amount * 0.20,
+            success_probability="high",
+            effort_required="easy",
+            steps=["שלם באתר העירייה תוך 30 יום"],
+            sources=["אתר עיריית " + fine.institution],
+            verified=True
+        ))
+
+    # 2. בדוק אפשרות ערעור
+    appeal_grounds = await check_appeal_grounds(fine)
+    if appeal_grounds:
+        solutions.append(Solution(
+            solution_type="appeal",
+            description_he=f"ערעור: {appeal_grounds.reason}",
+            potential_savings=fine.amount,
+            success_probability=appeal_grounds.success_rate,
+            effort_required="moderate",
+            steps=appeal_grounds.steps,
+            sources=["כל זכות - ערעור על דוח"],
+            verified=True
+        ))
+
+    # 3. בדוק פריסה
+    solutions.append(Solution(
+        solution_type="installments",
+        description_he="פריסה לתשלומים",
+        potential_savings=0,  # לא חוסך, אבל מקל
+        success_probability="high",
+        effort_required="easy",
+        steps=["פנה לעירייה לבקשת פריסה"],
+        sources=["עירייה"],
+        verified=True
+    ))
+
+    return solutions
+```
+
+##### 2. ביטוח לאומי
+
+```python
+async def research_btl_solutions(btl_email: ProblemEmail) -> list[Solution]:
+    """Find solutions for National Insurance issues."""
+    solutions = []
+
+    # 1. בדוק זכאויות לא מנוצלות
+    user_profile = await get_user_profile()
+    potential_benefits = await check_btl_eligibility(user_profile)
+
+    for benefit in potential_benefits:
+        if not benefit.currently_claimed:
+            solutions.append(Solution(
+                solution_type="unclaimed_benefit",
+                description_he=f"זכאות לא מנוצלת: {benefit.name}",
+                potential_savings=benefit.monthly_amount * 12,
+                success_probability="high" if benefit.eligible else "medium",
+                effort_required="moderate",
+                steps=[f"הגש בקשה ל{benefit.name} באתר ביטוח לאומי"],
+                sources=["btl.gov.il", "kolzchut.org.il"],
+                verified=True
+            ))
+
+    # 2. בדוק פטורים
+    exemptions = await check_btl_exemptions(user_profile, btl_email)
+    for exemption in exemptions:
+        solutions.append(Solution(
+            solution_type="exemption",
+            description_he=f"פטור אפשרי: {exemption.name}",
+            potential_savings=exemption.savings,
+            success_probability=exemption.probability,
+            effort_required=exemption.effort,
+            steps=exemption.steps,
+            sources=["ביטוח לאומי - פטורים"],
+            verified=True
+        ))
+
+    # 3. בדוק הסדרי חוב
+    if btl_email.amount and btl_email.amount > 1000:
+        solutions.append(Solution(
+            solution_type="debt_arrangement",
+            description_he="הסדר חוב - פריסה לתשלומים",
+            potential_savings=0,
+            success_probability="high",
+            effort_required="moderate",
+            steps=[
+                "פנה לסניף ביטוח לאומי",
+                "הגש בקשה להסדר חוב",
+                "צרף מסמכים על מצב כלכלי"
+            ],
+            sources=["btl.gov.il/hesderei-chov"],
+            verified=True
+        ))
+
+    return solutions
+```
+
+##### 3. מיסים
+
+```python
+async def research_tax_solutions(tax_email: ProblemEmail) -> list[Solution]:
+    """Find solutions for tax issues."""
+    solutions = []
+
+    # 1. בדוק זיכויים והחזרים
+    user_profile = await get_user_profile()
+
+    # זיכוי מילואים (חדש 2026!)
+    if user_profile.reserve_days_2025 and user_profile.reserve_days_2025 > 0:
+        credit = calculate_reserve_credit(user_profile.reserve_days_2025)
+        solutions.append(Solution(
+            solution_type="tax_credit",
+            description_he=f"זיכוי מס מילואים - עד ₪{credit:,}",
+            potential_savings=credit,
+            success_probability="high",
+            effort_required="easy",
+            steps=["הגש טופס 101 מעודכן למעסיק"],
+            sources=["taxes.gov.il", "CWS Israel Tax Guide 2026"],
+            verified=True
+        ))
+
+    # 2. נקודות זיכוי לא מנוצלות
+    unused_credits = await check_unused_tax_credits(user_profile)
+    for credit in unused_credits:
+        solutions.append(Solution(
+            solution_type="unused_credit",
+            description_he=f"נקודת זיכוי: {credit.name}",
+            potential_savings=credit.value * 2904,  # ערך נקודה 2026
+            success_probability="high",
+            effort_required="easy",
+            steps=credit.claim_steps,
+            sources=["רשות המיסים"],
+            verified=True
+        ))
+
+    # 3. ערר על שומה
+    if tax_email.category == "assessment":
+        solutions.append(Solution(
+            solution_type="appeal",
+            description_he="ערר על שומה",
+            potential_savings=tax_email.amount * 0.3,  # הערכה
+            success_probability="medium",
+            effort_required="complex",
+            steps=[
+                "הגש השגה תוך 30 יום",
+                "צרף מסמכים תומכים",
+                "שקול ייצוג מקצועי"
+            ],
+            sources=["taxes.gov.il/ערר-על-שומה"],
+            verified=True
+        ))
+
+    return solutions
+```
+
+##### 4. ארנונה ומים
+
+```python
+async def research_municipal_solutions(municipal: ProblemEmail) -> list[Solution]:
+    """Find solutions for municipal charges."""
+    solutions = []
+    user_profile = await get_user_profile()
+
+    # הנחות ארנונה
+    ARNONA_DISCOUNTS = [
+        {"name": "הנחת הכנסה", "criteria": "income_based", "discount": "עד 90%"},
+        {"name": "אזרח ותיק", "criteria": "age >= 65", "discount": "25%"},
+        {"name": "נכה", "criteria": "disability >= 90%", "discount": "80%"},
+        {"name": "עולה חדש", "criteria": "aliyah_years < 2", "discount": "90%"},
+        {"name": "הורה יחיד", "criteria": "single_parent", "discount": "20%"},
+        {"name": "מקבל קצבת נכות", "criteria": "btl_disability", "discount": "80%"},
+    ]
+
+    for discount in ARNONA_DISCOUNTS:
+        if await check_eligibility(user_profile, discount["criteria"]):
+            solutions.append(Solution(
+                solution_type="discount",
+                description_he=f"הנחת ארנונה - {discount['name']}",
+                potential_savings=municipal.amount * 0.5,  # הערכה ממוצעת
+                success_probability="high",
+                effort_required="moderate",
+                steps=[
+                    "פנה למחלקת ארנונה בעירייה",
+                    "הגש בקשה להנחה עם מסמכים",
+                ],
+                sources=["אתר העירייה", "כל זכות - הנחות ארנונה"],
+                verified=True
+            ))
+
+    return solutions
+```
+
+#### זרימת החקירה ב-LangGraph
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    PROBLEM-SOLVING RESEARCH FLOW                         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. DETECT PROBLEM: Is this a "negative" email?                          │
+│     └─ Keywords: "חיוב", "דרישה", "דוח", "שומה", "תשלום"               │
+│     └─ Senders: btl.gov.il, taxes.gov.il, עיריית *                     │
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2. CATEGORIZE: What type of problem?                                    │
+│     └─ Extract: amount, deadline, institution, reference                │
+│     └─ Classify: FINE, BTL, TAX, MUNICIPAL, etc.                        │
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3. RESEARCH: Search for solutions (parallel)                            │
+│     ├─ Official sources: gov.il, btl.gov.il, taxes.gov.il              │
+│     ├─ Rights database: kolzchut.org.il                                 │
+│     ├─ Legal precedents: nevo.co.il (if relevant)                       │
+│     └─ Community knowledge: verified forum posts                         │
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4. EVALUATE: Rank solutions                                             │
+│     └─ By potential savings                                              │
+│     └─ By success probability                                            │
+│     └─ By effort required                                                │
+│     └─ By deadline urgency                                               │
+└───────────────────────────────────┬─────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  5. PRESENT: Show solutions to user                                      │
+│     └─ Top 3 solutions with details                                      │
+│     └─ Clear action items                                                │
+│     └─ Source links for verification                                     │
+│     └─ ⚠️ Disclaimer: "מידע כללי, לא ייעוץ משפטי"                       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### תבנית תצוגה בטלגרם
+
+```
+📧 קיבלת דרישת תשלום מביטוח לאומי
+
+💰 סכום: ₪2,340
+📅 לתשלום עד: 15/02/2026
+📋 אסמכתא: 123456789
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+💡 *מצאתי 3 פתרונות אפשריים:*
+
+1️⃣ *פטור חלקי - הכנסה נמוכה*
+   💵 חיסכון: עד ₪1,872 (80%)
+   📊 סיכוי: גבוה
+   📝 מה לעשות: הגש בקשה לפטור + אישור הכנסה
+   🔗 [מידע נוסף](https://www.btl.gov.il/...)
+
+2️⃣ *הסדר חוב - פריסה ל-12 תשלומים*
+   💵 חיסכון: ₪0 (אבל מקל על התזרים)
+   📊 סיכוי: גבוה מאוד
+   📝 מה לעשות: פנה לסניף או התקשר *6050
+   🔗 [טופס בקשה](https://www.btl.gov.il/...)
+
+3️⃣ *ערעור - טענת התיישנות*
+   💵 חיסכון: ₪2,340 (מלא)
+   📊 סיכוי: בינוני (תלוי בתאריכים)
+   📝 מה לעשות: בדוק מתי נוצר החוב
+   🔗 [כל זכות - ערעור](https://www.kolzchut.org.il/...)
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ _מידע כללי בלבד, לא מהווה ייעוץ משפטי או פיננסי._
+📊 _חקרתי 4 מקורות ב-8 שניות_
+
+[🔍 פרטים נוספים] [📞 רוצה עזרה?]
+```
+
+#### גבולות אתיים
+
+| מותר ✅ | אסור ❌ |
+|---------|---------|
+| הנחות חוקיות | העלמת מס |
+| ערעורים לגיטימיים | מסמכים מזויפים |
+| זכאויות לא מנוצלות | הונאה |
+| משא ומתן על חובות | שוחד |
+| ייעוץ כללי | ייעוץ משפטי ספציפי |
+| הפניה למומחה | החלטה בשם המשתמש |
+
+```python
+# Ethical boundaries check
+def validate_solution_ethics(solution: Solution) -> bool:
+    """Ensure solution is ethical and legal."""
+    FORBIDDEN_PATTERNS = [
+        "העלמת", "הסתרת", "מזויף", "שקר", "הונאה",
+        "בריחה מ", "להימנע מדיווח", "לא לדווח"
+    ]
+
+    for pattern in FORBIDDEN_PATTERNS:
+        if pattern in solution.description_he.lower():
+            return False
+
+    # Must have verifiable source
+    if not solution.sources or not solution.verified:
+        solution.description_he += " (⚠️ לא מאומת)"
+
+    return True
+```
+
+#### Disclaimer (חובה)
+
+כל הודעה עם פתרונות חייבת לכלול:
+
+```python
+DISCLAIMER_HE = """
+⚠️ *הבהרה חשובה*
+המידע לעיל הוא מידע כללי בלבד ואינו מהווה ייעוץ משפטי, מיסויי או פיננסי.
+לפני קבלת החלטות, מומלץ להתייעץ עם בעל מקצוע מתאים.
+המקורות מסופקים לנוחיותך - אמת אותם בעצמך.
+"""
+
+DISCLAIMER_EN = """
+⚠️ *Important Disclaimer*
+The above is general information only and does not constitute legal, tax, or financial advice.
+Consult a professional before making decisions.
+"""
+```
+
 ### Model Routing Strategy (ADR-013)
 
 | Task | Model | Cost/1M tokens | Rationale |
