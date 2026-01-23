@@ -41,10 +41,33 @@ Current state with Claude Code Max subscription:
 - No delegation to cheaper models for simple tasks
 - Background work doesn't happen when user is offline
 
+### Multi-Provider Cost Analysis (2026 Pricing)
+
+| Provider | Model | Input/1M | Output/1M | Best For | vs Sonnet |
+|----------|-------|----------|-----------|----------|-----------|
+| **Anthropic** | Claude Opus 4.5 | $15.00 | $75.00 | Complex reasoning | 5x more |
+| **Anthropic** | Claude Sonnet 4.5 | $3.00 | $15.00 | Balanced (baseline) | 1x |
+| **Anthropic** | Claude Haiku 4.5 | $1.00 | $5.00 | Simple tasks | **3x cheaper** |
+| **OpenAI** | GPT-4o | $2.50 | $10.00 | Vision, general | 1.5x cheaper |
+| **OpenAI** | GPT-4o-mini | $0.15 | $0.60 | Fast, cheap | **25x cheaper** |
+| **Google** | Gemini Pro | $1.25 | $5.00 | Long context | 3x cheaper |
+| **Google** | Gemini Flash | $0.075 | $0.30 | Ultra-cheap | **50x cheaper** |
+| **DeepSeek** | V3 | $0.27 | $1.10 | Coding, math | **13x cheaper** |
+| **DeepSeek** | V3.2-Exp | $0.28 | $0.42 | Latest, cheaper | **35x cheaper** |
+| **DeepSeek** | R1 | $0.55 | $2.19 | Reasoning | 7x cheaper |
+
+**Key Insight**: DeepSeek V3 is **x35 cheaper** than Claude Sonnet for output tokens and excellent for coding tasks.
+
+**Sources**:
+- [DeepSeek vs Claude Comparison](https://elephas.app/blog/deepseek-vs-claude)
+- [LLM API Pricing 2026](https://intuitionlabs.ai/articles/llm-api-pricing-comparison-2025)
+- [AI Pricing Calculator](https://aipricing.org/)
+
 Potential savings with smart routing (from research):
 - **Model Cascading**: 40-60% cost reduction
 - **Adaptive Selection**: ~62% savings vs quality profile
 - **Task-Based Routing**: 80% savings on simple tasks
+- **DeepSeek for Coding**: 90%+ savings on code generation
 
 ---
 
@@ -75,9 +98,10 @@ Potential savings with smart routing (from research):
 │  Output: complexity_score (0-1), recommended_model           │
 │                                                              │
 │  Rules:                                                      │
-│  - Simple (0-0.3): Haiku - formatting, summarizing, Q&A      │
-│  - Medium (0.3-0.7): Sonnet - coding, analysis, features     │
-│  - Complex (0.7-1.0): Opus - architecture, research, design  │
+│  - Ultra-cheap: gemini-flash, deepseek-v3, gpt-4o-mini      │
+│  - Budget: claude-haiku, deepseek-r1                         │
+│  - Premium: claude-sonnet, gpt-4o                            │
+│  - Premium+: claude-opus (architecture only)                 │
 └───────────────────────────┬──────────────────────────────────┘
                             │
                             ▼
@@ -85,10 +109,12 @@ Potential savings with smart routing (from research):
 │                    LiteLLM GATEWAY                           │
 │              (existing, at or-infra.com)                     │
 │                                                              │
-│  Models: claude-opus, claude-sonnet, claude-haiku,           │
-│          gpt-4o, gemini-pro, gemini-flash                    │
+│  TIER 1 (Ultra-Cheap): deepseek-v3, gemini-flash, gpt-4o-mini│
+│  TIER 2 (Budget): claude-haiku, deepseek-r1                  │
+│  TIER 3 (Premium): claude-sonnet, gpt-4o, gemini-pro         │
+│  TIER 4 (Premium+): claude-opus                              │
 │                                                              │
-│  Fallback: haiku → sonnet → opus → gpt-4o → gemini          │
+│  Fallback: deepseek-v3 → haiku → sonnet → gpt-4o → gemini   │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -98,69 +124,134 @@ Potential savings with smart routing (from research):
 
 ### Phase 1: Immediate Wins (1-2 days)
 
-**1.1 Add Haiku to LiteLLM Gateway**
+**1.1 Add ALL Cheap Providers to LiteLLM Gateway**
 
 Update `services/litellm-gateway/litellm-config.yaml`:
 
 ```yaml
 model_list:
+  # ============================================================
+  # TIER 1: Ultra-Cheap (< $1/1M output) - Use for simple tasks
+  # ============================================================
+
+  # DeepSeek V3 - x35 cheaper than Sonnet, excellent for coding
+  - model_name: deepseek-v3
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+      max_tokens: 8192
+    model_info:
+      mode: chat
+      input_cost_per_token: 0.00000027
+      output_cost_per_token: 0.0000011
+
+  # Gemini Flash - x50 cheaper than Sonnet
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-1.5-flash-latest
+      api_key: os.environ/GEMINI_API_KEY
+
+  # GPT-4o-mini - x25 cheaper than Sonnet
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  # ============================================================
+  # TIER 2: Budget ($1-5/1M output) - Balanced quality/cost
+  # ============================================================
+
+  # Claude Haiku - x3 cheaper than Sonnet, fast
   - model_name: claude-haiku
     litellm_params:
       model: anthropic/claude-3-5-haiku-20241022
       api_key: os.environ/ANTHROPIC_API_KEY
+
+  # DeepSeek R1 - Reasoning model, cheaper than Opus
+  - model_name: deepseek-r1
+    litellm_params:
+      model: deepseek/deepseek-reasoner
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  # ============================================================
+  # TIER 3: Premium ($5-15/1M output) - High quality
+  # ============================================================
+
+  # Claude Sonnet (existing) - Baseline
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # GPT-4o (existing) - Vision support
+  - model_name: gpt-4o
+    litellm_params:
+      model: gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  # ============================================================
+  # TIER 4: Premium+ ($15+/1M output) - Complex reasoning only
+  # ============================================================
+
+  # Claude Opus - Only for architecture/research
+  - model_name: claude-opus
+    litellm_params:
+      model: anthropic/claude-opus-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
 ```
 
-**1.2 Fix Factory Generator**
+**Required Secret Manager Keys**:
+- `ANTHROPIC-API` ✅ (exists)
+- `OPENAI-API` ✅ (exists)
+- `GEMINI-API` ✅ (exists)
+- `DEEPSEEK-API` ❓ (need to add)
 
-Change `src/factory/generator.py` to use LiteLLMClient:
+**1.2 Update Smart Model Selection Logic**
 
 ```python
-# Before (line 117):
-client = Anthropic(api_key=api_key)
+def _select_model(self, task_type: str) -> str:
+    """Select optimal model based on task type and cost."""
+    mapping = {
+        # ULTRA-CHEAP TIER (Tier 1)
+        "simple": "gemini-flash",       # Q&A, formatting ($0.30/1M)
+        "translate": "gemini-flash",    # Translation
+        "summarize": "gemini-flash",    # Summarization
 
-# After:
-from services.telegram_bot.litellm_client import LiteLLMClient
-client = LiteLLMClient()
-response = await client.generate_response(messages, model="claude-sonnet")
+        # BUDGET TIER (Tier 1-2)
+        "coding": "deepseek-v3",        # Code generation ($1.10/1M) - best ROI!
+        "math": "deepseek-v3",          # Math problems
+        "data": "gpt-4o-mini",          # Data processing
+
+        # BALANCED TIER (Tier 2)
+        "analysis": "claude-haiku",     # Analysis ($5/1M)
+        "review": "claude-haiku",       # Code review
+
+        # PREMIUM TIER (Tier 3)
+        "feature": "claude-sonnet",     # Feature development ($15/1M)
+        "refactor": "claude-sonnet",    # Refactoring
+
+        # PREMIUM+ TIER (Tier 4)
+        "architecture": "claude-opus",  # System design ($75/1M)
+        "research": "deepseek-r1",      # Research ($2.19/1M) - great for reasoning!
+    }
+    return mapping.get(task_type, "claude-haiku")  # Default to cheap
 ```
 
-**1.3 Add Smart LLM Client Module**
+**Cost Comparison for 1M Output Tokens**:
 
-Create `src/smart_llm/client.py`:
-
-```python
-class SmartLLMClient:
-    """LLM client with automatic model selection based on task complexity."""
-
-    def __init__(self, base_url: str = "https://litellm-gateway-production-0339.up.railway.app"):
-        self.client = AsyncOpenAI(base_url=base_url, api_key="dummy")
-
-    async def complete(
-        self,
-        messages: list[dict],
-        task_type: str = "general",  # simple, coding, analysis, architecture
-        force_model: str | None = None
-    ) -> tuple[str, dict]:
-        """Complete with automatic model selection."""
-        model = force_model or self._select_model(task_type)
-        # ... implementation
-
-    def _select_model(self, task_type: str) -> str:
-        """Select optimal model based on task type."""
-        mapping = {
-            "simple": "claude-haiku",       # Q&A, formatting
-            "coding": "claude-sonnet",      # Code generation
-            "analysis": "claude-sonnet",    # Data analysis
-            "architecture": "claude-opus",  # System design
-            "research": "claude-opus",      # Research synthesis
-        }
-        return mapping.get(task_type, "claude-sonnet")
-```
+| Task Type | Old Model | Old Cost | New Model | New Cost | Savings |
+|-----------|-----------|----------|-----------|----------|---------|
+| Q&A | Sonnet | $15.00 | Gemini Flash | $0.30 | **98%** |
+| Coding | Sonnet | $15.00 | DeepSeek V3 | $1.10 | **93%** |
+| Analysis | Sonnet | $15.00 | Haiku | $5.00 | **67%** |
+| Architecture | Opus | $75.00 | Opus | $75.00 | 0% |
+| Research | Opus | $75.00 | DeepSeek R1 | $2.19 | **97%** |
 
 **Deliverables**:
-- [ ] `services/litellm-gateway/litellm-config.yaml` - Add Haiku model
+- [ ] `services/litellm-gateway/litellm-config.yaml` - Add 6 new models
+- [ ] Add `DEEPSEEK-API` to GCP Secret Manager
 - [ ] `src/smart_llm/__init__.py` - New module
-- [ ] `src/smart_llm/client.py` - SmartLLMClient
+- [ ] `src/smart_llm/client.py` - SmartLLMClient with multi-tier selection
 - [ ] `src/factory/generator.py` - Use SmartLLMClient
 - [ ] Tests for SmartLLMClient
 
