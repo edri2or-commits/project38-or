@@ -147,10 +147,20 @@ def format_telegram_message(emails: list[dict]) -> str:
             subject = email["subject"][:40] + ("..." if len(email["subject"]) > 40 else "")
             lines.append(f"  • *{sender_name}*: {subject}")
 
-    # Summary for P3/P4
-    if p3 or p4:
+    # P3 - Show details (not just summary)
+    if p3:
         lines.append("")
-        lines.append(f"📬 *אחר:* {len(p3) + len(p4)} מיילים נוספים")
+        lines.append("🟡 *מידע (P3):*")
+        for email, _, category in p3[:7]:
+            sender_name = email["sender"].split("<")[0].strip()[:25]
+            subject = email["subject"][:35] + ("..." if len(email["subject"]) > 35 else "")
+            lines.append(f"  • {sender_name}")
+            lines.append(f"    _{subject}_")
+
+    # P4 - Promotions (summary only)
+    if p4:
+        lines.append("")
+        lines.append(f"⚪ *פרסום:* {len(p4)} מיילים")
 
     if not emails:
         lines = [
