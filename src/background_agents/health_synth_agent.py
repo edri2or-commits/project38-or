@@ -289,10 +289,11 @@ Respond ONLY with the JSON object, no markdown."""
         return result
 
 
-async def main():
-    """CLI entry point for testing."""
-    import asyncio
+async def main() -> None:
+    """Run HealthSynthAgent for testing.
 
+    Executes the agent and prints results to stdout.
+    """
     logging.basicConfig(level=logging.INFO)
 
     agent = HealthSynthAgent()

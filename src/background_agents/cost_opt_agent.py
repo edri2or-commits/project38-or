@@ -264,10 +264,11 @@ Respond ONLY with the JSON array, no markdown or explanation."""
         return result
 
 
-async def main():
-    """CLI entry point for testing."""
-    import asyncio
+async def main() -> None:
+    """Run CostOptAgent for testing.
 
+    Executes the agent and prints results to stdout.
+    """
     logging.basicConfig(level=logging.INFO)
 
     agent = CostOptAgent()

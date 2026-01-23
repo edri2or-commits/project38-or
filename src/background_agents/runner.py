@@ -41,7 +41,18 @@ AGENTS = {
 
 
 async def run_agent(agent_name: str, litellm_url: str) -> dict:
-    """Run a single agent and return its result."""
+    """Run a single agent and return its result.
+
+    Args:
+        agent_name: Name of the agent to run (cost_opt, health_synth, learn_insight)
+        litellm_url: URL of the LiteLLM Gateway
+
+    Returns:
+        Dictionary with agent result including success status and outputs
+
+    Raises:
+        ValueError: If agent_name is not recognized
+    """
     if agent_name not in AGENTS:
         raise ValueError(f"Unknown agent: {agent_name}. Available: {list(AGENTS.keys())}")
 
@@ -55,7 +66,14 @@ async def run_agent(agent_name: str, litellm_url: str) -> dict:
 
 
 async def run_all_agents(litellm_url: str) -> dict:
-    """Run all agents and return combined results."""
+    """Run all agents and return combined results.
+
+    Args:
+        litellm_url: URL of the LiteLLM Gateway
+
+    Returns:
+        Dictionary mapping agent names to their results
+    """
     results = {}
 
     for agent_name in AGENTS:
@@ -70,13 +88,22 @@ async def run_all_agents(litellm_url: str) -> dict:
 
 
 def get_metrics_summary() -> dict:
-    """Get summary of today's agent metrics."""
+    """Get summary of today's agent metrics.
+
+    Returns:
+        Dictionary with summary statistics including runs, cost, and tokens
+    """
     collector = MetricsCollector()
     return collector.get_summary(datetime.now(UTC))
 
 
 def set_github_output(name: str, value: str) -> None:
-    """Set GitHub Actions output variable."""
+    """Set GitHub Actions output variable.
+
+    Args:
+        name: Output variable name
+        value: Output variable value
+    """
     output_file = os.environ.get("GITHUB_OUTPUT")
     if output_file:
         with open(output_file, "a") as f:
@@ -93,7 +120,12 @@ def set_github_output(name: str, value: str) -> None:
         print(f"Output: {name}={value[:100]}...")
 
 
-def main():
+def main() -> int:
+    """CLI entry point for running background agents.
+
+    Returns:
+        Exit code: 0 for success, 1 for failure
+    """
     parser = argparse.ArgumentParser(description="Background Agents Runner")
     parser.add_argument(
         "--agent",

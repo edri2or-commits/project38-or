@@ -313,10 +313,11 @@ Respond ONLY with the JSON object, no markdown."""
         return result
 
 
-async def main():
-    """CLI entry point for testing."""
-    import asyncio
+async def main() -> None:
+    """Run LearnInsightAgent for testing.
 
+    Executes the agent and prints results to stdout.
+    """
     logging.basicConfig(level=logging.INFO)
 
     agent = LearnInsightAgent()
