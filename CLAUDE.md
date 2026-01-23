@@ -1068,7 +1068,7 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 - ✅ mkdocs build completes without warnings
 - ✅ Changelog is updated for every PR
 
-### test-runner (v1.0.0)
+### test-runner (v2.0.0)
 
 **Purpose:** Automated test execution before commits to prevent broken code from entering the repository.
 
@@ -1078,12 +1078,17 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 - Keywords: `test`, `tests`, `pytest`, `run tests`, `before commit`
 
 **What it does:**
-1. Verifies test environment (pytest configuration)
-2. Runs full test suite with `python -m pytest tests/ -v`
-3. Optionally runs with coverage report
-4. Analyzes test results (passed/failed/skipped)
-5. Provides detailed failure reports with file paths and line numbers
-6. Blocks commit recommendation if tests fail
+1. **Auto-executes tests via preprocessing** - Results appear in context automatically
+2. Analyzes test results (passed/failed/skipped)
+3. Provides detailed failure reports with file paths and line numbers
+4. Blocks commit recommendation if tests fail
+5. Coverage report on request
+
+**Architecture (v2.0.0):**
+- Uses `!`command`` preprocessing for automatic test execution
+- Results injected into context **before** Claude processes the skill
+- Troubleshooting moved to `reference/troubleshooting.md` (on-demand loading)
+- Reduced from 486 lines to 109 lines (78% token savings)
 
 **When to use:**
 ```bash
@@ -1097,17 +1102,13 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 "I'm ready to create a PR" (runs tests automatically)
 ```
 
-**Integration with CI:**
-- Skill runs **proactively** before commit (local)
-- `test.yml` workflow **validates** after push (CI)
-- Together they enforce **Zero Broken Commits**
-
 **Files:**
 - Skill definition: `.claude/skills/test-runner/SKILL.md`
+- Troubleshooting: `.claude/skills/test-runner/reference/troubleshooting.md`
 
 **Safety:**
 - `plan_mode_required: false` (read-only operations)
-- Allowed tools: Read, Bash (pytest only)
+- Allowed tools: Read, Bash (pytest, python)
 - Never modifies test code or source code
 - Always runs full suite (never skips tests)
 
@@ -1117,183 +1118,108 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 - ✅ Fast feedback (< 5 seconds for most suites)
 - ✅ CI test.yml workflow rarely fails
 
-### security-checker (v1.0.0)
+### security-checker (v2.0.0)
 
 **Purpose:** Validates that no secrets or sensitive data are being committed to the repository.
 
 **Triggers:**
-- User about to commit code
-- Changes to configuration files
 - Keywords: `security`, `secrets`, `commit`, `check secrets`, `before commit`
 
 **What it does:**
-1. Checks staged changes with `git diff --cached`
-2. Scans for sensitive file patterns (.env, *-key.json, *.pem, etc.)
-3. Scans file contents for secret patterns:
-   - AWS access keys (AKIA...)
-   - GitHub PATs (ghp_...)
-   - Anthropic API keys (sk-ant-api03-...)
-   - OpenAI API keys (sk-proj-...)
-   - JWT tokens (eyJ...)
-   - Private keys (-----BEGIN PRIVATE KEY-----)
-   - Database URLs with credentials
-   - Hardcoded passwords
+1. Auto-executes Python scanner via `!`command`` preprocessing
+2. Scans staged changes for secret patterns (AWS, GitHub, Anthropic, OpenAI keys)
+3. Detects forbidden files (.env, credentials, private keys)
 4. Handles false positives (test data, documentation examples)
-5. Verifies .gitignore protection
-6. Blocks commit if secrets detected
+5. Blocks commit if secrets detected
 
-**When to use:**
-```bash
-# Before committing
-"Check for secrets before commit"
-
-# Before creating PR
-"I'm ready to create a PR" (checks automatically)
-
-# After adding API integration
-"I added API configuration, check for secrets"
-```
-
-**Integration with CI:**
-- Skill runs **first line of defense** (local)
-- Future: GitLeaks in CI (second line)
-- Together they create **defense in depth**
+**Architecture (v2.0.0):**
+- **Preprocessing**: `!`python scripts/scan_secrets.py`` runs automatically
+- **Reference files**: `reference/patterns.md` for on-demand pattern lookup
+- **Reduced**: 633→129 lines (80% reduction)
 
 **Files:**
 - Skill definition: `.claude/skills/security-checker/SKILL.md`
+- Scanner script: `.claude/skills/security-checker/scripts/scan_secrets.py`
+- Pattern reference: `.claude/skills/security-checker/reference/patterns.md`
 
 **Safety:**
 - `plan_mode_required: false` (but aggressive blocking)
-- Allowed tools: Read, Bash (git diff, git status), Grep, Glob
+- Allowed tools: Read, Bash (git, python), Grep
 - Never prints or logs secret values
 - False positive > false negative (defensive posture)
-- Blocks all commits with detected secrets
 
 **Success metrics:**
 - ✅ Zero secrets committed to repository
-- ✅ Clear error messages with remediation steps
-- ✅ Fast scanning (< 3 seconds)
+- ✅ Scan completes in < 3 seconds
 - ✅ Low false positive rate (< 5%)
-- ✅ Developers understand SecretManager usage
 
 **Critical:** This is a **PUBLIC repository** - any secret committed is permanently exposed.
 
-### pr-helper (v1.0.0)
+### pr-helper (v2.0.0)
 
-**Purpose:** Standardized Pull Request creation with consistent formatting and comprehensive context.
+**Purpose:** Standardized Pull Request creation with consistent formatting.
 
 **Triggers:**
 - Keywords: `pull request`, `pr`, `create pr`, `open pr`, `ready to merge`
-- After passing all checks (tests, security, docs)
 
 **What it does:**
-1. Verifies prerequisites (branch pushed, not on main)
-2. Analyzes branch changes with `git log` and `git diff`
-3. Determines change type (feat, fix, docs, refactor, etc.)
-4. Drafts PR title following conventional commits format
-5. Generates comprehensive PR description:
-   - Summary of changes
-   - Key changes list
-   - Files added/modified
-   - Test plan
-   - Related issues/PRs
-6. Creates PR using `gh pr create`
-7. Reports PR URL and checks status
+1. Auto-gathers branch context via preprocessing (commits, files, suggested type)
+2. Verifies prerequisites (not main, pushed, has commits)
+3. Drafts PR title using conventional commit format
+4. Creates PR with template from reference file
 
-**When to use:**
-```bash
-# After completing feature
-"Create PR for my changes"
-
-# Ready to merge
-"Ready to merge"
-
-# Specific request
-"Open pull request for the skills I added"
-```
-
-**Integration with other skills:**
-```
-Code changes complete
-    ↓
-test-runner: All tests pass ✅
-    ↓
-doc-updater: Documentation updated ✅
-    ↓
-security-checker: No secrets found ✅
-    ↓
-pr-helper: Create PR ✅
-```
+**Architecture (v2.0.0):**
+- **Preprocessing**: `!`bash scripts/gather_info.sh`` auto-gathers git context
+- **Reference files**: `reference/templates.md` for PR templates
+- **Reduced**: 672→150 lines (78% reduction)
 
 **Files:**
 - Skill definition: `.claude/skills/pr-helper/SKILL.md`
+- Context script: `.claude/skills/pr-helper/scripts/gather_info.sh`
+- Templates: `.claude/skills/pr-helper/reference/templates.md`
 
 **Safety:**
-- `plan_mode_required: false` (creates PR, doesn't modify code)
-- Allowed tools: Read, Bash (git, gh), Grep, Glob
-- Verifies branch before creating PR
+- `plan_mode_required: false`
 - Never creates PR from main branch
 - Never pushes --force without permission
 
 **Success metrics:**
 - ✅ All PRs follow consistent format
-- ✅ Reviewers have complete context
-- ✅ PRs link to issues and related work
-- ✅ Comprehensive test plans
-- ✅ PR creation takes < 1 minute
+- ✅ PR creation < 1 minute
 
-### dependency-checker (v1.0.0)
+### dependency-checker (v2.0.0)
 
-**Purpose:** Audits Python dependencies for security vulnerabilities, outdated versions, and best practices.
+**Purpose:** Audits Python dependencies for security vulnerabilities and best practices.
 
 **Triggers:**
-- Changes to `requirements*.txt` files
-- Keywords: `dependencies`, `vulnerabilities`, `outdated packages`, `audit dependencies`, `security audit`, `check dependencies`
+- Keywords: `dependencies`, `vulnerabilities`, `outdated packages`, `audit dependencies`, `security audit`
 
 **What it does:**
-1. Scans for known security vulnerabilities using pip-audit
-2. Identifies outdated packages with available updates
-3. Validates requirements.txt format (pinning, version constraints)
-4. Checks for dependency conflicts (pip check)
-5. Verifies lock files are synchronized
-6. Generates prioritized remediation plan (Priority 1-4)
-7. Blocks deployment on CRITICAL/HIGH vulnerabilities
+1. Auto-executes Python scanner via preprocessing
+2. Checks security vulnerabilities (pip-audit)
+3. Identifies outdated packages
+4. Validates version pinning format
+5. Checks for dependency conflicts
 
-**When to use:**
-```bash
-# After updating dependencies
-"Check dependencies for vulnerabilities"
-
-# Periodic audit
-"Run dependency audit"
-
-# Before PR
-"Audit dependencies before creating PR"
-```
-
-**Integration with CI:**
-- Skill runs **proactively** during development (local)
-- CI validates before merge (GitHub Actions - future)
-- Together they enforce **Zero Known Vulnerabilities**
+**Architecture (v2.0.0):**
+- **Preprocessing**: `!`python scripts/check_deps.py`` runs automatically
+- **Reference files**: `reference/policy.md` for commands and policies
+- **Reduced**: 893→128 lines (86% reduction)
 
 **Files:**
 - Skill definition: `.claude/skills/dependency-checker/SKILL.md`
+- Scanner script: `.claude/skills/dependency-checker/scripts/check_deps.py`
+- Policy reference: `.claude/skills/dependency-checker/reference/policy.md`
 
 **Safety:**
 - `plan_mode_required: false` (read-only scanning)
-- Allowed tools: Read, Bash (pip, pip-audit, safety), Grep, Glob
-- Never auto-updates dependencies without approval
-- Always blocks on CRITICAL/HIGH vulnerabilities
-- Requires testing after any dependency update
+- Never auto-updates without approval
+- Blocks on CRITICAL/HIGH vulnerabilities
 
 **Success metrics:**
-- ✅ Zero CRITICAL/HIGH vulnerabilities in production
-- ✅ All dependencies pinned with exact versions
-- ✅ Lock files stay synchronized
-- ✅ Clear remediation guidance provided
-- ✅ Monthly security audits completed
-
-**Critical:** This skill enforces **Zero Tolerance for Critical Vulnerabilities** - any CRITICAL or HIGH severity vulnerability will block deployment until fixed. All production dependencies must use exact version pinning (e.g., `package==1.2.3`).
+- ✅ Zero CRITICAL/HIGH vulnerabilities
+- ✅ All deps pinned with `==`
+- ✅ Audit completes in < 30 seconds
 
 ### changelog-updater (v1.0.0)
 
@@ -1412,7 +1338,7 @@ Provides foundation for all other skills - runs on every session start to prepar
 - 🎯 Available skills (list of all skills)
 - 💡 Quick reminders (security rules, testing, docs)
 
-### preflight-check (v1.0.0)
+### preflight-check (v2.0.0)
 
 **Purpose:** Run all validation checks before creating PR to ensure CI will succeed.
 
@@ -1424,7 +1350,13 @@ Provides foundation for all other skills - runs on every session start to prepar
 1. 🔒 **Security Check** - Scans git diff for secrets (API keys, tokens, passwords)
 2. 🧪 **Tests** - Runs full test suite with `pytest tests/ -v`
 3. 🎨 **Lint** - Runs `ruff check src/ tests/`
-4. 📚 **Documentation** - Verifies changelog updated if src/ changed, runs pydocstyle
+4. 📚 **Documentation** - Verifies changelog updated if src/ changed
+
+**Architecture (v2.0.0):**
+- Uses `!`command`` preprocessing with executable Python script
+- All checks run via `scripts/run_checks.py`
+- Results injected into context **before** Claude processes the skill
+- Reduced from 380 lines to 83 lines (78% token savings)
 
 **When to use:**
 ```bash
@@ -1447,16 +1379,13 @@ GitHub CI (test.yml, lint.yml, docs-check.yml) → Validate again
 Manual merge (1-click, < 10 seconds)
 ```
 
-**Why run checks twice?**
-- **Local (preflight):** Fast feedback (< 30 seconds), no CI wait
-- **GitHub (CI):** Security verification, final gate, public audit trail
-
 **Files:**
 - Skill definition: `.claude/skills/preflight-check/SKILL.md`
+- Check script: `.claude/skills/preflight-check/scripts/run_checks.py`
 
 **Safety:**
 - `plan_mode_required: false` (read-only checks)
-- Allowed tools: Bash (pytest, ruff, pydocstyle, git)
+- Allowed tools: Bash (python, pytest, ruff, git)
 - Never modifies code or creates commits
 - Fast execution (< 30 seconds)
 - Provides actionable error messages
@@ -1630,35 +1559,24 @@ python scripts/auto_weekly_review.py
 - ✅ Hypothesis extracted from text
 - ✅ Metrics parsed (percentages, Nx improvements)
 
-### email-assistant (v1.0.0)
+### email-assistant (v2.0.0)
 
 **Purpose:** Autonomous email agent that reads, summarizes, triages, and responds to emails via Gmail. Use when user wants help managing their inbox or processing emails.
 
 **Triggers:**
 - Keywords: `email`, `emails`, `mail`, `inbox`, `gmail`, `unread`, `reply`, `triage`
-- Morning inbox check requests
-- Email management tasks
 
 **What it does:**
-1. **Reading & Summarizing** - Fetch unread emails, categorize by priority (P1-P4), extract action items
-2. **Triage & Sorting** - Apply rules to categorize emails, identify urgent items, flag for review
-3. **Smart Replies** - Draft contextual responses matching sender's tone
-4. **Full Automation** - Handle routine emails with user approval (NEVER sends without confirmation)
+1. **Auto-check Gateway** - Preprocessing verifies MCP Gateway connectivity
+2. **Reading & Summarizing** - Fetch unread emails, categorize by priority (P1-P4)
+3. **Triage & Sorting** - Apply rules from `reference/templates.md`
+4. **Smart Replies** - Draft contextual responses matching sender's tone
 
-**When to use:**
-```bash
-# Morning inbox check
-"Check my inbox"
-
-# Triage emails
-"Triage my last 50 emails"
-
-# Draft reply
-"Reply to the meeting request"
-
-# Summarize specific email
-"Summarize the email from [sender]"
-```
+**Architecture (v2.0.0):**
+- **Context Isolation**: `context: fork` - runs in isolated subagent
+- **Preprocessing**: `!`curl health`` auto-checks gateway status
+- **Reference files**: `reference/templates.md` for on-demand templates
+- **Reduced**: 459→158 lines (66% reduction)
 
 **Available Gmail Tools (via MCP Gateway):**
 
@@ -1670,13 +1588,11 @@ python scripts/auto_weekly_review.py
 
 **Files:**
 - Skill definition: `.claude/skills/email-assistant/SKILL.md`
-- Gmail tools: `src/mcp_gateway/tools/workspace.py:112-224`
-- OAuth auth: `src/mcp_gateway/tools/workspace.py:31-94`
+- Reply templates: `.claude/skills/email-assistant/reference/templates.md`
 
 **Safety:**
-- `plan_mode_required: false`
+- `context: fork` - isolated execution context
 - **NEVER sends email without explicit user approval**
-- Allowed tools: Read, Write, Edit, Bash(curl), Grep, Glob, WebFetch, AskUserQuestion
 - All sent emails logged for audit
 - Phishing/spam detection built-in
 

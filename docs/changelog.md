@@ -7,7 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Skills Architecture Improvements** (2026-01-23) - SKILL.md Standard Adoption
+  - **Phase 1** (test-runner, preflight-check):
+    - Upgraded `test-runner` to v2.0.0 with `!`command`` preprocessing
+      - Reduced from 486 lines to 109 lines (78% reduction)
+      - Auto-executes tests via preprocessing, results appear in context
+      - Added `reference/troubleshooting.md` for on-demand loading
+    - Upgraded `preflight-check` to v2.0.0 with executable script
+      - Reduced from 380 lines to 83 lines (78% reduction)
+      - Added `scripts/run_checks.py` for all validations
+  - **Phase 2** (email-assistant, security-checker):
+    - Upgraded `email-assistant` to v2.0.0 with context isolation
+      - Reduced from 459 lines to 158 lines (66% reduction)
+      - Added `context: fork` for isolated subagent execution
+      - Added `reference/templates.md` for reply templates and triage rules
+      - Auto-checks MCP Gateway health via preprocessing
+    - Upgraded `security-checker` to v2.0.0 with Python scanner
+      - Reduced from 633 lines to 129 lines (80% reduction)
+      - Added `scripts/scan_secrets.py` for deterministic secret scanning
+      - Added `reference/patterns.md` for pattern reference
+      - Auto-executes scanner via preprocessing
+  - **Phase 3** (dependency-checker, pr-helper):
+    - Upgraded `dependency-checker` to v2.0.0 with Python scanner
+      - Reduced from 893 lines to 128 lines (86% reduction)
+      - Added `scripts/check_deps.py` for security/outdated/format/conflict checks
+      - Added `reference/policy.md` for commands and policies
+    - Upgraded `pr-helper` to v2.0.0 with context gathering
+      - Reduced from 672 lines to 150 lines (78% reduction)
+      - Added `scripts/gather_info.sh` for auto-gathering git context
+      - Added `reference/templates.md` for PR templates
+  - Pattern based on [Claude Code Docs](https://code.claude.com/docs/en/skills)
+  - Benefits: Lower token usage, faster execution, deterministic results
+
 ### Added
+- **Research Note: Google Antigravity Skills - DevOps Nerve Center** (2026-01-23)
+  - Strategic analysis of Google Antigravity platform as "Agentic DevOps" nerve center
+  - Key findings: SKILL.md architecture, On-Demand Loading (Progressive Disclosure), executable scripts
+  - Paradigm shift from "Prompting" to "Teaching" with encoded knowledge assets
+  - Security model: Zero-Trust, Sandbox modes (Turbo/Auto/Off), Docker isolation
+  - Multi-agent architecture: Manager-Worker pattern, conflict resolution
+  - Cost optimization: Context Caching provides 90%+ savings
+  - Competitive analysis: Antigravity vs Cursor vs Claude Code vs Windsurf
+  - Classification: Spike - requires evaluation against project38-or Skills
+  - **Truth Protocol Verification**: 94% accuracy verified against 26+ sources
+  - Verification report: `docs/research/notes/2026-01-23-antigravity-verification-report.md`
+  - Files: `docs/research/notes/2026-01-23-antigravity-skills-devops-nerve-center.md`, `docs/research/issues/ISSUE-0004.md`
+
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
   - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
   - Created `src/models/activity_log.py` - ActivityLog, NightWatchSummary, NightWatchConfig models
