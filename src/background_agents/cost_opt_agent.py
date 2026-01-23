@@ -139,8 +139,7 @@ Respond ONLY with the JSON array, no markdown or explanation."""
         """
         from openai import AsyncOpenAI
 
-        from src.smart_llm.classifier import MODEL_MAPPING
-        from src.smart_llm.client import MODEL_COSTS
+        from src.smart_llm.classifier import MODEL_COSTS, MODEL_MAPPING
 
         run_id = generate_run_id()
         start_time = time.time()

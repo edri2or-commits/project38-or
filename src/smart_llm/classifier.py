@@ -169,6 +169,19 @@ TIER_MAPPING: dict[TaskType, Tier] = {
     TaskType.GENERAL: Tier.BUDGET,
 }
 
+# Cost per 1M output tokens (for logging/tracking)
+MODEL_COSTS: dict[str, float] = {
+    "gemini-flash": 0.30,
+    "deepseek-v3": 1.10,
+    "gpt-4o-mini": 0.60,
+    "claude-haiku": 5.00,
+    "deepseek-r1": 2.19,
+    "gemini-pro": 5.00,
+    "claude-sonnet": 15.00,
+    "gpt-4o": 10.00,
+    "claude-opus": 75.00,
+}
+
 # Model mapping
 MODEL_MAPPING: dict[TaskType, str] = {
     TaskType.SIMPLE: "gemini-flash",
