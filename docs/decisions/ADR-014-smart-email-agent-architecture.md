@@ -551,6 +551,360 @@ class FormAuditEntry:
 | Fill medical forms | ⚠️ Read-only | Privacy sensitivity |
 | Upload documents | ⚠️ Approval required | Data exposure |
 
+### Attachment Processing (קבצים מצורפים)
+
+**Sources**: [Google Document AI](https://cloud.google.com/document-ai), [Azure Document Intelligence](https://azure.microsoft.com/en-us/products/ai-services/ai-document-intelligence), [Reducto AI](https://reducto.ai/), [Mistral OCR](https://mistral.ai/news/mistral-ocr)
+
+#### Document Types Supported
+
+| סוג מסמך | עיבוד | שימוש |
+|----------|-------|-------|
+| **תעודת זהות** | OCR + Validation | Pre-fill ת.ז. field |
+| **תלוש משכורת** | Table extraction | Income verification |
+| **חשבונית** | Field extraction | Amount, date, vendor |
+| **טופס ממולא** | Form recognition | Copy existing data |
+| **מכתב ממשלתי** | Entity extraction | Deadline, reference # |
+| **צילום מסמך** | Image OCR | General text |
+
+#### Technology Stack
+
+```python
+from enum import Enum
+from dataclasses import dataclass
+
+class DocumentProcessor(Enum):
+    """Choose processor based on document type and privacy."""
+    GOOGLE_DOCUMENT_AI = "google"      # Best for Hebrew, cloud
+    AZURE_DOCUMENT_INTEL = "azure"     # Good for forms
+    MISTRAL_OCR = "mistral"            # Privacy-first, on-device option
+    TESSERACT_LOCAL = "tesseract"      # Fully local, free
+
+@dataclass
+class ExtractedDocument:
+    """Result of document processing."""
+    document_type: str              # "teudat_zehut", "payslip", etc.
+    confidence: float               # 0.0 - 1.0
+    extracted_fields: dict          # {"id_number": "...", "name": "..."}
+    raw_text: str                   # Full OCR text
+    language: str                   # "he", "en", "mixed"
+    bounding_boxes: list | None     # For visual verification
+```
+
+#### Israeli Document Patterns
+
+```python
+# תעודת זהות (Israeli ID)
+ID_PATTERNS = {
+    "id_number": r"\b\d{9}\b",                    # 9 digits
+    "name_hebrew": r"[\u0590-\u05FF]+\s+[\u0590-\u05FF]+",
+    "birth_date": r"\d{2}[./]\d{2}[./]\d{4}",
+    "issue_date": r"\d{2}[./]\d{2}[./]\d{4}",
+}
+
+# תלוש משכורת (Payslip)
+PAYSLIP_PATTERNS = {
+    "gross_salary": r"(?:משכורת ברוטו|שכר ברוטו)[:\s]*([₪\d,\.]+)",
+    "net_salary": r"(?:נטו לתשלום|סה\"?כ נטו)[:\s]*([₪\d,\.]+)",
+    "employer": r"(?:מעסיק|שם החברה)[:\s]*([\u0590-\u05FF\s]+)",
+    "month": r"(?:חודש|לחודש)[:\s]*(\d{1,2}[./]\d{2,4})",
+}
+
+# חשבונית (Invoice)
+INVOICE_PATTERNS = {
+    "invoice_number": r"(?:מס['\"]?\s*חשבונית|invoice)[:\s#]*(\d+)",
+    "total": r"(?:סה\"?כ|total)[:\s]*([₪\d,\.]+)",
+    "date": r"\d{2}[./]\d{2}[./]\d{4}",
+    "vat": r"(?:מע\"?מ|VAT)[:\s]*([₪\d,\.]+)",
+}
+```
+
+#### Processing Pipeline
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                  ATTACHMENT PROCESSING FLOW                       │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  1. DETECT: Email has attachment                                 │
+│     └─ Check MIME type: PDF, image, document                    │
+│     └─ Size check: max 10MB                                     │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. CLASSIFY: What document type?                               │
+│     └─ Filename hints: "תלוש", "חשבונית", "ת.ז."               │
+│     └─ Visual classification via LLM                            │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. EXTRACT: Run appropriate OCR                                │
+│     └─ Hebrew: Google Document AI (best accuracy)               │
+│     └─ Privacy mode: Mistral OCR (local/on-device)             │
+│     └─ Tables: Azure Document Intelligence                      │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  4. VALIDATE: Check extracted data                              │
+│     └─ ID number: Luhn check for Israeli ת.ז.                  │
+│     └─ Dates: Parse Hebrew/Gregorian formats                    │
+│     └─ Amounts: Handle ₪ and comma formatting                   │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  5. STORE: Save for form pre-fill                               │
+│     └─ Encrypted storage (never plain text for PII)            │
+│     └─ Link to email thread                                     │
+│     └─ Expiration: 30 days                                      │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  6. PRESENT: Tell user what was found                           │
+│     └─ "מצאתי תלוש משכורת - נטו: ₪8,500"                       │
+│     └─ "שמרתי לשימוש בטפסים עתידיים"                           │
+│     └─ "רוצה שאמחק את המסמך?"                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Privacy & Security
+
+| Concern | Mitigation |
+|---------|------------|
+| **PII in cloud** | Option for local OCR (Mistral/Tesseract) |
+| **Storage** | Encrypted at rest, 30-day expiration |
+| **Consent** | User approves each extraction |
+| **Audit** | Log what was extracted (field names only) |
+| **Deletion** | User can delete extracted data anytime |
+
+### ADHD-Friendly Design (עיצוב מותאם ADHD)
+
+**Sources**: [UX for ADHD Students](https://din-studio.com/ui-ux-for-adhd-designing-interfaces-that-actually-help-students/), [Neurodivergent UX](https://medium.com/design-bootcamp/inclusive-ux-ui-for-neurodivergent-users-best-practices-and-challenges-488677ed2c6e), [Cognitive Load UX](https://startup-house.com/blog/cognitive-overload-ux), [ADHD Software Accessibility](https://uxdesign.cc/software-accessibility-for-users-with-attention-deficit-disorder-adhd-f32226e6037c)
+
+#### Core Principles
+
+> "Don't let your application cover the clock of the device... it really doesn't help when you are already having problems with time blindness."
+> — [Software Accessibility for ADHD](https://uxdesign.cc/software-accessibility-for-users-with-attention-deficit-disorder-adhd-f32226e6037c)
+
+| עיקרון | יישום |
+|--------|-------|
+| **צמצום עומס קוגניטיבי** | מקסימום 3 פריטים להחלטה |
+| **תזכורות עדינות** | "יש משהו שממתין" לא "אתה מפגר!" |
+| **מצב רגוע (Calm Mode)** | פחות צבעים, פחות אנימציות |
+| **Time Blindness** | תמיד להציג שעון ומשך זמן |
+| **Hyperfocus Protection** | "כבר שעה שאתה כאן" |
+| **פעולה אחת ברורה** | CTA בולט אחד בכל הודעה |
+
+#### Message Structure (ADHD-Optimized)
+
+**Before (Overwhelming)**:
+```
+🌅 סיכום מיילים - 23/01/2026 09:00
+
+📊 סטטיסטיקה:
+• 15 מיילים (8 התראות מערכת הוסתרו)
+• 🔴 דחוף: 2 | 🟠 חשוב: 3 | 🟡 מידע: 7 | ⚪ פרסום: 3
+
+🔴 דחוף (P1):
+  • [בירוקרטיה] ביטוח לאומי
+    נדרש אישור תוך 7 ימים - טופס 101 לחידוש...
+  • [כספים] בנק לאומי
+    עדכון פרטים נדרש - אישור הפקדה...
+
+🟠 חשוב (P2):
+  • Amazon: הזמנה נשלחה - מספר מעקב...
+  • LinkedIn: 3 הזמנות לחיבור
+  • GitHub: PR needs review
+
+🟡 מידע (P3):
+... (7 more items)
+
+⚪ פרסום: 3 מיילים
+
+━━━━━━━━━━━━━━━━━━━━━━
+עבדתי 12 שניות | בדקתי 3 מקורות
+```
+
+**After (ADHD-Friendly)**:
+```
+⏰ 09:00 | יש לך דבר אחד דחוף
+
+🔴 ביטוח לאומי רוצה תשובה תוך 7 ימים
+   💡 זה טופס 101 פשוט. אני יכול למלא בשבילך.
+
+   [מלא עכשיו] או [תזכיר מחר]
+
+━━━━━━━━━━━━
+
+📬 עוד 14 מיילים (שום דבר דחוף נוסף)
+   [הראה הכל] או [סמן כנקרא]
+```
+
+#### Key Differences
+
+| Aspect | Standard | ADHD-Friendly |
+|--------|----------|---------------|
+| **Information density** | All at once | Progressive disclosure |
+| **CTAs** | Multiple | One primary action |
+| **Statistics** | Detailed numbers | "יש דבר אחד דחוף" |
+| **Time reference** | Date/time | "תוך 7 ימים" |
+| **Tone** | Neutral | Encouraging, calm |
+| **Length** | Comprehensive | Scannable |
+
+#### Notification Modes
+
+```python
+from enum import Enum
+
+class NotificationMode(Enum):
+    """User preference for notification style."""
+    STANDARD = "standard"           # Full details
+    ADHD_FRIENDLY = "adhd"          # Simplified, one action
+    MINIMAL = "minimal"             # Just urgent items
+    DIGEST = "digest"               # Once daily summary
+
+@dataclass
+class ADHDFriendlyMessage:
+    """Structured message for ADHD users."""
+    # Primary focus (ONE thing)
+    primary_action: str             # "ביטוח לאומי רוצה תשובה"
+    deadline_human: str             # "תוך 7 ימים"
+    ai_insight: str                 # "זה טופס פשוט"
+
+    # Single CTA
+    primary_cta: str                # "מלא עכשיו"
+    secondary_cta: str              # "תזכיר מחר"
+
+    # Hidden details (expandable)
+    other_count: int                # 14
+    other_urgent: bool              # False
+
+    # Time context
+    current_time: str               # "09:00"
+    reading_time_estimate: str      # "30 שניות"
+```
+
+#### Telegram Implementation
+
+```python
+def format_adhd_message(summary: DailySummary) -> str:
+    """Format message for ADHD users."""
+
+    # Find the ONE most urgent item
+    p1_items = [e for e in summary.emails if e.priority == Priority.P1]
+
+    if p1_items:
+        urgent = p1_items[0]
+        lines = [
+            f"⏰ {datetime.now().strftime('%H:%M')} | יש לך דבר אחד דחוף",
+            "",
+            f"🔴 {urgent.sender} רוצה תשובה",
+        ]
+
+        if urgent.deadline:
+            lines.append(f"   ⏳ {urgent.deadline}")
+
+        if urgent.ai_insight:
+            lines.append(f"   💡 {urgent.ai_insight}")
+
+        lines.extend([
+            "",
+            "   [טפל עכשיו] או [תזכיר מחר]",
+            "",
+            "━━━━━━━━━━━━",
+            "",
+        ])
+    else:
+        lines = [
+            f"⏰ {datetime.now().strftime('%H:%M')} | אין שום דבר דחוף 🎉",
+            "",
+        ]
+
+    # Other items (collapsed)
+    other_count = len(summary.emails) - len(p1_items[:1])
+    if other_count > 0:
+        lines.append(f"📬 עוד {other_count} מיילים")
+        lines.append("   [הראה הכל] או [סמן כנקרא]")
+
+    return "\n".join(lines)
+```
+
+#### Time Blindness Helpers
+
+```python
+def add_time_context(message: str, start_time: datetime) -> str:
+    """Add time context to help with time blindness."""
+    elapsed = datetime.now() - start_time
+    minutes = int(elapsed.total_seconds() / 60)
+
+    if minutes > 30:
+        return message + f"\n\n⏰ _כבר {minutes} דקות שאתה כאן_"
+    return message
+
+def humanize_deadline(deadline: datetime) -> str:
+    """Convert deadline to human-friendly format."""
+    now = datetime.now()
+    diff = deadline - now
+
+    if diff.days == 0:
+        return "היום!"
+    elif diff.days == 1:
+        return "מחר"
+    elif diff.days < 7:
+        return f"תוך {diff.days} ימים"
+    elif diff.days < 30:
+        weeks = diff.days // 7
+        return f"תוך {weeks} שבועות"
+    else:
+        return deadline.strftime("%d/%m")
+```
+
+#### User Preference Storage
+
+```python
+@dataclass
+class UserADHDPreferences:
+    """ADHD-specific preferences."""
+    notification_mode: NotificationMode = NotificationMode.ADHD_FRIENDLY
+
+    # Cognitive load
+    max_items_per_message: int = 3
+    show_statistics: bool = False
+
+    # Time blindness
+    show_clock: bool = True
+    session_time_reminders: bool = True
+    humanize_deadlines: bool = True
+
+    # Focus
+    one_cta_per_message: bool = True
+    progressive_disclosure: bool = True
+
+    # Tone
+    use_encouraging_language: bool = True
+    avoid_guilt_messaging: bool = True
+
+    # Calm mode
+    reduce_emojis: bool = False       # Some find emojis helpful
+    reduce_animations: bool = True
+    muted_colors: bool = False
+```
+
+#### A/B Testing Metrics
+
+| Metric | Standard | ADHD Mode | Target |
+|--------|----------|-----------|--------|
+| **Message open rate** | Baseline | +20% | Measure engagement |
+| **Action completion** | Baseline | +40% | Key metric |
+| **Time to action** | Baseline | -30% | Faster decisions |
+| **Abandonment rate** | Baseline | -50% | Less overwhelm |
+| **User satisfaction** | Baseline | +30% | Survey NPS |
+
 ### Model Routing Strategy (ADR-013)
 
 | Task | Model | Cost/1M tokens | Rationale |
