@@ -1,0 +1,171 @@
+# Daily Email Agent - Scans emails and sends summary to Telegram
+#
+# Runs automatically every morning at 07:00 Israel time (05:00 UTC)
+# Can also be triggered manually via workflow_dispatch
+#
+# ADR-014: Smart Email Agent with Telegram Integration
+
+name: Daily Email Agent
+
+on:
+  schedule:
+    # Run at 05:00 UTC = 07:00 Israel time (winter) / 08:00 Israel time (summer)
+    - cron: '0 5 * * *'
+
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: 'Hours to look back for emails'
+        required: false
+        default: '24'
+        type: string
+      send_telegram:
+        description: 'Send summary to Telegram'
+        required: false
+        default: true
+        type: boolean
+      dry_run:
+        description: 'Dry run (test without API calls)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write  # For GCP Workload Identity Federation
+
+concurrency:
+  group: email-agent
+  cancel-in-progress: false  # Don't cancel running email scans
+
+jobs:
+  run-email-agent:
+    name: Run Email Agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install httpx openai
+
+      - name: Authenticate to GCP
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: project38-483612
+
+      - name: Get secrets from GCP
+        id: secrets
+        run: |
+          # Get MCP Gateway token
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-GATEWAY-TOKEN" 2>/dev/null || echo "")
+          if [ -n "$MCP_TOKEN" ]; then
+            echo "MCP_GATEWAY_TOKEN=$MCP_TOKEN" >> $GITHUB_ENV
+            echo "✅ MCP Gateway token loaded"
+          else
+            echo "⚠️ MCP Gateway token not found"
+          fi
+
+          # Get Telegram chat ID
+          CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" 2>/dev/null || echo "")
+          if [ -n "$CHAT_ID" ]; then
+            echo "TELEGRAM_CHAT_ID=$CHAT_ID" >> $GITHUB_ENV
+            echo "✅ Telegram chat ID loaded"
+          else
+            echo "⚠️ Telegram chat ID not found"
+          fi
+
+      - name: Run Email Agent
+        if: ${{ !inputs.dry_run }}
+        id: run_agent
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          MCP_GATEWAY_TOKEN: ${{ env.MCP_GATEWAY_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ env.TELEGRAM_CHAT_ID }}
+        run: |
+          HOURS="${{ inputs.hours || '24' }}"
+          SEND_TELEGRAM="${{ inputs.send_telegram != 'false' && 'true' || 'false' }}"
+
+          echo "📧 Running Email Agent..."
+          echo "   Hours: $HOURS"
+          echo "   Send Telegram: $SEND_TELEGRAM"
+          echo ""
+
+          python -c "
+          import asyncio
+          import json
+          import os
+          import sys
+          sys.path.insert(0, '.')
+
+          from src.agents.email_agent import EmailAgent
+
+          async def main():
+              agent = EmailAgent()
+              result = await agent.run(
+                  hours=int('$HOURS'),
+                  send_telegram=$SEND_TELEGRAM == 'true'
+              )
+
+              # Print summary
+              print('\\n=== Results ===')
+              print(f'Success: {result.get(\"success\")}')
+              print(f'Emails processed: {result.get(\"emails_processed\", 0)}')
+              print(f'P1 (urgent): {result.get(\"p1_count\", 0)}')
+              print(f'P2 (important): {result.get(\"p2_count\", 0)}')
+              print(f'Calendar events: {result.get(\"calendar_events\", 0)}')
+              print(f'Telegram sent: {result.get(\"telegram_sent\", False)}')
+
+              if result.get('error'):
+                  print(f'Error: {result.get(\"error\")}')
+                  sys.exit(1)
+
+          asyncio.run(main())
+          "
+
+      - name: Dry Run Mode
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "🧪 DRY RUN MODE"
+          echo ""
+          echo "Would run Email Agent with:"
+          echo "  Hours: ${{ inputs.hours || '24' }}"
+          echo "  Send Telegram: ${{ inputs.send_telegram != 'false' }}"
+          echo ""
+          echo "Environment check:"
+          echo "  MCP_GATEWAY_TOKEN: ${{ env.MCP_GATEWAY_TOKEN != '' && '✅ Set' || '❌ Missing' }}"
+          echo "  TELEGRAM_CHAT_ID: ${{ env.TELEGRAM_CHAT_ID != '' && '✅ Set' || '❌ Missing' }}"
+          echo ""
+          echo "Testing imports..."
+
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          from src.agents.email_agent import EmailAgent, EmailCategory, Priority
+          print('✅ EmailAgent imported successfully')
+          print(f'   Categories: {[c.value for c in EmailCategory]}')
+          print(f'   Priorities: {[p.name for p in Priority]}')
+          "
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "❌ Email Agent failed!"
+          echo "Check the logs above for details."
+          # Could send failure notification to Telegram here

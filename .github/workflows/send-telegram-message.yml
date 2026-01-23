@@ -1,0 +1,45 @@
+name: Send Telegram Message
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Message to send'
+        required: true
+        default: '🧪 Test message from GitHub Actions'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Send Telegram Message
+        run: |
+          # Get credentials from GCP
+          TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" --project=project38-483612)
+
+          echo "::add-mask::$TOKEN"
+
+          # Send message
+          MESSAGE='${{ inputs.message }}'
+
+          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            -d "chat_id=${CHAT_ID}" \
+            -d "text=${MESSAGE}" \
+            -d "parse_mode=Markdown"
+
+          echo ""
+          echo "✅ Message sent!"
