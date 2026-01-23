@@ -260,27 +260,57 @@ async def test_telegram_send(
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{service.telegram_url}/send",
-                params={
-                    "chat_id": service.config.telegram_chat_id,
-                    "text": f"\U0001f9ea <b>Night Watch Test</b>\n\n{message}",
-                    "parse_mode": "HTML",
-                },
-            )
+            test_message = f"\U0001f9ea <b>Night Watch Test</b>\n\n{message}"
 
-            if response.status_code == 200:
-                return {
-                    "status": "sent",
-                    "chat_id": service.config.telegram_chat_id,
-                    "telegram_response": response.json(),
-                }
+            # Use direct Telegram API if token is available
+            if service.telegram_token:
+                response = await client.post(
+                    f"https://api.telegram.org/bot{service.telegram_token}/sendMessage",
+                    json={
+                        "chat_id": service.config.telegram_chat_id,
+                        "text": test_message,
+                        "parse_mode": "HTML",
+                    },
+                )
+                response_data = response.json()
+                if response_data.get("ok"):
+                    return {
+                        "status": "sent",
+                        "chat_id": service.config.telegram_chat_id,
+                        "method": "direct_api",
+                        "telegram_response": response_data,
+                    }
+                else:
+                    return {
+                        "status": "failed",
+                        "method": "direct_api",
+                        "error": response_data.get("description", "Unknown error"),
+                    }
             else:
-                return {
-                    "status": "failed",
-                    "status_code": response.status_code,
-                    "response": response.text,
-                }
+                # Fall back to Railway telegram-bot service
+                response = await client.post(
+                    f"{service.telegram_url}/send",
+                    params={
+                        "chat_id": service.config.telegram_chat_id,
+                        "text": test_message,
+                        "parse_mode": "HTML",
+                    },
+                )
+
+                if response.status_code == 200:
+                    return {
+                        "status": "sent",
+                        "chat_id": service.config.telegram_chat_id,
+                        "method": "railway_service",
+                        "telegram_response": response.json(),
+                    }
+                else:
+                    return {
+                        "status": "failed",
+                        "method": "railway_service",
+                        "status_code": response.status_code,
+                        "response": response.text,
+                    }
 
     except Exception as e:
         return {

@@ -83,6 +83,8 @@ class NightWatchService:
             "MONITORING_URL",
             "https://or-infra.com",
         )
+        # Direct Telegram API token - if set, bypasses Railway telegram-bot service
+        self.telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self._http_client: httpx.AsyncClient | None = None
 
     def _load_config_from_env(self) -> NightWatchConfig:
@@ -481,16 +483,33 @@ class NightWatchService:
             message = self._format_summary_message(summary)
 
             client = await self._get_http_client()
-            response = await client.post(
-                f"{self.telegram_url}/send",
-                params={
-                    "chat_id": self.config.telegram_chat_id,
-                    "text": message,
-                    "parse_mode": "HTML",
-                },
-            )
 
-            success = response.status_code == 200
+            # Use direct Telegram API if token is available, otherwise use Railway service
+            if self.telegram_token:
+                # Direct Telegram API (preferred - bypasses Railway service)
+                response = await client.post(
+                    f"https://api.telegram.org/bot{self.telegram_token}/sendMessage",
+                    json={
+                        "chat_id": self.config.telegram_chat_id,
+                        "text": message,
+                        "parse_mode": "HTML",
+                    },
+                )
+                response_data = response.json()
+                success = response_data.get("ok", False)
+                if not success:
+                    logger.error(f"Telegram API error: {response_data.get('description')}")
+            else:
+                # Fall back to Railway telegram-bot service
+                response = await client.post(
+                    f"{self.telegram_url}/send",
+                    params={
+                        "chat_id": self.config.telegram_chat_id,
+                        "text": message,
+                        "parse_mode": "HTML",
+                    },
+                )
+                success = response.status_code == 200
 
             await self._log_activity(
                 db_session,
