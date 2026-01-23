@@ -1118,64 +1118,40 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 - ✅ Fast feedback (< 5 seconds for most suites)
 - ✅ CI test.yml workflow rarely fails
 
-### security-checker (v1.0.0)
+### security-checker (v2.0.0)
 
 **Purpose:** Validates that no secrets or sensitive data are being committed to the repository.
 
 **Triggers:**
-- User about to commit code
-- Changes to configuration files
 - Keywords: `security`, `secrets`, `commit`, `check secrets`, `before commit`
 
 **What it does:**
-1. Checks staged changes with `git diff --cached`
-2. Scans for sensitive file patterns (.env, *-key.json, *.pem, etc.)
-3. Scans file contents for secret patterns:
-   - AWS access keys (AKIA...)
-   - GitHub PATs (ghp_...)
-   - Anthropic API keys (sk-ant-api03-...)
-   - OpenAI API keys (sk-proj-...)
-   - JWT tokens (eyJ...)
-   - Private keys (-----BEGIN PRIVATE KEY-----)
-   - Database URLs with credentials
-   - Hardcoded passwords
+1. Auto-executes Python scanner via `!`command`` preprocessing
+2. Scans staged changes for secret patterns (AWS, GitHub, Anthropic, OpenAI keys)
+3. Detects forbidden files (.env, credentials, private keys)
 4. Handles false positives (test data, documentation examples)
-5. Verifies .gitignore protection
-6. Blocks commit if secrets detected
+5. Blocks commit if secrets detected
 
-**When to use:**
-```bash
-# Before committing
-"Check for secrets before commit"
-
-# Before creating PR
-"I'm ready to create a PR" (checks automatically)
-
-# After adding API integration
-"I added API configuration, check for secrets"
-```
-
-**Integration with CI:**
-- Skill runs **first line of defense** (local)
-- Future: GitLeaks in CI (second line)
-- Together they create **defense in depth**
+**Architecture (v2.0.0):**
+- **Preprocessing**: `!`python scripts/scan_secrets.py`` runs automatically
+- **Reference files**: `reference/patterns.md` for on-demand pattern lookup
+- **Reduced**: 633→129 lines (80% reduction)
 
 **Files:**
 - Skill definition: `.claude/skills/security-checker/SKILL.md`
+- Scanner script: `.claude/skills/security-checker/scripts/scan_secrets.py`
+- Pattern reference: `.claude/skills/security-checker/reference/patterns.md`
 
 **Safety:**
 - `plan_mode_required: false` (but aggressive blocking)
-- Allowed tools: Read, Bash (git diff, git status), Grep, Glob
+- Allowed tools: Read, Bash (git, python), Grep
 - Never prints or logs secret values
 - False positive > false negative (defensive posture)
-- Blocks all commits with detected secrets
 
 **Success metrics:**
 - ✅ Zero secrets committed to repository
-- ✅ Clear error messages with remediation steps
-- ✅ Fast scanning (< 3 seconds)
+- ✅ Scan completes in < 3 seconds
 - ✅ Low false positive rate (< 5%)
-- ✅ Developers understand SecretManager usage
 
 **Critical:** This is a **PUBLIC repository** - any secret committed is permanently exposed.
 
@@ -1634,35 +1610,24 @@ python scripts/auto_weekly_review.py
 - ✅ Hypothesis extracted from text
 - ✅ Metrics parsed (percentages, Nx improvements)
 
-### email-assistant (v1.0.0)
+### email-assistant (v2.0.0)
 
 **Purpose:** Autonomous email agent that reads, summarizes, triages, and responds to emails via Gmail. Use when user wants help managing their inbox or processing emails.
 
 **Triggers:**
 - Keywords: `email`, `emails`, `mail`, `inbox`, `gmail`, `unread`, `reply`, `triage`
-- Morning inbox check requests
-- Email management tasks
 
 **What it does:**
-1. **Reading & Summarizing** - Fetch unread emails, categorize by priority (P1-P4), extract action items
-2. **Triage & Sorting** - Apply rules to categorize emails, identify urgent items, flag for review
-3. **Smart Replies** - Draft contextual responses matching sender's tone
-4. **Full Automation** - Handle routine emails with user approval (NEVER sends without confirmation)
+1. **Auto-check Gateway** - Preprocessing verifies MCP Gateway connectivity
+2. **Reading & Summarizing** - Fetch unread emails, categorize by priority (P1-P4)
+3. **Triage & Sorting** - Apply rules from `reference/templates.md`
+4. **Smart Replies** - Draft contextual responses matching sender's tone
 
-**When to use:**
-```bash
-# Morning inbox check
-"Check my inbox"
-
-# Triage emails
-"Triage my last 50 emails"
-
-# Draft reply
-"Reply to the meeting request"
-
-# Summarize specific email
-"Summarize the email from [sender]"
-```
+**Architecture (v2.0.0):**
+- **Context Isolation**: `context: fork` - runs in isolated subagent
+- **Preprocessing**: `!`curl health`` auto-checks gateway status
+- **Reference files**: `reference/templates.md` for on-demand templates
+- **Reduced**: 459→158 lines (66% reduction)
 
 **Available Gmail Tools (via MCP Gateway):**
 
@@ -1674,13 +1639,11 @@ python scripts/auto_weekly_review.py
 
 **Files:**
 - Skill definition: `.claude/skills/email-assistant/SKILL.md`
-- Gmail tools: `src/mcp_gateway/tools/workspace.py:112-224`
-- OAuth auth: `src/mcp_gateway/tools/workspace.py:31-94`
+- Reply templates: `.claude/skills/email-assistant/reference/templates.md`
 
 **Safety:**
-- `plan_mode_required: false`
+- `context: fork` - isolated execution context
 - **NEVER sends email without explicit user approval**
-- Allowed tools: Read, Write, Edit, Bash(curl), Grep, Glob, WebFetch, AskUserQuestion
 - All sent emails logged for audit
 - Phishing/spam detection built-in
 

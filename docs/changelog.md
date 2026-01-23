@@ -9,14 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Skills Architecture Improvements** (2026-01-23) - SKILL.md Standard Adoption
-  - Upgraded `test-runner` to v2.0.0 with `!`command`` preprocessing
-    - Reduced from 486 lines to 109 lines (78% reduction)
-    - Auto-executes tests via preprocessing, results appear in context
-    - Added `reference/troubleshooting.md` for on-demand loading
-  - Upgraded `preflight-check` to v2.0.0 with executable script
-    - Reduced from 380 lines to 83 lines (78% reduction)
-    - Added `scripts/run_checks.py` for all validations
-    - Script output appears directly in skill context
+  - **Phase 1** (test-runner, preflight-check):
+    - Upgraded `test-runner` to v2.0.0 with `!`command`` preprocessing
+      - Reduced from 486 lines to 109 lines (78% reduction)
+      - Auto-executes tests via preprocessing, results appear in context
+      - Added `reference/troubleshooting.md` for on-demand loading
+    - Upgraded `preflight-check` to v2.0.0 with executable script
+      - Reduced from 380 lines to 83 lines (78% reduction)
+      - Added `scripts/run_checks.py` for all validations
+  - **Phase 2** (email-assistant, security-checker):
+    - Upgraded `email-assistant` to v2.0.0 with context isolation
+      - Reduced from 459 lines to 158 lines (66% reduction)
+      - Added `context: fork` for isolated subagent execution
+      - Added `reference/templates.md` for reply templates and triage rules
+      - Auto-checks MCP Gateway health via preprocessing
+    - Upgraded `security-checker` to v2.0.0 with Python scanner
+      - Reduced from 633 lines to 129 lines (80% reduction)
+      - Added `scripts/scan_secrets.py` for deterministic secret scanning
+      - Added `reference/patterns.md` for pattern reference
+      - Auto-executes scanner via preprocessing
   - Pattern based on [Claude Code Docs](https://code.claude.com/docs/en/skills)
   - Benefits: Lower token usage, faster execution, deterministic results
 
