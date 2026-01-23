@@ -133,6 +133,11 @@ def main() -> int:
     Returns:
         Exit code: 0 for success, 1 for failure
     """
+    # Immediate startup logging for debugging
+    print(f"[DEBUG] Background Agents Runner starting...")
+    print(f"[DEBUG] Python version: {sys.version}")
+    print(f"[DEBUG] Arguments: {sys.argv}")
+
     parser = argparse.ArgumentParser(description="Background Agents Runner")
     parser.add_argument(
         "--agent",
@@ -228,11 +233,17 @@ def main() -> int:
         return 1
 
     # Run agents
+    print(f"[DEBUG] About to run agent(s)...")
+    print(f"[DEBUG] args.all={args.all}, args.agent={args.agent}, litellm_url={args.litellm_url}")
+
     try:
         if args.all:
+            print("[DEBUG] Running ALL agents...")
             results = asyncio.run(run_all_agents(args.litellm_url))
         else:
+            print(f"[DEBUG] Running single agent: {args.agent}")
             results = {args.agent: asyncio.run(run_agent(args.agent, args.litellm_url))}
+        print(f"[DEBUG] Agent run completed successfully")
     except Exception as e:
         import traceback
 
