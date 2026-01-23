@@ -1068,7 +1068,7 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 - ✅ mkdocs build completes without warnings
 - ✅ Changelog is updated for every PR
 
-### test-runner (v1.0.0)
+### test-runner (v2.0.0)
 
 **Purpose:** Automated test execution before commits to prevent broken code from entering the repository.
 
@@ -1078,12 +1078,17 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 - Keywords: `test`, `tests`, `pytest`, `run tests`, `before commit`
 
 **What it does:**
-1. Verifies test environment (pytest configuration)
-2. Runs full test suite with `python -m pytest tests/ -v`
-3. Optionally runs with coverage report
-4. Analyzes test results (passed/failed/skipped)
-5. Provides detailed failure reports with file paths and line numbers
-6. Blocks commit recommendation if tests fail
+1. **Auto-executes tests via preprocessing** - Results appear in context automatically
+2. Analyzes test results (passed/failed/skipped)
+3. Provides detailed failure reports with file paths and line numbers
+4. Blocks commit recommendation if tests fail
+5. Coverage report on request
+
+**Architecture (v2.0.0):**
+- Uses `!`command`` preprocessing for automatic test execution
+- Results injected into context **before** Claude processes the skill
+- Troubleshooting moved to `reference/troubleshooting.md` (on-demand loading)
+- Reduced from 486 lines to 109 lines (78% token savings)
 
 **When to use:**
 ```bash
@@ -1097,17 +1102,13 @@ Claude Code supports **Skills** - version-controlled, reusable agent behaviors t
 "I'm ready to create a PR" (runs tests automatically)
 ```
 
-**Integration with CI:**
-- Skill runs **proactively** before commit (local)
-- `test.yml` workflow **validates** after push (CI)
-- Together they enforce **Zero Broken Commits**
-
 **Files:**
 - Skill definition: `.claude/skills/test-runner/SKILL.md`
+- Troubleshooting: `.claude/skills/test-runner/reference/troubleshooting.md`
 
 **Safety:**
 - `plan_mode_required: false` (read-only operations)
-- Allowed tools: Read, Bash (pytest only)
+- Allowed tools: Read, Bash (pytest, python)
 - Never modifies test code or source code
 - Always runs full suite (never skips tests)
 
@@ -1412,7 +1413,7 @@ Provides foundation for all other skills - runs on every session start to prepar
 - 🎯 Available skills (list of all skills)
 - 💡 Quick reminders (security rules, testing, docs)
 
-### preflight-check (v1.0.0)
+### preflight-check (v2.0.0)
 
 **Purpose:** Run all validation checks before creating PR to ensure CI will succeed.
 
@@ -1424,7 +1425,13 @@ Provides foundation for all other skills - runs on every session start to prepar
 1. 🔒 **Security Check** - Scans git diff for secrets (API keys, tokens, passwords)
 2. 🧪 **Tests** - Runs full test suite with `pytest tests/ -v`
 3. 🎨 **Lint** - Runs `ruff check src/ tests/`
-4. 📚 **Documentation** - Verifies changelog updated if src/ changed, runs pydocstyle
+4. 📚 **Documentation** - Verifies changelog updated if src/ changed
+
+**Architecture (v2.0.0):**
+- Uses `!`command`` preprocessing with executable Python script
+- All checks run via `scripts/run_checks.py`
+- Results injected into context **before** Claude processes the skill
+- Reduced from 380 lines to 83 lines (78% token savings)
 
 **When to use:**
 ```bash
@@ -1447,16 +1454,13 @@ GitHub CI (test.yml, lint.yml, docs-check.yml) → Validate again
 Manual merge (1-click, < 10 seconds)
 ```
 
-**Why run checks twice?**
-- **Local (preflight):** Fast feedback (< 30 seconds), no CI wait
-- **GitHub (CI):** Security verification, final gate, public audit trail
-
 **Files:**
 - Skill definition: `.claude/skills/preflight-check/SKILL.md`
+- Check script: `.claude/skills/preflight-check/scripts/run_checks.py`
 
 **Safety:**
 - `plan_mode_required: false` (read-only checks)
-- Allowed tools: Bash (pytest, ruff, pydocstyle, git)
+- Allowed tools: Bash (python, pytest, ruff, git)
 - Never modifies code or creates commits
 - Fast execution (< 30 seconds)
 - Provides actionable error messages
