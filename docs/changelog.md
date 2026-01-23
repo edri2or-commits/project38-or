@@ -17,7 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/test_api_routes_agents.py` (~25 tests) - Agent CRUD endpoints, code generation
   - `tests/test_api_routes_nightwatch.py` (~22 tests) - Night Watch status, tick, morning summary
   - `tests/test_api_routes_health.py` (~14 tests) - Health check, root, ping endpoints
-  - Total: **138 new tests** bringing suite to 1201 tests
+  - `tests/test_mcp_browser.py` (44 tests) - BrowserServer, accessibility tree, loop detection
+  - `tests/test_mcp_filesystem.py` (42 tests) - FilesystemServer, sandboxed operations, security
+  - Total: **224 new tests** bringing suite to 1287 tests
 
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
   - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
