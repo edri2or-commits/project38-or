@@ -76,6 +76,12 @@ jobs:
         run: |
           pip install openai httpx
 
+      - name: Test infrastructure (dry run)
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -m src.background_agents.runner --dry-run --litellm-url "$LITELLM_URL"
+
       - name: Run agent
         id: run
         env:
