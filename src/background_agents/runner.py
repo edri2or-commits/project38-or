@@ -13,18 +13,49 @@ Usage:
 ADR-013 Phase 3: Background Autonomous Jobs
 """
 
+# Earliest possible debug output - before any imports
+print("[RUNNER] Script starting - module loading...")
+import sys
+print(f"[RUNNER] Python: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+
 import argparse
 import asyncio
 import json
 import logging
 import os
-import sys
 from datetime import UTC, datetime
 
-from src.background_agents.cost_opt_agent import CostOptAgent
-from src.background_agents.health_synth_agent import HealthSynthAgent
-from src.background_agents.learn_insight_agent import LearnInsightAgent
-from src.background_agents.metrics import MetricsCollector
+print("[RUNNER] Standard library imports OK")
+
+try:
+    from src.background_agents.cost_opt_agent import CostOptAgent
+    print("[RUNNER] CostOptAgent import OK")
+except Exception as e:
+    print(f"[RUNNER] CostOptAgent import FAILED: {e}")
+    raise
+
+try:
+    from src.background_agents.health_synth_agent import HealthSynthAgent
+    print("[RUNNER] HealthSynthAgent import OK")
+except Exception as e:
+    print(f"[RUNNER] HealthSynthAgent import FAILED: {e}")
+    raise
+
+try:
+    from src.background_agents.learn_insight_agent import LearnInsightAgent
+    print("[RUNNER] LearnInsightAgent import OK")
+except Exception as e:
+    print(f"[RUNNER] LearnInsightAgent import FAILED: {e}")
+    raise
+
+try:
+    from src.background_agents.metrics import MetricsCollector
+    print("[RUNNER] MetricsCollector import OK")
+except Exception as e:
+    print(f"[RUNNER] MetricsCollector import FAILED: {e}")
+    raise
+
+print("[RUNNER] All imports successful!")
 
 logging.basicConfig(
     level=logging.INFO,
