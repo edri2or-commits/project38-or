@@ -15,15 +15,48 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.autonomous_controller import (
-    ActionRecord,
-    AutonomousController,
-    AutonomyLevel,
-    ConfidenceScore,
-    HealthStatus,
-    SelfHealingAction,
+
+def _has_cryptography() -> bool:
+    """Check if cryptography module is available."""
+    try:
+        import _cffi_backend
+        import cryptography.hazmat.primitives
+        return True
+    except (ImportError, ModuleNotFoundError):
+        return False
+    except Exception:
+        # Rust panic or other errors
+        return False
+
+
+# Skip entire module if cryptography is not available
+pytestmark = pytest.mark.skipif(
+    not _has_cryptography(),
+    reason="cryptography module not available (required by orchestrator -> github_app_client -> jwt)"
 )
-from src.orchestrator import ActionType, Decision, WorldModel
+
+# Lazy imports - only import if cryptography is available
+if _has_cryptography():
+    from src.autonomous_controller import (
+        ActionRecord,
+        AutonomousController,
+        AutonomyLevel,
+        ConfidenceScore,
+        HealthStatus,
+        SelfHealingAction,
+    )
+    from src.orchestrator import ActionType, Decision, WorldModel
+else:
+    # Define placeholders when skipped
+    ActionRecord = None
+    AutonomousController = None
+    AutonomyLevel = None
+    ConfidenceScore = None
+    HealthStatus = None
+    SelfHealingAction = None
+    ActionType = None
+    Decision = None
+    WorldModel = None
 
 
 # ============================================================================
