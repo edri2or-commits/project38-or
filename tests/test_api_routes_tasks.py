@@ -312,3 +312,426 @@ class TestMockTaskModel:
         assert task.created_at == created
         assert task.retry_count == 3
         assert task.error == "Connection timeout"
+
+
+# =============================================================================
+# Direct endpoint function tests (for actual coverage)
+# =============================================================================
+from src.api.routes.tasks import (
+    get_task,
+    get_agent_tasks,
+    retry_task,
+    delete_task,
+    get_task_stats,
+)
+from fastapi import HTTPException
+
+
+class TestGetTaskDirect:
+    """Direct tests for get_task endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_get_task_success(self):
+        """Test getting an existing task directly."""
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.agent_id = 10
+        mock_task.status = "completed"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_task
+        mock_session.execute.return_value = mock_result
+
+        result = await get_task(task_id=1, session=mock_session)
+
+        assert result.id == 1
+        assert result.status == "completed"
+        mock_session.execute.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_task_not_found(self):
+        """Test getting a non-existent task raises 404."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_task(task_id=999, session=mock_session)
+
+        assert exc_info.value.status_code == 404
+        assert "999" in str(exc_info.value.detail)
+
+
+class TestGetAgentTasksDirect:
+    """Direct tests for get_agent_tasks endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_get_agent_tasks_empty(self):
+        """Test getting tasks when none exist."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        result = await get_agent_tasks(agent_id=1, session=mock_session)
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_agent_tasks_with_results(self):
+        """Test getting tasks with results."""
+        mock_task1 = MagicMock()
+        mock_task1.id = 1
+        mock_task1.status = "completed"
+
+        mock_task2 = MagicMock()
+        mock_task2.id = 2
+        mock_task2.status = "running"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [mock_task1, mock_task2]
+        mock_session.execute.return_value = mock_result
+
+        result = await get_agent_tasks(agent_id=10, session=mock_session)
+
+        assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_agent_tasks_limit_capped_at_100(self):
+        """Test that limit > 100 is capped."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        await get_agent_tasks(agent_id=1, limit=500, session=mock_session)
+        mock_session.execute.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_agent_tasks_limit_min_is_1(self):
+        """Test that limit < 1 becomes 1."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        await get_agent_tasks(agent_id=1, limit=-5, session=mock_session)
+        mock_session.execute.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_agent_tasks_with_pagination(self):
+        """Test pagination with limit and offset."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        await get_agent_tasks(agent_id=1, limit=10, offset=20, session=mock_session)
+        mock_session.execute.assert_called_once()
+
+
+class TestRetryTaskDirect:
+    """Direct tests for retry_task endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_retry_failed_task_success(self):
+        """Test retrying a failed task creates new task."""
+        mock_original = MagicMock()
+        mock_original.id = 1
+        mock_original.agent_id = 10
+        mock_original.status = "failed"
+        mock_original.retry_count = 0
+
+        mock_new_task = MagicMock()
+        mock_new_task.id = 2
+        mock_new_task.agent_id = 10
+        mock_new_task.status = "pending"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_original
+        mock_session.execute.return_value = mock_result
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        # Patch select to return a mock query, and Task class for instantiation
+        with patch("src.api.routes.tasks.select") as mock_select:
+            mock_select.return_value.where.return_value = MagicMock()
+            with patch("src.api.routes.tasks.Task") as MockTask:
+                MockTask.return_value = mock_new_task
+                MockTask.id = 1  # For the where clause
+                with patch("src.api.routes.tasks.execute_scheduled_task", new_callable=AsyncMock):
+                    await retry_task(task_id=1, session=mock_session)
+
+        mock_session.add.assert_called_once()
+        mock_session.commit.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_retry_timeout_task_success(self):
+        """Test retrying a timeout task."""
+        mock_original = MagicMock()
+        mock_original.id = 1
+        mock_original.agent_id = 10
+        mock_original.status = "timeout"
+        mock_original.retry_count = 1
+
+        mock_new_task = MagicMock()
+        mock_new_task.id = 2
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_original
+        mock_session.execute.return_value = mock_result
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        with patch("src.api.routes.tasks.select") as mock_select:
+            mock_select.return_value.where.return_value = MagicMock()
+            with patch("src.api.routes.tasks.Task") as MockTask:
+                MockTask.return_value = mock_new_task
+                MockTask.id = 1
+                with patch("src.api.routes.tasks.execute_scheduled_task", new_callable=AsyncMock):
+                    await retry_task(task_id=1, session=mock_session)
+
+        mock_session.add.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_retry_task_not_found(self):
+        """Test retrying a non-existent task raises 404."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await retry_task(task_id=999, session=mock_session)
+
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_retry_completed_task_fails(self):
+        """Test retrying a completed task raises 400."""
+        mock_original = MagicMock()
+        mock_original.id = 1
+        mock_original.status = "completed"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_original
+        mock_session.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await retry_task(task_id=1, session=mock_session)
+
+        assert exc_info.value.status_code == 400
+        assert "completed" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_retry_running_task_fails(self):
+        """Test retrying a running task raises 400."""
+        mock_original = MagicMock()
+        mock_original.id = 1
+        mock_original.status = "running"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_original
+        mock_session.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await retry_task(task_id=1, session=mock_session)
+
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_retry_execution_fails_marks_task_failed(self):
+        """Test when execution fails, task is marked as failed."""
+        mock_original = MagicMock()
+        mock_original.id = 1
+        mock_original.agent_id = 10
+        mock_original.status = "failed"
+        mock_original.retry_count = 0
+
+        mock_new_task = MagicMock()
+        mock_new_task.id = 2
+        mock_new_task.status = "pending"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_original
+        mock_session.execute.return_value = mock_result
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        with patch("src.api.routes.tasks.select") as mock_select:
+            mock_select.return_value.where.return_value = MagicMock()
+            with patch("src.api.routes.tasks.Task") as MockTask:
+                MockTask.return_value = mock_new_task
+                MockTask.id = 1
+                with patch(
+                    "src.api.routes.tasks.execute_scheduled_task",
+                    new_callable=AsyncMock,
+                    side_effect=Exception("Execution error"),
+                ):
+                    await retry_task(task_id=1, session=mock_session)
+
+        assert mock_new_task.status == "failed"
+        assert mock_new_task.error == "Execution error"
+
+
+class TestDeleteTaskDirect:
+    """Direct tests for delete_task endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_delete_task_success(self):
+        """Test deleting an existing task."""
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.status = "completed"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_task
+        mock_session.execute.return_value = mock_result
+        mock_session.delete = AsyncMock()
+        mock_session.commit = AsyncMock()
+
+        result = await delete_task(task_id=1, session=mock_session)
+
+        assert result is None
+        mock_session.delete.assert_called_once_with(mock_task)
+
+    @pytest.mark.asyncio
+    async def test_delete_task_not_found(self):
+        """Test deleting a non-existent task raises 404."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_task(task_id=999, session=mock_session)
+
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_running_task_fails(self):
+        """Test deleting a running task raises 400."""
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.status = "running"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_task
+        mock_session.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_task(task_id=1, session=mock_session)
+
+        assert exc_info.value.status_code == 400
+        assert "running" in str(exc_info.value.detail).lower()
+
+    @pytest.mark.asyncio
+    async def test_delete_failed_task_success(self):
+        """Test deleting a failed task succeeds."""
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.status = "failed"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_task
+        mock_session.execute.return_value = mock_result
+        mock_session.delete = AsyncMock()
+        mock_session.commit = AsyncMock()
+
+        await delete_task(task_id=1, session=mock_session)
+
+        mock_session.delete.assert_called_once()
+
+
+class TestGetTaskStatsDirect:
+    """Direct tests for get_task_stats endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_get_stats_empty(self):
+        """Test stats when no tasks exist."""
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        result = await get_task_stats(session=mock_session)
+
+        assert result["total"] == 0
+        assert result["completed"] == 0
+        assert result["failed"] == 0
+        assert result["running"] == 0
+        assert result["pending"] == 0
+        assert result["success_rate"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_get_stats_with_tasks(self):
+        """Test stats with various task statuses."""
+        mock_tasks = []
+        for status in ["completed", "completed", "completed", "failed", "running"]:
+            task = MagicMock()
+            task.status = status
+            mock_tasks.append(task)
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = mock_tasks
+        mock_session.execute.return_value = mock_result
+
+        result = await get_task_stats(session=mock_session)
+
+        assert result["total"] == 5
+        assert result["completed"] == 3
+        assert result["failed"] == 1
+        assert result["running"] == 1
+        assert result["pending"] == 0
+        assert result["success_rate"] == 60.0
+
+    @pytest.mark.asyncio
+    async def test_get_stats_all_completed(self):
+        """Test stats when all tasks are completed."""
+        mock_tasks = [MagicMock(status="completed") for _ in range(10)]
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = mock_tasks
+        mock_session.execute.return_value = mock_result
+
+        result = await get_task_stats(session=mock_session)
+
+        assert result["total"] == 10
+        assert result["completed"] == 10
+        assert result["success_rate"] == 100.0
+
+    @pytest.mark.asyncio
+    async def test_get_stats_with_pending(self):
+        """Test stats include pending tasks."""
+        mock_tasks = [
+            MagicMock(status="pending"),
+            MagicMock(status="pending"),
+            MagicMock(status="completed"),
+        ]
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = mock_tasks
+        mock_session.execute.return_value = mock_result
+
+        result = await get_task_stats(session=mock_session)
+
+        assert result["total"] == 3
+        assert result["pending"] == 2
+        assert result["completed"] == 1

@@ -111,7 +111,6 @@ class TestGetConfig:
 
     def test_get_config_with_env_vars_fallback(self):
         """Test that get_config falls back to environment variables."""
-        import src.mcp_gateway.config as config_module
         from src.mcp_gateway.config import clear_config, get_config
 
         env_vars = {
@@ -125,9 +124,9 @@ class TestGetConfig:
             "PRODUCTION_URL": "https://env-prod.local",
         }
 
-        # Patch the import inside get_config to raise an exception
+        # Patch at src.secrets_manager level since that's where SecretManager is imported from
         with patch.dict(os.environ, env_vars, clear=False):
-            with patch.object(config_module, "SecretManager", side_effect=Exception("No GCP"), create=True):
+            with patch("src.secrets_manager.SecretManager", side_effect=Exception("No GCP")):
                 # Force re-import by clearing cache
                 clear_config()
                 config = get_config()
@@ -138,12 +137,11 @@ class TestGetConfig:
 
     def test_get_config_caches_result(self):
         """Test that get_config caches the configuration."""
-        import src.mcp_gateway.config as config_module
         from src.mcp_gateway.config import clear_config, get_config
 
         clear_config()
         with patch.dict(os.environ, {"RAILWAY_API_TOKEN": "cached", "N8N_API_KEY": "k", "MCP_GATEWAY_TOKEN": "t"}):
-            with patch.object(config_module, "SecretManager", side_effect=Exception("No GCP"), create=True):
+            with patch("src.secrets_manager.SecretManager", side_effect=Exception("No GCP")):
                 config1 = get_config()
                 config2 = get_config()
 
@@ -152,18 +150,17 @@ class TestGetConfig:
 
     def test_clear_config_clears_cache(self):
         """Test that clear_config clears the cached configuration."""
-        import src.mcp_gateway.config as config_module
         from src.mcp_gateway.config import clear_config, get_config
 
         clear_config()
         with patch.dict(os.environ, {"RAILWAY_API_TOKEN": "first", "N8N_API_KEY": "k", "MCP_GATEWAY_TOKEN": "t"}):
-            with patch.object(config_module, "SecretManager", side_effect=Exception("No GCP"), create=True):
+            with patch("src.secrets_manager.SecretManager", side_effect=Exception("No GCP")):
                 config1 = get_config()
 
         clear_config()
 
         with patch.dict(os.environ, {"RAILWAY_API_TOKEN": "second", "N8N_API_KEY": "k", "MCP_GATEWAY_TOKEN": "t"}):
-            with patch.object(config_module, "SecretManager", side_effect=Exception("No GCP"), create=True):
+            with patch("src.secrets_manager.SecretManager", side_effect=Exception("No GCP")):
                 config2 = get_config()
 
         # Should be different objects after clear

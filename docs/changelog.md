@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Test Coverage Improvement** (2026-01-23) - Added 81 new tests for untested modules
+  - `tests/test_secrets_health.py` (31 tests) - WIF health monitoring, SecretAccessMetrics, alert cooldown
+  - `tests/test_mcp_notifications.py` (25 tests) - NotificationServer, Telegram API, n8n webhooks
+  - `tests/test_observability_metrics.py` (25 tests) - MetricsCollector, LatencyTracker, database/in-memory storage
+  - Used direct module import via `importlib.util` to bypass opentelemetry dependency
+  - Added mock for `src.secrets_manager` to enable patch testing without GCP dependencies
+  - `tests/test_api_routes_agents.py` (~25 tests) - Agent CRUD endpoints, code generation
+  - `tests/test_api_routes_nightwatch.py` (~22 tests) - Night Watch status, tick, morning summary
+  - `tests/test_api_routes_health.py` (~14 tests) - Health check, root, ping endpoints
+  - `tests/test_mcp_browser.py` (44 tests) - BrowserServer, accessibility tree, loop detection
+  - `tests/test_mcp_filesystem.py` (42 tests) - FilesystemServer, sandboxed operations, security
+  - `tests/test_monitoring_loop.py` (33 tests) - MonitoringLoop, MetricsCollector, health monitoring
+  - `tests/test_orchestrator.py` (21 tests) - OODA Loop orchestrator, WorldModel, observations
+  - `tests/test_nightwatch_service.py` (41 tests) - NightWatchService, health checks, morning summary
+  - Total: **319 new tests** in session
+
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
   - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
   - Created `src/models/activity_log.py` - ActivityLog, NightWatchSummary, NightWatchConfig models

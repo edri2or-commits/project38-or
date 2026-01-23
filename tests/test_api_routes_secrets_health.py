@@ -243,3 +243,372 @@ class TestEndpointPaths:
             json={"to_version": "v1"},
         )
         assert response.status_code != 404
+
+
+# =============================================================================
+# Direct endpoint function tests (for actual coverage)
+# =============================================================================
+from src.api.routes.secrets_health import (
+    get_secrets_health,
+    get_credentials_health,
+    trigger_credential_refresh,
+    get_rotation_history,
+    rotate_secret,
+    rollback_secret,
+)
+from fastapi import HTTPException
+
+
+class TestGetSecretsHealthDirect:
+    """Direct tests for get_secrets_health endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_get_health_success(self):
+        """Test successful health check."""
+        mock_monitor = MagicMock()
+        mock_monitor.check_wif_health = AsyncMock(
+            return_value={"status": "healthy", "latency_ms": 50}
+        )
+        mock_monitor.get_health_report.return_value = {
+            "metrics": {"success_rate": 99.5},
+            "status": "healthy",
+            "alerting": {"enabled": True},
+        }
+
+        # Patch at source module (lazy import inside function)
+        with patch("src.secrets_health.get_wif_monitor", return_value=mock_monitor):
+            result = await get_secrets_health()
+
+        assert "timestamp" in result
+        assert result["status"] == "healthy"
+        assert "metrics" in result
+        assert "alerting" in result
+
+    @pytest.mark.asyncio
+    async def test_get_health_exception(self):
+        """Test health check returns error on exception."""
+        with patch(
+            "src.secrets_health.get_wif_monitor",
+            side_effect=ImportError("Module not found"),
+        ):
+            result = await get_secrets_health()
+
+        assert "timestamp" in result
+        assert result["status"] == "error"
+        assert "error" in result
+
+
+class TestGetCredentialsHealthDirect:
+    """Direct tests for get_credentials_health endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_get_credentials_success(self):
+        """Test successful credentials check."""
+        mock_health = MagicMock()
+        mock_health.all_healthy = True
+        mock_health.failed_credentials = []
+        mock_health.expiring_soon = []
+
+        mock_manager = MagicMock()
+        mock_manager.check_all_credentials = AsyncMock(return_value=mock_health)
+        mock_manager.get_expiration_report.return_value = {"summary": "all ok"}
+        mock_manager.close = AsyncMock()
+
+        # Patch at source module (lazy import inside function)
+        with patch(
+            "src.credential_lifecycle.CredentialLifecycleManager",
+            return_value=mock_manager,
+        ):
+            result = await get_credentials_health()
+
+        assert "timestamp" in result
+        assert result["all_healthy"] is True
+        assert result["failed"] == []
+        assert result["expiring_soon"] == []
+        mock_manager.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_credentials_with_failures(self):
+        """Test credentials check with failed credentials."""
+        mock_cred = MagicMock()
+        mock_cred.value = "RAILWAY-API"
+
+        mock_health = MagicMock()
+        mock_health.all_healthy = False
+        mock_health.failed_credentials = [mock_cred]
+        mock_health.expiring_soon = []
+
+        mock_manager = MagicMock()
+        mock_manager.check_all_credentials = AsyncMock(return_value=mock_health)
+        mock_manager.get_expiration_report.return_value = {"summary": "issues"}
+        mock_manager.close = AsyncMock()
+
+        with patch(
+            "src.credential_lifecycle.CredentialLifecycleManager",
+            return_value=mock_manager,
+        ):
+            result = await get_credentials_health()
+
+        assert result["all_healthy"] is False
+        assert "RAILWAY-API" in result["failed"]
+
+    @pytest.mark.asyncio
+    async def test_get_credentials_exception(self):
+        """Test credentials check returns error on exception."""
+        with patch(
+            "src.credential_lifecycle.CredentialLifecycleManager",
+            side_effect=ImportError("Module not found"),
+        ):
+            result = await get_credentials_health()
+
+        assert "timestamp" in result
+        assert result["all_healthy"] is False
+        assert "error" in result
+
+
+class TestTriggerCredentialRefreshDirect:
+    """Direct tests for trigger_credential_refresh endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_refresh_no_issues(self):
+        """Test refresh when no credentials need attention."""
+        mock_health = MagicMock()
+        mock_health.failed_credentials = []
+        mock_health.expiring_soon = []
+
+        mock_manager = MagicMock()
+        mock_manager.check_all_credentials = AsyncMock(return_value=mock_health)
+        mock_manager.close = AsyncMock()
+
+        with patch(
+            "src.credential_lifecycle.CredentialLifecycleManager",
+            return_value=mock_manager,
+        ):
+            result = await trigger_credential_refresh()
+
+        assert result["success"] is True
+        assert result["results"] == {}
+
+    @pytest.mark.asyncio
+    async def test_refresh_with_failed_credentials(self):
+        """Test refresh triggers recovery for failed credentials."""
+        mock_cred = MagicMock()
+        mock_cred.value = "RAILWAY-API"
+
+        mock_health = MagicMock()
+        mock_health.failed_credentials = [mock_cred]
+        mock_health.expiring_soon = []
+
+        mock_manager = MagicMock()
+        mock_manager.check_all_credentials = AsyncMock(return_value=mock_health)
+        mock_manager.trigger_recovery = AsyncMock(return_value={mock_cred: True})
+        mock_manager.close = AsyncMock()
+
+        with patch(
+            "src.credential_lifecycle.CredentialLifecycleManager",
+            return_value=mock_manager,
+        ):
+            result = await trigger_credential_refresh()
+
+        assert result["success"] is True
+        assert "recovery" in result["results"]
+        mock_manager.trigger_recovery.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_refresh_with_expiring_soon(self):
+        """Test refresh reports expiring credentials."""
+        mock_cred = MagicMock()
+        mock_cred.value = "OPENAI-API"
+
+        mock_health = MagicMock()
+        mock_health.failed_credentials = []
+        mock_health.expiring_soon = [mock_cred]
+
+        mock_manager = MagicMock()
+        mock_manager.check_all_credentials = AsyncMock(return_value=mock_health)
+        mock_manager.close = AsyncMock()
+
+        with patch(
+            "src.credential_lifecycle.CredentialLifecycleManager",
+            return_value=mock_manager,
+        ):
+            result = await trigger_credential_refresh()
+
+        assert result["success"] is True
+        assert "OPENAI-API" in result["results"]["refreshed"]
+
+    @pytest.mark.asyncio
+    async def test_refresh_exception_raises_http_error(self):
+        """Test refresh raises HTTPException on error."""
+        with patch(
+            "src.credential_lifecycle.CredentialLifecycleManager",
+            side_effect=Exception("Connection failed"),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                await trigger_credential_refresh()
+
+        assert exc_info.value.status_code == 500
+
+
+class TestGetRotationHistoryDirect:
+    """Direct tests for get_rotation_history endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_get_history_success(self):
+        """Test successful history retrieval."""
+        mock_history = [
+            {"secret": "TEST", "timestamp": "2026-01-23T00:00:00Z"},
+        ]
+
+        mock_interlock = MagicMock()
+        mock_interlock.get_rotation_history.return_value = mock_history
+
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            result = await get_rotation_history()
+
+        assert "timestamp" in result
+        assert result["count"] == 1
+        assert result["history"] == mock_history
+
+    @pytest.mark.asyncio
+    async def test_get_history_with_filter(self):
+        """Test history with secret_name filter."""
+        mock_interlock = MagicMock()
+        mock_interlock.get_rotation_history.return_value = []
+
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            result = await get_rotation_history(secret_name="TEST-SECRET")
+
+        mock_interlock.get_rotation_history.assert_called_once_with("TEST-SECRET")
+        assert result["count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_history_exception(self):
+        """Test history returns empty on exception."""
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.side_effect = Exception("Not available")
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            result = await get_rotation_history()
+
+        assert "timestamp" in result
+        assert "error" in result
+        assert result["history"] == []
+
+
+class TestRotateSecretDirect:
+    """Direct tests for rotate_secret endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_rotate_success(self):
+        """Test successful secret rotation."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.secret_name = "TEST-SECRET"
+        mock_result.old_version = "v1"
+        mock_result.new_version = "v2"
+        mock_result.state.value = "completed"
+        mock_result.error = None
+        mock_result.duration_seconds = 1.5
+
+        mock_interlock = MagicMock()
+        mock_interlock.rotate_token = AsyncMock(return_value=mock_result)
+
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            result = await rotate_secret(secret_name="TEST-SECRET", new_value="new-value")
+
+        assert result["success"] is True
+        assert result["secret_name"] == "TEST-SECRET"
+        assert result["new_version"] == "v2"
+
+    @pytest.mark.asyncio
+    async def test_rotate_failure(self):
+        """Test rotation failure response."""
+        mock_result = MagicMock()
+        mock_result.success = False
+        mock_result.secret_name = "TEST-SECRET"
+        mock_result.old_version = "v1"
+        mock_result.new_version = None
+        mock_result.state.value = "failed"
+        mock_result.error = "Access denied"
+        mock_result.duration_seconds = 0.5
+
+        mock_interlock = MagicMock()
+        mock_interlock.rotate_token = AsyncMock(return_value=mock_result)
+
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            result = await rotate_secret(secret_name="TEST-SECRET", new_value="new-value")
+
+        assert result["success"] is False
+        assert result["error"] == "Access denied"
+
+    @pytest.mark.asyncio
+    async def test_rotate_exception_raises_http_error(self):
+        """Test rotation raises HTTPException on exception."""
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.side_effect = Exception("Backend unavailable")
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            with pytest.raises(HTTPException) as exc_info:
+                await rotate_secret(secret_name="TEST", new_value="value")
+
+        assert exc_info.value.status_code == 500
+
+
+class TestRollbackSecretDirect:
+    """Direct tests for rollback_secret endpoint function."""
+
+    @pytest.mark.asyncio
+    async def test_rollback_success(self):
+        """Test successful rollback."""
+        mock_interlock = MagicMock()
+        mock_interlock.rollback.return_value = True
+
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            result = await rollback_secret(secret_name="TEST-SECRET", to_version="v1")
+
+        assert result["success"] is True
+        assert result["secret_name"] == "TEST-SECRET"
+        assert result["rolled_back_to"] == "v1"
+
+    @pytest.mark.asyncio
+    async def test_rollback_failure(self):
+        """Test rollback failure."""
+        mock_interlock = MagicMock()
+        mock_interlock.rollback.return_value = False
+
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            result = await rollback_secret(secret_name="TEST-SECRET", to_version="v1")
+
+        assert result["success"] is False
+        assert result["rolled_back_to"] is None
+
+    @pytest.mark.asyncio
+    async def test_rollback_exception_raises_http_error(self):
+        """Test rollback raises HTTPException on exception."""
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.side_effect = Exception("Version not found")
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
+            with pytest.raises(HTTPException) as exc_info:
+                await rollback_secret(secret_name="TEST", to_version="v1")
+
+        assert exc_info.value.status_code == 500
