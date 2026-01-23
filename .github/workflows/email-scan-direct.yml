@@ -1,6 +1,9 @@
 name: Email Scan Direct
 
 on:
+  schedule:
+    # Every day at 6:00 AM Israel time (4:00 UTC)
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       hours:
