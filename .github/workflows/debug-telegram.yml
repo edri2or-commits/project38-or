@@ -120,20 +120,14 @@ jobs:
           echo "" >> telegram_direct.md
 
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          MESSAGE="🧪 <b>Direct API Test</b>
-
-Bot: @$BOT_USERNAME
-Time: $TIMESTAMP
-Run: ${{ github.run_id }}
-
-This message was sent directly via Telegram API, bypassing Railway services."
+          RUN_ID="${{ github.run_id }}"
 
           echo '```json' >> telegram_direct.md
           SEND=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{
               \"chat_id\": \"$CHAT_ID\",
-              \"text\": \"$MESSAGE\",
+              \"text\": \"🧪 <b>Direct API Test</b>\\n\\nBot: @${BOT_USERNAME}\\nTime: ${TIMESTAMP}\\nRun: ${RUN_ID}\\n\\nThis message was sent directly via Telegram API.\",
               \"parse_mode\": \"HTML\"
             }")
           echo "$SEND" | jq '.' >> telegram_direct.md
