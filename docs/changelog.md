@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All agents now use real data with graceful fallback to estimates if APIs unavailable
 
 ### Fixed
+- **Railway Preview Environment Email Flood** (2026-01-23)
+  - Disabled automatic PR preview deployments that caused hundreds of "Build failed" emails
+  - `preview-deploy.yml` was creating Railway environments (pr-XXX) for every PR
+  - These environments lacked required env vars (TELEGRAM_BOT_TOKEN, DATABASE_URL)
+  - Added `cleanup-preview-environments.yml` workflow to delete existing pr-XXX environments
+  - Changed trigger from `pull_request` to `workflow_dispatch` (manual only)
+
 - **Background Agents Workflow** (2026-01-23)
   - Fixed silent failure in GitHub Actions workflow by using `tee` for output capture
   - Use `${PIPESTATUS[0]}` to correctly capture exit code from piped commands

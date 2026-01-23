@@ -1,9 +1,21 @@
 name: Preview Deployment
 
+# DISABLED: This workflow was creating pr-XXX environments for every PR,
+# causing hundreds of build failure emails when environments lack required
+# env vars (TELEGRAM_BOT_TOKEN, DATABASE_URL, etc.)
+#
+# To re-enable: Change 'workflow_dispatch' back to 'pull_request' trigger
+# and ensure preview environments have proper configuration.
+#
+# Disabled: 2026-01-23
+
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
+  workflow_dispatch:  # Manual only - disabled automatic preview deployments
+    inputs:
+      pr_number:
+        description: 'PR number to deploy (optional)'
+        required: false
+        type: string
 
 # Minimal permissions
 permissions:
