@@ -1,0 +1,61 @@
+name: Setup Telegram Chat ID
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: 'Telegram Chat ID'
+        required: true
+        default: '5786217215'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Create or Update Secret
+        run: |
+          CHAT_ID="${{ inputs.chat_id }}"
+          echo "Setting TELEGRAM-CHAT-ID to: $CHAT_ID"
+
+          # Check if secret exists
+          if gcloud secrets describe TELEGRAM-CHAT-ID --project=$GCP_PROJECT_ID &>/dev/null; then
+            echo "Secret exists, adding new version..."
+            echo -n "$CHAT_ID" | gcloud secrets versions add TELEGRAM-CHAT-ID \
+              --data-file=- \
+              --project=$GCP_PROJECT_ID
+          else
+            echo "Creating new secret..."
+            echo -n "$CHAT_ID" | gcloud secrets create TELEGRAM-CHAT-ID \
+              --data-file=- \
+              --project=$GCP_PROJECT_ID \
+              --replication-policy=automatic
+          fi
+
+          echo "✅ TELEGRAM-CHAT-ID configured!"
+
+      - name: Verify Secret
+        run: |
+          VALUE=$(gcloud secrets versions access latest --secret=TELEGRAM-CHAT-ID --project=$GCP_PROJECT_ID)
+          echo "Secret value length: ${#VALUE}"
+          echo "Secret preview: ${VALUE:0:4}..."
+
+          echo "## Telegram Chat ID Setup" >> $GITHUB_STEP_SUMMARY
+          echo "- Chat ID: ${VALUE:0:4}..." >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ✅ Configured" >> $GITHUB_STEP_SUMMARY
