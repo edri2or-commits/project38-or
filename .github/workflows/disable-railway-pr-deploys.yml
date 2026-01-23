@@ -1,0 +1,160 @@
+name: Disable Railway PR Deployments
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project38-483612
+  RAILWAY_API: https://backboard.railway.app/graphql/v2
+  RAILWAY_PROJECT_ID: "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+
+jobs:
+  disable-pr-deploys:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project="${PROJECT_ID}")
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: List All Environments
+        env:
+          RAILWAY_TOKEN: ${{ steps.get-token.outputs.token }}
+        run: |
+          echo "📋 Listing all environments in project..."
+
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { name environments { edges { node { id name createdAt } } } } }"
+            }')
+
+          echo "$RESPONSE" | jq '.data.project'
+
+          # Count pr-XXX environments
+          PR_ENVS=$(echo "$RESPONSE" | jq -r '.data.project.environments.edges[] | select(.node.name | startswith("pr-")) | .node.name')
+
+          if [ -n "$PR_ENVS" ]; then
+            echo ""
+            echo "⚠️ Found PR environments that need deletion:"
+            echo "$PR_ENVS"
+            echo "PR_ENVS_EXIST=true" >> $GITHUB_ENV
+          else
+            echo ""
+            echo "✅ No PR environments found"
+            echo "PR_ENVS_EXIST=false" >> $GITHUB_ENV
+          fi
+
+      - name: Delete All PR Environments
+        if: env.PR_ENVS_EXIST == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ steps.get-token.outputs.token }}
+        run: |
+          echo "🗑️ Deleting all PR environments..."
+
+          # Get all pr-XXX environment IDs
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { environments { edges { node { id name } } } } }"
+            }')
+
+          echo "$RESPONSE" | jq -r '.data.project.environments.edges[] | select(.node.name | startswith("pr-")) | "\(.node.id)|\(.node.name)"' | while IFS='|' read -r id name; do
+            echo "Deleting $name ($id)..."
+
+            DELETE_RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation { environmentDelete(id: \\\"$id\\\") }\"
+              }")
+
+            if echo "$DELETE_RESPONSE" | jq -e '.data.environmentDelete' > /dev/null 2>&1; then
+              echo "  ✅ Deleted"
+            else
+              echo "  ❌ Failed: $DELETE_RESPONSE"
+            fi
+
+            sleep 1
+          done
+
+      - name: Check GitHub Integration Settings
+        env:
+          RAILWAY_TOKEN: ${{ steps.get-token.outputs.token }}
+        run: |
+          echo ""
+          echo "🔍 Checking project settings and GitHub integration..."
+
+          # Query project details including GitHub integration
+          RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { name prDeploys prForks services { edges { node { name repoTriggers { edges { node { branch provider repository } } } } } } } }"
+            }')
+
+          echo "Project settings:"
+          echo "$RESPONSE" | jq '.data.project'
+
+          # Check if prDeploys is enabled
+          PR_DEPLOYS=$(echo "$RESPONSE" | jq -r '.data.project.prDeploys // false')
+          echo ""
+          echo "PR Deploys enabled: $PR_DEPLOYS"
+
+          if [ "$PR_DEPLOYS" = "true" ]; then
+            echo ""
+            echo "⚠️ PR Deploys is ENABLED - this is causing the email flood!"
+            echo "Attempting to disable..."
+
+            DISABLE_RESPONSE=$(curl -s -X POST "$RAILWAY_API" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "mutation { projectUpdate(id: \"'"$RAILWAY_PROJECT_ID"'\", input: { prDeploys: false }) { id prDeploys } }"
+              }')
+
+            echo "Disable response: $DISABLE_RESPONSE"
+
+            NEW_STATUS=$(echo "$DISABLE_RESPONSE" | jq -r '.data.projectUpdate.prDeploys // "unknown"')
+            if [ "$NEW_STATUS" = "false" ]; then
+              echo "✅ PR Deploys successfully DISABLED!"
+            else
+              echo "❌ Failed to disable PR Deploys"
+            fi
+          else
+            echo "✅ PR Deploys is already disabled"
+          fi
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "========================================="
+          echo "📋 SUMMARY"
+          echo "========================================="
+          echo ""
+          echo "Actions taken:"
+          echo "1. Listed all environments"
+          echo "2. Deleted any pr-XXX environments found"
+          echo "3. Checked and disabled prDeploys setting if enabled"
+          echo ""
+          echo "The email flood should stop now."
+          echo ""
+          echo "If emails continue, check Railway Dashboard:"
+          echo "  → Project Settings → Environments → PR Deploys"
