@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Background Agents Real Data Integration** (2026-01-23)
+  - Connected CostOptAgent to real Railway cost data via MCP Gateway
+  - Connected HealthSynthAgent to real production health endpoints (main-api, litellm-gateway, mcp-gateway, telegram-bot)
+  - Connected LearnInsightAgent to GitHub Actions API for real workflow history analysis
+  - Added daily Telegram summary feature (`--send-telegram` CLI option)
+  - Added scheduled workflow trigger for daily Telegram notifications at 08:00 UTC
+  - All agents now use real data with graceful fallback to estimates if APIs unavailable
+
 ### Fixed
 - **Background Agents Workflow** (2026-01-23)
   - Fixed silent failure in GitHub Actions workflow by using `tee` for output capture

@@ -64,81 +64,127 @@ class LearnInsightAgent:
         self.metrics_collector = metrics_collector or MetricsCollector()
 
     async def _get_learning_data(self) -> dict:
-        """Fetch learning data from the system.
+        """Fetch learning data from GitHub Actions workflow history.
 
-        In production, this would call LearningService.
-        For initial deployment, we use mock data to verify the agent works.
+        Analyzes real workflow runs to extract patterns and insights.
+        This provides actual action history without needing database access.
         """
-        # TODO: Integrate with actual LearningService
-        return {
+        import os
+
+        import httpx
+
+        learning_data = {
             "period": "last_30_days",
-            "total_actions": 1247,
-            "actions_by_type": {
-                "deploy": {"count": 45, "success_rate": 0.93, "avg_duration_ms": 45000},
-                "rollback": {"count": 3, "success_rate": 1.0, "avg_duration_ms": 12000},
-                "scale": {"count": 12, "success_rate": 1.0, "avg_duration_ms": 8000},
-                "alert": {"count": 89, "success_rate": 0.98, "avg_duration_ms": 500},
-                "health_check": {"count": 720, "success_rate": 0.995, "avg_duration_ms": 2000},
-                "cost_analysis": {"count": 28, "success_rate": 1.0, "avg_duration_ms": 3500},
-                "backup": {"count": 30, "success_rate": 0.97, "avg_duration_ms": 120000},
-                "api_call": {"count": 320, "success_rate": 0.89, "avg_duration_ms": 1500},
-            },
-            "failure_patterns": [
-                {
-                    "pattern": "deploy_after_midnight",
-                    "failures": 2,
-                    "total": 8,
-                    "correlation": "Higher failure rate for deploys between 00:00-04:00 UTC",
-                },
-                {
-                    "pattern": "api_call_rate_limit",
-                    "failures": 35,
-                    "total": 320,
-                    "correlation": "GitHub API rate limiting during CI peaks",
-                },
-                {
-                    "pattern": "backup_timeout",
-                    "failures": 1,
-                    "total": 30,
-                    "correlation": "Single backup failure during high DB load",
-                },
-            ],
-            "success_patterns": [
-                {
-                    "pattern": "gradual_rollout",
-                    "description": "Deployments with canary phase have 0% rollback rate",
-                    "occurrences": 15,
-                },
-                {
-                    "pattern": "pre_deploy_health_check",
-                    "description": "Deploys preceded by health check have 98% success rate",
-                    "occurrences": 40,
-                },
-            ],
-            "resource_usage_trends": {
-                "cpu_trend": "stable",
-                "memory_trend": "slowly_increasing",
-                "storage_trend": "stable",
-                "cost_trend": "decreasing",
-            },
-            "agent_performance": {
-                "DeployAgent": {"avg_confidence": 0.87, "decisions_automated": 38},
-                "MonitoringAgent": {"avg_confidence": 0.92, "decisions_automated": 650},
-                "IntegrationAgent": {"avg_confidence": 0.78, "decisions_automated": 89},
-            },
-            "previous_insights": [
-                {
-                    "date": "2026-01-16",
-                    "insight": "API rate limiting causing 10%+ failures",
-                    "status": "addressed",
-                },
-                {
-                    "date": "2026-01-20",
-                    "insight": "Memory usage increasing 2% weekly",
-                    "status": "monitoring",
-                },
-            ],
+            "total_actions": 0,
+            "actions_by_type": {},
+            "failure_patterns": [],
+            "success_patterns": [],
+            "resource_usage_trends": {},
+            "agent_performance": {},
+            "previous_insights": [],
+            "data_source": "github_actions",
         }
+
+        # Get GitHub token from environment
+        gh_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        if not gh_token:
+            logger.warning("No GitHub token available, using minimal data")
+            learning_data["data_source"] = "minimal"
+            learning_data["actions_by_type"] = {
+                "workflow_run": {"count": 0, "success_rate": 0, "note": "No token available"},
+            }
+            return learning_data
+
+        headers = {
+            "Authorization": f"token {gh_token}",
+            "Accept": "application/vnd.github+json",
+        }
+
+        async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
+            # Get recent workflow runs
+            try:
+                response = await client.get(
+                    "https://api.github.com/repos/edri2or-commits/project38-or/actions/runs",
+                    params={"per_page": 100},
+                )
+
+                if response.status_code == 200:
+                    runs_data = response.json()
+                    runs = runs_data.get("workflow_runs", [])
+
+                    # Analyze workflow runs by name
+                    workflow_stats: dict[str, dict] = {}
+                    for run in runs:
+                        wf_name = run.get("name", "unknown")
+                        if wf_name not in workflow_stats:
+                            workflow_stats[wf_name] = {
+                                "count": 0,
+                                "success": 0,
+                                "failure": 0,
+                                "total_duration_ms": 0,
+                            }
+
+                        workflow_stats[wf_name]["count"] += 1
+                        if run.get("conclusion") == "success":
+                            workflow_stats[wf_name]["success"] += 1
+                        elif run.get("conclusion") == "failure":
+                            workflow_stats[wf_name]["failure"] += 1
+
+                        learning_data["total_actions"] += 1
+
+                    # Convert to expected format
+                    for wf_name, stats in workflow_stats.items():
+                        success_rate = (
+                            stats["success"] / stats["count"]
+                            if stats["count"] > 0
+                            else 0
+                        )
+                        learning_data["actions_by_type"][wf_name] = {
+                            "count": stats["count"],
+                            "success_rate": round(success_rate, 3),
+                            "failures": stats["failure"],
+                        }
+
+                    # Identify failure patterns
+                    for wf_name, stats in workflow_stats.items():
+                        if stats["failure"] > 2:
+                            failure_rate = stats["failure"] / stats["count"]
+                            learning_data["failure_patterns"].append({
+                                "pattern": f"{wf_name}_failures",
+                                "failures": stats["failure"],
+                                "total": stats["count"],
+                                "failure_rate": round(failure_rate, 3),
+                            })
+
+                    # Identify success patterns
+                    for wf_name, stats in workflow_stats.items():
+                        if stats["count"] >= 5 and stats["failure"] == 0:
+                            learning_data["success_patterns"].append({
+                                "pattern": f"{wf_name}_reliable",
+                                "description": f"{wf_name} has 100% success rate",
+                                "occurrences": stats["count"],
+                            })
+
+                    logger.info(f"Analyzed {len(runs)} workflow runs")
+
+            except Exception as e:
+                logger.warning(f"Could not fetch workflow runs: {e}")
+                learning_data["error"] = str(e)
+
+            # Try to get learning API metrics
+            try:
+                response = await client.get(
+                    "https://or-infra.com/api/learning/metrics",
+                    headers={"Accept": "application/json"},
+                )
+                if response.status_code == 200:
+                    metrics = response.json()
+                    learning_data["agent_performance"] = metrics.get("agents", {})
+                    logger.info("Got learning API metrics")
+            except Exception as e:
+                logger.debug(f"Learning API not available: {e}")
+
+        return learning_data
 
     def _build_prompt(self, learning_data: dict) -> str:
         """Build the analysis prompt for the LLM."""
