@@ -85,51 +85,40 @@ jobs:
 
       - name: Run agent
         id: run
-        continue-on-error: true
         env:
           PYTHONPATH: ${{ github.workspace }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "=== Agent Run Debug ==="
-          echo "AGENT: ${{ needs.determine-agent.outputs.agent }}"
-          echo "LITELLM_URL: $LITELLM_URL"
-          echo "PYTHONPATH: $PYTHONPATH"
-          echo "PWD: $(pwd)"
-          echo "Python: $(which python)"
-          echo ""
-          echo "=== Running Agent ==="
+          AGENT="${{ needs.determine-agent.outputs.agent }}"
+          echo "Running agent: $AGENT"
 
-          # Capture output
+          # Capture output for debugging on failure
           OUTPUT_FILE=$(mktemp)
 
           python -m src.background_agents.runner \
-            --agent "${{ needs.determine-agent.outputs.agent }}" \
+            --agent "$AGENT" \
             --litellm-url "$LITELLM_URL" \
             --output-json \
             2>&1 | tee "$OUTPUT_FILE"
 
           EXIT_CODE=${PIPESTATUS[0]}
 
-          echo ""
-          echo "=== Exit Code: $EXIT_CODE ==="
-
-          # Post output to GitHub issue for debugging
+          # Create issue on failure for debugging
           if [ "$EXIT_CODE" != "0" ]; then
-            ISSUE_BODY="## Agent Run Failed
-
-          **Run:** #${{ github.run_number }}
-          **Agent:** ${{ needs.determine-agent.outputs.agent }}
-          **Exit Code:** $EXIT_CODE
-
-          ### Output
-          \`\`\`
-          $(cat "$OUTPUT_FILE")
-          \`\`\`
-          "
+            echo "Agent failed with exit code: $EXIT_CODE"
             gh issue create \
               --title "Background Agent Failure [Run #${{ github.run_number }}]" \
-              --body "$ISSUE_BODY" \
-              --label "bug,agent" \
+              --body "## Agent Run Failed
+
+**Run:** #${{ github.run_number }} ([link](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))
+**Agent:** $AGENT
+**Exit Code:** $EXIT_CODE
+
+### Output
+\`\`\`
+$(tail -100 "$OUTPUT_FILE")
+\`\`\`" \
+              --label "bug" \
               --repo ${{ github.repository }} || true
           fi
 

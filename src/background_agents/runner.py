@@ -13,49 +13,18 @@ Usage:
 ADR-013 Phase 3: Background Autonomous Jobs
 """
 
-# Earliest possible debug output - before any imports
-print("[RUNNER] Script starting - module loading...")
-import sys
-print(f"[RUNNER] Python: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
-
 import argparse
 import asyncio
 import json
 import logging
 import os
+import sys
 from datetime import UTC, datetime
 
-print("[RUNNER] Standard library imports OK")
-
-try:
-    from src.background_agents.cost_opt_agent import CostOptAgent
-    print("[RUNNER] CostOptAgent import OK")
-except Exception as e:
-    print(f"[RUNNER] CostOptAgent import FAILED: {e}")
-    raise
-
-try:
-    from src.background_agents.health_synth_agent import HealthSynthAgent
-    print("[RUNNER] HealthSynthAgent import OK")
-except Exception as e:
-    print(f"[RUNNER] HealthSynthAgent import FAILED: {e}")
-    raise
-
-try:
-    from src.background_agents.learn_insight_agent import LearnInsightAgent
-    print("[RUNNER] LearnInsightAgent import OK")
-except Exception as e:
-    print(f"[RUNNER] LearnInsightAgent import FAILED: {e}")
-    raise
-
-try:
-    from src.background_agents.metrics import MetricsCollector
-    print("[RUNNER] MetricsCollector import OK")
-except Exception as e:
-    print(f"[RUNNER] MetricsCollector import FAILED: {e}")
-    raise
-
-print("[RUNNER] All imports successful!")
+from src.background_agents.cost_opt_agent import CostOptAgent
+from src.background_agents.health_synth_agent import HealthSynthAgent
+from src.background_agents.learn_insight_agent import LearnInsightAgent
+from src.background_agents.metrics import MetricsCollector
 
 logging.basicConfig(
     level=logging.INFO,
@@ -164,11 +133,6 @@ def main() -> int:
     Returns:
         Exit code: 0 for success, 1 for failure
     """
-    # Immediate startup logging for debugging
-    print(f"[DEBUG] Background Agents Runner starting...")
-    print(f"[DEBUG] Python version: {sys.version}")
-    print(f"[DEBUG] Arguments: {sys.argv}")
-
     parser = argparse.ArgumentParser(description="Background Agents Runner")
     parser.add_argument(
         "--agent",
@@ -264,26 +228,17 @@ def main() -> int:
         return 1
 
     # Run agents
-    print(f"[DEBUG] About to run agent(s)...")
-    print(f"[DEBUG] args.all={args.all}, args.agent={args.agent}, litellm_url={args.litellm_url}")
-
     try:
         if args.all:
-            print("[DEBUG] Running ALL agents...")
             results = asyncio.run(run_all_agents(args.litellm_url))
         else:
-            print(f"[DEBUG] Running single agent: {args.agent}")
             results = {args.agent: asyncio.run(run_agent(args.agent, args.litellm_url))}
-        print(f"[DEBUG] Agent run completed successfully")
     except Exception as e:
         import traceback
 
         error_detail = traceback.format_exc()
-        logger.error(f"Agent execution failed:\n{error_detail}")
-        print(f"\n=== AGENT EXECUTION ERROR ===")
-        print(f"Error type: {type(e).__name__}")
-        print(f"Error message: {e}")
-        print(f"\nFull traceback:")
+        logger.error(f"Agent execution failed: {e}")
+        print(f"\nAgent execution failed: {type(e).__name__}: {e}")
         print(error_detail)
         return 1
 
