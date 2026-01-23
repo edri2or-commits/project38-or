@@ -11,25 +11,12 @@ Covers:
 
 from __future__ import annotations
 
-import sys
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Mock dependencies before importing
-_mock_database = MagicMock()
-_mock_database.get_session = MagicMock()
-sys.modules["src.api.database"] = _mock_database
-
-_mock_activity_log = MagicMock()
-_mock_activity_log.ActivityLog = MagicMock()
-sys.modules["src.models.activity_log"] = _mock_activity_log
-
-_mock_nightwatch_service = MagicMock()
-sys.modules["src.nightwatch"] = _mock_nightwatch_service
-
-# Now import the module
+# Import the module
 from src.api.routes.nightwatch import (
     NightWatchStatus,
     ActivityLogEntry,
@@ -145,9 +132,8 @@ class TestGetNightwatchStatus:
         mock_service.config.telegram_chat_id = "123456"
         mock_service.is_night_hours.return_value = True
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
-        result = await get_nightwatch_status()
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            result = await get_nightwatch_status()
 
         assert result.enabled is True
         assert result.telegram_configured is True
@@ -163,9 +149,8 @@ class TestGetNightwatchStatus:
         mock_service.config.telegram_chat_id = None
         mock_service.is_night_hours.return_value = False
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
-        result = await get_nightwatch_status()
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            result = await get_nightwatch_status()
 
         assert result.enabled is False
         assert result.telegram_configured is False
@@ -185,11 +170,10 @@ class TestNightwatchTick:
             "activities": [{"type": "health_check"}],
         })
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_session = AsyncMock()
 
-        result = await nightwatch_tick(db_session=mock_session)
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            result = await nightwatch_tick(db_session=mock_session)
 
         assert result.status == "success"
         assert result.duration_ms == 150
@@ -200,11 +184,10 @@ class TestNightwatchTick:
         mock_service = MagicMock()
         mock_service.tick = AsyncMock(side_effect=Exception("Database connection failed"))
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_session = AsyncMock()
 
-        result = await nightwatch_tick(db_session=mock_session)
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            result = await nightwatch_tick(db_session=mock_session)
 
         assert result.status == "error"
         assert "Database connection failed" in result.error
@@ -222,11 +205,10 @@ class TestSendMorningSummary:
             "summary": {"total_activities": 10},
         })
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_session = AsyncMock()
 
-        result = await send_morning_summary(db_session=mock_session)
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            result = await send_morning_summary(db_session=mock_session)
 
         assert result.status == "sent"
 
@@ -238,11 +220,10 @@ class TestSendMorningSummary:
             side_effect=Exception("Telegram API error")
         )
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_session = AsyncMock()
 
-        result = await send_morning_summary(db_session=mock_session)
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            result = await send_morning_summary(db_session=mock_session)
 
         assert result.status == "error"
         assert "Telegram API error" in result.error
@@ -270,11 +251,10 @@ class TestGetSummary:
         mock_service = MagicMock()
         mock_service.generate_morning_summary = AsyncMock(return_value=mock_summary)
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_session = AsyncMock()
 
-        result = await get_summary(db_session=mock_session)
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            result = await get_summary(db_session=mock_session)
 
         assert result["total_activities"] == 15
         assert result["health_checks_passed"] == 12
@@ -290,12 +270,11 @@ class TestGetSummary:
             side_effect=Exception("Database error")
         )
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_session = AsyncMock()
 
-        with pytest.raises(HTTPException) as exc_info:
-            await get_summary(db_session=mock_session)
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            with pytest.raises(HTTPException) as exc_info:
+                await get_summary(db_session=mock_session)
 
         assert exc_info.value.status_code == 500
 
@@ -351,11 +330,10 @@ class TestTestTelegramSend:
         mock_service = MagicMock()
         mock_service.config.telegram_chat_id = None
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_session = AsyncMock()
 
-        result = await test_telegram_send(db_session=mock_session)
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            result = await test_telegram_send(db_session=mock_session)
 
         assert result["status"] == "error"
         assert "No Telegram chat_id configured" in result["error"]
@@ -368,22 +346,21 @@ class TestTestTelegramSend:
         mock_service.telegram_token = "test_token"
         mock_service.telegram_url = None
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_response = MagicMock()
         mock_response.json.return_value = {"ok": True, "result": {"message_id": 1}}
 
         mock_session = AsyncMock()
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.post.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_instance
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.post.return_value = mock_response
+                mock_client.return_value.__aenter__.return_value = mock_instance
 
-            result = await test_telegram_send(
-                message="Test message",
-                db_session=mock_session,
-            )
+                result = await test_telegram_send(
+                    message="Test message",
+                    db_session=mock_session,
+                )
 
         assert result["status"] == "sent"
         assert result["method"] == "direct_api"
@@ -395,22 +372,21 @@ class TestTestTelegramSend:
         mock_service.config.telegram_chat_id = "123456"
         mock_service.telegram_token = "test_token"
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_response = MagicMock()
         mock_response.json.return_value = {"ok": False, "description": "Bad Request"}
 
         mock_session = AsyncMock()
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.post.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_instance
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.post.return_value = mock_response
+                mock_client.return_value.__aenter__.return_value = mock_instance
 
-            result = await test_telegram_send(
-                message="Test message",
-                db_session=mock_session,
-            )
+                result = await test_telegram_send(
+                    message="Test message",
+                    db_session=mock_session,
+                )
 
         assert result["status"] == "failed"
         assert result["method"] == "direct_api"
@@ -423,23 +399,22 @@ class TestTestTelegramSend:
         mock_service.telegram_token = None  # No direct token
         mock_service.telegram_url = "http://telegram-bot.railway.app"
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"ok": True}
 
         mock_session = AsyncMock()
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.post.return_value = mock_response
-            mock_client.return_value.__aenter__.return_value = mock_instance
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.post.return_value = mock_response
+                mock_client.return_value.__aenter__.return_value = mock_instance
 
-            result = await test_telegram_send(
-                message="Test message",
-                db_session=mock_session,
-            )
+                result = await test_telegram_send(
+                    message="Test message",
+                    db_session=mock_session,
+                )
 
         assert result["status"] == "sent"
         assert result["method"] == "railway_service"
@@ -451,19 +426,18 @@ class TestTestTelegramSend:
         mock_service.config.telegram_chat_id = "123456"
         mock_service.telegram_token = "test_token"
 
-        _mock_nightwatch_service.get_night_watch.return_value = mock_service
-
         mock_session = AsyncMock()
 
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.post.side_effect = Exception("Connection refused")
-            mock_client.return_value.__aenter__.return_value = mock_instance
+        with patch("src.api.routes.nightwatch.get_night_watch", return_value=mock_service):
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.post.side_effect = Exception("Connection refused")
+                mock_client.return_value.__aenter__.return_value = mock_instance
 
-            result = await test_telegram_send(
-                message="Test message",
-                db_session=mock_session,
-            )
+                result = await test_telegram_send(
+                    message="Test message",
+                    db_session=mock_session,
+                )
 
         assert result["status"] == "error"
         assert "Connection refused" in result["error"]

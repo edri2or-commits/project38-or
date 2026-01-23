@@ -18,36 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-# Mock dependencies before importing the routes
-import sys
-
-# Mock factory modules
-_mock_generator = MagicMock()
-_mock_generator.estimate_cost = MagicMock(return_value=0.05)
-_mock_generator.generate_agent_code = AsyncMock(return_value={
-    "code": "def agent(): pass",
-    "tokens_used": 100,
-})
-sys.modules["src.factory.generator"] = _mock_generator
-
-_mock_ralph = MagicMock()
-_mock_ralph.ralph_wiggum_loop = AsyncMock(return_value={
-    "passed": True,
-    "code": "def agent(): pass",
-    "iterations": 1,
-    "errors": [],
-    "warnings": [],
-    "tokens_used": 50,
-})
-_mock_ralph.get_loop_summary = MagicMock(return_value="Passed in 1 iteration")
-sys.modules["src.factory.ralph_loop"] = _mock_ralph
-
-# Mock database
-_mock_database = MagicMock()
-_mock_database.get_session = MagicMock()
-sys.modules["src.api.database"] = _mock_database
-
-# Now import the routes
+# Import the route functions and models
 from src.api.routes.agents import (
     AgentCreateRequest,
     AgentCreateResponse,
@@ -181,20 +152,28 @@ class TestCreateAgent:
         mock_session.commit = AsyncMock()
         mock_session.refresh = AsyncMock()
 
-        # Reset mocks
-        _mock_generator.generate_agent_code.reset_mock()
-        _mock_ralph.ralph_wiggum_loop.reset_mock()
-
         request = AgentCreateRequest(
             description="Monitor stock prices and send alerts"
         )
 
-        with patch("src.api.routes.agents.Agent", return_value=mock_agent):
-            result = await create_agent(request, mock_session)
+        with patch("src.api.routes.agents.generate_agent_code", new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = {"code": "def agent(): pass", "tokens_used": 100, "model": "claude"}
+            with patch("src.api.routes.agents.ralph_wiggum_loop", new_callable=AsyncMock) as mock_ralph:
+                mock_ralph.return_value = {
+                    "passed": True,
+                    "code": "def agent(): pass",
+                    "iterations": 1,
+                    "errors": [],
+                    "warnings": [],
+                    "tokens_used": 50,
+                }
+                with patch("src.api.routes.agents.estimate_cost", return_value=0.05):
+                    with patch("src.api.routes.agents.Agent", return_value=mock_agent):
+                        result = await create_agent(request, mock_session)
 
         assert result.status == "active"
         assert result.generation_cost >= 0
-        _mock_generator.generate_agent_code.assert_called_once()
+        mock_gen.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_agent_with_name(self):
@@ -220,8 +199,20 @@ class TestCreateAgent:
             name="Custom Name",
         )
 
-        with patch("src.api.routes.agents.Agent", return_value=mock_agent):
-            result = await create_agent(request, mock_session)
+        with patch("src.api.routes.agents.generate_agent_code", new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = {"code": "def agent(): pass", "tokens_used": 100, "model": "claude"}
+            with patch("src.api.routes.agents.ralph_wiggum_loop", new_callable=AsyncMock) as mock_ralph:
+                mock_ralph.return_value = {
+                    "passed": True,
+                    "code": "def agent(): pass",
+                    "iterations": 1,
+                    "errors": [],
+                    "warnings": [],
+                    "tokens_used": 50,
+                }
+                with patch("src.api.routes.agents.estimate_cost", return_value=0.05):
+                    with patch("src.api.routes.agents.Agent", return_value=mock_agent):
+                        result = await create_agent(request, mock_session)
 
         # Name should be the custom one, not auto-generated
         mock_session.add.assert_called_once()
@@ -229,34 +220,27 @@ class TestCreateAgent:
     @pytest.mark.asyncio
     async def test_create_agent_validation_failure(self):
         """Test agent creation when validation fails."""
-        _mock_ralph.ralph_wiggum_loop.return_value = {
-            "passed": False,
-            "code": "def broken(): pass",
-            "iterations": 5,
-            "errors": ["Syntax error"],
-            "warnings": [],
-        }
-
         mock_session = AsyncMock()
 
         request = AgentCreateRequest(
             description="Test agent that will fail validation"
         )
 
-        with pytest.raises(HTTPException) as exc_info:
-            await create_agent(request, mock_session)
+        with patch("src.api.routes.agents.generate_agent_code", new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = {"code": "def broken(): pass", "tokens_used": 100, "model": "claude"}
+            with patch("src.api.routes.agents.ralph_wiggum_loop", new_callable=AsyncMock) as mock_ralph:
+                mock_ralph.return_value = {
+                    "passed": False,
+                    "code": "def broken(): pass",
+                    "iterations": 5,
+                    "errors": ["Syntax error"],
+                    "warnings": [],
+                }
+                with patch("src.api.routes.agents.estimate_cost", return_value=0.05):
+                    with pytest.raises(HTTPException) as exc_info:
+                        await create_agent(request, mock_session)
 
         assert exc_info.value.status_code == 422
-
-        # Reset mock
-        _mock_ralph.ralph_wiggum_loop.return_value = {
-            "passed": True,
-            "code": "def agent(): pass",
-            "iterations": 1,
-            "errors": [],
-            "warnings": [],
-            "tokens_used": 50,
-        }
 
 
 class TestListAgents:

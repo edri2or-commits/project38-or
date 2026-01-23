@@ -1,5 +1,6 @@
 """Tests for src/harness/scheduler.py - Task Scheduler."""
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

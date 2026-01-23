@@ -10,18 +10,12 @@ Covers:
 
 from __future__ import annotations
 
-import sys
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
-# Mock dependencies before importing
-_mock_database = MagicMock()
-_mock_database.check_database_connection = AsyncMock(return_value=True)
-sys.modules["src.api.database"] = _mock_database
-
-# Now import the module
+# Import the module
 from src.api.routes.health import (
     HealthResponse,
     health_check,
@@ -79,9 +73,9 @@ class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_healthy(self):
         """Test health check when database is connected."""
-        _mock_database.check_database_connection.return_value = True
-
-        result = await health_check()
+        with patch("src.api.routes.health.check_database_connection", new_callable=AsyncMock) as mock_db:
+            mock_db.return_value = True
+            result = await health_check()
 
         assert result.status == "healthy"
         assert result.database == "connected"
@@ -91,9 +85,9 @@ class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_degraded(self):
         """Test health check when database is disconnected."""
-        _mock_database.check_database_connection.return_value = False
-
-        result = await health_check()
+        with patch("src.api.routes.health.check_database_connection", new_callable=AsyncMock) as mock_db:
+            mock_db.return_value = False
+            result = await health_check()
 
         assert result.status == "degraded"
         assert result.database == "disconnected"
@@ -101,9 +95,9 @@ class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_has_timestamp(self):
         """Test that health check includes timestamp."""
-        _mock_database.check_database_connection.return_value = True
-
-        result = await health_check()
+        with patch("src.api.routes.health.check_database_connection", new_callable=AsyncMock) as mock_db:
+            mock_db.return_value = True
+            result = await health_check()
 
         assert result.timestamp is not None
         assert isinstance(result.timestamp, datetime)
@@ -179,21 +173,21 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_health_and_root_consistency(self):
         """Test that health and root endpoints are consistent."""
-        _mock_database.check_database_connection.return_value = True
-
-        health_result = await health_check()
-        root_result = await root()
+        with patch("src.api.routes.health.check_database_connection", new_callable=AsyncMock) as mock_db:
+            mock_db.return_value = True
+            health_result = await health_check()
+            root_result = await root()
 
         assert health_result.version == root_result["version"]
 
     @pytest.mark.asyncio
     async def test_all_endpoints_return_valid_data(self):
         """Test that all endpoints return valid data."""
-        _mock_database.check_database_connection.return_value = True
-
-        health_result = await health_check()
-        root_result = await root()
-        ping_result = await test_ping()
+        with patch("src.api.routes.health.check_database_connection", new_callable=AsyncMock) as mock_db:
+            mock_db.return_value = True
+            health_result = await health_check()
+            root_result = await root()
+            ping_result = await test_ping()
 
         # All should return without error
         assert health_result is not None
