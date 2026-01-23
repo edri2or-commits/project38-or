@@ -15,9 +15,9 @@ ADR-014: Smart Email Agent with Telegram Integration
 
 from src.agents.deadline_tracker import (
     Deadline,
+    DeadlineStatus,
     DeadlineTracker,
-    DeadlineType,
-    UrgencyLevel,
+    DeadlineUrgency,
 )
 from src.agents.draft_generator import (
     DraftGenerator,
@@ -88,8 +88,8 @@ __all__ = [
     # Deadline Tracker (Phase 3)
     "DeadlineTracker",
     "Deadline",
-    "DeadlineType",
-    "UrgencyLevel",
+    "DeadlineStatus",
+    "DeadlineUrgency",
     # User Preferences (Phase 3)
     "UserPreferences",
     "ActionType",

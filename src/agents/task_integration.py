@@ -106,7 +106,10 @@ class TaskItem:
             source_sender=data.get("source_sender"),
             due_date=datetime.fromisoformat(data["due_date"]) if data.get("due_date") else None,
             created_at=datetime.fromisoformat(data["created_at"]),
-            completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None,
+            completed_at=(
+                datetime.fromisoformat(data["completed_at"])
+                if data.get("completed_at") else None
+            ),
             tags=data.get("tags", []),
             subtasks=data.get("subtasks", []),
             external_id=data.get("external_id"),
@@ -285,7 +288,8 @@ class TaskIntegration:
                 return TaskPriority.MEDIUM
 
         # Government/official sources are usually important
-        if any(tag in ["government", "banking"] for tag in self._detect_organization_tags(sender, "")):
+        org_tags = self._detect_organization_tags(sender, "")
+        if any(tag in ["government", "banking"] for tag in org_tags):
             return TaskPriority.HIGH
 
         # Payment and signing actions are high priority
@@ -477,10 +481,11 @@ class TaskIntegration:
             if days_until <= 2:
                 priority = TaskPriority.CRITICAL
 
+        deadline_str = f"עד {deadline.strftime('%d/%m/%Y')}" if deadline else ""
         task = TaskItem(
             id=self._generate_task_id(),
             title=f"📝 מילוי טופס: {form_title}",
-            description=f"יש למלא את הטופס ולהגיש{'עד ' + deadline.strftime('%d/%m/%Y') if deadline else ''}",
+            description=f"יש למלא את הטופס ולהגיש{deadline_str}",
             priority=priority,
             status=TaskStatus.PENDING,
             source=TaskSource.FORM,

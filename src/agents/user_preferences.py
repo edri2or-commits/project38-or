@@ -11,7 +11,7 @@ ADR-014 Phase 3: Learning from User Feedback
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path

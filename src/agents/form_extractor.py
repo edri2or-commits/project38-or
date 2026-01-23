@@ -13,9 +13,6 @@ import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
-
-import httpx
 
 logger = logging.getLogger(__name__)
 

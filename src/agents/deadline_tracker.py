@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 import httpx
 
@@ -226,7 +225,11 @@ class DeadlineTracker:
             # DD/MM/YY
             (r"(\d{1,2})[./](\d{1,2})[./](\d{2})", "%d/%m/%y"),
             # Hebrew months
-            (r"(\d{1,2})\s+ב?(ינואר|פברואר|מרץ|אפריל|מאי|יוני|יולי|אוגוסט|ספטמבר|אוקטובר|נובמבר|דצמבר)", None),
+            (
+                r"(\d{1,2})\s+ב?(ינואר|פברואר|מרץ|אפריל|מאי|יוני|יולי|"
+                r"אוגוסט|ספטמבר|אוקטובר|נובמבר|דצמבר)",
+                None,
+            ),
         ]
 
         for pattern, date_format in patterns:
@@ -415,7 +418,8 @@ class DeadlineTracker:
                     already_sent = any(
                         r.date() == now.date() for r in deadline.reminders_sent
                     )
-                    if not already_sent and len(deadline.reminders_sent) < self.config.max_reminders:
+                    max_not_reached = len(deadline.reminders_sent) < self.config.max_reminders
+                    if not already_sent and max_not_reached:
                         reminders_needed.append(deadline)
                         break
 
@@ -550,9 +554,13 @@ class DeadlineTracker:
             return "✅ *אין דדליינים פתוחים!*\n\n_הכל בסדר._"
 
         # Group by urgency
-        urgent = [d for d in deadlines if d.urgency in [DeadlineUrgency.OVERDUE, DeadlineUrgency.TODAY, DeadlineUrgency.TOMORROW]]
+        urgent_levels = [
+            DeadlineUrgency.OVERDUE, DeadlineUrgency.TODAY, DeadlineUrgency.TOMORROW
+        ]
+        urgent = [d for d in deadlines if d.urgency in urgent_levels]
         this_week = [d for d in deadlines if d.urgency == DeadlineUrgency.THIS_WEEK]
-        later = [d for d in deadlines if d.urgency in [DeadlineUrgency.NEXT_WEEK, DeadlineUrgency.LATER]]
+        later_levels = [DeadlineUrgency.NEXT_WEEK, DeadlineUrgency.LATER]
+        later = [d for d in deadlines if d.urgency in later_levels]
 
         lines = [
             f"📅 *דדליינים ({len(deadlines)} פתוחים)*",
