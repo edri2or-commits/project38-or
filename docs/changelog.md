@@ -8,15 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Smart Email Agent - ADR-014** (2026-01-23)
-  - Autonomous email agent that scans Gmail inbox daily and sends summary to Telegram
-  - P1-P4 priority classification with Hebrew categories (בירוקרטיה, כספים, דחוף, etc.)
-  - Calendar context awareness - integrates with Google Calendar
-  - Smart action suggestions via LLM analysis (drafts, not auto-send)
-  - Form/link extraction for bureaucracy emails
-  - Safety rules: NEVER auto-sends emails, payments, or form submissions
-  - GitHub Actions workflow: `daily-email-agent.yml` runs at 07:00 Israel time
-  - Files: `src/agents/email_agent.py` (~500 lines), `docs/decisions/ADR-014-smart-email-agent.md`
+- **Smart Email Agent - ADR-014 Phase 1 & 2** (2026-01-23)
+  - **Phase 1 - Core Agent:**
+    - Autonomous email agent that scans Gmail inbox daily and sends summary to Telegram
+    - P1-P4 priority classification with Hebrew categories (בירוקרטיה, כספים, דחוף, etc.)
+    - Calendar context awareness - integrates with Google Calendar
+    - Smart action suggestions via LLM analysis
+    - Form/link extraction for bureaucracy emails
+    - Safety rules: NEVER auto-sends emails, payments, or form submissions
+    - GitHub Actions workflow: `daily-email-agent.yml` runs at 07:00 Israel time
+  - **Phase 2 - Intelligence (NEW):**
+    - `WebResearcher`: Investigates government sites, banks based on email content
+    - `DraftGenerator`: Creates intelligent reply drafts with tone matching
+    - `EmailHistoryLookup`: Finds past conversations with senders
+    - `run_with_research()`: Enhanced run method with all Phase 2 features
+    - Known sources: ביטוח לאומי, מס הכנסה, משרד הפנים, עיריות, בנקים
+  - Files:
+    - `src/agents/email_agent.py` (~700 lines)
+    - `src/agents/web_researcher.py` (~350 lines)
+    - `src/agents/draft_generator.py` (~400 lines)
+    - `src/agents/email_history.py` (~250 lines)
+    - `docs/decisions/ADR-014-smart-email-agent.md`
 
 - **Background Agents Real Data Integration** (2026-01-23)
   - Connected CostOptAgent to real Railway cost data via MCP Gateway

@@ -5,13 +5,18 @@ suggests actions, and delivers a friendly summary to Telegram.
 
 ADR-014: Smart Email Agent with Telegram Integration
 
-Key Features:
+Phase 1 Features:
 - P1-P4 priority classification with Hebrew categories
 - Calendar context awareness (today's schedule)
 - Smart action suggestions (drafts, not auto-send)
 - Form/link extraction for bureaucracy
-- History lookup for sender context
 - Friendly Hebrew Telegram formatting
+
+Phase 2 Features (NEW):
+- Web research for bureaucracy emails (government sites, banks)
+- Draft reply generator with tone matching
+- Sender history lookup (past conversations)
+- Enhanced action suggestions
 
 Safety Rules (Non-Negotiable):
 - NEVER sends emails automatically
@@ -762,6 +767,208 @@ class EmailAgent:
             }
 
 
+    async def run_with_research(
+        self,
+        hours: int = 24,
+        send_telegram: bool = True,
+        include_drafts: bool = True,
+        include_history: bool = True,
+    ) -> dict:
+        """Execute the email agent with Phase 2 features.
+
+        Enhanced run that includes:
+        - Web research for bureaucracy emails
+        - Draft reply generation
+        - Sender history lookup
+
+        Args:
+            hours: Number of hours to look back for emails
+            send_telegram: Whether to send summary to Telegram
+            include_drafts: Whether to generate reply drafts
+            include_history: Whether to lookup sender history
+
+        Returns:
+            Execution result with enhanced data
+        """
+        from src.agents.draft_generator import DraftGenerator
+        from src.agents.email_history import EmailHistoryLookup
+        from src.agents.web_researcher import WebResearcher
+
+        start_time = time.time()
+        run_id = f"email_v2_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+
+        logger.info(f"Starting EmailAgent Phase 2 run {run_id}")
+
+        try:
+            # Phase 1: Basic email processing
+            raw_emails = await self._fetch_emails(hours)
+            calendar_events = await self._fetch_calendar_events()
+
+            logger.info(f"Fetched {len(raw_emails)} emails, {len(calendar_events)} events")
+
+            # Process emails
+            processed_emails = []
+            for raw in raw_emails:
+                email_item = await self._process_email(raw)
+                processed_emails.append(email_item)
+
+            # Sort by priority
+            processed_emails.sort(key=lambda e: e.priority.value)
+
+            # Count by priority
+            p1_count = sum(1 for e in processed_emails if e.priority == Priority.P1)
+            p2_count = sum(1 for e in processed_emails if e.priority == Priority.P2)
+            p3_count = sum(1 for e in processed_emails if e.priority == Priority.P3)
+            p4_count = sum(1 for e in processed_emails if e.priority == Priority.P4)
+
+            # Phase 2: Enhanced features
+            research_results = {}
+            draft_replies = []
+            sender_histories = {}
+
+            # Web research for P1 bureaucracy emails
+            bureaucracy_emails = [
+                e for e in processed_emails
+                if e.priority == Priority.P1 and e.category == EmailCategory.BUREAUCRACY
+            ]
+
+            if bureaucracy_emails:
+                logger.info(f"Researching {len(bureaucracy_emails)} bureaucracy emails")
+                researcher = WebResearcher(litellm_url=self.litellm_url)
+
+                for email in bureaucracy_emails[:3]:  # Limit to 3 for cost
+                    result = await researcher.research_email(
+                        subject=email.subject,
+                        sender=email.sender,
+                        snippet=email.snippet,
+                    )
+                    if result:
+                        research_results[email.id] = result
+
+            # Generate draft replies for P1/P2 emails
+            if include_drafts and (p1_count > 0 or p2_count > 0):
+                logger.info("Generating draft replies")
+                generator = DraftGenerator(litellm_url=self.litellm_url)
+
+                # Calendar context for scheduling
+                calendar_context = [
+                    f"{e.start} - {e.summary}" for e in calendar_events[:5]
+                ]
+
+                for email in processed_emails[:5]:  # Top 5 emails
+                    if email.priority in [Priority.P1, Priority.P2]:
+                        draft = await generator.generate_reply(
+                            email_id=email.id,
+                            email_subject=email.subject,
+                            email_body=email.snippet,
+                            sender=email.sender_email,
+                            calendar_context=calendar_context,
+                        )
+                        draft_replies.append(draft)
+
+            # Lookup sender history
+            if include_history:
+                logger.info("Looking up sender histories")
+                history_lookup = EmailHistoryLookup(mcp_gateway_url=self.mcp_gateway_url)
+
+                # Get unique senders from P1/P2 emails
+                important_senders = list(set(
+                    e.sender_email for e in processed_emails
+                    if e.priority in [Priority.P1, Priority.P2]
+                ))[:5]  # Limit to 5
+
+                sender_histories = await history_lookup.get_batch_history(important_senders)
+
+            # Generate smart analysis with enhanced context
+            analysis = {}
+            if p1_count > 0 or p2_count > 0:
+                analysis = await self._generate_smart_analysis(processed_emails)
+
+            # Build summary
+            summary = DailySummary(
+                date=datetime.now(UTC).strftime("%d/%m/%Y"),
+                total_emails=len(processed_emails),
+                p1_count=p1_count,
+                p2_count=p2_count,
+                p3_count=p3_count,
+                p4_count=p4_count,
+                emails=processed_emails,
+                calendar_events=calendar_events,
+                suggested_actions=analysis.get("smart_tips", []),
+            )
+
+            # Format main message
+            message = self._format_telegram_message(summary, analysis)
+
+            # Add Phase 2 content to message
+            phase2_lines = []
+
+            # Add research findings
+            if research_results:
+                phase2_lines.append("\n" + "━" * 20)
+                phase2_lines.append("\n🔍 *מחקר בירוקרטי:*\n")
+                for email_id, research in list(research_results.items())[:2]:
+                    phase2_lines.append(f"• *{research.source_name}*")
+                    phase2_lines.append(f"  {research.relevant_info[:100]}...")
+                    if research.forms_found:
+                        phase2_lines.append(f"  📝 טפסים: {', '.join(research.forms_found[:2])}")
+
+            # Add draft indicators
+            if draft_replies:
+                phase2_lines.append("\n" + "━" * 20)
+                phase2_lines.append(f"\n✉️ *{len(draft_replies)} טיוטות תשובה מוכנות*")
+                phase2_lines.append("_שלח /drafts לצפייה בטיוטות_")
+
+            if phase2_lines:
+                message = message.replace(
+                    "_נשלח אוטומטית על ידי Email Agent_",
+                    "\n".join(phase2_lines) + "\n\n_נשלח אוטומטית על ידי Email Agent v2_"
+                )
+
+            # Send to Telegram
+            telegram_result = {"success": False, "error": "Not sent"}
+            if send_telegram:
+                telegram_result = await self.send_to_telegram(message)
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            return {
+                "success": True,
+                "run_id": run_id,
+                "version": "2.0",
+                "duration_ms": duration_ms,
+                "emails_processed": len(processed_emails),
+                "p1_count": p1_count,
+                "p2_count": p2_count,
+                "calendar_events": len(calendar_events),
+                "research_count": len(research_results),
+                "drafts_generated": len(draft_replies),
+                "histories_loaded": len(sender_histories),
+                "telegram_sent": telegram_result.get("success", False),
+                "message": message,
+                "drafts": [
+                    {
+                        "email_id": d.email_id,
+                        "subject": d.subject,
+                        "body": d.body_hebrew[:200] + "...",
+                        "confidence": d.confidence,
+                    }
+                    for d in draft_replies
+                ],
+            }
+
+        except Exception as e:
+            logger.error(f"EmailAgent Phase 2 failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "success": False,
+                "run_id": run_id,
+                "version": "2.0",
+                "error": str(e),
+            }
+
+
 async def main() -> None:
     """Run EmailAgent for testing."""
     import os
@@ -776,14 +983,21 @@ async def main() -> None:
         print("Warning: MCP_GATEWAY_TOKEN not set, will try Secret Manager")
 
     agent = EmailAgent()
-    result = await agent.run(hours=24, send_telegram=False)
 
-    print("\n=== EmailAgent Results ===")
+    # Test Phase 1
+    print("=== Testing Phase 1 ===")
+    result = await agent.run(hours=24, send_telegram=False)
     print(json.dumps({k: v for k, v in result.items() if k != "message"}, indent=2))
 
-    if result.get("success") and result.get("message"):
-        print("\n=== Telegram Message Preview ===")
-        print(result["message"])
+    # Test Phase 2
+    print("\n=== Testing Phase 2 ===")
+    result_v2 = await agent.run_with_research(hours=24, send_telegram=False)
+    print(json.dumps({k: v for k, v in result_v2.items() if k not in ["message", "drafts"]}, indent=2))
+
+    if result_v2.get("drafts"):
+        print("\n=== Draft Replies ===")
+        for draft in result_v2["drafts"]:
+            print(f"  • {draft['subject']} (confidence: {draft['confidence']})")
 
 
 if __name__ == "__main__":
