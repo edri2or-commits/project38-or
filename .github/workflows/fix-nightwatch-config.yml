@@ -1,0 +1,171 @@
+name: Fix Night Watch Configuration
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: 'Telegram Chat ID'
+        required: true
+        default: '5786217215'
+      service_name:
+        description: 'Railway service name (leave empty to list services)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT: project38-483612
+  RAILWAY_PROJECT_ID: 95ec21cc-9ada-41c5-8485-12f9a00e0116
+  RAILWAY_ENV_ID: 99c99a18-aea2-4d01-9360-6a93705102a0
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=$GCP_PROJECT)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: List Railway Services
+        id: services
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"}')
+
+          echo "## Railway Services" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.data.project.services.edges[].node' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Save for next step
+          echo "$RESPONSE" > services.json
+
+          # List service names
+          echo "Services found:"
+          echo "$RESPONSE" | jq -r '.data.project.services.edges[].node | "\(.name): \(.id)"'
+
+      - name: Find Main Service
+        id: main
+        run: |
+          # Find service that hosts or-infra.com (the main app)
+          # Look for service named something like "delightful-cat", "main", "app", or the first one
+
+          SERVICES=$(cat services.json)
+
+          # Try to find by common names
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name | test("delightful|main|app|production|or-infra"; "i")) | .node.id' | head -1)
+
+          if [ -z "$SERVICE_ID" ]; then
+            # Just use the first service
+            SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[0].node.id')
+            SERVICE_NAME=$(echo "$SERVICES" | jq -r '.data.project.services.edges[0].node.name')
+          else
+            SERVICE_NAME=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.id == "'$SERVICE_ID'") | .node.name')
+          fi
+
+          echo "Selected service: $SERVICE_NAME ($SERVICE_ID)"
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+          echo "service_name=$SERVICE_NAME" >> $GITHUB_OUTPUT
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Selected service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+
+      - name: Set Environment Variables
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+          SERVICE_ID: ${{ steps.main.outputs.service_id }}
+          CHAT_ID: ${{ inputs.chat_id }}
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Setting Variables on service $SERVICE_ID" >> $GITHUB_STEP_SUMMARY
+
+          # Set NIGHTWATCH_ENABLED
+          R1=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"NIGHTWATCH_ENABLED\", value: \"true\" }) }"}')
+          echo "NIGHTWATCH_ENABLED: $(echo $R1 | jq -r '.data.variableUpsert // .errors')" >> $GITHUB_STEP_SUMMARY
+
+          # Set NIGHTWATCH_CHAT_ID
+          R2=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"NIGHTWATCH_CHAT_ID\", value: \"'$CHAT_ID'\" }) }"}')
+          echo "NIGHTWATCH_CHAT_ID: $(echo $R2 | jq -r '.data.variableUpsert // .errors')" >> $GITHUB_STEP_SUMMARY
+
+          # Set TELEGRAM_BOT_URL
+          R3=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"TELEGRAM_BOT_URL\", value: \"https://telegram-bot-production-053d.up.railway.app\" }) }"}')
+          echo "TELEGRAM_BOT_URL: $(echo $R3 | jq -r '.data.variableUpsert // .errors')" >> $GITHUB_STEP_SUMMARY
+
+      - name: Trigger Redeploy
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+          SERVICE_ID: ${{ steps.main.outputs.service_id }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceInstanceRedeploy(serviceId: \"'$SERVICE_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\") }"}')
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Redeploy" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Wait and Verify
+        run: |
+          echo "Waiting 60s for redeploy..."
+          sleep 60
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Check Night Watch status
+          RESPONSE=$(curl -s -m 30 "https://or-infra.com/api/nightwatch/status" || echo '{"error":"timeout"}')
+          echo "Night Watch Status:" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          TELEGRAM_CONFIGURED=$(echo "$RESPONSE" | jq -r '.telegram_configured')
+          if [ "$TELEGRAM_CONFIGURED" = "true" ]; then
+            echo "✅ **telegram_configured: true**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **telegram_configured: false** - Configuration may not have applied" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Post to Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = `Configuration attempt completed. Check workflow summary for details.`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 453,
+              body: summary
+            });
