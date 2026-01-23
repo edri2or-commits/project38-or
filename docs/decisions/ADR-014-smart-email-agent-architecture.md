@@ -1329,6 +1329,377 @@ workflow.add_edge("recall_context", "classify")
 workflow.add_edge("await_feedback", "learn_from_feedback")
 ```
 
+### Thread Context & History Search (הקשר שרשורי וחיפוש היסטוריה)
+
+**Sources**: [Gmail API Threads](https://developers.google.com/workspace/gmail/api/guides/threads), [Conversational RAG](https://haystack.deepset.ai/cookbook/conversational_rag_using_memory), [GAM Memory Architecture](https://venturebeat.com/ai/gam-takes-aim-at-context-rot-a-dual-agent-memory-architecture/), [LLM Memory Design](https://www.datacamp.com/blog/how-does-llm-memory-work)
+
+#### Why Thread Context Matters
+
+> "Context rot" - when AI loses the thread in multi-step reasoning tasks.
+> Traditional RAG breaks down when information stretches across multiple sessions.
+
+**Without context**:
+```
+📧 מייל חדש מ-דני:
+   "מה עם התשובה?"
+
+🤖 סוכן רגיל: "יש לך מייל מדני ששואל על תשובה"
+   ❌ חסר הקשר - על מה הוא מדבר?
+```
+
+**With context**:
+```
+📧 מייל חדש מ-דני:
+   "מה עם התשובה?"
+
+🤖 סוכן חכם:
+   "דני שואל על ההצעה לשיתוף פעולה ששלח לפני 3 ימים.
+    בהצעה הוא הציע: X, Y, Z.
+    עדיין לא ענית."
+   ✅ הקשר מלא
+```
+
+#### Gmail Thread API Integration
+
+```python
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+
+class ThreadContextRetriever:
+    """Retrieve full thread context from Gmail."""
+
+    def __init__(self, credentials: Credentials):
+        self.service = build('gmail', 'v1', credentials=credentials)
+
+    def get_thread_context(self, thread_id: str) -> ThreadContext:
+        """Fetch entire thread with all messages."""
+        thread = self.service.users().threads().get(
+            userId='me',
+            id=thread_id,
+            format='full'  # Get full message content
+        ).execute()
+
+        messages = []
+        for msg in thread.get('messages', []):
+            messages.append(self._parse_message(msg))
+
+        return ThreadContext(
+            thread_id=thread_id,
+            message_count=len(messages),
+            messages=messages,
+            participants=self._extract_participants(messages),
+            date_range=(messages[0].date, messages[-1].date),
+            subject=messages[0].subject
+        )
+
+    def get_sender_history(
+        self,
+        sender_email: str,
+        max_results: int = 20
+    ) -> list[EmailSummary]:
+        """Get recent emails from same sender."""
+        query = f"from:{sender_email}"
+
+        results = self.service.users().messages().list(
+            userId='me',
+            q=query,
+            maxResults=max_results
+        ).execute()
+
+        history = []
+        for msg_ref in results.get('messages', []):
+            msg = self.service.users().messages().get(
+                userId='me',
+                id=msg_ref['id'],
+                format='metadata',
+                metadataHeaders=['Subject', 'Date', 'From']
+            ).execute()
+            history.append(self._to_summary(msg))
+
+        return history
+```
+
+#### Context Types
+
+| סוג הקשר | מה כולל | מתי משתמשים |
+|----------|---------|-------------|
+| **Thread Context** | כל ההודעות בשרשור | מייל הוא תגובה/המשך |
+| **Sender History** | מיילים קודמים מאותו שולח | זיהוי דפוסים |
+| **Topic History** | מיילים על אותו נושא | "הזמנה #123" |
+| **Time Context** | מיילים מאותו יום/שבוע | "הפגישה של מחר" |
+
+#### Semantic Search with RAG
+
+```python
+from qdrant_client import QdrantClient
+from sentence_transformers import SentenceTransformer
+
+class EmailRAG:
+    """RAG for semantic email search."""
+
+    def __init__(self):
+        self.encoder = SentenceTransformer('intfloat/multilingual-e5-large')
+        self.qdrant = QdrantClient(path="./email_vectors")
+
+    def index_email(self, email: Email) -> None:
+        """Index email for semantic search."""
+        # Combine fields for embedding
+        text = f"{email.subject} {email.sender} {email.snippet}"
+
+        # Generate embedding
+        embedding = self.encoder.encode(text)
+
+        # Store in Qdrant
+        self.qdrant.upsert(
+            collection_name="emails",
+            points=[{
+                "id": email.id,
+                "vector": embedding.tolist(),
+                "payload": {
+                    "subject": email.subject,
+                    "sender": email.sender,
+                    "date": email.date.isoformat(),
+                    "thread_id": email.thread_id,
+                }
+            }]
+        )
+
+    def search_similar(
+        self,
+        query: str,
+        limit: int = 5,
+        sender_filter: str | None = None
+    ) -> list[EmailSummary]:
+        """Find similar emails by semantic meaning."""
+        query_vector = self.encoder.encode(query)
+
+        filter_conditions = None
+        if sender_filter:
+            filter_conditions = {
+                "must": [{"key": "sender", "match": {"value": sender_filter}}]
+            }
+
+        results = self.qdrant.search(
+            collection_name="emails",
+            query_vector=query_vector.tolist(),
+            limit=limit,
+            query_filter=filter_conditions
+        )
+
+        return [self._to_summary(r) for r in results]
+
+    def find_related_threads(self, email: Email) -> list[ThreadContext]:
+        """Find threads related to this email's topic."""
+        # Search by subject keywords
+        subject_keywords = self._extract_keywords(email.subject)
+
+        related = self.search_similar(
+            query=f"{email.subject} {email.snippet}",
+            limit=10
+        )
+
+        # Group by thread_id
+        thread_ids = set(r.thread_id for r in related)
+        return [self.get_thread(tid) for tid in thread_ids]
+```
+
+#### Context Injection Pattern
+
+```python
+@dataclass
+class EnrichedEmail:
+    """Email with all relevant context."""
+    email: Email
+    thread_context: ThreadContext | None
+    sender_history: list[EmailSummary]
+    related_emails: list[EmailSummary]
+    context_summary: str  # AI-generated summary
+
+class ContextInjector:
+    """Inject context before classification."""
+
+    def __init__(self, thread_retriever: ThreadContextRetriever, rag: EmailRAG):
+        self.threads = thread_retriever
+        self.rag = rag
+
+    def enrich(self, email: Email) -> EnrichedEmail:
+        """Enrich email with all available context."""
+
+        # 1. Get thread context (if reply)
+        thread_context = None
+        if self._is_reply(email):
+            thread_context = self.threads.get_thread_context(email.thread_id)
+
+        # 2. Get sender history
+        sender_history = self.threads.get_sender_history(
+            sender_email=email.sender_email,
+            max_results=10
+        )
+
+        # 3. Find related emails (semantic)
+        related_emails = self.rag.search_similar(
+            query=email.subject,
+            limit=5
+        )
+
+        # 4. Generate context summary
+        context_summary = self._generate_summary(
+            email, thread_context, sender_history, related_emails
+        )
+
+        return EnrichedEmail(
+            email=email,
+            thread_context=thread_context,
+            sender_history=sender_history,
+            related_emails=related_emails,
+            context_summary=context_summary
+        )
+
+    def _generate_summary(self, email, thread, history, related) -> str:
+        """Generate human-readable context summary."""
+        parts = []
+
+        # Thread context
+        if thread and thread.message_count > 1:
+            parts.append(
+                f"📧 זה חלק משרשור עם {thread.message_count} הודעות "
+                f"שהתחיל ב-{thread.date_range[0].strftime('%d/%m')}"
+            )
+
+        # Sender history
+        if history:
+            last_email = history[0]
+            days_ago = (datetime.now() - last_email.date).days
+            parts.append(
+                f"👤 {email.sender} שלח לך {len(history)} מיילים. "
+                f"האחרון לפני {days_ago} ימים על: {last_email.subject[:30]}"
+            )
+
+        # Related topics
+        if related:
+            topics = set(r.subject[:20] for r in related[:3])
+            parts.append(f"🔗 נושאים קשורים: {', '.join(topics)}")
+
+        return "\n".join(parts) if parts else "אין הקשר נוסף"
+```
+
+#### Thread-Aware Classification
+
+```python
+def classify_with_context(
+    email: Email,
+    context: EnrichedEmail,
+    classifier: Classifier
+) -> tuple[Priority, str]:
+    """Classify considering full context."""
+
+    # Build context-aware prompt
+    prompt = f"""
+    סווג את המייל הבא לפי עדיפות (P1-P4).
+
+    📧 מייל נוכחי:
+    - מאת: {email.sender}
+    - נושא: {email.subject}
+    - תוכן: {email.snippet}
+
+    📋 הקשר:
+    {context.context_summary}
+
+    🔍 היסטוריית שולח:
+    - סה"כ מיילים: {len(context.sender_history)}
+    - עדיפות טיפוסית: {_typical_priority(context.sender_history)}
+    - נושאים נפוצים: {_common_topics(context.sender_history)}
+
+    📝 שרשור:
+    {_thread_summary(context.thread_context) if context.thread_context else "מייל חדש (לא תגובה)"}
+
+    החלט:
+    - P1 (דחוף): דורש תשובה מיידית, דד-ליין קרוב
+    - P2 (חשוב): דורש תשובה, אבל לא דחוף
+    - P3 (מידע): כדאי לדעת, לא דורש פעולה
+    - P4 (נמוך): ניתן להתעלם או לקבץ
+    """
+
+    result = classifier.classify(prompt)
+
+    return result.priority, result.reasoning
+```
+
+#### Thread Summary in Telegram
+
+```
+📧 מייל חדש מ-דני כהן
+
+📋 *הקשר:*
+├─ 🔄 חלק משרשור (5 הודעות, התחיל 20/01)
+├─ 👤 מייל 8 מדני החודש (עדיפות טיפוסית: P2)
+└─ 🔗 קשור ל: "הצעת מחיר לפרויקט X"
+
+📝 *סיכום שרשור:*
+• 20/01 - דני: שלח הצעה ראשונית (₪15,000)
+• 21/01 - אתה: ביקשת הנחה
+• 22/01 - דני: הציע ₪13,000
+• היום - דני: "מה עם התשובה?"
+
+💡 *המלצה:* זה follow-up על הצעת המחיר.
+   צריך להחליט אם להמשיך או לסרב.
+```
+
+#### Privacy Considerations
+
+| Data | Where Stored | Retention |
+|------|--------------|-----------|
+| Email vectors | Local Qdrant | 90 days |
+| Thread cache | SQLite | 7 days |
+| Sender profiles | Mem0 | 1 year |
+| Full email content | **Not stored** | Gmail only |
+
+```python
+# Privacy-safe: Store only metadata, not content
+EMAIL_INDEXED_FIELDS = [
+    "id", "thread_id", "sender", "sender_email",
+    "subject", "date", "labels"
+]
+# ❌ Never indexed: body, attachments, recipients
+```
+
+#### Integration with LangGraph
+
+```python
+def context_retrieval_node(state: EmailState) -> EmailState:
+    """Node that retrieves all relevant context."""
+    email = state['email']
+
+    # Get thread context
+    if email.thread_id:
+        state['thread_context'] = thread_retriever.get_thread_context(
+            email.thread_id
+        )
+
+    # Get sender history
+    state['sender_history'] = thread_retriever.get_sender_history(
+        email.sender_email,
+        max_results=10
+    )
+
+    # Semantic search for related
+    state['related_emails'] = rag.search_similar(
+        query=email.subject,
+        limit=5
+    )
+
+    # Generate context summary
+    state['context_summary'] = generate_context_summary(state)
+
+    return state
+
+# Add to graph
+workflow.add_node("context_retrieval", context_retrieval_node)
+workflow.add_edge("fetch_emails", "context_retrieval")
+workflow.add_edge("context_retrieval", "recall_memory")  # Then Mem0
+workflow.add_edge("recall_memory", "classify")
+```
+
 ### Model Routing Strategy (ADR-013)
 
 | Task | Model | Cost/1M tokens | Rationale |
