@@ -5766,5 +5766,129 @@ User wakes up with summary
 
 ---
 
-*Last Updated: 2026-01-22 UTC*
-*Status: **Phase 42 Complete - Night Watch Autonomous Operations***
+## Phase 43: Night Watch Telegram Fix - Direct API Integration (2026-01-23)
+
+### Problem Statement
+
+After implementing Night Watch (Phase 42), testing revealed that Telegram messages were not being delivered. User reported: "לא הגיע שום הודעה" (No message arrived).
+
+### Investigation (Truth Protocol Applied)
+
+**Step 1: Debug Workflow Analysis**
+- Triggered `debug-telegram.yml` workflow
+- Discovered: Railway `telegram-bot` service had **43 orphaned instances**
+- Instances were stuck, unable to process messages
+
+**Step 2: Direct API Test**
+- Added direct Telegram API test to workflow (PR #468, #469)
+- Test bypassed Railway service, called Telegram API directly
+- Result: **Message delivered successfully**
+- User confirmed: "עבד! קיבלתי בדיוק את ההודעה הזאת!" (It worked!)
+
+**Step 3: Root Cause Identified**
+
+| Component | Status | Evidence |
+|-----------|--------|----------|
+| Telegram Token | ✅ Valid | `getMe` returned `@tok38bot` |
+| Chat ID | ✅ Correct | `5786217215` |
+| Direct API | ✅ Works | Message delivered |
+| Railway telegram-bot | ❌ Broken | 43 orphaned instances |
+
+### Solution: Direct Telegram API
+
+Instead of fixing the broken Railway service, bypass it entirely:
+
+```
+Before (broken):
+Night Watch → telegram-bot service (43 stuck instances) → ❌
+
+After (working):
+Night Watch → Direct Telegram API → ✅
+```
+
+### Implementation
+
+| File | Line | Change |
+|------|------|--------|
+| `src/nightwatch/service.py` | 87 | `self.telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")` |
+| `src/nightwatch/service.py` | 488-501 | Direct Telegram API call logic |
+| `src/api/routes/nightwatch.py` | 266-288 | Test endpoint uses direct API |
+| `.github/workflows/configure-nightwatch.yml` | 141-153 | Sets TELEGRAM_BOT_TOKEN |
+
+### Code Logic (service.py:488-501)
+
+```python
+if self.telegram_token:
+    # Direct Telegram API (preferred - bypasses Railway service)
+    response = await client.post(
+        f"https://api.telegram.org/bot{self.telegram_token}/sendMessage",
+        json={
+            "chat_id": self.config.telegram_chat_id,
+            "text": message,
+            "parse_mode": "HTML",
+        },
+    )
+else:
+    # Fall back to Railway telegram-bot service
+    response = await client.post(f"{self.telegram_url}/send", ...)
+```
+
+### Evidence (Verifiable)
+
+| Evidence Type | Reference | Verification Method |
+|---------------|-----------|---------------------|
+| PR #471 | Direct API support | `git log --oneline \| grep ca5c01e` |
+| PR #472 | Config workflow | `git log --oneline \| grep 34e01dd` |
+| PR #473 | Configure workflow | `git log --oneline \| grep a5b3e8c` |
+| Workflow #21283518169 | Configure Night Watch | GitHub Actions → Run #21283518169 |
+| Workflow #21283572068 | Verify Night Watch | GitHub Actions → Run #21283572068 |
+| Code | Lines 87, 488-501 | `grep -n telegram_token src/nightwatch/service.py` |
+
+### Verification Results
+
+Workflow #21283572068 (Verify Night Watch) - All steps passed:
+- ✅ Check Production Health
+- ✅ Test Night Watch Tick Endpoint
+- ✅ Test Telegram Bot /send Endpoint
+- ✅ **Test Night Watch Telegram Integration** - Message sent via direct API
+- ✅ Check Railway Cron Configuration
+- ✅ Final Summary
+
+### Current Architecture
+
+```
+Railway (24/7 server)
+├── 🌐 Web Service (or-infra.com)
+│   ├── Night Watch Service
+│   │   └── Uses TELEGRAM_BOT_TOKEN env var
+│   │   └── Calls api.telegram.org directly
+│   └── Cron: hourly tick + 06:00 summary
+│
+└── 🤖 telegram-bot Service (BROKEN - bypassed)
+    └── 43 orphaned instances (not used)
+```
+
+### What Works Now
+
+| Feature | Status | Method |
+|---------|--------|--------|
+| Night Watch health checks | ✅ | Railway cron → /api/nightwatch/tick |
+| Night Watch alerts | ✅ | Direct Telegram API |
+| Morning summary | ✅ | Direct Telegram API |
+| User sends to bot | ❌ | telegram-bot service still broken |
+
+### Lessons Learned
+
+1. **Always verify end-to-end**: CI passing ≠ feature working
+2. **Have fallback paths**: Direct API bypasses broken intermediaries
+3. **Document failures clearly**: "43 orphaned instances" is actionable
+4. **User feedback is truth**: "לא הגיע שום הודעה" exposed the real problem
+
+### Status
+
+**Phase 43: ✅ COMPLETE - Night Watch Telegram Sending Works**
+
+---
+
+*Last Updated: 2026-01-23 UTC*
+*Status: **Phase 43 Complete - Night Watch Telegram Fix***

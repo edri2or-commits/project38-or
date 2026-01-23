@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Night Watch Telegram Integration - Direct API** (2026-01-23)
+  - Problem: Railway `telegram-bot` service was broken (43 orphaned instances, connection failures)
+  - Root cause: Service instances stuck in limbo, unable to process messages
+  - Solution: Bypass broken service, use direct Telegram API from Night Watch
+  - Code changes:
+    - `src/nightwatch/service.py:87` - Added `self.telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")`
+    - `src/nightwatch/service.py:488-501` - Direct Telegram API call when token available
+    - `src/api/routes/nightwatch.py:266-288` - Updated test-telegram endpoint for direct API
+  - Workflow changes:
+    - `.github/workflows/configure-nightwatch.yml` - Sets TELEGRAM_BOT_TOKEN on web service
+    - `.github/workflows/fix-nightwatch-config.yml` - Same capability
+    - `.github/workflows/debug-telegram.yml` - Added direct API test step
+  - Evidence:
+    - PR #471 (direct API support): Merged 2026-01-23
+    - PR #472 (config workflow): Merged 2026-01-23
+    - Workflow Run #21283518169 (Configure Night Watch): SUCCESS
+    - Workflow Run #21283572068 (Verify Night Watch): SUCCESS - All tests passed
+  - Result: Night Watch can now send Telegram messages reliably via direct API
+
 ### Added
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
   - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
