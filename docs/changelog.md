@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Smart Email Agent - ADR-014 Phase 1 & 2** (2026-01-23)
+- **Smart Email Agent - ADR-014 Complete (Phase 1, 2 & 3)** (2026-01-23)
   - **Phase 1 - Core Agent:**
     - Autonomous email agent that scans Gmail inbox daily and sends summary to Telegram
     - P1-P4 priority classification with Hebrew categories (בירוקרטיה, כספים, דחוף, etc.)
@@ -17,17 +17,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Form/link extraction for bureaucracy emails
     - Safety rules: NEVER auto-sends emails, payments, or form submissions
     - GitHub Actions workflow: `daily-email-agent.yml` runs at 07:00 Israel time
-  - **Phase 2 - Intelligence (NEW):**
+  - **Phase 2 - Intelligence:**
     - `WebResearcher`: Investigates government sites, banks based on email content
     - `DraftGenerator`: Creates intelligent reply drafts with tone matching
     - `EmailHistoryLookup`: Finds past conversations with senders
     - `run_with_research()`: Enhanced run method with all Phase 2 features
     - Known sources: ביטוח לאומי, מס הכנסה, משרד הפנים, עיריות, בנקים
+  - **Phase 3 - Advanced Features (NEW):**
+    - `FormExtractor`: Extracts form fields from emails, pre-fills with user profile data
+      - Supports Israeli government forms (btl.gov.il, taxes.gov.il, gov.il)
+      - Supports bank forms (לאומי, הפועלים, דיסקונט, מזרחי)
+      - Smart field detection: text, date, file, checkbox, id, phone, email, address
+    - `DeadlineTracker`: Deep deadline tracking with proactive reminders
+      - Urgency levels: OVERDUE, TODAY, TOMORROW, THIS_WEEK, NEXT_WEEK, LATER
+      - Deadline types: SUBMISSION, PAYMENT, APPOINTMENT, RENEWAL, RESPONSE, DOCUMENT
+      - Sends Telegram reminders automatically
+    - `UserPreferences`: Learning from user feedback
+      - Tracks actions: OPENED, REPLIED, DRAFTED, DISMISSED, SNOOZED, STARRED, ARCHIVED
+      - Stores user profile for form pre-filling (name, ID, phone, address)
+      - Sender importance scoring based on interaction history
+    - `TaskIntegration`: Task management integration
+      - Creates tasks from emails with AI-powered extraction
+      - Priority levels: CRITICAL, HIGH, MEDIUM, LOW, SOMEDAY
+      - Sync to Todoist and Notion (optional)
+      - Daily task summary for Telegram
   - Files:
-    - `src/agents/email_agent.py` (~700 lines)
+    - `src/agents/email_agent.py` (~1000 lines)
     - `src/agents/web_researcher.py` (~350 lines)
     - `src/agents/draft_generator.py` (~400 lines)
     - `src/agents/email_history.py` (~250 lines)
+    - `src/agents/form_extractor.py` (~500 lines) - NEW
+    - `src/agents/deadline_tracker.py` (~550 lines) - NEW
+    - `src/agents/user_preferences.py` (~450 lines) - NEW
+    - `src/agents/task_integration.py` (~550 lines) - NEW
     - `docs/decisions/ADR-014-smart-email-agent.md`
 
 - **Background Agents Real Data Integration** (2026-01-23)
