@@ -228,10 +228,22 @@ def main() -> int:
         return 1
 
     # Run agents
-    if args.all:
-        results = asyncio.run(run_all_agents(args.litellm_url))
-    else:
-        results = {args.agent: asyncio.run(run_agent(args.agent, args.litellm_url))}
+    try:
+        if args.all:
+            results = asyncio.run(run_all_agents(args.litellm_url))
+        else:
+            results = {args.agent: asyncio.run(run_agent(args.agent, args.litellm_url))}
+    except Exception as e:
+        import traceback
+
+        error_detail = traceback.format_exc()
+        logger.error(f"Agent execution failed:\n{error_detail}")
+        print(f"\n=== AGENT EXECUTION ERROR ===")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {e}")
+        print(f"\nFull traceback:")
+        print(error_detail)
+        return 1
 
     # Output results
     if args.output_json:
