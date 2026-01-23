@@ -905,6 +905,430 @@ class UserADHDPreferences:
 | **Abandonment rate** | Baseline | -50% | Less overwhelm |
 | **User satisfaction** | Baseline | +30% | Survey NPS |
 
+### Continuous Learning (למידה מתמשכת)
+
+**Sources**: [Mem0 Documentation](https://mem0.ai/), [AWS Feedback Loop Guide](https://docs.aws.amazon.com/sagemaker/latest/dg/model-monitor-feedback-loop.html), [Anthropic AI Feedback Patterns](https://www.anthropic.com/research), [Closed-Loop AI Systems](https://arxiv.org/abs/2306.03314)
+
+#### Why Continuous Learning?
+
+> **Mem0 Results** (verified): 26% accuracy boost, 91% lower latency, 90% token savings
+> **Funding**: $24M from enterprise customers validating the approach
+
+The agent should:
+1. **Learn user preferences** - "I don't care about LinkedIn notifications"
+2. **Remember sender patterns** - "Amazon = always shipping updates"
+3. **Adapt priority classification** - Improve P1/P2/P3/P4 accuracy over time
+4. **Recall past interactions** - "Last time you asked to reply to דן"
+
+#### Memory Architecture (Mem0)
+
+```python
+from mem0 import Memory
+
+# Initialize with user context
+memory = Memory.from_config({
+    "vector_store": {
+        "provider": "qdrant",
+        "config": {"collection_name": "email_agent"}
+    },
+    "llm": {
+        "provider": "anthropic",
+        "config": {"model": "claude-3-haiku-20240307"}
+    },
+    "version": "v1.1"  # Pinned version
+})
+
+# Add memory with user context
+memory.add(
+    messages=[
+        {"role": "user", "content": "סמן מיילים מ-LinkedIn כ-P4"},
+        {"role": "assistant", "content": "הבנתי, אעדכן את ההעדפות"}
+    ],
+    user_id="or",
+    metadata={"type": "preference", "category": "priority_override"}
+)
+
+# Retrieve relevant memories
+relevant = memory.search(
+    query="איך לסווג מייל מ-LinkedIn?",
+    user_id="or",
+    limit=5
+)
+# Returns: "המשתמש ביקש לסמן LinkedIn כ-P4"
+```
+
+#### Memory Types
+
+| Type | What | Retention | Example |
+|------|------|-----------|---------|
+| **Long-term** | Persistent preferences | Forever | "I prefer brief summaries" |
+| **Short-term** | Session context | Session | "We're discussing the tax form" |
+| **Semantic** | Conceptual knowledge | Persistent | "Amazon emails = shipping" |
+| **Episodic** | Specific events | 90 days | "On Jan 15, user marked X urgent" |
+| **Self-Improving** | Model corrections | Forever | "False positive: bank ads ≠ P1" |
+
+#### Learning Domains
+
+##### 1. Preference Learning (העדפות)
+
+```python
+@dataclass
+class UserPreference:
+    """Learned user preferences."""
+    # Priority overrides
+    sender_priority: dict[str, Priority]  # {"linkedin.com": P4}
+    keyword_priority: dict[str, Priority] # {"urgent": P1, "פרסום": P4}
+
+    # Communication style
+    summary_length: Literal["brief", "detailed"]
+    language_mix: Literal["mostly_hebrew", "hebrish", "mostly_english"]
+    emoji_density: Literal["minimal", "moderate", "rich"]
+
+    # Timing
+    quiet_hours: tuple[int, int]          # (22, 7) = 10PM-7AM
+    preferred_summary_time: str           # "06:00"
+
+    # Topics
+    interesting_senders: list[str]        # Always highlight
+    blocked_senders: list[str]            # Never show
+
+class PreferenceLearner:
+    """Learn preferences from user feedback."""
+
+    def learn_from_correction(
+        self,
+        email_id: str,
+        original_priority: Priority,
+        corrected_priority: Priority,
+        user_id: str
+    ):
+        """User corrected a classification."""
+        # Store correction in Mem0
+        self.memory.add(
+            messages=[{
+                "role": "system",
+                "content": f"Priority correction: {original_priority} → {corrected_priority}"
+            }],
+            user_id=user_id,
+            metadata={
+                "type": "correction",
+                "sender": self.get_sender(email_id),
+                "keywords": self.get_keywords(email_id)
+            }
+        )
+
+        # Update rules if pattern emerges
+        if self._detect_pattern(user_id, threshold=3):
+            self._create_rule(user_id)
+```
+
+##### 2. Content Learning (תוכן)
+
+```python
+@dataclass
+class ContentPattern:
+    """Learned content patterns."""
+    # Sender patterns
+    sender_type: dict[str, str]           # {"amazon.com": "e-commerce"}
+    sender_typical_content: dict[str, str] # {"btl.gov.il": "forms"}
+
+    # Email patterns
+    newsletter_senders: list[str]
+    transactional_senders: list[str]      # Orders, confirmations
+    bureaucratic_senders: list[str]       # Government, banks
+
+    # Hebrew patterns
+    urgent_phrases_he: list[str]          # ["דחוף", "נדרש אישור"]
+    deadline_patterns: list[str]          # ["תוך X ימים", "עד ה-"]
+
+class ContentLearner:
+    """Learn content patterns from emails."""
+
+    def analyze_sender(self, sender: str, emails: list[Email]) -> SenderProfile:
+        """Build sender profile from email history."""
+        return SenderProfile(
+            sender=sender,
+            typical_priority=self._calculate_typical_priority(emails),
+            typical_content_type=self._classify_content_type(emails),
+            response_rate=self._calculate_response_rate(emails),
+            average_urgency=self._calculate_urgency(emails),
+            last_interaction=max(e.date for e in emails)
+        )
+
+    def detect_email_type(self, email: Email) -> EmailType:
+        """Classify email using learned patterns."""
+        # Check against Mem0 for similar emails
+        similar = self.memory.search(
+            query=f"emails from {email.sender} about {email.subject[:50]}",
+            user_id=email.user_id,
+            limit=5
+        )
+
+        if similar:
+            # Use past classification as hint
+            return self._infer_type_from_history(similar)
+        else:
+            # Fall back to LLM classification
+            return self._llm_classify(email)
+```
+
+##### 3. Behavioral Learning (התנהגות)
+
+```python
+@dataclass
+class BehavioralPattern:
+    """Learned behavioral patterns."""
+    # Response patterns
+    emails_usually_acted_on: list[str]    # Patterns user engages with
+    emails_usually_ignored: list[str]     # Patterns user ignores
+
+    # Time patterns
+    active_hours: list[int]               # Hours user typically reads
+    response_delay_by_priority: dict[Priority, timedelta]
+
+    # Action patterns
+    typical_actions: dict[str, str]       # {"שכר": "forward_to_accountant"}
+
+class BehavioralLearner:
+    """Learn from user actions."""
+
+    def track_action(
+        self,
+        email_id: str,
+        action: EmailAction,
+        time_to_action: timedelta,
+        user_id: str
+    ):
+        """Track user action on email."""
+        email = self.get_email(email_id)
+
+        self.memory.add(
+            messages=[{
+                "role": "system",
+                "content": f"User {action.value} email from {email.sender} in {time_to_action}"
+            }],
+            user_id=user_id,
+            metadata={
+                "type": "action",
+                "action": action.value,
+                "sender": email.sender,
+                "priority": email.priority.value,
+                "response_time_minutes": time_to_action.total_seconds() / 60
+            }
+        )
+
+    def suggest_action(self, email: Email) -> ActionSuggestion | None:
+        """Suggest action based on learned behavior."""
+        similar_actions = self.memory.search(
+            query=f"actions for emails from {email.sender}",
+            user_id=email.user_id,
+            limit=10
+        )
+
+        if self._has_consistent_pattern(similar_actions):
+            return ActionSuggestion(
+                action=self._most_common_action(similar_actions),
+                confidence=self._calculate_confidence(similar_actions),
+                reason=f"בעבר תמיד {self._action_to_hebrew(action)} מיילים כאלה"
+            )
+        return None
+```
+
+#### Feedback Loop Architecture
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                     CONTINUOUS LEARNING LOOP                            │
+└────────────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1. OBSERVE: Email arrives                                              │
+│     └─ Extract: sender, subject, content, metadata                     │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2. RECALL: Query Mem0 for relevant context                            │
+│     └─ User preferences                                                │
+│     └─ Sender history                                                  │
+│     └─ Similar past emails                                             │
+│     └─ Past corrections                                                │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3. DECIDE: Classify with context                                       │
+│     └─ Base classification (Haiku)                                     │
+│     └─ Adjust with learned preferences                                 │
+│     └─ Apply sender-specific rules                                     │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4. PRESENT: Show to user with confidence                              │
+│     └─ "סיווגתי כ-P2 (90% בטוח)"                                      │
+│     └─ "בעבר סימנת מיילים מהשולח הזה כ-P3"                            │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  5. COLLECT FEEDBACK: User action                                       │
+│     ├─ Explicit: "זה לא P2, זה P4"                                    │
+│     ├─ Implicit: User ignored for 24 hours                             │
+│     └─ Behavioral: User archived without reading                       │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  6. LEARN: Update memory                                                │
+│     └─ Store correction in Mem0                                        │
+│     └─ Update sender profile                                           │
+│     └─ Adjust classification rules                                     │
+│     └─ Log for analysis                                                │
+└─────────────────────────────────┬───────────────────────────────────────┘
+                                  │
+                                  └───────────► Back to step 1
+```
+
+#### Explicit Feedback Commands
+
+```python
+FEEDBACK_COMMANDS = {
+    # Priority corrections
+    "זה דחוף": lambda e: correct_priority(e, Priority.P1),
+    "לא דחוף": lambda e: correct_priority(e, Priority.P3),
+    "ספאם": lambda e: correct_priority(e, Priority.P4) and block_sender(e),
+
+    # Preference learning
+    "תמיד תראה לי מ-X": lambda e: add_to_whitelist(e.sender),
+    "לא מעניין אותי X": lambda e: add_to_blacklist(e.sender),
+    "סווג כ-*": lambda e, p: set_sender_default(e.sender, p),
+
+    # Communication style
+    "יותר קצר": lambda: update_preference("summary_length", "brief"),
+    "יותר פרטים": lambda: update_preference("summary_length", "detailed"),
+
+    # Special handling
+    "תמיד העבר ל-Y": lambda e: create_forward_rule(e.sender, "Y"),
+    "תזכיר לי על זה": lambda e: create_reminder(e, default_delay="1d"),
+}
+```
+
+#### Implicit Feedback Signals
+
+| Signal | Interpretation | Learning Action |
+|--------|----------------|-----------------|
+| Opened within 5 min | High interest | Increase sender priority |
+| Ignored > 24 hours | Low interest | Consider downgrading |
+| Replied immediately | Very important | Mark sender as VIP |
+| Archived without reading | Not relevant | Suggest auto-archive |
+| Marked as spam | Unwanted | Block sender pattern |
+| Clicked form link | Actionable | Track form completion |
+
+#### Self-Improvement Metrics
+
+```python
+@dataclass
+class LearningMetrics:
+    """Track learning effectiveness."""
+    # Classification accuracy
+    initial_accuracy: float           # Before corrections
+    post_learning_accuracy: float     # After learning
+    accuracy_delta: float             # Improvement
+
+    # User corrections
+    corrections_per_day: float
+    correction_rate: float            # corrections / classifications
+
+    # Memory effectiveness
+    relevant_recall_rate: float       # Did Mem0 find relevant context?
+    memory_usage_tokens_saved: int    # Tokens saved via context
+
+    # User satisfaction (implicit)
+    engagement_rate: float            # Opens + clicks / total
+    response_time_trend: str          # "improving", "stable", "declining"
+
+def calculate_learning_health(metrics: LearningMetrics) -> LearningHealth:
+    """Assess if learning is working."""
+    if metrics.correction_rate < 0.05:
+        return LearningHealth.EXCELLENT  # <5% need correction
+    elif metrics.correction_rate < 0.15:
+        return LearningHealth.GOOD       # <15% need correction
+    elif metrics.accuracy_delta > 0:
+        return LearningHealth.IMPROVING  # Getting better
+    else:
+        return LearningHealth.NEEDS_ATTENTION
+```
+
+#### Privacy & Data Retention
+
+| Data Type | Retention | User Control |
+|-----------|-----------|--------------|
+| **Preferences** | Permanent (until changed) | Full edit/delete |
+| **Sender profiles** | 1 year rolling | Can clear |
+| **Corrections** | 90 days | Can clear |
+| **Email content** | Not stored | N/A |
+| **Aggregated patterns** | 1 year | Export/delete |
+
+```python
+# User data control commands
+PRIVACY_COMMANDS = {
+    "מה אתה זוכר עליי?": show_all_memories,
+    "שכח את הכל": clear_all_memories,
+    "שכח את X": forget_specific_memory,
+    "אל תזכור מיילים מ-X": disable_learning_for_sender,
+    "ייצא את הנתונים שלי": export_user_data,
+}
+```
+
+#### Integration with LangGraph
+
+```python
+from langgraph.graph import StateGraph
+
+def recall_context_node(state: EmailState) -> EmailState:
+    """Recall relevant context from Mem0."""
+    memories = memory.search(
+        query=f"{state['email'].sender} {state['email'].subject}",
+        user_id=state['user_id'],
+        limit=10
+    )
+
+    state['context'] = {
+        'preferences': extract_preferences(memories),
+        'sender_history': extract_sender_history(memories),
+        'past_corrections': extract_corrections(memories),
+    }
+    return state
+
+def learn_from_feedback_node(state: EmailState) -> EmailState:
+    """Store feedback for future learning."""
+    if state.get('user_feedback'):
+        memory.add(
+            messages=[{
+                "role": "user",
+                "content": state['user_feedback']
+            }],
+            user_id=state['user_id'],
+            metadata={
+                "type": "feedback",
+                "email_id": state['email'].id,
+                "original_classification": state['classification'],
+            }
+        )
+    return state
+
+# Add to graph
+workflow.add_node("recall_context", recall_context_node)
+workflow.add_node("learn_from_feedback", learn_from_feedback_node)
+
+# Wire into flow
+workflow.add_edge("fetch_emails", "recall_context")
+workflow.add_edge("recall_context", "classify")
+workflow.add_edge("await_feedback", "learn_from_feedback")
+```
+
 ### Model Routing Strategy (ADR-013)
 
 | Task | Model | Cost/1M tokens | Rationale |

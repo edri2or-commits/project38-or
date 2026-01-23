@@ -18,12 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - DictaLM 2.0 for Hebrew LLM
     - GLiNER for zero-shot NER
     - Unicode RLM (U+200F) for RTL text mixing
+    - Mem0 for continuous learning ($24M funding, 26% accuracy boost)
   - Key architecture decisions:
     - n8n = "nervous system" (triggers), Python = "brain" (logic)
     - LangGraph state machine with classification → research → generate flow
     - Hebrish persona (Hebrew + English code-switching)
     - Model routing: Haiku (classify) → Sonnet (generate) → Opus (complex only)
     - Estimated 95% cost reduction ($750→$36/month)
+  - Added sections (2026-01-23):
+    - Typography & Accessibility (RTL alignment, WCAG 2.1, Hebrish typography rules)
+    - Automated Form Filling (human-in-the-loop, Israeli gov forms, Playwright MCP security)
+    - Attachment Processing (OCR, Israeli document patterns, privacy controls)
+    - ADHD-Friendly Design (cognitive load reduction, time blindness helpers, progressive disclosure)
+    - **Continuous Learning** (Mem0 integration, preference/content/behavioral learning, feedback loops)
   - Implementation plan: 4 phases over 4 weeks
   - Files: `docs/decisions/ADR-014-smart-email-agent-architecture.md`
   - Research notes: `docs/research/notes/2026-01-23-smart-email-agent-implementation-plan.md`
