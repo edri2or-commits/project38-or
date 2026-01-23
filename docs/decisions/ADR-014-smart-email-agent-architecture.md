@@ -2810,11 +2810,11 @@ src/agents/
 
 ## Implementation Phases
 
-### Phase 1: Foundation (MVP)
-- [ ] Create LangGraph state machine skeleton
-- [ ] Implement classification node with Haiku
-- [ ] Add basic Hebrish formatting
-- [ ] Test with existing Gmail client
+### Phase 1: Foundation (MVP) ✅ COMPLETE (2026-01-23)
+- [x] Create LangGraph state machine skeleton (`src/agents/smart_email/graph.py`)
+- [x] Implement classification node with Haiku (`nodes/classify.py`)
+- [x] Add basic Hebrish formatting (`nodes/format_rtl.py`, `persona.py`)
+- [x] Test with existing Gmail client (uses `src/agents/gmail_client.py`)
 
 ### Phase 2: Intelligence
 - [ ] Add Tavily research integration

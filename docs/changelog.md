@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent v2.0: Phase 1 MVP** (2026-01-23)
+  - Implemented LangGraph state machine (`src/agents/smart_email/graph.py`)
+  - Flow: FETCH → CLASSIFY → FORMAT → SEND
+  - Haiku LLM classification via LiteLLM Gateway with regex fallback
+  - System email filtering (GitHub, Railway, CI/CD, etc.)
+  - Hebrish RTL Telegram formatting with smart friend persona
+  - ADHD-friendly message format option
+  - Priority-based message structure (P1-P4 with Hebrew headers)
+  - New files: `state.py`, `persona.py`, `nodes/classify.py`, `nodes/format_rtl.py`
+  - Dependencies: Added `langgraph>=0.2.0`, `openai>=1.0.0`
+  - ADR-014 Phase 1 checklist marked complete
+
 - **ADR-014: Smart Email Agent v2.0 Architecture** (2026-01-23)
   - Created comprehensive architecture design based on 3 Deep Research sessions
   - Verified all technology claims against external sources:
