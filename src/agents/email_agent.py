@@ -289,10 +289,18 @@ class EmailAgent:
         snippet = email.snippet.lower()
         combined = f"{subject} {sender} {snippet}"
 
-        # P5-style filter: Skip automated/system emails (GitHub, noreply, etc.)
+        # P5-style filter: Skip automated/system emails
         system_patterns = [
-            "github.com", "noreply", "notifications@", "no-reply",
-            "automated", "jenkins", "gitlab", "bitbucket"
+            # Git/CI platforms
+            "github.com", "gitlab", "bitbucket", "jenkins", "circleci",
+            "travis-ci", "azure-pipelines", "actions@github",
+            # Hosting/Infrastructure
+            "railway.app", "railway", "vercel", "netlify", "heroku",
+            "digitalocean", "aws.amazon", "cloud.google", "azure.microsoft",
+            # Generic automated
+            "noreply", "no-reply", "notifications@", "notification@",
+            "automated", "donotreply", "do-not-reply", "mailer-daemon",
+            "postmaster", "system@", "alerts@", "monitoring@",
         ]
         if any(pattern in sender for pattern in system_patterns):
             return EmailCategory.INFORMATIONAL, Priority.P4
@@ -750,8 +758,16 @@ class EmailAgent:
 
             # Filter out system/automated emails (P5 equivalent)
             system_patterns = [
-                "github.com", "noreply", "notifications@", "no-reply",
-                "automated", "jenkins", "gitlab", "bitbucket"
+                # Git/CI platforms
+                "github.com", "gitlab", "bitbucket", "jenkins", "circleci",
+                "travis-ci", "azure-pipelines", "actions@github",
+                # Hosting/Infrastructure
+                "railway.app", "railway", "vercel", "netlify", "heroku",
+                "digitalocean", "aws.amazon", "cloud.google", "azure.microsoft",
+                # Generic automated
+                "noreply", "no-reply", "notifications@", "notification@",
+                "automated", "donotreply", "do-not-reply", "mailer-daemon",
+                "postmaster", "system@", "alerts@", "monitoring@",
             ]
 
             real_emails = []
