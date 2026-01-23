@@ -1,0 +1,117 @@
+name: Diagnose OAuth
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Test OAuth Token Refresh
+        id: test_token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+
+          echo "📋 Getting OAuth credentials from GCP..."
+          CLIENT_ID=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-CLIENT-ID" --project=project38-483612)
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-CLIENT-SECRET" --project=project38-483612)
+          REFRESH_TOKEN=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-REFRESH-TOKEN" --project=project38-483612)
+
+          echo "::add-mask::$CLIENT_ID"
+          echo "::add-mask::$CLIENT_SECRET"
+          echo "::add-mask::$REFRESH_TOKEN"
+
+          echo "✅ Credentials retrieved"
+
+          echo ""
+          echo "🔄 Attempting to refresh access token..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "https://oauth2.googleapis.com/token" \
+            -d "client_id=${CLIENT_ID}" \
+            -d "client_secret=${CLIENT_SECRET}" \
+            -d "refresh_token=${REFRESH_TOKEN}" \
+            -d "grant_type=refresh_token")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "📊 HTTP Code: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ TOKEN REFRESH SUCCESSFUL!"
+            ACCESS_TOKEN=$(echo "$BODY" | python3 -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))")
+
+            echo "🧪 Testing Gmail API..."
+            GMAIL_RESPONSE=$(curl -s -w "\n%{http_code}" \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              "https://gmail.googleapis.com/gmail/v1/users/me/profile")
+
+            GMAIL_CODE=$(echo "$GMAIL_RESPONSE" | tail -n1)
+            GMAIL_BODY=$(echo "$GMAIL_RESPONSE" | sed '$d')
+
+            if [ "$GMAIL_CODE" = "200" ]; then
+              EMAIL=$(echo "$GMAIL_BODY" | python3 -c "import sys, json; print(json.load(sys.stdin).get('emailAddress', 'unknown'))")
+              echo "✅ Gmail access confirmed for: $EMAIL"
+              echo "diagnosis=success" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Gmail API error: $GMAIL_CODE"
+              echo "$GMAIL_BODY"
+              echo "diagnosis=gmail_error" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "❌ TOKEN REFRESH FAILED!"
+            echo "$BODY" | python3 -c "import sys, json; print(json.dumps(json.load(sys.stdin), indent=2))"
+
+            ERROR=$(echo "$BODY" | python3 -c "import sys, json; print(json.load(sys.stdin).get('error', 'unknown'))")
+            echo "diagnosis=$ERROR" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Diagnosis to Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DIAGNOSIS="${{ steps.test_token.outputs.diagnosis }}"
+
+          if [ "$DIAGNOSIS" = "success" ]; then
+            BODY="## ✅ OAuth: HEALTHY
+
+          Token refresh and Gmail API access working!
+
+          ---
+          $(date -u +'%Y-%m-%d %H:%M UTC')"
+          elif [ "$DIAGNOSIS" = "invalid_grant" ]; then
+            BODY="## ❌ OAuth: TOKEN EXPIRED
+
+          **Cause:** App is likely in Testing mode (7-day token expiration)
+
+          **Fix:** Go to [Google Cloud Console OAuth consent](https://console.cloud.google.com/apis/credentials/consent?project=project38-483612) and click **PUBLISH APP**
+
+          ---
+          $(date -u +'%Y-%m-%d %H:%M UTC')"
+          else
+            BODY="## ⚠️ OAuth: $DIAGNOSIS
+
+          Check workflow logs for details.
+
+          ---
+          $(date -u +'%Y-%m-%d %H:%M UTC')"
+          fi
+
+          gh issue comment 149 --body "$BODY" --repo edri2or-commits/project38-or
