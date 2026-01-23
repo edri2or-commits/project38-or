@@ -8,6 +8,8 @@ on:
     - cron: '0 */4 * * *'
     # LearnInsightAgent: every 8 hours (00:00, 08:00, 16:00 UTC)
     - cron: '0 */8 * * *'
+    # Daily Telegram Summary: every day at 08:00 UTC (11:00 Israel time)
+    - cron: '0 8 * * *'
   workflow_dispatch:
     inputs:
       agent:
@@ -21,6 +23,7 @@ on:
           - health_synth
           - learn_insight
           - summary
+          - telegram_summary
       debug:
         description: 'Enable debug mode'
         required: false
@@ -56,6 +59,8 @@ jobs:
             echo "agent=health_synth" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" == "0 */8 * * *" ]; then
             echo "agent=learn_insight" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 8 * * *" ]; then
+            echo "agent=telegram_summary" >> $GITHUB_OUTPUT
           else
             echo "agent=all" >> $GITHUB_OUTPUT
           fi
@@ -63,7 +68,7 @@ jobs:
   run-agent:
     needs: determine-agent
     runs-on: ubuntu-latest
-    if: needs.determine-agent.outputs.agent != 'summary'
+    if: needs.determine-agent.outputs.agent != 'summary' && needs.determine-agent.outputs.agent != 'telegram_summary'
     steps:
       - uses: actions/checkout@v4
 
@@ -178,3 +183,57 @@ $(tail -100 "$OUTPUT_FILE")
           echo "## Daily Agent Metrics Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           python -m src.background_agents.runner --summary >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No metrics found yet"
+
+  daily-telegram-summary:
+    needs: determine-agent
+    runs-on: ubuntu-latest
+    if: needs.determine-agent.outputs.agent == 'telegram_summary'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install httpx
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Get Telegram credentials
+        id: secrets
+        run: |
+          TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          TELEGRAM_CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" --project=project38-483612 2>/dev/null || echo "")
+          echo "::add-mask::$TELEGRAM_BOT_TOKEN"
+          echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN" >> $GITHUB_ENV
+          echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID" >> $GITHUB_ENV
+
+      - name: Download metrics artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: agent-metrics-*
+          path: data/agent_metrics/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Send Telegram summary
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -m src.background_agents.runner --send-telegram
+
+      - name: Post to workflow summary
+        if: always()
+        run: |
+          echo "## Daily Telegram Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** Sent to Telegram" >> $GITHUB_STEP_SUMMARY

@@ -104,6 +104,83 @@ def get_metrics_summary() -> dict:
     return collector.get_summary(datetime.now(UTC))
 
 
+async def send_daily_telegram_summary(chat_id: int | None = None) -> dict:
+    """Send daily summary to Telegram.
+
+    Args:
+        chat_id: Telegram chat ID. If None, uses TELEGRAM_CHAT_ID env var.
+
+    Returns:
+        Dictionary with send result
+    """
+    import os
+
+    import httpx
+
+    # Get Telegram credentials
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = chat_id or int(os.environ.get("TELEGRAM_CHAT_ID", "0"))
+
+    if not bot_token or not chat_id:
+        logger.warning("Telegram credentials not configured")
+        return {"success": False, "error": "Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID"}
+
+    # Get metrics summary
+    summary = get_metrics_summary()
+
+    # Build message
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    total_runs = summary.get("total_runs", 0)
+    successful = summary.get("successful_runs", 0)
+    total_cost = summary.get("total_cost_usd", 0)
+    total_tokens = summary.get("total_tokens", 0)
+
+    # Get agent-specific stats
+    agents_stats = summary.get("by_agent", {})
+    agent_lines = []
+    for agent_name, stats in agents_stats.items():
+        status = "✅" if stats.get("success_rate", 0) >= 0.9 else "⚠️"
+        agent_lines.append(
+            f"  {status} {agent_name}: {stats.get('runs', 0)} runs, ${stats.get('cost', 0):.4f}"
+        )
+
+    message = f"""📊 *Daily Agent Summary - {today}*
+
+*Overall:*
+• Runs: {total_runs} ({successful} successful)
+• Cost: ${total_cost:.4f}
+• Tokens: {total_tokens:,}
+
+*By Agent:*
+{chr(10).join(agent_lines) if agent_lines else "  No runs today"}
+
+_Sent automatically by Background Agents_"""
+
+    # Send via Telegram API
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": message,
+                    "parse_mode": "Markdown",
+                },
+            )
+
+            if response.status_code == 200:
+                logger.info(f"Daily summary sent to Telegram chat {chat_id}")
+                return {"success": True, "message": "Summary sent"}
+            else:
+                error = response.json().get("description", "Unknown error")
+                logger.error(f"Telegram API error: {error}")
+                return {"success": False, "error": error}
+
+    except Exception as e:
+        logger.error(f"Failed to send Telegram summary: {e}")
+        return {"success": False, "error": str(e)}
+
+
 def set_github_output(name: str, value: str) -> None:
     """Set GitHub Actions output variable.
 
@@ -164,6 +241,11 @@ def main() -> int:
         action="store_true",
         help="Test infrastructure without making LLM calls",
     )
+    parser.add_argument(
+        "--send-telegram",
+        action="store_true",
+        help="Send daily summary to Telegram",
+    )
 
     args = parser.parse_args()
 
@@ -216,6 +298,16 @@ def main() -> int:
         print()
         print("=== DRY RUN COMPLETE ===")
         return 0
+
+    if args.send_telegram:
+        print("Sending daily summary to Telegram...")
+        result = asyncio.run(send_daily_telegram_summary())
+        if result.get("success"):
+            print("✅ Summary sent successfully")
+            return 0
+        else:
+            print(f"❌ Failed to send summary: {result.get('error')}")
+            return 1
 
     if args.summary:
         summary = get_metrics_summary()
