@@ -94,11 +94,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Selected service:** $SERVICE_NAME ($SERVICE_ID)" >> $GITHUB_STEP_SUMMARY
 
+      - name: Get Telegram Bot Token
+        id: telegram_token
+        run: |
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=$GCP_PROJECT)
+          echo "::add-mask::$BOT_TOKEN"
+          echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
+
       - name: Set Environment Variables
         env:
           RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
           SERVICE_ID: ${{ steps.main.outputs.service_id }}
           CHAT_ID: ${{ inputs.chat_id }}
+          BOT_TOKEN: ${{ steps.telegram_token.outputs.bot_token }}
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Setting Variables on service $SERVICE_ID" >> $GITHUB_STEP_SUMMARY
@@ -117,12 +125,19 @@ jobs:
             -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"NIGHTWATCH_CHAT_ID\", value: \"'$CHAT_ID'\" }) }"}')
           echo "NIGHTWATCH_CHAT_ID: $(echo $R2 | jq -r '.data.variableUpsert // .errors')" >> $GITHUB_STEP_SUMMARY
 
-          # Set TELEGRAM_BOT_URL
+          # Set TELEGRAM_BOT_TOKEN for direct API access (bypasses Railway telegram-bot service)
           R3=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'$BOT_TOKEN'\" }) }"}')
+          echo "TELEGRAM_BOT_TOKEN: ✅ (masked)" >> $GITHUB_STEP_SUMMARY
+
+          # Set TELEGRAM_BOT_URL (fallback)
+          R4=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
             -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"TELEGRAM_BOT_URL\", value: \"https://telegram-bot-production-053d.up.railway.app\" }) }"}')
-          echo "TELEGRAM_BOT_URL: $(echo $R3 | jq -r '.data.variableUpsert // .errors')" >> $GITHUB_STEP_SUMMARY
+          echo "TELEGRAM_BOT_URL: $(echo $R4 | jq -r '.data.variableUpsert // .errors')" >> $GITHUB_STEP_SUMMARY
 
       - name: Trigger Redeploy
         env:
