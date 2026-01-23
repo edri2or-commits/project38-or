@@ -8,6 +8,15 @@ on:
         required: false
         default: 'true'
         type: boolean
+      configure_nightwatch:
+        description: 'Configure NIGHTWATCH_CHAT_ID on web service'
+        required: false
+        default: 'true'
+        type: boolean
+      chat_id:
+        description: 'Telegram Chat ID for Night Watch'
+        required: false
+        default: '5786217215'
 
 permissions:
   contents: read
@@ -41,6 +50,53 @@ jobs:
           TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=$GCP_PROJECT)
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Configure Night Watch on Web Service
+        if: inputs.configure_nightwatch == true || inputs.configure_nightwatch == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+          CHAT_ID: ${{ inputs.chat_id }}
+        run: |
+          echo "## Configuring Night Watch" >> railway_info.md
+
+          # Web service ID (main FastAPI app hosting or-infra.com)
+          WEB_SERVICE_ID="f1453ff0-e5d7-4598-804d-1586241f667e"
+
+          echo "Setting env vars on web service ($WEB_SERVICE_ID):" >> railway_info.md
+
+          # Set NIGHTWATCH_ENABLED
+          R1=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$WEB_SERVICE_ID'\", name: \"NIGHTWATCH_ENABLED\", value: \"true\" }) }"}')
+          echo "- NIGHTWATCH_ENABLED: $(echo $R1 | jq -r '.data.variableUpsert // .errors')" >> railway_info.md
+
+          # Set NIGHTWATCH_CHAT_ID
+          R2=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$WEB_SERVICE_ID'\", name: \"NIGHTWATCH_CHAT_ID\", value: \"'$CHAT_ID'\" }) }"}')
+          echo "- NIGHTWATCH_CHAT_ID: $(echo $R2 | jq -r '.data.variableUpsert // .errors')" >> railway_info.md
+
+          # Set TELEGRAM_BOT_URL
+          R3=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$WEB_SERVICE_ID'\", name: \"TELEGRAM_BOT_URL\", value: \"https://telegram-bot-production-053d.up.railway.app\" }) }"}')
+          echo "- TELEGRAM_BOT_URL: $(echo $R3 | jq -r '.data.variableUpsert // .errors')" >> railway_info.md
+
+          # Trigger redeploy of web service
+          echo "" >> railway_info.md
+          echo "### Redeploying web service" >> railway_info.md
+          REDEPLOY=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceInstanceRedeploy(serviceId: \"'$WEB_SERVICE_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\") }"}')
+          echo "Redeploy result: $(echo $REDEPLOY | jq -c '.')" >> railway_info.md
+
+          echo "" >> railway_info.md
+          echo "⏳ Waiting 60 seconds for web service redeploy..." >> railway_info.md
+          sleep 60
 
       - name: Find and Fix Telegram Bot Service
         if: inputs.fix_bot == true || inputs.fix_bot == 'true'
