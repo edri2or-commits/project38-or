@@ -155,6 +155,15 @@ Build a **Smart Email Agent** with the following architecture:
 - [x] `src/agents/user_preferences.py` - Learning from user feedback (450+ lines)
 - [x] `src/agents/task_integration.py` - Task management integration (550+ lines)
 
+### v2.0 LangGraph Refactor ✅ COMPLETE (2026-01-23)
+New architecture using LangGraph state machine:
+- [x] `src/agents/smart_email/graph.py` - LangGraph state machine (FETCH→CLASSIFY→FORMAT→SEND)
+- [x] `src/agents/smart_email/state.py` - TypedDict state, Priority/Category enums
+- [x] `src/agents/smart_email/persona.py` - Hebrish prompts and templates
+- [x] `src/agents/smart_email/nodes/classify.py` - Haiku LLM + regex classification
+- [x] `src/agents/smart_email/nodes/format_rtl.py` - RTL Telegram formatting
+- [x] Dependencies: `langgraph>=0.2.0`, `openai>=1.0.0`
+
 ## Consequences
 
 ### Positive

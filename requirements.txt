@@ -31,6 +31,10 @@ httpx>=0.27.0
 # MCP Gateway (Full Autonomy)
 fastmcp>=2.0.0
 
+# Smart Email Agent v2.0 (ADR-014)
+langgraph>=0.2.0
+openai>=1.0.0
+
 # Railway Client (Autonomous Infrastructure)
 tenacity>=8.0.0
 
