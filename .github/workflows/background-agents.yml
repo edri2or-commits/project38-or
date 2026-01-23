@@ -87,31 +87,25 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          AGENT="${{ needs.determine-agent.outputs.agent }}"
-          echo "Running agent: $AGENT"
-          echo "LiteLLM URL: $LITELLM_URL"
+          echo "=== Agent Run Debug ==="
+          echo "AGENT: ${{ needs.determine-agent.outputs.agent }}"
+          echo "LITELLM_URL: $LITELLM_URL"
+          echo "PYTHONPATH: $PYTHONPATH"
+          echo "PWD: $(pwd)"
+          echo "Python: $(which python)"
+          echo ""
+          echo "=== Running Agent ==="
 
-          # Capture output and errors for debugging
-          set +e  # Don't exit on error
-          if [ "$AGENT" == "all" ]; then
-            OUTPUT=$(python -m src.background_agents.runner --all --litellm-url "$LITELLM_URL" --output-json 2>&1)
-            EXIT_CODE=$?
-          else
-            OUTPUT=$(python -m src.background_agents.runner --agent "$AGENT" --litellm-url "$LITELLM_URL" --output-json 2>&1)
-            EXIT_CODE=$?
-          fi
-
-          echo "Exit code: $EXIT_CODE"
-          echo "Output:"
-          echo "$OUTPUT"
-
-          # Write to step summary
-          echo "### Agent Output" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          exit $EXIT_CODE
+          # Run with explicit error output
+          python -m src.background_agents.runner \
+            --agent "${{ needs.determine-agent.outputs.agent }}" \
+            --litellm-url "$LITELLM_URL" \
+            --output-json \
+            2>&1 || {
+              echo ""
+              echo "=== Agent Failed (exit code: $?) ==="
+              exit 1
+            }
 
       - name: Upload metrics artifacts
         uses: actions/upload-artifact@v4
