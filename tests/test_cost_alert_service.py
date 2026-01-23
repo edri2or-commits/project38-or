@@ -13,12 +13,41 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Mock google module before importing
-sys.modules["google"] = MagicMock()
-sys.modules["google.api_core"] = MagicMock()
-sys.modules["google.api_core.exceptions"] = MagicMock()
-sys.modules["google.cloud"] = MagicMock()
-sys.modules["google.cloud.secretmanager"] = MagicMock()
+
+def _setup_google_mocks():
+    """Set up Google module mocks if not already present."""
+    modules_to_mock = [
+        "google",
+        "google.api_core",
+        "google.api_core.exceptions",
+        "google.cloud",
+        "google.cloud.secretmanager",
+    ]
+    originals = {}
+    for mod in modules_to_mock:
+        originals[mod] = sys.modules.get(mod)
+        if originals[mod] is None:
+            sys.modules[mod] = MagicMock()
+    return originals
+
+
+def _restore_google_mocks(originals):
+    """Restore Google module mocks."""
+    for mod, original in originals.items():
+        if original is not None:
+            sys.modules[mod] = original
+
+
+# Set up mocks at import time (needed for imports)
+_google_mock_originals = _setup_google_mocks()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def ensure_google_mocks():
+    """Ensure Google mocks are set up and cleaned up properly."""
+    yield
+    _restore_google_mocks(_google_mock_originals)
+
 
 from src.cost_alert_service import AlertResult, CostAlertService  # noqa: E402
 from src.workflows.cost_alert_workflow import (  # noqa: E402

@@ -18,11 +18,26 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Mock the secrets_manager module before any imports that might need it
-# This allows patching src.secrets_manager.SecretManager
-_mock_secrets_manager = MagicMock()
-_mock_secrets_manager.SecretManager = MagicMock
-sys.modules["src.secrets_manager"] = _mock_secrets_manager
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_secrets_manager_module():
+    """Mock the secrets_manager module before any imports that might need it.
+
+    Uses module scope with autouse to apply to all tests in this module.
+    Properly cleans up sys.modules after all tests complete.
+    """
+    original = sys.modules.get("src.secrets_manager")
+
+    _mock_secrets_manager = MagicMock()
+    _mock_secrets_manager.SecretManager = MagicMock
+    sys.modules["src.secrets_manager"] = _mock_secrets_manager
+
+    yield
+
+    if original is not None:
+        sys.modules["src.secrets_manager"] = original
+    else:
+        sys.modules.pop("src.secrets_manager", None)
 
 
 class TestHealthStatus:

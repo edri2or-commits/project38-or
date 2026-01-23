@@ -154,16 +154,26 @@ class TestTokenRotationInterlock:
 
     def test_get_current_version_not_found(self):
         """Test getting version when secret not found."""
-        from google.api_core import exceptions
-
         from src.token_rotation import TokenRotationInterlock
 
+        # Create a proper exception class that behaves like NotFound
+        # This is needed because google.api_core.exceptions may be mocked
+        # by other tests in the suite
+        class MockNotFound(Exception):
+            """Mock NotFound exception for testing."""
+            pass
+
         mock_client = MagicMock()
-        mock_client.access_secret_version.side_effect = exceptions.NotFound("Not found")
+        mock_client.access_secret_version.side_effect = MockNotFound("Not found")
+
+        # Also patch the exceptions module to use our mock exception
+        mock_exceptions = MagicMock()
+        mock_exceptions.NotFound = MockNotFound
 
         with patch("src.token_rotation.secretmanager.SecretManagerServiceClient", return_value=mock_client):
-            interlock = TokenRotationInterlock()
-            version = interlock._get_current_version("NONEXISTENT")
+            with patch("src.token_rotation.exceptions", mock_exceptions):
+                interlock = TokenRotationInterlock()
+                version = interlock._get_current_version("NONEXISTENT")
 
         assert version is None
 

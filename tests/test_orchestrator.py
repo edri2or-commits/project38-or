@@ -15,18 +15,42 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-# Mock the problematic imports before loading orchestrator
-_mock_github_app_client = MagicMock()
-_mock_github_app_client.GitHubAppClient = MagicMock
-sys.modules["src.github_app_client"] = _mock_github_app_client
 
-_mock_n8n_client = MagicMock()
-_mock_n8n_client.N8nClient = MagicMock
-sys.modules["src.n8n_client"] = _mock_n8n_client
+@pytest.fixture(scope="module", autouse=True)
+def mock_orchestrator_dependencies():
+    """Mock the problematic imports before loading orchestrator.
 
-_mock_railway_client = MagicMock()
-_mock_railway_client.RailwayClient = MagicMock
-sys.modules["src.railway_client"] = _mock_railway_client
+    Uses module scope with autouse to apply to all tests in this module.
+    Properly cleans up sys.modules after all tests complete.
+    """
+    # Store originals
+    originals = {
+        "src.github_app_client": sys.modules.get("src.github_app_client"),
+        "src.n8n_client": sys.modules.get("src.n8n_client"),
+        "src.railway_client": sys.modules.get("src.railway_client"),
+    }
+
+    # Create and inject mocks
+    _mock_github_app_client = MagicMock()
+    _mock_github_app_client.GitHubAppClient = MagicMock
+    sys.modules["src.github_app_client"] = _mock_github_app_client
+
+    _mock_n8n_client = MagicMock()
+    _mock_n8n_client.N8nClient = MagicMock
+    sys.modules["src.n8n_client"] = _mock_n8n_client
+
+    _mock_railway_client = MagicMock()
+    _mock_railway_client.RailwayClient = MagicMock
+    sys.modules["src.railway_client"] = _mock_railway_client
+
+    yield
+
+    # Restore originals
+    for key, original in originals.items():
+        if original is not None:
+            sys.modules[key] = original
+        else:
+            sys.modules.pop(key, None)
 
 
 class TestDeploymentState:

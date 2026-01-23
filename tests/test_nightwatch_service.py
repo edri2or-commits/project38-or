@@ -18,25 +18,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Mock the activity_log module before importing service
-_mock_activity_log = MagicMock()
-_mock_activity_log.ActivityType = MagicMock()
-_mock_activity_log.ActivityType.SYSTEM_START = MagicMock(value="system_start")
-_mock_activity_log.ActivityType.HEALTH_CHECK = MagicMock(value="health_check")
-_mock_activity_log.ActivityType.METRIC_COLLECTION = MagicMock(value="metric_collection")
-_mock_activity_log.ActivityType.ANOMALY_DETECTED = MagicMock(value="anomaly_detected")
-_mock_activity_log.ActivityType.SELF_HEALING = MagicMock(value="self_healing")
-_mock_activity_log.ActivityType.ALERT_SENT = MagicMock(value="alert_sent")
-_mock_activity_log.ActivityType.ERROR = MagicMock(value="error")
-
-_mock_activity_log.ActivitySeverity = MagicMock()
-_mock_activity_log.ActivitySeverity.INFO = MagicMock(value="info")
-_mock_activity_log.ActivitySeverity.WARNING = MagicMock(value="warning")
-_mock_activity_log.ActivitySeverity.ERROR = MagicMock(value="error")
-_mock_activity_log.ActivitySeverity.CRITICAL = MagicMock(value="critical")
-
-_mock_activity_log.NightWatchConfig = MagicMock
-
 
 # Create a proper NightWatchSummary class for testing
 class MockNightWatchSummary:
@@ -56,9 +37,6 @@ class MockNightWatchSummary:
         self.overall_status = "healthy"
 
 
-_mock_activity_log.NightWatchSummary = MockNightWatchSummary
-
-
 # Create ActivityLog mock with created_at that supports comparison operators
 class MockColumn:
     """Mock column that supports comparison operators for SQLAlchemy."""
@@ -70,11 +48,46 @@ class MockColumn:
         return MagicMock()
 
 
-_mock_activity_log_class = MagicMock()
-_mock_activity_log_class.created_at = MockColumn()
-_mock_activity_log.ActivityLog = _mock_activity_log_class
+@pytest.fixture(scope="module", autouse=True)
+def mock_activity_log_module():
+    """Mock the activity_log module before importing service.
 
-sys.modules["src.models.activity_log"] = _mock_activity_log
+    Uses module scope with autouse to apply to all tests in this module.
+    Properly cleans up sys.modules after all tests complete.
+    """
+    original = sys.modules.get("src.models.activity_log")
+
+    _mock_activity_log = MagicMock()
+    _mock_activity_log.ActivityType = MagicMock()
+    _mock_activity_log.ActivityType.SYSTEM_START = MagicMock(value="system_start")
+    _mock_activity_log.ActivityType.HEALTH_CHECK = MagicMock(value="health_check")
+    _mock_activity_log.ActivityType.METRIC_COLLECTION = MagicMock(value="metric_collection")
+    _mock_activity_log.ActivityType.ANOMALY_DETECTED = MagicMock(value="anomaly_detected")
+    _mock_activity_log.ActivityType.SELF_HEALING = MagicMock(value="self_healing")
+    _mock_activity_log.ActivityType.ALERT_SENT = MagicMock(value="alert_sent")
+    _mock_activity_log.ActivityType.ERROR = MagicMock(value="error")
+
+    _mock_activity_log.ActivitySeverity = MagicMock()
+    _mock_activity_log.ActivitySeverity.INFO = MagicMock(value="info")
+    _mock_activity_log.ActivitySeverity.WARNING = MagicMock(value="warning")
+    _mock_activity_log.ActivitySeverity.ERROR = MagicMock(value="error")
+    _mock_activity_log.ActivitySeverity.CRITICAL = MagicMock(value="critical")
+
+    _mock_activity_log.NightWatchConfig = MagicMock
+    _mock_activity_log.NightWatchSummary = MockNightWatchSummary
+
+    _mock_activity_log_class = MagicMock()
+    _mock_activity_log_class.created_at = MockColumn()
+    _mock_activity_log.ActivityLog = _mock_activity_log_class
+
+    sys.modules["src.models.activity_log"] = _mock_activity_log
+
+    yield
+
+    if original is not None:
+        sys.modules["src.models.activity_log"] = original
+    else:
+        sys.modules.pop("src.models.activity_log", None)
 
 
 class TestNightWatchServiceInit:

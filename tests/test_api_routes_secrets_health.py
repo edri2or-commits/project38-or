@@ -275,7 +275,8 @@ class TestGetSecretsHealthDirect:
             "alerting": {"enabled": True},
         }
 
-        with patch("src.api.routes.secrets_health.get_wif_monitor", return_value=mock_monitor):
+        # Patch at source module (lazy import inside function)
+        with patch("src.secrets_health.get_wif_monitor", return_value=mock_monitor):
             result = await get_secrets_health()
 
         assert "timestamp" in result
@@ -287,7 +288,7 @@ class TestGetSecretsHealthDirect:
     async def test_get_health_exception(self):
         """Test health check returns error on exception."""
         with patch(
-            "src.api.routes.secrets_health.get_wif_monitor",
+            "src.secrets_health.get_wif_monitor",
             side_effect=ImportError("Module not found"),
         ):
             result = await get_secrets_health()
@@ -313,8 +314,9 @@ class TestGetCredentialsHealthDirect:
         mock_manager.get_expiration_report.return_value = {"summary": "all ok"}
         mock_manager.close = AsyncMock()
 
+        # Patch at source module (lazy import inside function)
         with patch(
-            "src.api.routes.secrets_health.CredentialLifecycleManager",
+            "src.credential_lifecycle.CredentialLifecycleManager",
             return_value=mock_manager,
         ):
             result = await get_credentials_health()
@@ -342,7 +344,7 @@ class TestGetCredentialsHealthDirect:
         mock_manager.close = AsyncMock()
 
         with patch(
-            "src.api.routes.secrets_health.CredentialLifecycleManager",
+            "src.credential_lifecycle.CredentialLifecycleManager",
             return_value=mock_manager,
         ):
             result = await get_credentials_health()
@@ -354,7 +356,7 @@ class TestGetCredentialsHealthDirect:
     async def test_get_credentials_exception(self):
         """Test credentials check returns error on exception."""
         with patch(
-            "src.api.routes.secrets_health.CredentialLifecycleManager",
+            "src.credential_lifecycle.CredentialLifecycleManager",
             side_effect=ImportError("Module not found"),
         ):
             result = await get_credentials_health()
@@ -379,7 +381,7 @@ class TestTriggerCredentialRefreshDirect:
         mock_manager.close = AsyncMock()
 
         with patch(
-            "src.api.routes.secrets_health.CredentialLifecycleManager",
+            "src.credential_lifecycle.CredentialLifecycleManager",
             return_value=mock_manager,
         ):
             result = await trigger_credential_refresh()
@@ -403,7 +405,7 @@ class TestTriggerCredentialRefreshDirect:
         mock_manager.close = AsyncMock()
 
         with patch(
-            "src.api.routes.secrets_health.CredentialLifecycleManager",
+            "src.credential_lifecycle.CredentialLifecycleManager",
             return_value=mock_manager,
         ):
             result = await trigger_credential_refresh()
@@ -427,7 +429,7 @@ class TestTriggerCredentialRefreshDirect:
         mock_manager.close = AsyncMock()
 
         with patch(
-            "src.api.routes.secrets_health.CredentialLifecycleManager",
+            "src.credential_lifecycle.CredentialLifecycleManager",
             return_value=mock_manager,
         ):
             result = await trigger_credential_refresh()
@@ -439,7 +441,7 @@ class TestTriggerCredentialRefreshDirect:
     async def test_refresh_exception_raises_http_error(self):
         """Test refresh raises HTTPException on error."""
         with patch(
-            "src.api.routes.secrets_health.CredentialLifecycleManager",
+            "src.credential_lifecycle.CredentialLifecycleManager",
             side_effect=Exception("Connection failed"),
         ):
             with pytest.raises(HTTPException) as exc_info:
@@ -461,10 +463,10 @@ class TestGetRotationHistoryDirect:
         mock_interlock = MagicMock()
         mock_interlock.get_rotation_history.return_value = mock_history
 
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            return_value=mock_interlock,
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             result = await get_rotation_history()
 
         assert "timestamp" in result
@@ -477,10 +479,10 @@ class TestGetRotationHistoryDirect:
         mock_interlock = MagicMock()
         mock_interlock.get_rotation_history.return_value = []
 
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            return_value=mock_interlock,
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             result = await get_rotation_history(secret_name="TEST-SECRET")
 
         mock_interlock.get_rotation_history.assert_called_once_with("TEST-SECRET")
@@ -489,10 +491,10 @@ class TestGetRotationHistoryDirect:
     @pytest.mark.asyncio
     async def test_get_history_exception(self):
         """Test history returns empty on exception."""
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            side_effect=Exception("Not available"),
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.side_effect = Exception("Not available")
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             result = await get_rotation_history()
 
         assert "timestamp" in result
@@ -518,10 +520,10 @@ class TestRotateSecretDirect:
         mock_interlock = MagicMock()
         mock_interlock.rotate_token = AsyncMock(return_value=mock_result)
 
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            return_value=mock_interlock,
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             result = await rotate_secret(secret_name="TEST-SECRET", new_value="new-value")
 
         assert result["success"] is True
@@ -543,10 +545,10 @@ class TestRotateSecretDirect:
         mock_interlock = MagicMock()
         mock_interlock.rotate_token = AsyncMock(return_value=mock_result)
 
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            return_value=mock_interlock,
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             result = await rotate_secret(secret_name="TEST-SECRET", new_value="new-value")
 
         assert result["success"] is False
@@ -555,10 +557,10 @@ class TestRotateSecretDirect:
     @pytest.mark.asyncio
     async def test_rotate_exception_raises_http_error(self):
         """Test rotation raises HTTPException on exception."""
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            side_effect=Exception("Backend unavailable"),
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.side_effect = Exception("Backend unavailable")
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             with pytest.raises(HTTPException) as exc_info:
                 await rotate_secret(secret_name="TEST", new_value="value")
 
@@ -574,10 +576,10 @@ class TestRollbackSecretDirect:
         mock_interlock = MagicMock()
         mock_interlock.rollback.return_value = True
 
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            return_value=mock_interlock,
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             result = await rollback_secret(secret_name="TEST-SECRET", to_version="v1")
 
         assert result["success"] is True
@@ -590,10 +592,10 @@ class TestRollbackSecretDirect:
         mock_interlock = MagicMock()
         mock_interlock.rollback.return_value = False
 
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            return_value=mock_interlock,
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.return_value = mock_interlock
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             result = await rollback_secret(secret_name="TEST-SECRET", to_version="v1")
 
         assert result["success"] is False
@@ -602,10 +604,10 @@ class TestRollbackSecretDirect:
     @pytest.mark.asyncio
     async def test_rollback_exception_raises_http_error(self):
         """Test rollback raises HTTPException on exception."""
-        with patch(
-            "src.api.routes.secrets_health.get_rotation_interlock",
-            side_effect=Exception("Version not found"),
-        ):
+        mock_token_rotation = MagicMock()
+        mock_token_rotation.get_rotation_interlock.side_effect = Exception("Version not found")
+
+        with patch.dict("sys.modules", {"src.token_rotation": mock_token_rotation}):
             with pytest.raises(HTTPException) as exc_info:
                 await rollback_secret(secret_name="TEST", to_version="v1")
 
