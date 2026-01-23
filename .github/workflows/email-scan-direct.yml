@@ -1,0 +1,58 @@
+name: Email Scan Direct
+
+on:
+  schedule:
+    # Every day at 6:00 AM Israel time (4:00 UTC)
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: 'Hours to look back'
+        default: '24'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install httpx google-cloud-secret-manager
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get credentials and run Smart Email Agent
+        run: |
+          # Get Google OAuth credentials
+          export GOOGLE_OAUTH_CLIENT_ID=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-CLIENT-ID" --project=project38-483612)
+          export GOOGLE_OAUTH_CLIENT_SECRET=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-CLIENT-SECRET" --project=project38-483612)
+          export GOOGLE_OAUTH_REFRESH_TOKEN=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-REFRESH-TOKEN" --project=project38-483612)
+
+          # Get Telegram credentials
+          export TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          export TELEGRAM_CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" --project=project38-483612)
+
+          echo "::add-mask::$GOOGLE_OAUTH_CLIENT_ID"
+          echo "::add-mask::$GOOGLE_OAUTH_CLIENT_SECRET"
+          echo "::add-mask::$GOOGLE_OAUTH_REFRESH_TOKEN"
+          echo "::add-mask::$TELEGRAM_BOT_TOKEN"
+
+          # Run the fixed Smart Email Agent
+          python scripts/run_email_agent.py

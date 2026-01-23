@@ -27,6 +27,7 @@ Safety Rules (Non-Negotiable):
 
 import json
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -35,6 +36,8 @@ from enum import Enum
 from typing import Any
 
 import httpx
+
+from src.agents.gmail_client import GmailClient, GmailMessage
 
 logger = logging.getLogger(__name__)
 
@@ -168,133 +171,95 @@ class EmailAgent:
 
     def __init__(
         self,
-        mcp_gateway_url: str = "https://or-infra.com/mcp",
         litellm_url: str = "https://litellm-gateway-production-0339.up.railway.app",
-        telegram_bot_url: str = "https://telegram-bot-production-053d.up.railway.app",
     ):
         """Initialize EmailAgent.
 
         Args:
-            mcp_gateway_url: URL of MCP Gateway (for Gmail/Calendar)
             litellm_url: URL of LiteLLM Gateway (for AI analysis)
-            telegram_bot_url: URL of Telegram Bot service
         """
-        self.mcp_gateway_url = mcp_gateway_url
         self.litellm_url = litellm_url
-        self.telegram_bot_url = telegram_bot_url
-        self._mcp_token: str | None = None
+        self._gmail_client: GmailClient | None = None
+        self._telegram_token: str | None = None
+        self._telegram_chat_id: str | None = None
 
-    async def _get_mcp_token(self) -> str:
-        """Get MCP Gateway token from environment or Secret Manager."""
-        import os
+    def _get_gmail_client(self) -> GmailClient:
+        """Get or create Gmail client."""
+        if self._gmail_client is None:
+            self._gmail_client = GmailClient()
+        return self._gmail_client
 
-        if self._mcp_token:
-            return self._mcp_token
+    def _load_telegram_config(self) -> tuple[str, str]:
+        """Load Telegram bot token and chat ID.
+
+        Returns:
+            Tuple of (bot_token, chat_id)
+        """
+        if self._telegram_token and self._telegram_chat_id:
+            return self._telegram_token, self._telegram_chat_id
 
         # Try environment first
-        token = os.environ.get("MCP_GATEWAY_TOKEN")
-        if token:
-            self._mcp_token = token
-            return token
+        self._telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        self._telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+
+        if self._telegram_token and self._telegram_chat_id:
+            return self._telegram_token, self._telegram_chat_id
 
         # Try GCP Secret Manager
         try:
             from src.secrets_manager import SecretManager
 
             manager = SecretManager()
-            token = manager.get_secret("MCP-GATEWAY-TOKEN")
-            if token:
-                self._mcp_token = token
-                return token
+            if not self._telegram_token:
+                self._telegram_token = manager.get_secret("TELEGRAM-BOT-TOKEN")
+            if not self._telegram_chat_id:
+                self._telegram_chat_id = manager.get_secret("TELEGRAM-CHAT-ID")
         except Exception as e:
-            logger.warning(f"Could not get MCP token from Secret Manager: {e}")
+            logger.warning(f"Could not get Telegram config from Secret Manager: {e}")
 
-        raise ValueError("MCP_GATEWAY_TOKEN not found in env or Secret Manager")
+        if not self._telegram_token or not self._telegram_chat_id:
+            raise ValueError("Telegram config not found in env or Secret Manager")
 
-    async def _call_mcp_tool(self, tool_name: str, params: dict) -> dict:
-        """Call an MCP Gateway tool.
+        return self._telegram_token, self._telegram_chat_id
 
-        Args:
-            tool_name: Name of the tool (e.g., "gmail_search")
-            params: Tool parameters
-
-        Returns:
-            Tool response
-        """
-        token = await self._get_mcp_token()
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{self.mcp_gateway_url}/tools/{tool_name}",
-                headers={"Authorization": f"Bearer {token}"},
-                json=params,
-            )
-
-            if response.status_code != 200:
-                logger.error(f"MCP tool {tool_name} failed: {response.text}")
-                return {"success": False, "error": response.text}
-
-            return response.json()
-
-    async def _fetch_emails(self, hours: int = 24) -> list[dict]:
+    def _fetch_emails(self, hours: int = 24) -> list[GmailMessage]:
         """Fetch unread emails from the last N hours.
 
         Args:
             hours: Number of hours to look back
 
         Returns:
-            List of raw email data
+            List of GmailMessage objects
         """
-        # Search for unread emails from last N hours
-        query = f"is:unread newer_than:{hours}h"
-        result = await self._call_mcp_tool("gmail_search", {"query": query, "max_results": 50})
-
-        if not result.get("success"):
-            logger.error(f"Failed to fetch emails: {result.get('error')}")
+        try:
+            gmail = self._get_gmail_client()
+            return gmail.get_unread_emails(hours=hours, max_results=50)
+        except Exception as e:
+            logger.error(f"Failed to fetch emails: {e}")
             return []
 
-        return result.get("messages", [])
-
-    async def _fetch_email_body(self, message_id: str) -> str:
+    def _fetch_email_body(self, message_id: str) -> str:
         """Fetch full email body.
 
         Args:
             message_id: Gmail message ID
 
         Returns:
-            Email body text
+            Email body text (using snippet for now)
         """
-        # For now, use snippet - full body requires additional API call
-        # TODO: Implement full body fetch via MCP
+        # Full body fetching would require an additional API call
+        # For daily summaries, snippet is sufficient
         return ""
 
-    async def _fetch_calendar_events(self) -> list[CalendarEvent]:
+    def _fetch_calendar_events(self) -> list[CalendarEvent]:
         """Fetch today's calendar events.
 
         Returns:
-            List of today's events
+            List of today's events (empty for now - TODO: add CalendarClient)
         """
-        result = await self._call_mcp_tool(
-            "calendar_list_events", {"max_results": 10, "calendar_id": "primary"}
-        )
-
-        if not result.get("success"):
-            logger.warning(f"Failed to fetch calendar: {result.get('error')}")
-            return []
-
-        events = []
-        for item in result.get("events", []):
-            events.append(
-                CalendarEvent(
-                    id=item.get("id", ""),
-                    summary=item.get("summary", ""),
-                    start=item.get("start", ""),
-                    end=item.get("end", ""),
-                    location=item.get("location", ""),
-                )
-            )
-
-        return events
+        # Calendar integration requires separate OAuth scope
+        # TODO: Implement CalendarClient similar to GmailClient
+        return []
 
     def _extract_sender_email(self, from_field: str) -> str:
         """Extract email address from From field.
@@ -310,19 +275,27 @@ class EmailAgent:
             return match.group(1)
         return from_field
 
-    def _classify_email(self, email: dict) -> tuple[EmailCategory, Priority]:
+    def _classify_email(self, email: GmailMessage) -> tuple[EmailCategory, Priority]:
         """Classify email by category and priority.
 
         Args:
-            email: Raw email data
+            email: GmailMessage object
 
         Returns:
             Tuple of (category, priority)
         """
-        subject = email.get("subject", "").lower()
-        sender = email.get("from", "").lower()
-        snippet = email.get("snippet", "").lower()
+        subject = email.subject.lower()
+        sender = f"{email.sender} {email.sender_email}".lower()
+        snippet = email.snippet.lower()
         combined = f"{subject} {sender} {snippet}"
+
+        # P5-style filter: Skip automated/system emails (GitHub, noreply, etc.)
+        system_patterns = [
+            "github.com", "noreply", "notifications@", "no-reply",
+            "automated", "jenkins", "gitlab", "bitbucket"
+        ]
+        if any(pattern in sender for pattern in system_patterns):
+            return EmailCategory.INFORMATIONAL, Priority.P4
 
         # Check patterns in order of priority
         for pattern in self.URGENT_PATTERNS:
@@ -443,29 +416,27 @@ class EmailAgent:
 
         return None
 
-    async def _process_email(self, raw_email: dict) -> EmailItem:
-        """Process a raw email into an EmailItem.
+    def _process_email(self, gmail_msg: GmailMessage) -> EmailItem:
+        """Process a GmailMessage into an EmailItem.
 
         Args:
-            raw_email: Raw email data from Gmail
+            gmail_msg: GmailMessage from GmailClient
 
         Returns:
             Processed EmailItem
         """
-        category, priority = self._classify_email(raw_email)
+        category, priority = self._classify_email(gmail_msg)
 
-        subject = raw_email.get("subject", "")
-        snippet = raw_email.get("snippet", "")
-        combined_text = f"{subject} {snippet}"
+        combined_text = f"{gmail_msg.subject} {gmail_msg.snippet}"
 
         return EmailItem(
-            id=raw_email.get("id", ""),
-            thread_id=raw_email.get("thread_id", ""),
-            subject=subject,
-            sender=raw_email.get("from", ""),
-            sender_email=self._extract_sender_email(raw_email.get("from", "")),
-            date=raw_email.get("date", ""),
-            snippet=snippet,
+            id=gmail_msg.id,
+            thread_id=gmail_msg.thread_id,
+            subject=gmail_msg.subject,
+            sender=gmail_msg.sender,
+            sender_email=gmail_msg.sender_email,
+            date=gmail_msg.date,
+            snippet=gmail_msg.snippet,
             category=category,
             priority=priority,
             deadline=self._extract_deadline(combined_text),
@@ -550,6 +521,84 @@ class EmailAgent:
                 "bureaucracy_explained": [],
                 "smart_tips": [],
             }
+
+    def _format_simple_message(self, summary: DailySummary, system_count: int) -> str:
+        """Format summary as simple Telegram message (no LLM).
+
+        Args:
+            summary: Daily summary data
+            system_count: Number of filtered system emails
+
+        Returns:
+            Formatted Telegram message (Markdown)
+        """
+        now = datetime.now(UTC).strftime("%d/%m/%Y %H:%M")
+        real_count = summary.total_emails
+
+        lines = [
+            f"🌅 *סיכום מיילים - {now}*",
+            "",
+            f"📊 *סטטיסטיקה:*",
+            f"• {real_count} מיילים ({system_count} התראות מערכת הוסתרו)",
+            f"• 🔴 דחוף: {summary.p1_count} | 🟠 חשוב: {summary.p2_count}",
+            f"• 🟡 מידע: {summary.p3_count} | ⚪ פרסום: {summary.p4_count}",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━",
+        ]
+
+        # P1 - Urgent
+        p1_emails = [e for e in summary.emails if e.priority == Priority.P1]
+        if p1_emails:
+            lines.append("")
+            lines.append("🔴 *דחוף (P1):*")
+            for email in p1_emails[:5]:
+                subject = email.subject[:40] + ("..." if len(email.subject) > 40 else "")
+                lines.append(f"  • [{email.category.value}] *{email.sender}*")
+                lines.append(f"    {subject}")
+
+        # P2 - Important
+        p2_emails = [e for e in summary.emails if e.priority == Priority.P2]
+        if p2_emails:
+            lines.append("")
+            lines.append("🟠 *חשוב (P2):*")
+            for email in p2_emails[:5]:
+                subject = email.subject[:40] + ("..." if len(email.subject) > 40 else "")
+                lines.append(f"  • *{email.sender}*: {subject}")
+
+        # P3 - Info (show details)
+        p3_emails = [e for e in summary.emails if e.priority == Priority.P3]
+        if p3_emails:
+            lines.append("")
+            lines.append("🟡 *מידע (P3):*")
+            for email in p3_emails[:7]:
+                sender_name = email.sender[:25]
+                subject = email.subject[:35] + ("..." if len(email.subject) > 35 else "")
+                lines.append(f"  • {sender_name}")
+                lines.append(f"    _{subject}_")
+
+        # P4 - Low priority (summary only)
+        p4_emails = [e for e in summary.emails if e.priority == Priority.P4]
+        if p4_emails:
+            lines.append("")
+            lines.append(f"⚪ *פרסום:* {len(p4_emails)} מיילים")
+
+        # No emails case
+        if real_count == 0:
+            lines = [
+                f"🌅 *סיכום מיילים - {now}*",
+                "",
+                "✅ *אין מיילים חדשים!*",
+            ]
+            if system_count > 0:
+                lines.append(f"_({system_count} התראות מערכת הוסתרו)_")
+            else:
+                lines.append("_תיבה נקייה - יום טוב!_")
+
+        lines.append("")
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+        lines.append("_Smart Email Agent v2 (Fixed)_")
+
+        return "\n".join(lines)
 
     def _format_telegram_message(
         self, summary: DailySummary, analysis: dict
@@ -644,44 +693,40 @@ class EmailAgent:
 
         return "\n".join(lines)
 
-    async def send_to_telegram(self, message: str, chat_id: int | None = None) -> dict:
-        """Send message to Telegram.
+    def send_to_telegram(self, message: str) -> dict:
+        """Send message to Telegram using direct API.
 
         Args:
             message: Message to send (Markdown format)
-            chat_id: Telegram chat ID (uses env var if not provided)
 
         Returns:
             Send result
         """
-        import os
-
-        chat_id = chat_id or int(os.environ.get("TELEGRAM_CHAT_ID", "0"))
-
-        if not chat_id:
-            return {"success": False, "error": "TELEGRAM_CHAT_ID not configured"}
-
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    f"{self.telegram_bot_url}/send",
-                    json={
-                        "chat_id": chat_id,
-                        "text": message,
-                        "parse_mode": "Markdown",
-                    },
-                )
+            token, chat_id = self._load_telegram_config()
 
-                if response.status_code == 200:
-                    return {"success": True}
-                else:
-                    return {"success": False, "error": response.text}
+            response = httpx.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": message,
+                    "parse_mode": "Markdown",
+                },
+                timeout=30,
+            )
+
+            if response.status_code == 200:
+                logger.info("✅ Telegram message sent successfully")
+                return {"success": True}
+            else:
+                logger.error(f"❌ Telegram error: {response.text}")
+                return {"success": False, "error": response.text}
 
         except Exception as e:
             logger.error(f"Failed to send to Telegram: {e}")
             return {"success": False, "error": str(e)}
 
-    async def run(self, hours: int = 24, send_telegram: bool = True) -> dict:
+    def run(self, hours: int = 24, send_telegram: bool = True) -> dict:
         """Execute the email agent.
 
         Args:
@@ -697,16 +742,33 @@ class EmailAgent:
         logger.info(f"Starting EmailAgent run {run_id}")
 
         try:
-            # Fetch emails and calendar in parallel
-            raw_emails = await self._fetch_emails(hours)
-            calendar_events = await self._fetch_calendar_events()
+            # Fetch emails
+            gmail_messages = self._fetch_emails(hours)
+            calendar_events = self._fetch_calendar_events()
 
-            logger.info(f"Fetched {len(raw_emails)} emails, {len(calendar_events)} events")
+            logger.info(f"Fetched {len(gmail_messages)} emails, {len(calendar_events)} events")
+
+            # Filter out system/automated emails (P5 equivalent)
+            system_patterns = [
+                "github.com", "noreply", "notifications@", "no-reply",
+                "automated", "jenkins", "gitlab", "bitbucket"
+            ]
+
+            real_emails = []
+            system_count = 0
+            for msg in gmail_messages:
+                sender_lower = f"{msg.sender} {msg.sender_email}".lower()
+                if any(pattern in sender_lower for pattern in system_patterns):
+                    system_count += 1
+                else:
+                    real_emails.append(msg)
+
+            logger.info(f"Filtered: {len(real_emails)} real emails, {system_count} system notifications")
 
             # Process emails
             processed_emails = []
-            for raw in raw_emails:
-                email_item = await self._process_email(raw)
+            for msg in real_emails:
+                email_item = self._process_email(msg)
                 processed_emails.append(email_item)
 
             # Sort by priority
@@ -718,11 +780,6 @@ class EmailAgent:
             p3_count = sum(1 for e in processed_emails if e.priority == Priority.P3)
             p4_count = sum(1 for e in processed_emails if e.priority == Priority.P4)
 
-            # Generate smart analysis (only if we have P1/P2 emails)
-            analysis = {}
-            if p1_count > 0 or p2_count > 0:
-                analysis = await self._generate_smart_analysis(processed_emails)
-
             # Build summary
             summary = DailySummary(
                 date=datetime.now(UTC).strftime("%d/%m/%Y"),
@@ -733,16 +790,16 @@ class EmailAgent:
                 p4_count=p4_count,
                 emails=processed_emails,
                 calendar_events=calendar_events,
-                suggested_actions=analysis.get("smart_tips", []),
+                suggested_actions=[],
             )
 
-            # Format message
-            message = self._format_telegram_message(summary, analysis)
+            # Format message (simplified - no LLM analysis for now)
+            message = self._format_simple_message(summary, system_count)
 
             # Send to Telegram
             telegram_result = {"success": False, "error": "Not sent"}
             if send_telegram:
-                telegram_result = await self.send_to_telegram(message)
+                telegram_result = self.send_to_telegram(message)
 
             duration_ms = int((time.time() - start_time) * 1000)
 
@@ -751,15 +808,19 @@ class EmailAgent:
                 "run_id": run_id,
                 "duration_ms": duration_ms,
                 "emails_processed": len(processed_emails),
+                "system_filtered": system_count,
                 "p1_count": p1_count,
                 "p2_count": p2_count,
-                "calendar_events": len(calendar_events),
+                "p3_count": p3_count,
+                "p4_count": p4_count,
                 "telegram_sent": telegram_result.get("success", False),
-                "message": message,  # For debugging
+                "message": message,
             }
 
         except Exception as e:
             logger.error(f"EmailAgent failed: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 "success": False,
                 "run_id": run_id,
@@ -969,38 +1030,40 @@ class EmailAgent:
             }
 
 
-async def main() -> None:
+def main() -> None:
     """Run EmailAgent for testing."""
-    import os
-
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    # Check for required env vars
-    if not os.environ.get("MCP_GATEWAY_TOKEN"):
-        print("Warning: MCP_GATEWAY_TOKEN not set, will try Secret Manager")
+    print("📧 Smart Email Agent - Direct Test")
+    print("=" * 50)
 
     agent = EmailAgent()
 
-    # Test Phase 1
-    print("=== Testing Phase 1 ===")
-    result = await agent.run(hours=24, send_telegram=False)
-    print(json.dumps({k: v for k, v in result.items() if k != "message"}, indent=2))
+    # Test run (no Telegram send for dry run)
+    print("\n=== Testing Email Fetch ===")
+    result = agent.run(hours=24, send_telegram=False)
 
-    # Test Phase 2
-    print("\n=== Testing Phase 2 ===")
-    result_v2 = await agent.run_with_research(hours=24, send_telegram=False)
-    print(json.dumps({k: v for k, v in result_v2.items() if k not in ["message", "drafts"]}, indent=2))
+    print(f"\n✅ Success: {result.get('success')}")
+    print(f"📬 Emails processed: {result.get('emails_processed', 0)}")
+    print(f"🔇 System filtered: {result.get('system_filtered', 0)}")
+    print(f"🔴 P1: {result.get('p1_count', 0)}")
+    print(f"🟠 P2: {result.get('p2_count', 0)}")
+    print(f"🟡 P3: {result.get('p3_count', 0)}")
+    print(f"⚪ P4: {result.get('p4_count', 0)}")
 
-    if result_v2.get("drafts"):
-        print("\n=== Draft Replies ===")
-        for draft in result_v2["drafts"]:
-            print(f"  • {draft['subject']} (confidence: {draft['confidence']})")
+    if result.get("message"):
+        print("\n" + "-" * 40)
+        print("📝 Message preview:")
+        print("-" * 40)
+        print(result["message"])
+        print("-" * 40)
+
+    if result.get("error"):
+        print(f"\n❌ Error: {result['error']}")
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())
+    main()
