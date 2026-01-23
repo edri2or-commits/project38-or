@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Test Coverage Improvement** (2026-01-23) - Added 81 new tests for untested modules
+  - `tests/test_secrets_health.py` (31 tests) - WIF health monitoring, SecretAccessMetrics, alert cooldown
+  - `tests/test_mcp_notifications.py` (25 tests) - NotificationServer, Telegram API, n8n webhooks
+  - `tests/test_observability_metrics.py` (25 tests) - MetricsCollector, LatencyTracker, database/in-memory storage
+  - Used direct module import via `importlib.util` to bypass opentelemetry dependency
+  - Added mock for `src.secrets_manager` to enable patch testing without GCP dependencies
+
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
   - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
   - Created `src/models/activity_log.py` - ActivityLog, NightWatchSummary, NightWatchConfig models
