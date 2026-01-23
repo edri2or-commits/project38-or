@@ -12,8 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: claude/email-agent-telegram-oR1ID
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,6 +32,6 @@ jobs:
 
       - name: Send Summary
         run: |
-          export TELEGRAM_BOT_TOKEN=\$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
-          export TELEGRAM_CHAT_ID=\$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" --project=project38-483612)
+          export TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          export TELEGRAM_CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" --project=project38-483612)
           python scripts/send_phase3_summary.py
