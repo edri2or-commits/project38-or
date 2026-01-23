@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/test_api_routes_health.py` (~14 tests) - Health check, root, ping endpoints
   - `tests/test_mcp_browser.py` (44 tests) - BrowserServer, accessibility tree, loop detection
   - `tests/test_mcp_filesystem.py` (42 tests) - FilesystemServer, sandboxed operations, security
-  - Total: **224 new tests** bringing suite to 1287 tests
+  - `tests/test_monitoring_loop.py` (33 tests) - MonitoringLoop, MetricsCollector, health monitoring
+  - `tests/test_orchestrator.py` (21 tests) - OODA Loop orchestrator, WorldModel, observations
+  - Total: **278 new tests** in session
 
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
   - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
