@@ -42,31 +42,60 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Find and Fix Telegram Bot Service
-        if: inputs.fix_bot == true || inputs.fix_bot == 'true'
+      - name: List Railway Services
+        id: railway
         env:
           RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
         run: |
-          echo "## Fixing Telegram Bot Service" >> $GITHUB_STEP_SUMMARY
+          echo "## Railway Services" > railway_info.md
 
-          # Find telegram-bot service
+          # Get all services
           SERVICES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"query": "{ project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"}')
 
-          echo "Services found:" >> $GITHUB_STEP_SUMMARY
-          echo "$SERVICES" | jq -r '.data.project.services.edges[].node | "- \(.name): \(.id)"' >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> railway_info.md
+          echo "$SERVICES" | jq '.' >> railway_info.md
+          echo '```' >> railway_info.md
 
+          echo "" >> railway_info.md
+          echo "### Services List:" >> railway_info.md
+          echo "$SERVICES" | jq -r '.data.project.services.edges[].node | "- **\(.name)**: \(.id)"' >> railway_info.md
+
+          # Find telegram-bot service
           SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name | test("telegram"; "i")) | .node.id')
 
           if [ -z "$SERVICE_ID" ]; then
-            echo "❌ Telegram bot service not found!" >> $GITHUB_STEP_SUMMARY
-            exit 0
+            echo "" >> railway_info.md
+            echo "❌ **Telegram bot service NOT FOUND in Railway project!**" >> railway_info.md
+            echo "telegram_found=false" >> $GITHUB_OUTPUT
+          else
+            echo "" >> railway_info.md
+            echo "✅ **Telegram Bot Service ID:** \`$SERVICE_ID\`" >> railway_info.md
+            echo "telegram_found=true" >> $GITHUB_OUTPUT
+            echo "telegram_service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+
+            # Get service instances
+            INSTANCES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "{ service(id: \"'$SERVICE_ID'\") { serviceInstances { edges { node { id } } } } }"}')
+
+            INSTANCE_COUNT=$(echo "$INSTANCES" | jq '.data.service.serviceInstances.edges | length')
+            echo "**Instance count:** $INSTANCE_COUNT" >> railway_info.md
+            echo "instance_count=$INSTANCE_COUNT" >> $GITHUB_OUTPUT
           fi
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Telegram Bot Service ID:** $SERVICE_ID" >> $GITHUB_STEP_SUMMARY
+          cat railway_info.md
+
+      - name: Fix Telegram Bot Service
+        if: inputs.fix_bot == true || inputs.fix_bot == 'true' && steps.railway.outputs.telegram_found == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+          SERVICE_ID: ${{ steps.railway.outputs.telegram_service_id }}
+        run: |
+          echo "## Fixing Telegram Bot Service" >> railway_info.md
 
           # Get service instances
           INSTANCES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
@@ -75,47 +104,60 @@ jobs:
             -d '{"query": "{ service(id: \"'$SERVICE_ID'\") { serviceInstances { edges { node { id } } } } }"}')
 
           INSTANCE_COUNT=$(echo "$INSTANCES" | jq '.data.service.serviceInstances.edges | length')
-          echo "**Instance count:** $INSTANCE_COUNT" >> $GITHUB_STEP_SUMMARY
 
           if [ "$INSTANCE_COUNT" -gt 2 ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Cleaning up orphaned instances" >> $GITHUB_STEP_SUMMARY
+            echo "" >> railway_info.md
+            echo "### Cleaning up orphaned instances ($INSTANCE_COUNT found)" >> railway_info.md
 
-            # Get all instance IDs and delete all but first
             INSTANCE_IDS=$(echo "$INSTANCES" | jq -r '.data.service.serviceInstances.edges[].node.id')
             COUNT=0
             for INSTANCE_ID in $INSTANCE_IDS; do
               COUNT=$((COUNT + 1))
               if [ $COUNT -gt 1 ]; then
-                echo "Deleting: $INSTANCE_ID" >> $GITHUB_STEP_SUMMARY
-                curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+                echo "- Deleting: \`$INSTANCE_ID\`" >> railway_info.md
+                RESULT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
                   -H "Authorization: Bearer $RAILWAY_TOKEN" \
                   -H "Content-Type: application/json" \
-                  -d '{"query": "mutation { serviceInstanceDelete(id: \"'$INSTANCE_ID'\") }"}'
+                  -d '{"query": "mutation { serviceInstanceDelete(id: \"'$INSTANCE_ID'\") }"}')
+                echo "  Result: $(echo $RESULT | jq -c '.')" >> railway_info.md
               fi
             done
           fi
 
           # Trigger redeploy
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Triggering redeploy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> railway_info.md
+          echo "### Triggering redeploy" >> railway_info.md
 
           REDEPLOY=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"query": "mutation { serviceInstanceRedeploy(serviceId: \"'$SERVICE_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\") }"}')
 
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo "$REDEPLOY" | jq '.' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> railway_info.md
+          echo "$REDEPLOY" | jq '.' >> railway_info.md
+          echo '```' >> railway_info.md
 
           # Wait for deployment
-          echo "Waiting 90 seconds for deployment..." >> $GITHUB_STEP_SUMMARY
+          echo "" >> railway_info.md
+          echo "⏳ Waiting 90 seconds for deployment..." >> railway_info.md
           sleep 90
 
       - name: Run Debug Tests
         id: debug
+        env:
+          TELEGRAM_FOUND: ${{ steps.railway.outputs.telegram_found }}
+          INSTANCE_COUNT: ${{ steps.railway.outputs.instance_count }}
         run: |
+          # Start with Railway info if available
+          if [ -f railway_info.md ]; then
+            cat railway_info.md > report.md
+            echo "" >> report.md
+            echo "---" >> report.md
+            echo "" >> report.md
+          else
+            echo "" > report.md
+          fi
+
           REPORT="## Telegram Debug Report\n\n"
 
           # 1. Bot Health
@@ -143,8 +185,8 @@ jobs:
           NW_TEST=$(curl -s -m 30 -X POST "$PRODUCTION_URL/api/nightwatch/test-telegram" || echo '{"error":"timeout"}')
           REPORT+="$NW_TEST\n\`\`\`\n\n"
 
-          # Save report
-          echo -e "$REPORT" > report.md
+          # Append debug tests to report
+          echo -e "$REPORT" >> report.md
           cat report.md
 
       - name: Post Results to Issue
