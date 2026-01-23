@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `tests/test_observability_metrics.py` (25 tests) - MetricsCollector, LatencyTracker, database/in-memory storage
   - Used direct module import via `importlib.util` to bypass opentelemetry dependency
   - Added mock for `src.secrets_manager` to enable patch testing without GCP dependencies
+  - `tests/test_api_routes_agents.py` (~25 tests) - Agent CRUD endpoints, code generation
+  - `tests/test_api_routes_nightwatch.py` (~22 tests) - Night Watch status, tick, morning summary
+  - `tests/test_api_routes_health.py` (~14 tests) - Health check, root, ping endpoints
+  - Total: **138 new tests** bringing suite to 1201 tests
 
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
   - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
