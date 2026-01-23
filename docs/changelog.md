@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cost optimization: Context Caching provides 90%+ savings
   - Competitive analysis: Antigravity vs Cursor vs Claude Code vs Windsurf
   - Classification: Spike - requires evaluation against project38-or Skills
+  - **Truth Protocol Verification**: 94% accuracy verified against 26+ sources
+  - Verification report: `docs/research/notes/2026-01-23-antigravity-verification-report.md`
   - Files: `docs/research/notes/2026-01-23-antigravity-skills-devops-nerve-center.md`, `docs/research/issues/ISSUE-0004.md`
 
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
