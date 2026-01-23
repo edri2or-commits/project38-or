@@ -1,0 +1,117 @@
+name: Cleanup Preview Environments
+
+# This workflow deletes all pr-XXX preview environments from Railway
+# Run this once to clean up environments created by the now-disabled preview-deploy.yml
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run - list but do not delete'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write  # For WIF authentication
+
+jobs:
+  cleanup:
+    name: Delete All Preview Environments
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Fetch Railway API Token
+        id: railway-token
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: List and Delete Preview Environments
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "🔍 Fetching all environments..."
+
+          # Get all environments
+          ENVS_RESPONSE=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"query { project(id: \\\"$RAILWAY_PROJECT_ID\\\") { environments { edges { node { id name } } } } }\"
+            }")
+
+          # Extract pr-XXX environments
+          PR_ENVS=$(echo "$ENVS_RESPONSE" | jq -r '.data.project.environments.edges[] | select(.node.name | startswith("pr-")) | "\(.node.id)|\(.node.name)"')
+
+          if [ -z "$PR_ENVS" ]; then
+            echo "✅ No preview environments found"
+            exit 0
+          fi
+
+          echo "📋 Found preview environments:"
+          echo "$PR_ENVS" | while IFS='|' read -r id name; do
+            echo "  - $name ($id)"
+          done
+
+          COUNT=$(echo "$PR_ENVS" | wc -l)
+          echo ""
+          echo "Total: $COUNT preview environments"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo ""
+            echo "🔒 DRY RUN - No environments were deleted"
+            exit 0
+          fi
+
+          echo ""
+          echo "🗑️ Deleting preview environments..."
+
+          DELETED=0
+          FAILED=0
+
+          echo "$PR_ENVS" | while IFS='|' read -r id name; do
+            echo "  Deleting $name..."
+
+            DELETE_RESPONSE=$(curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"mutation { environmentDelete(id: \\\"$id\\\") }\"
+              }")
+
+            if echo "$DELETE_RESPONSE" | jq -e '.data.environmentDelete' > /dev/null 2>&1; then
+              echo "    ✅ Deleted"
+              DELETED=$((DELETED + 1))
+            else
+              echo "    ❌ Failed: $DELETE_RESPONSE"
+              FAILED=$((FAILED + 1))
+            fi
+
+            # Rate limiting - wait between deletions
+            sleep 1
+          done
+
+          echo ""
+          echo "📊 Summary:"
+          echo "  Deleted: $DELETED"
+          echo "  Failed: $FAILED"
+
+          if [ "$FAILED" -gt 0 ]; then
+            exit 1
+          fi
