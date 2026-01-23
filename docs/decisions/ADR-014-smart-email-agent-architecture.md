@@ -298,6 +298,259 @@ h2 { font-size: 18px; font-weight: 600; color: #333; }
    text = f"{RLM}בדקתי את {RLM}Railway{RLM} והכל תקין{RLM}"
    ```
 
+### Automated Form Filling (מילוי טפסים אוטומטי)
+
+**Sources**: [Seraphic Security - Agentic Browsers](https://seraphicsecurity.com/learn/ai-browser/top-5-agentic-browsers-in-2026-capabilities-and-security-risks/), [Playwright MCP Security](https://www.awesome-testing.com/2025/11/playwright-mcp-security), [Israel Tax Authority API](https://www.gov.il/BlobFolder/generalpage/israel-invoice-160723/he/IncomeTax_software-houses-en-040723.pdf)
+
+#### Security Philosophy: Human-in-the-Loop (MANDATORY)
+
+> ⚠️ **CRITICAL SAFETY RULE**: The agent NEVER submits forms automatically.
+> Every form submission requires explicit human approval.
+
+**Sources verified this is industry standard**:
+- [OpenAI Operator](https://openai.com/index/introducing-operator/): "Takeover mode" for sensitive inputs
+- [ChatGPT Atlas](https://seraphicsecurity.com/learn/ai-browser/top-5-agentic-browsers-in-2026-capabilities-and-security-risks/): "Watch Mode" for sensitive sites
+- [Playwright MCP Security](https://www.awesome-testing.com/2025/11/playwright-mcp-security): "Human hand on the wheel" principle
+
+```python
+# LangGraph interrupt pattern for form approval
+from langgraph.prebuilt import interrupt
+
+def form_filling_node(state: EmailState) -> EmailState:
+    """Extract form fields and prepare for human approval."""
+    form_data = extract_form_fields(state["email"])
+    pre_filled = apply_user_profile(form_data, state["user_profile"])
+
+    # MANDATORY: Interrupt for human approval
+    approval = interrupt({
+        "type": "form_approval",
+        "form_url": form_data["url"],
+        "fields": pre_filled,
+        "message": "אני מוכן למלא את הטופס הזה. לאשר?",
+        "options": ["✅ אשר ושלח", "✏️ ערוך לפני שליחה", "❌ בטל"]
+    })
+
+    if approval == "approve":
+        return submit_form(pre_filled)  # Only after explicit approval
+    elif approval == "edit":
+        return open_form_for_edit(pre_filled)
+    else:
+        return cancel_form(state)
+```
+
+#### Threat Model (2026 Agentic Browsers)
+
+Based on [CyberScoop analysis](https://cyberscoop.com/agentic-ai-browsers-security-enterprise-risk/):
+
+| Threat | Mitigation |
+|--------|------------|
+| **Prompt Injection** | Never trust form field names from external sources |
+| **Over-Privileged Automation** | Explicit approval for every submission |
+| **Hallucination-Driven Actions** | Validate all fields before showing to user |
+| **Identity Mesh Vulnerabilities** | Sandboxed browser session (Browserbase) |
+
+#### Supported Form Types
+
+**Israeli Government Forms**:
+
+| מוסד | Domain | API Status | Approach |
+|------|--------|------------|----------|
+| מס הכנסה | taxes.gov.il | ✅ OAuth2 API | Direct API if available |
+| ביטוח לאומי | btl.gov.il | ❌ No API | Browser automation |
+| משרד הפנים | gov.il | Partial | Hybrid |
+| עיריות | Various | ❌ No API | Browser automation |
+
+**Banks** (extra caution required):
+
+| בנק | Approach | Safety Level |
+|-----|----------|--------------|
+| לאומי | View only, no actions | 🔴 Read-only |
+| הפועלים | View only, no actions | 🔴 Read-only |
+| דיסקונט | View only, no actions | 🔴 Read-only |
+
+> ⚠️ **Banking forms**: Agent can ONLY read and summarize. Never fill or submit.
+
+#### Form Field Detection
+
+```python
+from dataclasses import dataclass
+from enum import Enum
+
+class FieldType(Enum):
+    TEXT = "text"
+    DATE = "date"          # Hebrew date picker
+    FILE = "file"          # Document upload
+    CHECKBOX = "checkbox"
+    ID_NUMBER = "id"       # תעודת זהות (9 digits)
+    PHONE = "phone"        # Israeli format
+    EMAIL = "email"
+    ADDRESS = "address"    # Israeli address format
+    AMOUNT = "amount"      # ₪ currency
+
+@dataclass
+class FormField:
+    name: str
+    field_type: FieldType
+    required: bool
+    value: str | None = None
+    confidence: float = 0.0  # How confident we are in pre-fill
+
+@dataclass
+class DetectedForm:
+    url: str
+    title: str
+    institution: str        # e.g., "ביטוח לאומי"
+    deadline: str | None    # If mentioned in email
+    fields: list[FormField]
+    pre_fillable: bool      # Can we pre-fill from profile?
+```
+
+#### User Profile for Pre-filling
+
+```python
+@dataclass
+class UserProfile:
+    """Stored securely, used for form pre-filling."""
+    # Identity
+    full_name_hebrew: str       # שם מלא בעברית
+    full_name_english: str      # Full name in English
+    id_number: str              # תעודת זהות (encrypted)
+
+    # Contact
+    phone: str                  # 05X-XXX-XXXX
+    email: str
+
+    # Address
+    city: str                   # עיר
+    street: str                 # רחוב
+    house_number: str           # מספר בית
+    apartment: str | None       # דירה
+    zip_code: str               # מיקוד
+
+    # Banking (read-only reference, not for automation)
+    bank_name: str | None       # שם הבנק
+    bank_branch: str | None     # סניף
+    account_number: str | None  # חשבון (encrypted)
+```
+
+#### Browser Automation Safety (Playwright MCP)
+
+Based on [Playwright MCP Security Best Practices](https://www.awesome-testing.com/2025/11/playwright-mcp-security):
+
+```python
+# Safe Playwright configuration
+playwright_config = {
+    # Run in container
+    "container": True,
+    "image": "mcr.microsoft.com/playwright:v1.42.0",
+
+    # Minimal permissions
+    "filesystem_access": "read_only",
+    "network_egress": ["gov.il", "btl.gov.il", "taxes.gov.il"],
+
+    # No secrets in prompts
+    "secrets_via_env": True,
+
+    # Approval required
+    "yolo_mode": False,  # NEVER enable in production
+
+    # Pin version
+    "mcp_version": "1.2.3",  # Not @latest
+}
+```
+
+#### Form Filling Flow
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    FORM FILLING FLOW                              │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  1. DETECT: Email contains form link                            │
+│     └─ Pattern: gov.il, btl.gov.il, taxes.gov.il               │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. EXTRACT: Identify form fields                               │
+│     └─ Playwright: Navigate, analyze DOM                        │
+│     └─ LLM: Classify field types                                │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. PRE-FILL: Match with user profile                           │
+│     └─ High confidence: Auto-fill                               │
+│     └─ Low confidence: Suggest only                             │
+│     └─ Sensitive: Show asterisks (****)                        │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  4. PRESENT: Show to user in Telegram                           │
+│     └─ "מצאתי טופס של ביטוח לאומי"                            │
+│     └─ "מילאתי מראש: שם, ת.ז., טלפון"                         │
+│     └─ "חסר: מסמך צרוף (תלוש משכורת)"                         │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  5. AWAIT APPROVAL (interrupt_before)                           │
+│     └─ ✅ "אשר ושלח"                                           │
+│     └─ ✏️ "פתח לעריכה" → Opens browser for manual review       │
+│     └─ ❌ "בטל"                                                 │
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                    ┌───────────┴───────────┐
+                    │ User approves         │
+                    ▼                       ▼
+┌─────────────────────────────┐ ┌─────────────────────────────────┐
+│  6a. SUBMIT (automated)     │ │  6b. OPEN BROWSER (manual)      │
+│  └─ Playwright fills form   │ │  └─ Pre-filled form in browser  │
+│  └─ Captures confirmation   │ │  └─ User reviews and submits    │
+│  └─ Logs action             │ │  └─ Agent monitors completion   │
+└───────────────────┬─────────┘ └───────────────────┬─────────────┘
+                    │                               │
+                    └───────────────┬───────────────┘
+                                    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  7. CONFIRM: Report to Telegram                                 │
+│     └─ "✅ הטופס נשלח בהצלחה"                                  │
+│     └─ "📋 מספר אישור: 12345678"                               │
+│     └─ "📅 שמרתי תזכורת למעקב"                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Audit Trail (Mandatory)
+
+Every form interaction is logged:
+
+```python
+@dataclass
+class FormAuditEntry:
+    timestamp: datetime
+    form_url: str
+    institution: str
+    action: Literal["detected", "pre_filled", "presented", "approved", "submitted", "cancelled"]
+    user_decision: str | None
+    fields_filled: list[str]  # Field names only, not values
+    confirmation_number: str | None
+    screenshot_path: str | None  # Before submission screenshot
+```
+
+#### What We DON'T Do (Safety Boundaries)
+
+| Action | Policy | Reason |
+|--------|--------|--------|
+| Submit without approval | ❌ NEVER | Core safety rule |
+| Fill bank transfer forms | ❌ NEVER | Financial risk |
+| Store passwords | ❌ NEVER | Security risk |
+| Auto-login to sites | ❌ NEVER | Credential exposure |
+| Fill medical forms | ⚠️ Read-only | Privacy sensitivity |
+| Upload documents | ⚠️ Approval required | Data exposure |
+
 ### Model Routing Strategy (ADR-013)
 
 | Task | Model | Cost/1M tokens | Rationale |
