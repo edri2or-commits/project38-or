@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **ADR-014: Smart Email Agent v2.0 Architecture** (2026-01-23)
+  - Created comprehensive architecture design based on 3 Deep Research sessions
+  - Verified all technology claims against external sources:
+    - LangGraph for state machine orchestration ([docs](https://docs.langchain.com/oss/python/langgraph/))
+    - Tavily for agentic search ($25M funding, 800K devs)
+    - Presidio for PII redaction (Microsoft)
+    - WeasyPrint for PDF generation
+    - DictaLM 2.0 for Hebrew LLM
+    - GLiNER for zero-shot NER
+    - Unicode RLM (U+200F) for RTL text mixing
+  - Key architecture decisions:
+    - n8n = "nervous system" (triggers), Python = "brain" (logic)
+    - LangGraph state machine with classification → research → generate flow
+    - Hebrish persona (Hebrew + English code-switching)
+    - Model routing: Haiku (classify) → Sonnet (generate) → Opus (complex only)
+    - Estimated 95% cost reduction ($750→$36/month)
+  - Implementation plan: 4 phases over 4 weeks
+  - Files: `docs/decisions/ADR-014-smart-email-agent-architecture.md`
+  - Research notes: `docs/research/notes/2026-01-23-smart-email-agent-implementation-plan.md`
+
 ### Fixed
 - **Email Agent: Replaced broken MCP calls with direct Gmail API** (2026-01-23)
   - The email agent was calling non-existent MCP Gateway REST endpoints (`/tools/gmail_search`)

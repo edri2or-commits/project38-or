@@ -53,6 +53,7 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-011: ADR Architect](docs/decisions/ADR-011-adr-architect-structured-request-processing.md) - 9-step workflow for scattered requests → structured ADRs
 - [ADR-012: Context Integrity Enforcement](docs/decisions/ADR-012-context-integrity-enforcement.md) - Automated 4-layer documentation enforcement
 - [ADR-013: Smart Model Routing](docs/decisions/ADR-013-smart-model-routing-implementation.md) - 4-phase plan: Haiku/Sonnet/Opus routing, background jobs, 60%+ cost reduction
+- [ADR-014: Smart Email Agent Architecture](docs/decisions/ADR-014-smart-email-agent-architecture.md) - LangGraph-based email agent with Hebrish persona, active research, 95% cost reduction
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
