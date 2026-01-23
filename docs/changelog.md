@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Research Note: Google Antigravity Skills - DevOps Nerve Center** (2026-01-23)
+  - Strategic analysis of Google Antigravity platform as "Agentic DevOps" nerve center
+  - Key findings: SKILL.md architecture, On-Demand Loading (Progressive Disclosure), executable scripts
+  - Paradigm shift from "Prompting" to "Teaching" with encoded knowledge assets
+  - Security model: Zero-Trust, Sandbox modes (Turbo/Auto/Off), Docker isolation
+  - Multi-agent architecture: Manager-Worker pattern, conflict resolution
+  - Cost optimization: Context Caching provides 90%+ savings
+  - Competitive analysis: Antigravity vs Cursor vs Claude Code vs Windsurf
+  - Classification: Spike - requires evaluation against project38-or Skills
+  - Files: `docs/research/notes/2026-01-23-antigravity-skills-devops-nerve-center.md`, `docs/research/issues/ISSUE-0004.md`
+
 - **Night Watch Autonomous Operations** (2026-01-22) - ADR-013 Implementation
   - Created `src/nightwatch/service.py` - NightWatchService for overnight autonomous operations
   - Created `src/models/activity_log.py` - ActivityLog, NightWatchSummary, NightWatchConfig models
