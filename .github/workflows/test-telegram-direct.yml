@@ -1,0 +1,105 @@
+name: Test Telegram Direct
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: 'Telegram Chat ID to send to'
+        required: true
+        default: '5786217215'
+      message:
+        description: 'Test message to send'
+        required: false
+        default: '🧪 Night Watch Test - Direct from GitHub Actions'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: project38-483612
+          workload_identity_provider: projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: claude-code-agent@project38-483612.iam.gserviceaccount.com
+
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Telegram Token
+        id: token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+          # Show token format (first/last chars only)
+          FIRST=${TOKEN:0:5}
+          LAST=${TOKEN: -5}
+          LEN=${#TOKEN}
+          echo "Token format: ${FIRST}...${LAST} (length: $LEN)"
+
+      - name: Validate Token with getMe
+        id: validate
+        env:
+          TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          echo "📍 Validating token with getMe..."
+
+          RESPONSE=$(curl -s "https://api.telegram.org/bot${TOKEN}/getMe")
+          echo "$RESPONSE" | jq '.'
+
+          OK=$(echo "$RESPONSE" | jq -r '.ok')
+          if [ "$OK" = "true" ]; then
+            BOT_NAME=$(echo "$RESPONSE" | jq -r '.result.username')
+            echo "✅ Token valid! Bot: @$BOT_NAME"
+            echo "bot_name=$BOT_NAME" >> $GITHUB_OUTPUT
+            echo "valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Token INVALID!"
+            echo "$RESPONSE"
+            echo "valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Send Test Message
+        if: steps.validate.outputs.valid == 'true'
+        env:
+          TOKEN: ${{ steps.token.outputs.token }}
+          CHAT_ID: ${{ inputs.chat_id }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          echo "📤 Sending message to chat $CHAT_ID..."
+
+          FULL_MESSAGE="${MESSAGE}
+
+Bot: @${{ steps.validate.outputs.bot_name }}
+Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+Run: ${{ github.run_id }}"
+
+          RESPONSE=$(curl -s -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"${CHAT_ID}\",
+              \"text\": \"${FULL_MESSAGE}\",
+              \"parse_mode\": \"HTML\"
+            }")
+
+          echo "Response:"
+          echo "$RESPONSE" | jq '.'
+
+          OK=$(echo "$RESPONSE" | jq -r '.ok')
+          if [ "$OK" = "true" ]; then
+            MSG_ID=$(echo "$RESPONSE" | jq -r '.result.message_id')
+            echo ""
+            echo "✅ Message sent successfully! Message ID: $MSG_ID"
+          else
+            ERROR=$(echo "$RESPONSE" | jq -r '.description')
+            echo ""
+            echo "❌ Failed to send message: $ERROR"
+            exit 1
+          fi
