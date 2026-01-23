@@ -1,0 +1,201 @@
+name: Fix Telegram Bot Service
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'cleanup-and-redeploy'
+        type: choice
+        options:
+          - cleanup-and-redeploy
+          - delete-service
+          - recreate-service
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT: project38-483612
+  RAILWAY_PROJECT_ID: 95ec21cc-9ada-41c5-8485-12f9a00e0116
+  RAILWAY_ENV_ID: 99c99a18-aea2-4d01-9360-6a93705102a0
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=$GCP_PROJECT)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Find Telegram Bot Service
+        id: find
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"}')
+
+          echo "Services:"
+          echo "$RESPONSE" | jq '.data.project.services.edges[].node'
+
+          # Find telegram-bot service
+          SERVICE_ID=$(echo "$RESPONSE" | jq -r '.data.project.services.edges[] | select(.node.name | test("telegram"; "i")) | .node.id')
+
+          if [ -z "$SERVICE_ID" ]; then
+            echo "❌ Telegram bot service not found!"
+            echo "service_found=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Found telegram-bot: $SERVICE_ID"
+            echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+            echo "service_found=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get Service Instances
+        if: steps.find.outputs.service_found == 'true'
+        id: instances
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+          SERVICE_ID: ${{ steps.find.outputs.service_id }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ service(id: \"'$SERVICE_ID'\") { serviceInstances { edges { node { id } } } } }"}')
+
+          echo "Service instances:"
+          echo "$RESPONSE" | jq '.data.service.serviceInstances.edges'
+
+          # Count instances
+          COUNT=$(echo "$RESPONSE" | jq '.data.service.serviceInstances.edges | length')
+          echo "Instance count: $COUNT"
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+
+          # Get all instance IDs
+          INSTANCE_IDS=$(echo "$RESPONSE" | jq -r '.data.service.serviceInstances.edges[].node.id')
+          echo "$INSTANCE_IDS" > instance_ids.txt
+
+      - name: Delete Orphaned Instances
+        if: steps.find.outputs.service_found == 'true' && inputs.action == 'cleanup-and-redeploy'
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          echo "## Deleting Orphaned Instances" >> $GITHUB_STEP_SUMMARY
+
+          # Try to delete each instance (keep only the newest one)
+          COUNT=0
+          while read INSTANCE_ID; do
+            if [ -n "$INSTANCE_ID" ]; then
+              COUNT=$((COUNT + 1))
+              if [ $COUNT -gt 1 ]; then
+                echo "Deleting instance: $INSTANCE_ID"
+                RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+                  -H "Authorization: Bearer $RAILWAY_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d '{"query": "mutation { serviceInstanceDelete(id: \"'$INSTANCE_ID'\") }"}')
+                echo "Result: $(echo $RESPONSE | jq -c '.')"
+                echo "- Deleted: $INSTANCE_ID" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "Keeping first instance: $INSTANCE_ID"
+                echo "- Kept: $INSTANCE_ID" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          done < instance_ids.txt
+
+      - name: Delete Service (if requested)
+        if: inputs.action == 'delete-service' && steps.find.outputs.service_found == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+          SERVICE_ID: ${{ steps.find.outputs.service_id }}
+        run: |
+          echo "## Deleting Service" >> $GITHUB_STEP_SUMMARY
+
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceDelete(id: \"'$SERVICE_ID'\") }"}')
+
+          echo "Delete result: $(echo $RESPONSE | jq '.')"
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Trigger Redeploy
+        if: steps.find.outputs.service_found == 'true' && inputs.action == 'cleanup-and-redeploy'
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+          SERVICE_ID: ${{ steps.find.outputs.service_id }}
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Triggering Redeploy" >> $GITHUB_STEP_SUMMARY
+
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceInstanceRedeploy(serviceId: \"'$SERVICE_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\") }"}')
+
+          echo "Redeploy result: $(echo $RESPONSE | jq '.')"
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Wait and Verify
+        if: inputs.action == 'cleanup-and-redeploy'
+        run: |
+          echo "Waiting 90 seconds for deployment..."
+          sleep 90
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Check bot health
+          RESPONSE=$(curl -s -m 30 "https://telegram-bot-production-053d.up.railway.app/health" || echo '{"error":"timeout"}')
+          echo "Bot health: $RESPONSE"
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$RESPONSE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          if echo "$RESPONSE" | jq -e '.status' > /dev/null 2>&1; then
+            echo "✅ Bot is responding!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Bot still not responding" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Post Results to Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const action = '${{ inputs.action }}';
+            const instanceCount = '${{ steps.instances.outputs.count }}' || 'unknown';
+
+            const body = `## Telegram Bot Fix Results
+
+**Action:** ${action}
+**Instances found:** ${instanceCount}
+
+Check workflow summary for details: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 453,
+              body: body
+            });
