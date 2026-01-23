@@ -40,6 +40,11 @@ jobs:
           echo "::add-mask::$RAILWAY_TOKEN"
           echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
 
+          # Also get Telegram bot token for direct API access
+          TELEGRAM_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=${{ env.PROJECT_ID }})
+          echo "::add-mask::$TELEGRAM_TOKEN"
+          echo "telegram_token=$TELEGRAM_TOKEN" >> $GITHUB_OUTPUT
+
       - name: Get Telegram Chat ID
         id: chat
         run: |
@@ -138,6 +143,20 @@ jobs:
             }"
           echo "Set TELEGRAM_BOT_URL=${{ env.TELEGRAM_BOT_URL }}"
 
+      - name: Set TELEGRAM_BOT_TOKEN (for direct API)
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+          TELEGRAM_TOKEN: ${{ steps.secrets.outputs.telegram_token }}
+        run: |
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { projectId: \\\"${{ env.RAILWAY_PROJECT_ID }}\\\", environmentId: \\\"${{ env.RAILWAY_ENVIRONMENT_ID }}\\\", serviceId: \\\"$SERVICE_ID\\\", name: \\\"TELEGRAM_BOT_TOKEN\\\", value: \\\"$TELEGRAM_TOKEN\\\" }) }\"
+            }"
+          echo "Set TELEGRAM_BOT_TOKEN (masked for security)"
+
       - name: Trigger Redeploy
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
@@ -162,6 +181,7 @@ jobs:
           echo "- NIGHTWATCH_CHAT_ID=$CHAT_ID" >> $GITHUB_STEP_SUMMARY
           echo "- MONITORING_AUTO_START=true" >> $GITHUB_STEP_SUMMARY
           echo "- TELEGRAM_BOT_URL=${{ env.TELEGRAM_BOT_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "- TELEGRAM_BOT_TOKEN=✅ (for direct API access)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Night Watch Schedule:" >> $GITHUB_STEP_SUMMARY
           echo "- Health checks: Every hour during 00:00-06:00 UTC" >> $GITHUB_STEP_SUMMARY
