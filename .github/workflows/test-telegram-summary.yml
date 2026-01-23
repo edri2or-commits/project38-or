@@ -1,0 +1,49 @@
+name: Test Telegram Summary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install httpx
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Get Telegram credentials
+        run: |
+          TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          TELEGRAM_CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" --project=project38-483612)
+          echo "::add-mask::$TELEGRAM_BOT_TOKEN"
+          echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN" >> $GITHUB_ENV
+          echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID" >> $GITHUB_ENV
+
+      - name: Send test Telegram summary
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -m src.background_agents.runner --send-telegram
+
+      - name: Report result
+        run: |
+          echo "## Telegram Summary Test" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Summary sent to Telegram" >> $GITHUB_STEP_SUMMARY
+          echo "Chat ID: ${TELEGRAM_CHAT_ID:0:4}..." >> $GITHUB_STEP_SUMMARY
