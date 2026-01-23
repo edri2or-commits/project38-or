@@ -162,6 +162,142 @@ The current email agent (`src/agents/email_agent.py`) is "עלוב ביותר" (
   - Past email patterns
   - Investigation results cache
 
+### Typography & Accessibility (טיפוגרפיה והנגשה)
+
+**Sources**: [Medium RTL Fix](https://medium.com/@python-javascript-php-html-css/fixing-hebrew-text-alignment-in-telegram-bot-api-e951f9039b72), [Smashing Magazine Typography](https://www.smashingmagazine.com/2022/10/typographic-hierarchies/), [WCAG Guidelines](https://www.w3.org/WAI/WCAG21/)
+
+#### RTL Alignment in Telegram
+
+**Problem**: Telegram defaults to LTR, causing Hebrew text misalignment.
+
+**Solution**: Use HTML mode with explicit `dir="rtl"`:
+
+```python
+def format_rtl_message(text: str) -> str:
+    """Wrap message in RTL container for Telegram HTML mode."""
+    # Use HTML parse_mode instead of Markdown
+    return f'<div dir="rtl">{text}</div>'
+
+# When sending:
+response = httpx.post(
+    f"https://api.telegram.org/bot{token}/sendMessage",
+    json={
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "HTML",  # Not Markdown!
+    }
+)
+```
+
+#### Visual Hierarchy Pattern
+
+Based on [typographic hierarchy principles](https://www.smashingmagazine.com/2022/10/typographic-hierarchies/):
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  🌅 סיכום מיילים - 23/01/2026                          │  ← H1: Emoji + Bold
+│                                                         │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │  ← Visual separator
+│                                                         │
+│  🔴 דחוף (P1)                                          │  ← H2: Color emoji + Bold
+│  ┃                                                      │
+│  ┃  📍 ביטוח לאומי                                     │  ← H3: Sender (bold)
+│  ┃     נדרש אישור תוך 7 ימים                           │  ← Body: Subject (regular)
+│  ┃     💡 חקרתי: זה טופס 101 לחידוש...                 │  ← Insight: Italic
+│  ┃                                                      │
+│  🟠 חשוב (P2)                                          │  ← H2
+│  ┃                                                      │
+│  ┃  📍 בנק לאומי                                       │
+│  ┃     עדכון פרטים נדרש                                │
+│  ┃                                                      │
+│  🟡 מידע (P3)                                          │  ← H2
+│  ┃                                                      │
+│  ┃  • Amazon - הזמנה נשלחה                             │  ← Compact list
+│  ┃  • LinkedIn - 3 צפיות בפרופיל                       │
+│  ┃                                                      │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│                                                         │
+│  📊 עבדתי 12 שניות | בדקתי 3 מקורות                    │  ← Footer: Stats
+│  _Smart Email Agent v2.0_                               │  ← Branding: Italic
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Accessibility Standards (WCAG 2.1)
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Perceivable** | Color + emoji for priority (🔴🟠🟡⚪) - not color alone |
+| **Understandable** | Hebrew-first, English terms in context |
+| **Distinguishable** | 4.5:1 contrast ratio (Telegram dark mode safe) |
+| **Screen Reader** | Structured hierarchy with H1→H2→Body flow |
+
+#### Emoji as Visual Hierarchy
+
+Strategic emoji usage (not decoration):
+
+| Emoji | Semantic Meaning | Screen Reader |
+|-------|------------------|---------------|
+| 🔴 | P1 Urgent | "אזהרה" |
+| 🟠 | P2 Important | "חשוב" |
+| 🟡 | P3 Info | "מידע" |
+| ⚪ | P4 Low | "נמוך" |
+| 📍 | Sender marker | "מאת" |
+| 💡 | AI insight | "תובנה" |
+| 📊 | Statistics | "סטטיסטיקה" |
+| ⏰ | Deadline | "דד-ליין" |
+
+#### Font Considerations for PDF Reports
+
+When generating PDF via WeasyPrint:
+
+```css
+/* RTL-first CSS */
+body {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Heebo', 'Arial Hebrew', sans-serif;
+    font-size: 16px; /* WCAG minimum */
+    line-height: 1.6; /* Readability */
+}
+
+/* English inline */
+.english-term {
+    direction: ltr;
+    unicode-bidi: embed;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Visual hierarchy */
+h1 { font-size: 24px; font-weight: 700; }
+h2 { font-size: 18px; font-weight: 600; color: #333; }
+.insight { font-style: italic; color: #666; }
+```
+
+#### Hebrish Typography Rules
+
+1. **Hebrew wrapper, English inline**:
+   ```
+   ✅ "בדקתי את ה-API ויש בעיה ב-authentication"
+   ❌ "I checked the API ויש בעיה in authentication"
+   ```
+
+2. **Technical terms stay English**:
+   - API, OAuth, webhook, deploy, commit
+   - Never translate: "ממשק תכנות יישומים" ❌
+
+3. **Numbers in context**:
+   ```
+   ✅ "יש לך 3 מיילים חדשים"
+   ✅ "נותרו 7 ימים לדד-ליין"
+   ```
+
+4. **RLM sandwiching for mixed content**:
+   ```python
+   RLM = "\u200F"
+   text = f"{RLM}בדקתי את {RLM}Railway{RLM} והכל תקין{RLM}"
+   ```
+
 ### Model Routing Strategy (ADR-013)
 
 | Task | Model | Cost/1M tokens | Rationale |
