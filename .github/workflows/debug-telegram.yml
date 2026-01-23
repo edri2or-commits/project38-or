@@ -22,6 +22,11 @@ on:
         description: 'Telegram Chat ID for Night Watch'
         required: false
         default: '5786217215'
+      create_new_service:
+        description: 'Create telegram-bot-v2 service (replacement for broken service)'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: read
@@ -150,6 +155,140 @@ jobs:
           echo "" >> railway_info.md
           echo "⏳ Waiting 60 seconds for web service redeploy..." >> railway_info.md
           sleep 60
+
+      - name: Create telegram-bot-v2 Service
+        if: inputs.create_new_service == true || inputs.create_new_service == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          echo "" >> railway_info.md
+          echo "## Creating telegram-bot-v2 Service" >> railway_info.md
+
+          # Get Telegram Bot Token
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=$GCP_PROJECT)
+
+          # Check if service already exists
+          SERVICES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"}')
+
+          EXISTING=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot-v2") | .node.id')
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            echo "Service already exists: \`$EXISTING\`" >> railway_info.md
+            SERVICE_ID="$EXISTING"
+          else
+            # Create new service
+            CREATE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { serviceCreate(input: { name: \"telegram-bot-v2\", projectId: \"'$RAILWAY_PROJECT_ID'\" }) { id name } }"}')
+
+            echo "Create response:" >> railway_info.md
+            echo '```json' >> railway_info.md
+            echo "$CREATE" | jq '.' >> railway_info.md
+            echo '```' >> railway_info.md
+
+            SERVICE_ID=$(echo "$CREATE" | jq -r '.data.serviceCreate.id')
+          fi
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Failed to create service" >> railway_info.md
+            exit 0  # Don't fail workflow
+          fi
+
+          echo "Service ID: \`$SERVICE_ID\`" >> railway_info.md
+
+          # Set environment variables
+          echo "" >> railway_info.md
+          echo "### Setting environment variables" >> railway_info.md
+
+          # TELEGRAM_BOT_TOKEN (masked)
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'$BOT_TOKEN'\" }) }"}' > /dev/null
+          echo "- TELEGRAM_BOT_TOKEN: ✅" >> railway_info.md
+
+          # PORT
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"PORT\", value: \"8000\" }) }"}' > /dev/null
+          echo "- PORT: ✅" >> railway_info.md
+
+          # GCP_PROJECT_ID
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"GCP_PROJECT_ID\", value: \"project38-483612\" }) }"}' > /dev/null
+          echo "- GCP_PROJECT_ID: ✅" >> railway_info.md
+
+          # LITELLM_GATEWAY_URL
+          curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"LITELLM_GATEWAY_URL\", value: \"https://litellm-gateway-production-0339.up.railway.app\" }) }"}' > /dev/null
+          echo "- LITELLM_GATEWAY_URL: ✅" >> railway_info.md
+
+          # Connect to GitHub repo
+          echo "" >> railway_info.md
+          echo "### Connecting to GitHub" >> railway_info.md
+          CONNECT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceConnect(id: \"'$SERVICE_ID'\", input: { repo: \"edri2or-commits/project38-or\", branch: \"main\" }) { id } }"}')
+          echo '```json' >> railway_info.md
+          echo "$CONNECT" | jq '.' >> railway_info.md
+          echo '```' >> railway_info.md
+
+          # Set root directory
+          UPDATE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceUpdate(id: \"'$SERVICE_ID'\", input: { rootDirectory: \"services/telegram-bot\" }) { id } }"}')
+          echo "Root directory set: services/telegram-bot" >> railway_info.md
+
+          # Create domain
+          echo "" >> railway_info.md
+          echo "### Creating domain" >> railway_info.md
+          DOMAIN=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceDomainCreate(input: { serviceId: \"'$SERVICE_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\" }) { id domain } }"}')
+          echo '```json' >> railway_info.md
+          echo "$DOMAIN" | jq '.' >> railway_info.md
+          echo '```' >> railway_info.md
+
+          SERVICE_DOMAIN=$(echo "$DOMAIN" | jq -r '.data.serviceDomainCreate.domain // empty')
+          if [ -n "$SERVICE_DOMAIN" ]; then
+            echo "✅ Domain created: \`$SERVICE_DOMAIN\`" >> railway_info.md
+
+            # Update web service TELEGRAM_BOT_URL
+            WEB_SERVICE_ID="f1453ff0-e5d7-4598-804d-1586241f667e"
+            NEW_BOT_URL="https://$SERVICE_DOMAIN"
+
+            echo "" >> railway_info.md
+            echo "### Updating web service TELEGRAM_BOT_URL" >> railway_info.md
+            curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$WEB_SERVICE_ID'\", name: \"TELEGRAM_BOT_URL\", value: \"'$NEW_BOT_URL'\" }) }"}' > /dev/null
+            echo "TELEGRAM_BOT_URL updated to: \`$NEW_BOT_URL\`" >> railway_info.md
+
+            # Trigger redeploy of web service
+            curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { serviceInstanceRedeploy(serviceId: \"'$WEB_SERVICE_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\") }"}' > /dev/null
+            echo "Web service redeploy triggered" >> railway_info.md
+          fi
+
+          echo "" >> railway_info.md
+          echo "✅ **telegram-bot-v2 service created!**" >> railway_info.md
+          echo "" >> railway_info.md
+          echo "⏳ Wait for Railway to deploy, then run this workflow again to verify." >> railway_info.md
 
       - name: Delete Telegram Service (DANGEROUS)
         if: inputs.delete_telegram_service == true || inputs.delete_telegram_service == 'true'
