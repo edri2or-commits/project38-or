@@ -27,6 +27,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      test_direct:
+        description: 'Test Telegram API DIRECTLY (bypass Railway services)'
+        required: false
+        default: 'true'
+        type: boolean
 
 permissions:
   contents: read
@@ -60,6 +65,103 @@ jobs:
           TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=$GCP_PROJECT)
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: 🔑 Direct Telegram API Test
+        if: inputs.test_direct == true || inputs.test_direct == 'true'
+        id: direct_test
+        env:
+          CHAT_ID: ${{ inputs.chat_id }}
+        run: |
+          echo "# 🔑 Direct Telegram API Test" > telegram_direct.md
+          echo "" >> telegram_direct.md
+          echo "Bypassing Railway services - testing Telegram API directly." >> telegram_direct.md
+          echo "" >> telegram_direct.md
+
+          # Get Telegram token from GCP
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=$GCP_PROJECT)
+          echo "::add-mask::$BOT_TOKEN"
+
+          # Show token format (masked)
+          TOKEN_LEN=${#BOT_TOKEN}
+          TOKEN_START=${BOT_TOKEN:0:5}
+          TOKEN_END=${BOT_TOKEN: -5}
+          echo "## Token Info" >> telegram_direct.md
+          echo "- Format: \`${TOKEN_START}...${TOKEN_END}\`" >> telegram_direct.md
+          echo "- Length: $TOKEN_LEN characters" >> telegram_direct.md
+          echo "" >> telegram_direct.md
+
+          # Validate token with getMe
+          echo "## 1. Validate Token (getMe)" >> telegram_direct.md
+          echo '```json' >> telegram_direct.md
+          GETME=$(curl -s "https://api.telegram.org/bot${BOT_TOKEN}/getMe")
+          echo "$GETME" | jq '.' >> telegram_direct.md
+          echo '```' >> telegram_direct.md
+          echo "" >> telegram_direct.md
+
+          OK=$(echo "$GETME" | jq -r '.ok')
+          if [ "$OK" = "true" ]; then
+            BOT_USERNAME=$(echo "$GETME" | jq -r '.result.username')
+            echo "✅ **Token VALID!** Bot: @$BOT_USERNAME" >> telegram_direct.md
+            echo "token_valid=true" >> $GITHUB_OUTPUT
+            echo "bot_username=$BOT_USERNAME" >> $GITHUB_OUTPUT
+          else
+            echo "❌ **Token INVALID!**" >> telegram_direct.md
+            ERROR=$(echo "$GETME" | jq -r '.description // "Unknown error"')
+            echo "Error: $ERROR" >> telegram_direct.md
+            echo "token_valid=false" >> $GITHUB_OUTPUT
+            cat telegram_direct.md
+            exit 0  # Don't fail workflow
+          fi
+          echo "" >> telegram_direct.md
+
+          # Send test message directly
+          echo "## 2. Send Test Message" >> telegram_direct.md
+          echo "- Chat ID: \`$CHAT_ID\`" >> telegram_direct.md
+          echo "" >> telegram_direct.md
+
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          MESSAGE="🧪 <b>Direct API Test</b>
+
+Bot: @$BOT_USERNAME
+Time: $TIMESTAMP
+Run: ${{ github.run_id }}
+
+This message was sent directly via Telegram API, bypassing Railway services."
+
+          echo '```json' >> telegram_direct.md
+          SEND=$(curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"$CHAT_ID\",
+              \"text\": \"$MESSAGE\",
+              \"parse_mode\": \"HTML\"
+            }")
+          echo "$SEND" | jq '.' >> telegram_direct.md
+          echo '```' >> telegram_direct.md
+          echo "" >> telegram_direct.md
+
+          SEND_OK=$(echo "$SEND" | jq -r '.ok')
+          if [ "$SEND_OK" = "true" ]; then
+            MSG_ID=$(echo "$SEND" | jq -r '.result.message_id')
+            echo "✅ **Message sent!** Message ID: $MSG_ID" >> telegram_direct.md
+            echo "message_sent=true" >> $GITHUB_OUTPUT
+          else
+            ERROR=$(echo "$SEND" | jq -r '.description // "Unknown error"')
+            ERROR_CODE=$(echo "$SEND" | jq -r '.error_code // "?"')
+            echo "❌ **Failed to send!** Error $ERROR_CODE: $ERROR" >> telegram_direct.md
+            echo "message_sent=false" >> $GITHUB_OUTPUT
+
+            # Common error explanations
+            if echo "$ERROR" | grep -qi "chat not found"; then
+              echo "" >> telegram_direct.md
+              echo "💡 **Hint:** User hasn't started the bot. They need to send /start to @$BOT_USERNAME first." >> telegram_direct.md
+            elif echo "$ERROR" | grep -qi "bot was blocked"; then
+              echo "" >> telegram_direct.md
+              echo "💡 **Hint:** User blocked the bot. They need to unblock @$BOT_USERNAME." >> telegram_direct.md
+            fi
+          fi
+
+          cat telegram_direct.md
 
       - name: List Railway Services
         id: railway
@@ -386,14 +488,22 @@ jobs:
           TELEGRAM_FOUND: ${{ steps.railway.outputs.telegram_found }}
           INSTANCE_COUNT: ${{ steps.railway.outputs.instance_count }}
         run: |
-          # Start with Railway info if available
-          if [ -f railway_info.md ]; then
-            cat railway_info.md > report.md
+          # Start with direct test results if available
+          if [ -f telegram_direct.md ]; then
+            cat telegram_direct.md > report.md
             echo "" >> report.md
             echo "---" >> report.md
             echo "" >> report.md
           else
             echo "" > report.md
+          fi
+
+          # Add Railway info if available
+          if [ -f railway_info.md ]; then
+            cat railway_info.md >> report.md
+            echo "" >> report.md
+            echo "---" >> report.md
+            echo "" >> report.md
           fi
 
           REPORT="## Telegram Debug Report\n\n"
