@@ -6,12 +6,17 @@ on:
       fix_bot:
         description: 'Attempt to fix bot (cleanup orphaned instances)'
         required: false
-        default: 'true'
+        default: 'false'
+        type: boolean
+      delete_telegram_service:
+        description: 'DELETE telegram-bot service entirely (dangerous!)'
+        required: false
+        default: 'false'
         type: boolean
       configure_nightwatch:
         description: 'Configure NIGHTWATCH_CHAT_ID on web service'
         required: false
-        default: 'true'
+        default: 'false'
         type: boolean
       chat_id:
         description: 'Telegram Chat ID for Night Watch'
@@ -145,6 +150,39 @@ jobs:
           echo "" >> railway_info.md
           echo "⏳ Waiting 60 seconds for web service redeploy..." >> railway_info.md
           sleep 60
+
+      - name: Delete Telegram Service (DANGEROUS)
+        if: inputs.delete_telegram_service == true || inputs.delete_telegram_service == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ steps.token.outputs.token }}
+          SERVICE_ID: ${{ steps.railway.outputs.telegram_service_id }}
+        run: |
+          echo "" >> railway_info.md
+          echo "## ⚠️ DELETING Telegram Bot Service" >> railway_info.md
+          echo "Service ID: $SERVICE_ID" >> railway_info.md
+
+          if [ -z "$SERVICE_ID" ]; then
+            echo "❌ No telegram service ID found, cannot delete" >> railway_info.md
+            exit 0
+          fi
+
+          RESPONSE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceDelete(id: \"'$SERVICE_ID'\") }"}')
+
+          echo "Delete result:" >> railway_info.md
+          echo '```json' >> railway_info.md
+          echo "$RESPONSE" | jq '.' >> railway_info.md
+          echo '```' >> railway_info.md
+
+          if echo "$RESPONSE" | jq -e '.data.serviceDelete' > /dev/null 2>&1; then
+            echo "✅ **Service deleted successfully!**" >> railway_info.md
+            echo "" >> railway_info.md
+            echo "You will need to redeploy telegram-bot from the Railway dashboard or GitHub." >> railway_info.md
+          else
+            echo "❌ **Delete failed**" >> railway_info.md
+          fi
 
       - name: Fix Telegram Bot Service
         if: inputs.fix_bot == true || inputs.fix_bot == 'true' && steps.railway.outputs.telegram_found == 'true'
