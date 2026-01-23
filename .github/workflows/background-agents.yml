@@ -30,6 +30,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  issues: write
 
 concurrency:
   group: background-agents-${{ github.event.schedule || 'manual' }}
@@ -84,8 +85,10 @@ jobs:
 
       - name: Run agent
         id: run
+        continue-on-error: true
         env:
           PYTHONPATH: ${{ github.workspace }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "=== Agent Run Debug ==="
           echo "AGENT: ${{ needs.determine-agent.outputs.agent }}"
@@ -96,16 +99,41 @@ jobs:
           echo ""
           echo "=== Running Agent ==="
 
-          # Run with explicit error output
+          # Capture output
+          OUTPUT_FILE=$(mktemp)
+
           python -m src.background_agents.runner \
             --agent "${{ needs.determine-agent.outputs.agent }}" \
             --litellm-url "$LITELLM_URL" \
             --output-json \
-            2>&1 || {
-              echo ""
-              echo "=== Agent Failed (exit code: $?) ==="
-              exit 1
-            }
+            2>&1 | tee "$OUTPUT_FILE"
+
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          echo ""
+          echo "=== Exit Code: $EXIT_CODE ==="
+
+          # Post output to GitHub issue for debugging
+          if [ "$EXIT_CODE" != "0" ]; then
+            ISSUE_BODY="## Agent Run Failed
+
+          **Run:** #${{ github.run_number }}
+          **Agent:** ${{ needs.determine-agent.outputs.agent }}
+          **Exit Code:** $EXIT_CODE
+
+          ### Output
+          \`\`\`
+          $(cat "$OUTPUT_FILE")
+          \`\`\`
+          "
+            gh issue create \
+              --title "Background Agent Failure [Run #${{ github.run_number }}]" \
+              --body "$ISSUE_BODY" \
+              --label "bug,agent" \
+              --repo ${{ github.repository }} || true
+          fi
+
+          exit $EXIT_CODE
 
       - name: Upload metrics artifacts
         uses: actions/upload-artifact@v4
