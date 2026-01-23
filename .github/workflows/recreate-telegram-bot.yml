@@ -1,0 +1,327 @@
+name: Recreate Telegram Bot Service
+
+# This workflow creates a fresh telegram-bot-v2 service since the original
+# telegram-bot service has 43 orphaned instances and is unreachable.
+# Railway API doesn't support deleting services, so we create a new one.
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'Step to execute'
+        required: true
+        default: '1-create-service'
+        type: choice
+        options:
+          - 1-create-service
+          - 2-connect-repo
+          - 3-update-web-config
+          - 4-verify
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  GCP_PROJECT: project38-483612
+  RAILWAY_PROJECT_ID: 95ec21cc-9ada-41c5-8485-12f9a00e0116
+  RAILWAY_ENV_ID: 99c99a18-aea2-4d01-9360-6a93705102a0
+  WEB_SERVICE_ID: f1453ff0-e5d7-4598-804d-1586241f667e
+  NEW_SERVICE_NAME: telegram-bot-v2
+
+jobs:
+  recreate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Secrets
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=$GCP_PROJECT)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=$GCP_PROJECT)
+          echo "::add-mask::$BOT_TOKEN"
+          echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Step 1 - Create Service
+        if: inputs.step == '1-create-service'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          BOT_TOKEN: ${{ steps.secrets.outputs.bot_token }}
+        run: |
+          echo "## Creating $NEW_SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+
+          # Check if service already exists
+          SERVICES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"}')
+
+          EXISTING=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "'$NEW_SERVICE_NAME'") | .node.id')
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            echo "Service already exists: $EXISTING" >> $GITHUB_STEP_SUMMARY
+            SERVICE_ID="$EXISTING"
+          else
+            # Create new service
+            CREATE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { serviceCreate(input: { name: \"'$NEW_SERVICE_NAME'\", projectId: \"'$RAILWAY_PROJECT_ID'\" }) { id name } }"}')
+
+            echo "Create response:" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            echo "$CREATE" | jq '.' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+
+            SERVICE_ID=$(echo "$CREATE" | jq -r '.data.serviceCreate.id')
+          fi
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Failed to create service" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Service ID: $SERVICE_ID" >> $GITHUB_STEP_SUMMARY
+
+          # Set environment variables
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Setting environment variables" >> $GITHUB_STEP_SUMMARY
+
+          for VAR in "TELEGRAM_BOT_TOKEN:$BOT_TOKEN" "PORT:8000" "GCP_PROJECT_ID:project38-483612" "LITELLM_GATEWAY_URL:https://litellm-gateway-production-0339.up.railway.app"; do
+            NAME="${VAR%%:*}"
+            VALUE="${VAR#*:}"
+
+            curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"'$NAME'\", value: \"'$VALUE'\" }) }"}' > /dev/null
+
+            echo "- $NAME: ✅" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Service created with ID: \`$SERVICE_ID\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Step" >> $GITHUB_STEP_SUMMARY
+          echo "Run this workflow again with step: **2-connect-repo**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Step 2 - Connect to GitHub Repo
+        if: inputs.step == '2-connect-repo'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          echo "## Connecting to GitHub Repository" >> $GITHUB_STEP_SUMMARY
+
+          # Get service ID
+          SERVICES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "{ project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"}')
+
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "'$NEW_SERVICE_NAME'") | .node.id')
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ Service not found. Run step 1 first." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "Service ID: $SERVICE_ID" >> $GITHUB_STEP_SUMMARY
+
+          # Connect to GitHub repo with root directory and Dockerfile
+          # Using serviceSourceGitHub mutation
+          CONNECT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceConnect(id: \"'$SERVICE_ID'\", input: { repo: \"edri2or-commits/project38-or\", branch: \"main\" }) { id } }"
+            }')
+
+          echo "Connect response:" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$CONNECT" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Set root directory via service update
+          UPDATE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceUpdate(id: \"'$SERVICE_ID'\", input: { rootDirectory: \"services/telegram-bot\" }) { id } }"
+            }')
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Root directory update:" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$UPDATE" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Create domain
+          DOMAIN=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { serviceDomainCreate(input: { serviceId: \"'$SERVICE_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\" }) { id domain } }"
+            }')
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Domain creation:" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$DOMAIN" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          SERVICE_DOMAIN=$(echo "$DOMAIN" | jq -r '.data.serviceDomainCreate.domain // empty')
+
+          if [ -n "$SERVICE_DOMAIN" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Domain created: \`$SERVICE_DOMAIN\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Step" >> $GITHUB_STEP_SUMMARY
+          echo "1. Wait for deployment to complete in Railway dashboard" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run this workflow with step: **3-update-web-config**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Step 3 - Update Web Service Config
+        if: inputs.step == '3-update-web-config'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          echo "## Updating Web Service Configuration" >> $GITHUB_STEP_SUMMARY
+
+          # Get the domain of the new telegram-bot-v2 service
+          SERVICES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name serviceInstances(environmentId: \"'$RAILWAY_ENV_ID'\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }"
+            }')
+
+          SERVICE_DOMAIN=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "'$NEW_SERVICE_NAME'") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // empty')
+
+          if [ -z "$SERVICE_DOMAIN" ]; then
+            echo "❌ Domain not found. Complete step 2 and wait for deployment." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          NEW_BOT_URL="https://$SERVICE_DOMAIN"
+          echo "New bot URL: $NEW_BOT_URL" >> $GITHUB_STEP_SUMMARY
+
+          # Update TELEGRAM_BOT_URL on web service
+          UPDATE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\", serviceId: \"'$WEB_SERVICE_ID'\", name: \"TELEGRAM_BOT_URL\", value: \"'$NEW_BOT_URL'\" }) }"}')
+
+          echo "Update result:" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$UPDATE" | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Trigger redeploy of web service
+          REDEPLOY=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "mutation { serviceInstanceRedeploy(serviceId: \"'$WEB_SERVICE_ID'\", environmentId: \"'$RAILWAY_ENV_ID'\") }"}')
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Web service redeploy triggered" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ TELEGRAM_BOT_URL updated to: \`$NEW_BOT_URL\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Step" >> $GITHUB_STEP_SUMMARY
+          echo "Wait 60s for redeploy, then run with step: **4-verify**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Step 4 - Verify
+        if: inputs.step == '4-verify'
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          echo "## Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Get the domain
+          SERVICES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name serviceInstances(environmentId: \"'$RAILWAY_ENV_ID'\") { edges { node { domains { serviceDomains { domain } } } } } } } } } }"
+            }')
+
+          SERVICE_DOMAIN=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "'$NEW_SERVICE_NAME'") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // empty')
+
+          if [ -z "$SERVICE_DOMAIN" ]; then
+            echo "❌ Domain not found" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          BOT_URL="https://$SERVICE_DOMAIN"
+
+          # Test bot health
+          echo "### Bot Health Check" >> $GITHUB_STEP_SUMMARY
+          BOT_HEALTH=$(curl -s -m 30 "$BOT_URL/health" || echo '{"error":"timeout"}')
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$BOT_HEALTH" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Test Night Watch status
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Night Watch Status" >> $GITHUB_STEP_SUMMARY
+          NW_STATUS=$(curl -s -m 30 "https://or-infra.com/api/nightwatch/status" || echo '{"error":"timeout"}')
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$NW_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Test telegram send
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Night Watch Telegram Test" >> $GITHUB_STEP_SUMMARY
+          NW_TEST=$(curl -s -m 30 -X POST "https://or-infra.com/api/nightwatch/test-telegram" || echo '{"error":"timeout"}')
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$NW_TEST" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Summary
+          if echo "$BOT_HEALTH" | jq -e '.status == "ok"' > /dev/null 2>&1; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Bot is healthy!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Bot health check failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if echo "$NW_TEST" | jq -e '.status == "sent"' > /dev/null 2>&1; then
+            echo "✅ **Telegram message sent successfully!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Telegram test may have failed - check response above**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Post to Issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const step = '${{ inputs.step }}';
+            const body = `## Telegram Bot Recreation - Step: ${step}
+
+See workflow summary for details: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: 453,
+              body: body
+            });
