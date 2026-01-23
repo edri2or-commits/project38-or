@@ -2165,6 +2165,604 @@ Consult a professional before making decisions.
 """
 ```
 
+### Google Calendar Integration (אינטגרציית לוח שנה)
+
+**Sources**: [Google Calendar API](https://developers.google.com/calendar/api), [AI Calendar Assistant with n8n](https://medium.com/@naveen_15/building-an-ai-powered-calendar-assistant-how-i-automated-my-scheduling-workflow-with-n8n-and-6073462febbe), [Reclaim.ai](https://reclaim.ai), [FlowHunt Calendar Awareness](https://www.flowhunt.io/ai-flow-templates/personal-ai-assistant-with-google-calendar-schedule-awareness/)
+
+#### למה חיבור ללוח שנה?
+
+> "AI analyzes meeting context, attendees, and historical data to automatically prepare relevant documents and suggest optimal meeting durations."
+> — [FlowHunt](https://www.flowhunt.io/ai-flow-templates/personal-ai-assistant-with-google-calendar-schedule-awareness/)
+
+הסוכן צריך להבין את **ההקשר הזמני** של המשתמש:
+
+```
+📧 מייל: "נפגש מחר בצהריים?"
+
+❌ ללא לוח שנה:
+   "קיבלת בקשה לפגישה מחר בצהריים"
+
+✅ עם לוח שנה:
+   "דני מבקש להיפגש מחר 12:00.
+    ⚠️ יש לך כבר פגישה 12:00-13:00 עם לקוח.
+    💡 אפשרויות פנויות: 10:00, 14:00, 16:00
+    [הצע 14:00] [הצע שעה אחרת] [דחה]"
+```
+
+#### יכולות האינטגרציה
+
+| יכולת | תיאור | דוגמה |
+|-------|-------|-------|
+| **Schedule Awareness** | הבנת הלוז | "מחר אתה עסוק מ-9 עד 14" |
+| **Conflict Detection** | זיהוי התנגשויות | "יש פגישה באותה שעה" |
+| **Meeting Context** | הקשר מהפגישות | "מייל מדני - יש לך פגישה איתו מחר" |
+| **Auto-Event Creation** | יצירת אירועים | "הוספתי תזכורת לדד-ליין" |
+| **Preparation Alerts** | התראות הכנה | "מחר פגישה עם X - יש 3 מיילים פתוחים איתו" |
+| **Time Blocking** | הגנה על זמן | "אל תפריע - שעת Focus" |
+
+#### ארכיטקטורה
+
+```python
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from datetime import datetime, timedelta
+from dataclasses import dataclass
+
+@dataclass
+class CalendarEvent:
+    """Google Calendar event."""
+    id: str
+    title: str
+    start: datetime
+    end: datetime
+    attendees: list[str]
+    location: str | None
+    description: str | None
+    is_all_day: bool
+    status: str  # "confirmed", "tentative", "cancelled"
+
+@dataclass
+class ScheduleContext:
+    """User's schedule context for email processing."""
+    # Current state
+    current_event: CalendarEvent | None      # פגישה עכשיו?
+    next_event: CalendarEvent | None         # פגישה הבאה
+    is_busy_now: bool
+    is_focus_time: bool                      # שעת ריכוז
+
+    # Today's overview
+    events_today: list[CalendarEvent]
+    free_slots_today: list[tuple[datetime, datetime]]
+    busy_percentage_today: float             # % מהיום תפוס
+
+    # This week
+    events_this_week: list[CalendarEvent]
+    busiest_day: str
+    most_free_day: str
+
+    # Related to email
+    meetings_with_sender: list[CalendarEvent]  # פגישות עם שולח המייל
+    upcoming_deadlines: list[CalendarEvent]    # דד-ליינים קרובים
+
+class CalendarClient:
+    """Google Calendar integration."""
+
+    def __init__(self, credentials: Credentials):
+        self.service = build('calendar', 'v3', credentials=credentials)
+
+    def get_schedule_context(
+        self,
+        sender_email: str | None = None,
+        days_ahead: int = 7
+    ) -> ScheduleContext:
+        """Get full schedule context for email processing."""
+        now = datetime.now()
+        end = now + timedelta(days=days_ahead)
+
+        # Fetch events
+        events_result = self.service.events().list(
+            calendarId='primary',
+            timeMin=now.isoformat() + 'Z',
+            timeMax=end.isoformat() + 'Z',
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+
+        events = [self._parse_event(e) for e in events_result.get('items', [])]
+
+        # Calculate context
+        return ScheduleContext(
+            current_event=self._get_current_event(events, now),
+            next_event=self._get_next_event(events, now),
+            is_busy_now=self._is_busy(events, now),
+            is_focus_time=self._is_focus_time(events, now),
+            events_today=self._filter_today(events),
+            free_slots_today=self._find_free_slots(events, now),
+            busy_percentage_today=self._calc_busy_percentage(events),
+            events_this_week=events,
+            busiest_day=self._find_busiest_day(events),
+            most_free_day=self._find_most_free_day(events),
+            meetings_with_sender=self._find_meetings_with(events, sender_email) if sender_email else [],
+            upcoming_deadlines=self._find_deadlines(events)
+        )
+
+    def find_available_slots(
+        self,
+        duration_minutes: int = 60,
+        days_ahead: int = 7,
+        working_hours: tuple[int, int] = (9, 18)
+    ) -> list[tuple[datetime, datetime]]:
+        """Find available time slots."""
+        context = self.get_schedule_context(days_ahead=days_ahead)
+        available = []
+
+        for day_offset in range(days_ahead):
+            day = datetime.now().date() + timedelta(days=day_offset)
+            day_events = [e for e in context.events_this_week
+                         if e.start.date() == day]
+
+            # Find gaps in working hours
+            slots = self._find_gaps(
+                day, day_events, duration_minutes, working_hours
+            )
+            available.extend(slots)
+
+        return available[:10]  # Top 10 options
+
+    def create_event_from_email(
+        self,
+        email: Email,
+        event_type: str,  # "meeting", "deadline", "reminder"
+        suggested_time: datetime | None = None
+    ) -> CalendarEvent:
+        """Create calendar event from email content."""
+        if event_type == "deadline":
+            # Extract deadline from email
+            deadline = self._extract_deadline(email)
+            event = {
+                'summary': f"📅 דד-ליין: {email.subject[:50]}",
+                'description': f"מייל מ: {email.sender}\n\n{email.snippet}",
+                'start': {'date': deadline.strftime('%Y-%m-%d')},
+                'end': {'date': deadline.strftime('%Y-%m-%d')},
+                'reminders': {
+                    'useDefault': False,
+                    'overrides': [
+                        {'method': 'popup', 'minutes': 24 * 60},  # יום לפני
+                        {'method': 'popup', 'minutes': 60},       # שעה לפני
+                    ],
+                },
+            }
+        elif event_type == "meeting":
+            # Create meeting event
+            event = {
+                'summary': f"פגישה: {email.sender_name}",
+                'description': f"בעקבות: {email.subject}",
+                'start': {'dateTime': suggested_time.isoformat()},
+                'end': {'dateTime': (suggested_time + timedelta(hours=1)).isoformat()},
+                'attendees': [{'email': email.sender_email}],
+            }
+        else:  # reminder
+            event = {
+                'summary': f"🔔 תזכורת: {email.subject[:30]}",
+                'description': email.snippet,
+                'start': {'dateTime': suggested_time.isoformat()},
+                'end': {'dateTime': (suggested_time + timedelta(minutes=15)).isoformat()},
+            }
+
+        result = self.service.events().insert(
+            calendarId='primary',
+            body=event
+        ).execute()
+
+        return self._parse_event(result)
+```
+
+#### Email-Calendar Correlation
+
+```python
+class EmailCalendarCorrelator:
+    """Correlate emails with calendar events."""
+
+    def __init__(self, calendar: CalendarClient, gmail: GmailClient):
+        self.calendar = calendar
+        self.gmail = gmail
+
+    def enrich_email_with_calendar(self, email: Email) -> EnrichedEmail:
+        """Add calendar context to email."""
+        context = self.calendar.get_schedule_context(
+            sender_email=email.sender_email
+        )
+
+        # Find related meetings
+        related_meetings = self._find_related_meetings(email, context)
+
+        # Check for scheduling requests
+        scheduling_request = self._detect_scheduling_request(email)
+
+        # Check deadline proximity
+        deadline_alert = self._check_deadline_proximity(email, context)
+
+        return EnrichedEmail(
+            email=email,
+            calendar_context=context,
+            related_meetings=related_meetings,
+            scheduling_request=scheduling_request,
+            deadline_alert=deadline_alert
+        )
+
+    def _find_related_meetings(
+        self,
+        email: Email,
+        context: ScheduleContext
+    ) -> list[RelatedMeeting]:
+        """Find meetings related to this email."""
+        related = []
+
+        # 1. Meetings with same sender
+        for meeting in context.meetings_with_sender:
+            related.append(RelatedMeeting(
+                event=meeting,
+                relation="same_sender",
+                relevance="high"
+            ))
+
+        # 2. Meetings with similar subject
+        for event in context.events_this_week:
+            if self._subjects_similar(email.subject, event.title):
+                related.append(RelatedMeeting(
+                    event=event,
+                    relation="similar_topic",
+                    relevance="medium"
+                ))
+
+        # 3. Meetings mentioned in email
+        mentioned = self._extract_mentioned_meetings(email.body)
+        for mention in mentioned:
+            matching = self._find_matching_event(mention, context)
+            if matching:
+                related.append(RelatedMeeting(
+                    event=matching,
+                    relation="mentioned_in_email",
+                    relevance="high"
+                ))
+
+        return related
+
+    def _detect_scheduling_request(self, email: Email) -> SchedulingRequest | None:
+        """Detect if email is asking to schedule something."""
+        SCHEDULING_PATTERNS = [
+            r"נפגש ב?(.+)",
+            r"בוא נקבע (.+)",
+            r"מתי נוח לך",
+            r"האם (.+) מתאים",
+            r"let'?s meet",
+            r"schedule a (call|meeting)",
+            r"are you free",
+        ]
+
+        for pattern in SCHEDULING_PATTERNS:
+            match = re.search(pattern, email.body, re.IGNORECASE)
+            if match:
+                return SchedulingRequest(
+                    type="meeting_request",
+                    suggested_time=self._parse_time_mention(match.group(1)),
+                    extracted_text=match.group(0)
+                )
+
+        return None
+```
+
+#### Smart Scheduling Assistant
+
+```python
+class SchedulingAssistant:
+    """AI-powered scheduling from emails."""
+
+    def __init__(self, calendar: CalendarClient, llm: LLMClient):
+        self.calendar = calendar
+        self.llm = llm
+
+    async def handle_scheduling_request(
+        self,
+        email: Email,
+        request: SchedulingRequest
+    ) -> SchedulingResponse:
+        """Handle a scheduling request from email."""
+
+        # Get availability
+        available_slots = self.calendar.find_available_slots(
+            duration_minutes=60,
+            days_ahead=14
+        )
+
+        # Get context
+        context = self.calendar.get_schedule_context(
+            sender_email=email.sender_email
+        )
+
+        # Check for conflicts with suggested time
+        conflict = None
+        if request.suggested_time:
+            conflict = self._check_conflict(request.suggested_time, context)
+
+        # Generate response options
+        if conflict:
+            return SchedulingResponse(
+                status="conflict",
+                conflict_event=conflict,
+                alternatives=available_slots[:5],
+                suggested_message=self._generate_conflict_message(
+                    conflict, available_slots[:3]
+                )
+            )
+        elif request.suggested_time:
+            return SchedulingResponse(
+                status="available",
+                suggested_time=request.suggested_time,
+                suggested_message=self._generate_accept_message(
+                    request.suggested_time
+                )
+            )
+        else:
+            return SchedulingResponse(
+                status="propose",
+                alternatives=available_slots[:5],
+                suggested_message=self._generate_propose_message(
+                    available_slots[:3]
+                )
+            )
+
+    def _generate_conflict_message(
+        self,
+        conflict: CalendarEvent,
+        alternatives: list[tuple[datetime, datetime]]
+    ) -> str:
+        """Generate Hebrew message for conflict."""
+        alt_times = ", ".join([
+            f"{s.strftime('%d/%m %H:%M')}"
+            for s, e in alternatives
+        ])
+
+        return f"""היי,
+
+השעה הזו לא מתאימה לי (יש לי משהו).
+אולי אחת מהשעות האלה?
+{alt_times}
+
+מה נוח לך?"""
+
+    def _generate_propose_message(
+        self,
+        slots: list[tuple[datetime, datetime]]
+    ) -> str:
+        """Generate Hebrew message proposing times."""
+        options = "\n".join([
+            f"• {s.strftime('%A %d/%m')} ב-{s.strftime('%H:%M')}"
+            for s, e in slots
+        ])
+
+        return f"""היי,
+
+בטח, בוא נקבע. אני פנוי ב:
+{options}
+
+מה הכי נוח לך?"""
+```
+
+#### Calendar-Aware Priority Boost
+
+```python
+def adjust_priority_by_calendar(
+    email: Email,
+    base_priority: Priority,
+    calendar_context: ScheduleContext
+) -> tuple[Priority, str]:
+    """Adjust email priority based on calendar context."""
+
+    # Boost if meeting with sender is soon
+    if calendar_context.meetings_with_sender:
+        next_meeting = min(
+            calendar_context.meetings_with_sender,
+            key=lambda e: e.start
+        )
+        days_until = (next_meeting.start.date() - datetime.now().date()).days
+
+        if days_until <= 1:
+            return (
+                Priority.P1,
+                f"📅 יש לך פגישה עם {email.sender_name} מחר!"
+            )
+        elif days_until <= 3:
+            return (
+                max(Priority.P2, base_priority),
+                f"📅 פגישה עם {email.sender_name} בעוד {days_until} ימים"
+            )
+
+    # Boost if email mentions upcoming event
+    for event in calendar_context.events_this_week:
+        if event.title.lower() in email.subject.lower():
+            return (
+                max(Priority.P2, base_priority),
+                f"📅 קשור לאירוע: {event.title}"
+            )
+
+    # Boost if deadline is soon
+    if calendar_context.upcoming_deadlines:
+        for deadline in calendar_context.upcoming_deadlines:
+            if deadline.title in email.subject:
+                days_until = (deadline.start.date() - datetime.now().date()).days
+                if days_until <= 2:
+                    return (Priority.P1, f"⏰ דד-ליין בעוד {days_until} ימים!")
+
+    return (base_priority, None)
+```
+
+#### Telegram Display with Calendar Context
+
+```
+📧 מייל מ-דני כהן
+
+📋 *תוכן:*
+"היי, נפגש מחר ב-12:00?"
+
+📅 *הקשר מהלוח שנה:*
+├─ ⚠️ מחר 12:00 יש לך: "פגישת צוות"
+├─ 👤 יש לך פגישה עם דני ביום ג' 15:00
+└─ 📊 מחר: 60% תפוס (4 פגישות)
+
+💡 *אפשרויות פנויות מחר:*
+• 10:00-11:00
+• 14:00-15:00
+• 16:00-17:00
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+[✅ הצע 14:00] [📅 הצע שעה אחרת] [❌ דחה]
+```
+
+#### Meeting Preparation Alerts
+
+```python
+async def generate_meeting_prep_alert(
+    event: CalendarEvent,
+    gmail: GmailClient,
+    hours_before: int = 24
+) -> MeetingPrepAlert | None:
+    """Generate preparation alert before meeting."""
+
+    # Get attendees
+    attendees = event.attendees
+
+    # Search for related emails
+    related_emails = []
+    for attendee in attendees:
+        emails = await gmail.search(
+            query=f"from:{attendee}",
+            max_results=5
+        )
+        related_emails.extend(emails)
+
+    # Find unresolved threads
+    unresolved = [e for e in related_emails if not e.replied]
+
+    # Find relevant attachments
+    attachments = []
+    for email in related_emails:
+        if email.has_attachments:
+            attachments.extend(email.attachments)
+
+    if unresolved or attachments:
+        return MeetingPrepAlert(
+            event=event,
+            unresolved_emails=unresolved,
+            relevant_attachments=attachments,
+            message=f"""
+🔔 *תזכורת: פגישה עם {event.title} בעוד {hours_before} שעות*
+
+📧 יש לך {len(unresolved)} מיילים פתוחים עם המשתתפים:
+{chr(10).join(f"• {e.subject[:30]}" for e in unresolved[:3])}
+
+📎 קבצים רלוונטיים:
+{chr(10).join(f"• {a.name}" for a in attachments[:3])}
+
+[📖 צפה במיילים] [✅ סמן כמוכן]
+"""
+        )
+
+    return None
+```
+
+#### Focus Time Protection
+
+```python
+class FocusTimeProtector:
+    """Protect focus time from interruptions."""
+
+    def should_interrupt(
+        self,
+        email: Email,
+        context: ScheduleContext
+    ) -> tuple[bool, str]:
+        """Decide if email should interrupt focus time."""
+
+        if not context.is_focus_time:
+            return (True, "")  # Not in focus time
+
+        # Only P1 interrupts focus time
+        if email.priority == Priority.P1:
+            return (True, "⚠️ הודעה דחופה בזמן Focus Time")
+
+        # Otherwise, queue for later
+        focus_end = context.current_event.end
+        return (
+            False,
+            f"🎯 אתה ב-Focus Time עד {focus_end.strftime('%H:%M')}. "
+            f"אעדכן אותך אחרי."
+        )
+
+    def get_notification_mode(
+        self,
+        context: ScheduleContext
+    ) -> NotificationMode:
+        """Get appropriate notification mode based on schedule."""
+
+        if context.is_focus_time:
+            return NotificationMode.SILENT  # P1 only
+        elif context.current_event:
+            return NotificationMode.QUIET   # P1, P2 only
+        else:
+            return NotificationMode.NORMAL  # All priorities
+```
+
+#### LangGraph Integration
+
+```python
+def calendar_context_node(state: EmailState) -> EmailState:
+    """Node that adds calendar context to email processing."""
+    email = state['email']
+
+    # Get calendar context
+    calendar_context = calendar_client.get_schedule_context(
+        sender_email=email.sender_email,
+        days_ahead=7
+    )
+
+    state['calendar_context'] = calendar_context
+
+    # Detect scheduling request
+    scheduling_request = correlator._detect_scheduling_request(email)
+    if scheduling_request:
+        state['scheduling_request'] = scheduling_request
+
+    # Adjust priority based on calendar
+    adjusted_priority, reason = adjust_priority_by_calendar(
+        email,
+        state.get('base_priority', Priority.P3),
+        calendar_context
+    )
+
+    if reason:
+        state['priority'] = adjusted_priority
+        state['priority_reason'] = reason
+
+    return state
+
+# Add to graph
+workflow.add_node("calendar_context", calendar_context_node)
+workflow.add_edge("fetch_emails", "calendar_context")
+workflow.add_edge("calendar_context", "context_retrieval")
+```
+
+#### Auto-Actions
+
+| טריגר | פעולה אוטומטית | דורש אישור? |
+|-------|---------------|-------------|
+| מייל עם דד-ליין | יצירת תזכורת בלוח | לא |
+| בקשה לפגישה + זמן פנוי | הצעת אישור | כן |
+| בקשה לפגישה + התנגשות | הצעת חלופות | כן |
+| פגישה מחר | התראת הכנה | לא |
+| שעת Focus | השתקת P2-P4 | לא |
+
 ### Model Routing Strategy (ADR-013)
 
 | Task | Model | Cost/1M tokens | Rationale |
