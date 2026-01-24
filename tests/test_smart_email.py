@@ -5,11 +5,14 @@ Tests cover:
 - Classification node (LLM + regex fallback)
 - Format RTL node (Telegram formatting)
 - Research, History, Draft nodes
+- Verification node (Phase 4: Proof of Completeness)
+- Memory layer (Phase 4.10: Sender Intelligence)
 - Full graph execution
 
 ADR-014: Smart Email Agent with Telegram Integration
 """
 
+import os
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -860,3 +863,272 @@ class TestVerificationNode:
         assert "email-001" in result["all_processed_ids"]
         assert "email-002" in result["all_processed_ids"]
         assert len(result["all_processed_ids"]) == 2
+
+
+class TestMemoryLayer:
+    """Tests for memory layer (Phase 4.10: Sender Intelligence)."""
+
+    def test_memory_types_imports(self):
+        """Test that memory types are importable."""
+        from src.agents.smart_email.memory.types import (
+            SenderProfile,
+            InteractionRecord,
+            ThreadSummary,
+            ActionOutcome,
+            ConversationContext,
+            MemoryType,
+            RelationshipType,
+        )
+
+        # Verify enum values
+        assert MemoryType.SEMANTIC.value == "semantic"
+        assert MemoryType.EPISODIC.value == "episodic"
+        assert MemoryType.PROCEDURAL.value == "procedural"
+
+        # Verify relationship types
+        assert RelationshipType.NEW.value == "new"
+        assert RelationshipType.VIP.value == "vip"
+        assert RelationshipType.GOVERNMENT.value == "government"
+
+    def test_sender_profile_dataclass(self):
+        """Test SenderProfile dataclass creation."""
+        from src.agents.smart_email.memory.types import SenderProfile, RelationshipType
+
+        profile = SenderProfile(
+            email="test@example.com",
+            name="Test User",
+            relationship_type=RelationshipType.RECURRING,
+            role="רואה חשבון",
+            total_interactions=15,
+        )
+
+        assert profile.email == "test@example.com"
+        assert profile.relationship_type == RelationshipType.RECURRING
+        assert profile.total_interactions == 15
+        assert profile.is_vip is False  # Default
+
+    def test_sender_profile_get_context_for_llm(self):
+        """Test SenderProfile.get_context_for_llm method."""
+        from src.agents.smart_email.memory.types import SenderProfile, RelationshipType
+
+        profile = SenderProfile(
+            email="danny@accountant.co.il",
+            name="דני",
+            role="רואה החשבון שלי",
+            relationship_type=RelationshipType.FREQUENT,
+            total_interactions=50,
+            typical_topics=["חשבוניות", "דוחות", "מסים"],
+            notes="תמיד שואל על חשבוניות בסוף חודש",
+        )
+
+        context = profile.get_context_for_llm()
+
+        assert "דני" in context
+        assert "רואה החשבון" in context
+        assert "חשבוניות" in context
+        assert "תכוף" in context  # Frequent relationship
+
+    def test_sender_profile_should_prioritize(self):
+        """Test SenderProfile.should_prioritize method."""
+        from src.agents.smart_email.memory.types import SenderProfile, RelationshipType
+
+        # VIP should be prioritized
+        vip_profile = SenderProfile(
+            email="vip@company.com",
+            is_vip=True,
+        )
+        assert vip_profile.should_prioritize() is True
+
+        # Government should be prioritized
+        gov_profile = SenderProfile(
+            email="notice@gov.il",
+            relationship_type=RelationshipType.GOVERNMENT,
+        )
+        assert gov_profile.should_prioritize() is True
+
+        # Regular sender should not be prioritized
+        regular_profile = SenderProfile(
+            email="random@store.com",
+            relationship_type=RelationshipType.OCCASIONAL,
+        )
+        assert regular_profile.should_prioritize() is False
+
+    def test_sender_profile_get_relationship_badge(self):
+        """Test SenderProfile.get_relationship_badge method."""
+        from src.agents.smart_email.memory.types import SenderProfile, RelationshipType
+
+        new_profile = SenderProfile(email="new@test.com", relationship_type=RelationshipType.NEW)
+        assert new_profile.get_relationship_badge() == "🆕"
+
+        vip_profile = SenderProfile(email="vip@test.com", relationship_type=RelationshipType.VIP)
+        assert vip_profile.get_relationship_badge() == "👑"
+
+        bank_profile = SenderProfile(email="bank@test.com", relationship_type=RelationshipType.BANK)
+        assert bank_profile.get_relationship_badge() == "🏦"
+
+    def test_interaction_record_dataclass(self):
+        """Test InteractionRecord dataclass creation."""
+        from datetime import datetime
+        from src.agents.smart_email.memory.types import InteractionRecord
+
+        record = InteractionRecord(
+            id="int_123",
+            sender_email="test@example.com",
+            timestamp=datetime.now(),
+            email_id="email_123",
+            thread_id="thread_456",
+            subject="Test Subject",
+            priority="P1",
+            was_urgent=True,
+        )
+
+        assert record.id == "int_123"
+        assert record.priority == "P1"
+        assert record.was_urgent is True
+
+    def test_conversation_context_add_message(self):
+        """Test ConversationContext.add_message method."""
+        from datetime import datetime
+        from src.agents.smart_email.memory.types import ConversationContext
+
+        context = ConversationContext(
+            user_id="user_123",
+            chat_id="chat_456",
+            started_at=datetime.now(),
+            last_message_at=datetime.now(),
+        )
+
+        context.add_message("user", "מה עם המייל מהבנק?")
+        context.add_message("assistant", "המייל מהבנק הוא על אישור הלוואה...")
+
+        assert len(context.recent_messages) == 2
+        assert context.recent_messages[0]["role"] == "user"
+        assert context.recent_messages[1]["role"] == "assistant"
+
+    def test_conversation_context_message_limit(self):
+        """Test that ConversationContext keeps only last 30 messages."""
+        from datetime import datetime
+        from src.agents.smart_email.memory.types import ConversationContext
+
+        context = ConversationContext(
+            user_id="user_123",
+            chat_id="chat_456",
+            started_at=datetime.now(),
+            last_message_at=datetime.now(),
+        )
+
+        # Add 35 messages
+        for i in range(35):
+            context.add_message("user", f"Message {i}")
+
+        # Should only keep last 30
+        assert len(context.recent_messages) == 30
+        assert "Message 5" in context.recent_messages[0]["content"]
+
+    def test_memory_node_classify_relationship(self):
+        """Test classify_relationship function."""
+        from src.agents.smart_email.nodes.memory import classify_relationship
+
+        assert classify_relationship(0) == "new"
+        assert classify_relationship(3) == "occasional"
+        assert classify_relationship(10) == "recurring"
+        assert classify_relationship(20) == "frequent"
+        assert classify_relationship(5, is_vip=True) == "vip"
+
+    def test_memory_node_get_sender_badge(self):
+        """Test get_sender_badge function."""
+        from src.agents.smart_email.nodes.memory import get_sender_badge
+
+        assert get_sender_badge("new") == "🆕"
+        assert get_sender_badge("vip") == "👑"
+        assert get_sender_badge("government") == "🏛️"
+        assert get_sender_badge("unknown") == "👤"  # Default
+
+    def test_memory_node_format_sender_context_hebrew(self):
+        """Test format_sender_context_hebrew function."""
+        from src.agents.smart_email.nodes.memory import format_sender_context_hebrew
+
+        context = format_sender_context_hebrew(
+            relationship="frequent",
+            total_interactions=25,
+            typical_priority="P1",
+            notes="תמיד דחוף",
+        )
+
+        assert "⭐" in context  # Frequent badge
+        assert "תכוף" in context
+        assert "25 הודעות" in context
+        assert "P1" in context
+        assert "תמיד דחוף" in context
+
+    @pytest.mark.asyncio
+    async def test_memory_enrich_node_no_database(self):
+        """Test memory_enrich_node when DATABASE_URL is not set."""
+        from src.agents.smart_email.nodes.memory import memory_enrich_node
+
+        # No DATABASE_URL - should gracefully disable
+        with patch.dict("os.environ", {}, clear=True):
+            result = await memory_enrich_node({"raw_emails": []})
+            assert result.get("memory_enabled") is False
+
+    @pytest.mark.asyncio
+    async def test_memory_record_node_disabled(self):
+        """Test memory_record_node when memory is disabled."""
+        from src.agents.smart_email.nodes.memory import memory_record_node
+
+        state = {
+            "emails": [],
+            "memory_enabled": False,
+        }
+
+        result = await memory_record_node(state)
+        assert result.get("interactions_recorded") == 0
+
+    def test_memory_store_imports(self):
+        """Test that MemoryStore is importable."""
+        from src.agents.smart_email.memory.store import MemoryStore, SCHEMA_SQL
+
+        # Verify schema contains required tables
+        assert "sender_profiles" in SCHEMA_SQL
+        assert "interaction_records" in SCHEMA_SQL
+        assert "conversation_contexts" in SCHEMA_SQL
+        assert "thread_summaries" in SCHEMA_SQL
+        assert "action_rules" in SCHEMA_SQL
+
+    def test_memory_store_initialization(self):
+        """Test MemoryStore initialization without database."""
+        from src.agents.smart_email.memory.store import MemoryStore
+
+        store = MemoryStore()
+
+        # Should initialize without error
+        assert store.database_url is None
+        assert store._pool is None
+
+    def test_graph_with_memory_disabled(self):
+        """Test graph creation with memory disabled."""
+        from src.agents.smart_email.graph import create_email_graph
+
+        graph = create_email_graph(enable_phase2=True, enable_memory=False)
+
+        # Graph should compile without error
+        assert graph is not None
+
+    def test_graph_with_memory_enabled(self):
+        """Test graph creation with memory enabled."""
+        from src.agents.smart_email.graph import create_email_graph
+
+        graph = create_email_graph(enable_phase2=True, enable_memory=True)
+
+        # Graph should compile without error
+        assert graph is not None
+
+    def test_smart_email_graph_with_memory(self):
+        """Test SmartEmailGraph initialization with memory."""
+        from src.agents.smart_email.graph import SmartEmailGraph
+
+        agent = SmartEmailGraph(enable_phase2=True, enable_memory=True)
+
+        assert agent.enable_phase2 is True
+        assert agent.enable_memory is True
+        assert agent.graph is not None

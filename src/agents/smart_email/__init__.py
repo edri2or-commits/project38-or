@@ -4,12 +4,12 @@ ADR-014: Smart Email Agent Architecture
 
 Phase 1 MVP: LangGraph skeleton + Haiku classification + Hebrish formatting
 Phase 2 Intelligence: Web research + Sender history + Draft replies
-Phase 4 Full Capabilities: Proof of completeness + Attachments + Interactive buttons
+Phase 4 Full Capabilities: Proof of completeness + Memory + Interactive buttons
 
 Architecture (Phase 4):
-    FETCH → CLASSIFY → RESEARCH → HISTORY → DRAFT → VERIFY → FORMAT → SEND
-       ↓        ↓          ↓          ↓        ↓        ↓         ↓       ↓
-    Gmail    Haiku      Web/LLM    Gmail    LLM    Compare    Hebrish  Telegram
+    FETCH → MEMORY → CLASSIFY → RESEARCH → HISTORY → DRAFT → VERIFY → RECORD → FORMAT → SEND
+       ↓       ↓         ↓          ↓          ↓        ↓        ↓        ↓         ↓       ↓
+    Gmail    PG       Haiku      Web/LLM    Gmail    LLM    Compare    PG      Hebrish  Telegram
 
 Components:
     - graph.py: LangGraph state machine
@@ -19,11 +19,19 @@ Components:
     - nodes/history.py: Sender history lookup
     - nodes/draft.py: Reply draft generation
     - nodes/verify.py: Proof of completeness (no emails missed)
+    - nodes/memory.py: Sender intelligence (Phase 4.10)
     - nodes/format_rtl.py: Hebrish RTL formatting
+    - memory/: PostgreSQL-backed sender memory (Phase 4.10)
     - persona.py: Smart friend personality
 """
 
 from src.agents.smart_email.graph import SmartEmailGraph, run_smart_email_agent
+from src.agents.smart_email.memory import (
+    MemoryStore,
+    MemoryType,
+    RelationshipType,
+    SenderProfile,
+)
 from src.agents.smart_email.state import (
     DraftReply,
     EmailCategory,
@@ -50,4 +58,8 @@ __all__ = [
     "DraftReply",
     # Phase 4 types
     "VerificationResult",
+    "MemoryStore",
+    "MemoryType",
+    "RelationshipType",
+    "SenderProfile",
 ]

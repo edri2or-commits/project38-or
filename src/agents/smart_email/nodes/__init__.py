@@ -14,12 +14,20 @@ Phase 2 (Intelligence):
 
 Phase 4 (Full Capabilities):
     - verify_completeness_node: Proof that no emails were missed
+    - memory_enrich_node: Sender intelligence from memory
+    - memory_record_node: Record interactions to memory
 """
 
 from src.agents.smart_email.nodes.classify import classify_emails_node
 from src.agents.smart_email.nodes.draft import draft_node
 from src.agents.smart_email.nodes.format_rtl import format_telegram_node
 from src.agents.smart_email.nodes.history import history_node
+from src.agents.smart_email.nodes.memory import (
+    format_sender_context_hebrew,
+    get_sender_badge,
+    memory_enrich_node,
+    memory_record_node,
+)
 from src.agents.smart_email.nodes.research import research_node
 from src.agents.smart_email.nodes.verify import verify_completeness_node
 
@@ -33,4 +41,8 @@ __all__ = [
     "draft_node",
     # Phase 4
     "verify_completeness_node",
+    "memory_enrich_node",
+    "memory_record_node",
+    "get_sender_badge",
+    "format_sender_context_hebrew",
 ]

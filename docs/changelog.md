@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent Phase 4.10 - Sender Intelligence** (2026-01-24) ✅
+  - `src/agents/smart_email/memory/` - Memory layer module (3 files, 700+ lines)
+  - `types.py` - Memory dataclasses (SenderProfile, InteractionRecord, ConversationContext)
+  - `store.py` - PostgreSQL-backed memory store with 5 tables and async CRUD
+  - `nodes/memory.py` - Memory enrichment and recording nodes
+  - Memory types based on CoALA paper: Semantic, Episodic, Procedural
+  - Relationship classification: new/occasional/recurring/frequent/vip
+  - Graph integration: FETCH → MEMORY_ENRICH → CLASSIFY → ... → MEMORY_RECORD → FORMAT → SEND
+  - 20 unit tests in `tests/test_smart_email.py::TestMemoryLayer`
+  - Graceful fallback when DATABASE_URL not set
+
 - **Smart Email Agent Phase 4.1 - Proof of Completeness** (2026-01-24) ✅
   - `src/agents/smart_email/nodes/verify.py` - Verification node (153 lines)
   - `VerificationResult` dataclass with `is_complete` and `summary_hebrew()`

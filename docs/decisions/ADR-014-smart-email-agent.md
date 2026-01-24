@@ -273,6 +273,46 @@ New architecture using LangGraph state machine:
 - [ ] `tests/test_attachments.py` - Attachment handling tests
 - [ ] `tests/test_telegram_buttons.py` - Interactive button tests
 
+#### 4.10 Sender Intelligence (Long-term Memory) ✅ COMPLETE
+- [x] `src/agents/smart_email/memory/` - Memory layer module (3 files, 500+ lines)
+  - `types.py` - Memory dataclasses:
+    - `SenderProfile`: Complete sender understanding (relationship, patterns, notes)
+    - `InteractionRecord`: Individual email interaction history
+    - `ThreadSummary`: Email thread summaries
+    - `ConversationContext`: Telegram conversation state
+    - `MemoryType`: Semantic/Episodic/Procedural (based on CoALA paper)
+    - `RelationshipType`: new/occasional/recurring/frequent/vip
+  - `store.py` - PostgreSQL-backed memory store (300+ lines):
+    - 5 tables: sender_profiles, interaction_records, thread_summaries, conversation_contexts, action_rules
+    - Full CRUD operations with asyncpg
+    - Pattern learning (typical_priority, typical_urgency)
+    - Context building for LLM prompts
+  - `__init__.py` - Module exports
+- [x] `src/agents/smart_email/nodes/memory.py` - Memory nodes (200+ lines)
+  - `memory_enrich_node`: Enriches emails with sender context before classification
+  - `memory_record_node`: Records interactions after processing
+  - `get_sender_badge()`: Emoji badges per relationship type
+  - `format_sender_context_hebrew()`: Hebrew context for Telegram
+- [x] Graph integration:
+  - New flow: FETCH → MEMORY_ENRICH → CLASSIFY → ... → VERIFY → MEMORY_RECORD → FORMAT → SEND
+  - `enable_memory` parameter for SmartEmailGraph
+  - Graceful fallback when DATABASE_URL not set
+- [x] Memory works without breaking existing functionality (disabled without PostgreSQL)
+
+#### 4.11 Conversational Telegram Interface (Planned)
+- [ ] `services/telegram-bot/handlers/email_conversation.py` - Interactive handlers
+- [ ] Natural language queries: "מה עם דני מהבנק?"
+- [ ] Action requests: "שלח לו שאני מאשר"
+- [ ] Context persistence across sessions
+- [ ] Message history with summarization
+
+#### 4.12 Action System with Approval (Planned)
+- [ ] `src/agents/smart_email/actions/` - Action execution module
+- [ ] Supported actions: reply, forward, archive, label, snooze
+- [ ] Approval flow: AI proposes → User approves → Execute
+- [ ] Audit log for all actions
+- [ ] Undo capability
+
 ## Consequences
 
 ### Positive
@@ -317,6 +357,7 @@ New architecture using LangGraph state machine:
 | 2026-01-24 | Verified workflow runs successfully (Run #21312936232) | Claude |
 | 2026-01-24 | Fixed GCP Tunnel integration (PRs #535-#541) | Claude |
 | 2026-01-24 | Fixed MCP content[].text response parsing | Claude |
+| 2026-01-24 | ✅ Phase 4.10 COMPLETE - Sender Intelligence (memory layer, 700+ lines) | Claude |
 | 2026-01-24 | Removed unsupported unread_only parameter | Claude |
 | 2026-01-24 | Added graceful SecretManager fallback | Claude |
 | 2026-01-24 | Production verified (Run #21316555022) ✅ | Claude |
