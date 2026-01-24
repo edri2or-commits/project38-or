@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent v2.0 - Tests & CI Integration** (2026-01-24)
+  - Added `tests/test_smart_email.py` - 38 comprehensive tests covering all nodes and graph
+  - Updated `daily-email-agent.yml` to use v2.0 LangGraph SmartEmailGraph
+  - Verified workflow execution: Run #21312936232 passed successfully
+
 - **Smart Email Agent v2.0 - LangGraph Refactor** (2026-01-23/24)
   - **Phase 1 (MVP):** LangGraph state machine (FETCH→CLASSIFY→FORMAT→SEND)
     - `src/agents/smart_email/graph.py` - LangGraph orchestration
