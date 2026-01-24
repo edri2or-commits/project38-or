@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **MCP Status Endpoint - Proper Mount Detection** (2026-01-24)
+  - Fixed `/api/mcp/status` endpoint to properly detect mounted ASGI apps
+  - Uses `starlette.routing.Mount` instead of raw path attribute
+  - Now correctly shows whether MCP Gateway is actually mounted at `/mcp`
+  - Added `route_types_sample` field showing route types in the app
+
 ### Added
 - **Smart Email Agent v2.0 - Tests & CI Integration** (2026-01-24)
   - Added `tests/test_smart_email.py` - 38 comprehensive tests covering all nodes and graph
