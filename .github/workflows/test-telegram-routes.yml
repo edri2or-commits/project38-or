@@ -1,0 +1,44 @@
+name: Test Telegram Bot Routes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Debug Routes Endpoint
+        id: routes
+        run: |
+          echo "=== Testing /debug/routes ===" | tee /tmp/result.md
+          ROUTES=$(curl -s "https://telegram-bot-production-053d.up.railway.app/debug/routes" || echo "FAILED")
+          echo '```json' >> /tmp/result.md
+          echo "$ROUTES" | jq '.' >> /tmp/result.md 2>/dev/null || echo "$ROUTES" >> /tmp/result.md
+          echo '```' >> /tmp/result.md
+
+          echo "" >> /tmp/result.md
+          echo "=== Testing /health ===" >> /tmp/result.md
+          echo '```json' >> /tmp/result.md
+          curl -s "https://telegram-bot-production-053d.up.railway.app/health" | jq '.' >> /tmp/result.md 2>/dev/null
+          echo '```' >> /tmp/result.md
+
+          echo "" >> /tmp/result.md
+          echo "=== Testing /webhook (POST) ===" >> /tmp/result.md
+          echo '```' >> /tmp/result.md
+          curl -s -X POST "https://telegram-bot-production-053d.up.railway.app/webhook" \
+            -H "Content-Type: application/json" \
+            -d '{"update_id": 1}' \
+            -w "\nHTTP Status: %{http_code}" >> /tmp/result.md
+          echo '```' >> /tmp/result.md
+
+          cat /tmp/result.md
+
+      - name: Post Results to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment 509 --repo ${{ github.repository }} --body-file /tmp/result.md
