@@ -83,6 +83,15 @@ jobs:
             echo "⚠️ MCP Gateway token not found"
           fi
 
+          # Get Telegram bot token
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" 2>/dev/null || echo "")
+          if [ -n "$BOT_TOKEN" ]; then
+            echo "TELEGRAM_BOT_TOKEN=$BOT_TOKEN" >> $GITHUB_ENV
+            echo "✅ Telegram bot token loaded"
+          else
+            echo "⚠️ Telegram bot token not found"
+          fi
+
           # Get Telegram chat ID
           CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" 2>/dev/null || echo "")
           if [ -n "$CHAT_ID" ]; then
@@ -98,6 +107,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
           MCP_GATEWAY_TOKEN: ${{ env.MCP_GATEWAY_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ env.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ env.TELEGRAM_CHAT_ID }}
         run: |
           HOURS="${{ inputs.hours || '24' }}"
