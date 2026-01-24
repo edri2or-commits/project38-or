@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Smart Email Agent - GCP Tunnel for Gmail OAuth** (2026-01-24)
+  - Updated `gmail_client.py` to use GCP Tunnel (Cloud Run) by default
+  - GCP Tunnel has access to Google OAuth secrets via GCP Secret Manager
+  - Added JSON-RPC 2.0 format support for GCP Tunnel communication
+  - Updated `email_history.py` with same changes
+  - Updated `debug-email-agent.yml` workflow to use MCP_TUNNEL_TOKEN
+  - Railway MCP Gateway at or-infra.com lacks OAuth secrets access
+
 - **MCP Status Endpoint - Proper Mount Detection** (2026-01-24)
   - Fixed `/api/mcp/status` endpoint to properly detect mounted ASGI apps
   - Uses `starlette.routing.Mount` instead of raw path attribute

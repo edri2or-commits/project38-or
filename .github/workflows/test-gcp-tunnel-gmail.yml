@@ -1,0 +1,82 @@
+# Test Gmail via GCP Tunnel
+name: Test GCP Tunnel Gmail
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: project38-483612
+
+      - name: Get MCP Tunnel Token
+        run: |
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" 2>/dev/null || echo "")
+          echo "MCP_TUNNEL_TOKEN=$MCP_TOKEN" >> $GITHUB_ENV
+          echo "Token loaded: ${MCP_TOKEN:+SET}"
+
+      - name: Test GCP Tunnel tools/list
+        run: |
+          echo "=== Testing tools/list ==="
+          curl -s -X POST "https://mcp-router-979429709900.us-central1.run.app" \
+            -H "Authorization: Bearer ${{ env.MCP_TUNNEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc": "2.0", "id": "test-1", "method": "tools/list", "params": {}}' \
+            | tee /tmp/tools_list.json | jq '.result.tools | map(.name) | join(", ")' || echo "Error"
+
+      - name: Test gmail_list via GCP Tunnel
+        run: |
+          echo "=== Testing gmail_list ==="
+          curl -s --max-time 60 -X POST "https://mcp-router-979429709900.us-central1.run.app" \
+            -H "Authorization: Bearer ${{ env.MCP_TUNNEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc": "2.0", "id": "test-2", "method": "tools/call", "params": {"name": "gmail_list", "arguments": {"label": "INBOX", "max_results": 5}}}' \
+            | tee /tmp/gmail_list.json | jq . || echo "Error"
+
+      - name: Post Results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TOOLS=$(cat /tmp/tools_list.json 2>/dev/null | head -50 || echo "No output")
+          GMAIL=$(cat /tmp/gmail_list.json 2>/dev/null | head -50 || echo "No output")
+
+          # Use heredoc for body to handle special characters
+          cat > /tmp/comment.md << 'ENDCOMMENT'
+          ## GCP Tunnel Gmail Test
+
+          **Run:** ${{ github.run_id }}
+
+          ### tools/list
+          ```json
+          TOOLS_PLACEHOLDER
+          ```
+
+          ### gmail_list
+          ```json
+          GMAIL_PLACEHOLDER
+          ```
+          ENDCOMMENT
+
+          # Replace placeholders
+          sed -i "s|TOOLS_PLACEHOLDER|$TOOLS|g" /tmp/comment.md
+          sed -i "s|GMAIL_PLACEHOLDER|$GMAIL|g" /tmp/comment.md
+
+          gh issue comment 509 --repo ${{ github.repository }} -F /tmp/comment.md || echo "Failed to post comment"

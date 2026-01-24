@@ -1,10 +1,14 @@
 """Gmail Client for Smart Email Agent.
 
 Provides a simple interface to fetch emails via MCP Gateway.
+Supports both:
+- GCP Tunnel (Cloud Run): JSON-RPC 2.0 format, has OAuth secrets
+- Railway MCP Gateway: Simple /api/mcp/call format
 """
 
 import logging
 import os
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -31,31 +35,33 @@ class GmailClient:
     """Client for fetching emails via MCP Gateway.
 
     Uses the MCP Gateway's gmail_list tool to fetch unread emails.
+    Supports both GCP Tunnel (JSON-RPC) and Railway (simple JSON) formats.
     """
 
     def __init__(self, mcp_url: str | None = None, mcp_token: str | None = None):
         """Initialize Gmail client.
 
         Args:
-            mcp_url: MCP Gateway URL (default: from env or production URL)
+            mcp_url: MCP Gateway URL (default: from env or GCP Tunnel)
             mcp_token: MCP Gateway token (default: from env)
         """
-        # Use the direct /api/mcp/call endpoint which works reliably
-        # The FastMCP http_app at /mcp/mcp has issues with JSON-RPC handling
+        # Default to GCP Tunnel which has OAuth secrets
+        # Railway MCP Gateway at or-infra.com doesn't have Google OAuth secrets
         self.mcp_url = mcp_url or os.environ.get(
             "MCP_GATEWAY_URL",
-            "https://or-infra.com/api/mcp/call"
+            "https://mcp-router-979429709900.us-central1.run.app"
         )
         self.mcp_token = mcp_token or os.environ.get("MCP_GATEWAY_TOKEN", "")
 
-    def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -> dict[str, Any]:
-        """Call an MCP tool via the /api/mcp/call endpoint.
+        # Detect if using GCP Tunnel (JSON-RPC) or Railway (simple format)
+        self.use_jsonrpc = "mcp-router" in self.mcp_url or "cloudfunctions" in self.mcp_url
 
-        Uses the direct FastAPI endpoint format:
-        {
-            "tool_name": "<tool_name>",
-            "arguments": {...}
-        }
+    def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -> dict[str, Any]:
+        """Call an MCP tool via the MCP Gateway.
+
+        Supports two formats:
+        - JSON-RPC 2.0 (GCP Tunnel): {"jsonrpc": "2.0", "method": "tools/call", ...}
+        - Simple JSON (Railway): {"tool_name": "...", "arguments": {...}}
 
         Args:
             tool_name: Name of the MCP tool
@@ -68,31 +74,52 @@ class GmailClient:
         if self.mcp_token:
             headers["Authorization"] = f"Bearer {self.mcp_token}"
 
-        # Direct endpoint format - simple JSON body
         url = self.mcp_url
-        payload = {
-            "tool_name": tool_name,
-            "arguments": params,
-        }
+
+        if self.use_jsonrpc:
+            # GCP Tunnel: JSON-RPC 2.0 format
+            payload = {
+                "jsonrpc": "2.0",
+                "id": str(uuid.uuid4()),
+                "method": "tools/call",
+                "params": {
+                    "name": tool_name,
+                    "arguments": params,
+                },
+            }
+        else:
+            # Railway: Simple JSON format
+            payload = {
+                "tool_name": tool_name,
+                "arguments": params,
+            }
 
         try:
             response = httpx.post(
                 url,
                 json=payload,
                 headers=headers,
-                timeout=30,
+                timeout=60,  # Increased for Gmail operations
                 follow_redirects=True,
             )
             response.raise_for_status()
             result = response.json()
 
-            # /api/mcp/call returns {"status": "ok", "result": ...} or {"status": "error", ...}
-            if result.get("status") == "error" or "error" in result:
-                error = result.get("error", "Unknown error")
-                raise RuntimeError(f"MCP error: {error}")
+            if self.use_jsonrpc:
+                # JSON-RPC response: {"jsonrpc": "2.0", "id": "...", "result": {...}}
+                if "error" in result:
+                    error = result["error"]
+                    msg = error.get("message", str(error)) if isinstance(error, dict) else str(error)
+                    raise RuntimeError(f"MCP error: {msg}")
+                # Extract result from JSON-RPC response
+                return result.get("result", result)
+            else:
+                # Simple format: {"status": "ok", "result": ...} or {"status": "error", ...}
+                if result.get("status") == "error" or "error" in result:
+                    error = result.get("error", "Unknown error")
+                    raise RuntimeError(f"MCP error: {error}")
+                return result.get("result", result)
 
-            # Extract result from response
-            return result.get("result", result)
         except httpx.HTTPError as e:
             logger.error(f"MCP call failed: {e}")
             raise
