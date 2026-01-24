@@ -14,8 +14,10 @@ jobs:
       - name: Test Debug Routes Endpoint
         id: routes
         run: |
+          BOT_URL="https://telegram-bot-production-dc9d.up.railway.app"
+
           echo "=== Testing /debug/routes ===" | tee /tmp/result.md
-          ROUTES=$(curl -s "https://telegram-bot-production-053d.up.railway.app/debug/routes" || echo "FAILED")
+          ROUTES=$(curl -s "${BOT_URL}/debug/routes" || echo "FAILED")
           echo '```json' >> /tmp/result.md
           echo "$ROUTES" | jq '.' >> /tmp/result.md 2>/dev/null || echo "$ROUTES" >> /tmp/result.md
           echo '```' >> /tmp/result.md
@@ -23,13 +25,13 @@ jobs:
           echo "" >> /tmp/result.md
           echo "=== Testing /health ===" >> /tmp/result.md
           echo '```json' >> /tmp/result.md
-          curl -s "https://telegram-bot-production-053d.up.railway.app/health" | jq '.' >> /tmp/result.md 2>/dev/null
+          curl -s "${BOT_URL}/health" | jq '.' >> /tmp/result.md 2>/dev/null
           echo '```' >> /tmp/result.md
 
           echo "" >> /tmp/result.md
           echo "=== Testing /webhook (POST) ===" >> /tmp/result.md
           echo '```' >> /tmp/result.md
-          curl -s -X POST "https://telegram-bot-production-053d.up.railway.app/webhook" \
+          curl -s -X POST "${BOT_URL}/webhook" \
             -H "Content-Type: application/json" \
             -d '{"update_id": 1}' \
             -w "\nHTTP Status: %{http_code}" >> /tmp/result.md
