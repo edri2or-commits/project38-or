@@ -53,7 +53,7 @@ async def health_check() -> HealthResponse:
 
     # Build marker to verify deployment version
     # Change this value to verify Railway is deploying new code
-    build_marker = "2026-01-17-v2"
+    build_marker = "2026-01-24-mcp-debug"
 
     return HealthResponse(
         status=status,
@@ -85,6 +85,47 @@ async def root() -> dict[str, str]:
 async def test_ping() -> dict:
     """Test endpoint to verify routes are being registered."""
     return {"status": "pong", "message": "If you see this, routes are working"}
+
+
+@router.get("/mcp/status")
+async def mcp_gateway_status() -> dict:
+    """Check MCP Gateway status.
+
+    Returns:
+        dict: MCP Gateway status information
+    """
+    import os
+
+    mcp_enabled_raw = os.getenv("MCP_GATEWAY_ENABLED", "NOT_SET")
+    mcp_enabled = mcp_enabled_raw.lower() == "true" if mcp_enabled_raw != "NOT_SET" else False
+
+    # Check if fastmcp is available
+    fastmcp_available = False
+    try:
+        import fastmcp
+        fastmcp_available = True
+    except ImportError:
+        pass
+
+    # Check if MCP app was created
+    mcp_app_created = False
+    mcp_app_error = None
+    if mcp_enabled and fastmcp_available:
+        try:
+            from src.mcp_gateway.server import create_mcp_app
+            app = create_mcp_app()
+            mcp_app_created = app is not None
+        except Exception as e:
+            mcp_app_error = str(e)
+
+    return {
+        "mcp_gateway_enabled_raw": mcp_enabled_raw,
+        "mcp_gateway_enabled": mcp_enabled,
+        "fastmcp_installed": fastmcp_available,
+        "mcp_app_created": mcp_app_created,
+        "mcp_app_error": mcp_app_error,
+        "expected_path": "/mcp" if mcp_enabled and mcp_app_created else None,
+    }
 
 
 @router.get("/relay/status")
