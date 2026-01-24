@@ -66,15 +66,15 @@ jobs:
             echo "$DEPLOY_DETAIL" | jq '.' >> /tmp/report.md
             echo '```' >> /tmp/report.md
 
-            # Get build logs
+            # Get build logs (get last 500 entries)
             echo "" >> /tmp/report.md
-            echo "### Build Logs" >> /tmp/report.md
+            echo "### Build Logs (last 500 lines)" >> /tmp/report.md
             echo '```' >> /tmp/report.md
             BUILD_LOGS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
               -H "Authorization: Bearer $RAILWAY_TOKEN" \
               -H "Content-Type: application/json" \
-              -d '{"query": "query { buildLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 100) { message timestamp severity } }"}')
-            echo "$BUILD_LOGS" | jq -r 'if .data.buildLogs then .data.buildLogs[].message else . end' >> /tmp/report.md 2>/dev/null || echo "$BUILD_LOGS" >> /tmp/report.md
+              -d '{"query": "query { buildLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 500) { message timestamp severity } }"}')
+            echo "$BUILD_LOGS" | jq -r 'if .data.buildLogs then .data.buildLogs[-100:][].message else . end' >> /tmp/report.md 2>/dev/null || echo "$BUILD_LOGS" >> /tmp/report.md
             echo '```' >> /tmp/report.md
 
             # Get deployment logs
@@ -84,7 +84,7 @@ jobs:
             DEPLOY_LOGS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
               -H "Authorization: Bearer $RAILWAY_TOKEN" \
               -H "Content-Type: application/json" \
-              -d '{"query": "query { deploymentLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 100) { message timestamp severity } }"}')
+              -d '{"query": "query { deploymentLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 200) { message timestamp severity } }"}')
             echo "$DEPLOY_LOGS" | jq -r 'if .data.deploymentLogs then .data.deploymentLogs[].message else . end' >> /tmp/report.md 2>/dev/null || echo "$DEPLOY_LOGS" >> /tmp/report.md
             echo '```' >> /tmp/report.md
           else
