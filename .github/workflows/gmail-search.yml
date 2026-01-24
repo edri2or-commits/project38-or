@@ -1,0 +1,112 @@
+# Search Gmail via GCP Tunnel
+name: Gmail Search
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Gmail search query'
+        required: true
+        default: 'from:railway.app OR from:@railway'
+        type: string
+      max_results:
+        description: 'Maximum results'
+        required: false
+        default: '20'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: project38-483612
+
+      - name: Get MCP Tunnel Token
+        run: |
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" 2>/dev/null || echo "")
+          echo "MCP_TUNNEL_TOKEN=$MCP_TOKEN" >> $GITHUB_ENV
+          echo "Token loaded: ${MCP_TOKEN:+SET}"
+
+      - name: Search Gmail via GCP Tunnel
+        run: |
+          echo "=== Gmail Search ==="
+          echo "Query: ${{ inputs.query }}"
+          echo "Max Results: ${{ inputs.max_results }}"
+          echo ""
+
+          # Create MCP message for gmail_search
+          QUERY=$(echo '${{ inputs.query }}' | sed 's/"/\\"/g')
+          MAX="${{ inputs.max_results }}"
+
+          MCP_MSG="{\"jsonrpc\": \"2.0\", \"id\": \"search-1\", \"method\": \"tools/call\", \"params\": {\"name\": \"gmail_search\", \"arguments\": {\"query\": \"$QUERY\", \"max_results\": $MAX}}}"
+
+          echo "MCP Request:"
+          echo "$MCP_MSG" | jq .
+          echo ""
+
+          # GCP Tunnel expects MCP message wrapped in 'data' field (protocol encapsulation)
+          curl -s --max-time 120 -X POST "https://mcp-router-979429709900.us-central1.run.app" \
+            -H "Authorization: Bearer ${{ env.MCP_TUNNEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"data\": $(echo "$MCP_MSG" | jq -c @json)}" \
+            | tee /tmp/gmail_search.json | jq '.' || echo "Raw output: $(cat /tmp/gmail_search.json)"
+
+      - name: Parse and Display Results
+        run: |
+          echo ""
+          echo "=== Parsed Results ==="
+
+          # Extract the inner result from protocol encapsulation
+          RESULT=$(cat /tmp/gmail_search.json | jq -r '.result // empty' 2>/dev/null)
+          if [ -n "$RESULT" ]; then
+            INNER=$(echo "$RESULT" | jq -r 'fromjson' 2>/dev/null || echo "$RESULT")
+
+            # Check if it's an MCP tool result with content array
+            CONTENT=$(echo "$INNER" | jq -r '.result.content[0].text // empty' 2>/dev/null)
+            if [ -n "$CONTENT" ]; then
+              echo "$CONTENT" | jq '.' 2>/dev/null || echo "$CONTENT"
+
+              # Summary
+              echo ""
+              echo "=== Summary ==="
+              COUNT=$(echo "$CONTENT" | jq -r '.count // .total // "unknown"' 2>/dev/null)
+              echo "Total emails found: $COUNT"
+
+              echo ""
+              echo "=== Email Subjects (first 10) ==="
+              echo "$CONTENT" | jq -r '.messages[:10] | .[] | "\(.date) | \(.subject)"' 2>/dev/null || \
+              echo "$CONTENT" | jq -r '.emails[:10] | .[] | "\(.date) | \(.subject)"' 2>/dev/null || \
+              echo "Could not parse subjects"
+
+              echo ""
+              echo "=== Date Range ==="
+              OLDEST=$(echo "$CONTENT" | jq -r '.messages | last | .date // empty' 2>/dev/null)
+              NEWEST=$(echo "$CONTENT" | jq -r '.messages | first | .date // empty' 2>/dev/null)
+              if [ -n "$OLDEST" ] && [ -n "$NEWEST" ]; then
+                echo "Oldest: $OLDEST"
+                echo "Newest: $NEWEST"
+              else
+                echo "Could not determine date range"
+              fi
+            else
+              echo "$INNER" | jq '.' 2>/dev/null || echo "$INNER"
+            fi
+          else
+            echo "No result field found"
+            cat /tmp/gmail_search.json
+          fi
