@@ -32,7 +32,9 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install httpx litellm openai
+        run: |
+          pip install httpx litellm "openai>=1.0.0"
+          pip show openai | grep Version
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -50,11 +52,26 @@ jobs:
           echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> $GITHUB_ENV
 
       - name: Run agent
+        id: run_agent
+        continue-on-error: true
         env:
           PYTHONPATH: ${{ github.workspace }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          python -m src.background_agents.runner --agent ${{ inputs.agent }}
+          python -m src.background_agents.runner --agent ${{ inputs.agent }} 2>&1 | tee /tmp/agent_output.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Report result
+        if: always()
+        run: |
+          echo "## Agent Run Result" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/agent_output.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if agent failed
+        if: steps.run_agent.outcome == 'failure'
+        run: exit 1
 
       - name: Upload metrics
         uses: actions/upload-artifact@v4
