@@ -37,16 +37,22 @@ jobs:
 
       - name: Get secrets
         run: |
-          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-GATEWAY-TOKEN" 2>/dev/null || echo "")
+          # Use GCP Tunnel for Gmail (has OAuth secrets) instead of Railway MCP Gateway
+          MCP_TUNNEL_TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" 2>/dev/null || echo "")
           BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" 2>/dev/null || echo "")
           CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" 2>/dev/null || echo "")
 
-          echo "MCP_GATEWAY_TOKEN=$MCP_TOKEN" >> $GITHUB_ENV
+          # GCP Tunnel URL (Cloud Run) has access to Google OAuth secrets
+          GCP_TUNNEL_URL="https://mcp-router-979429709900.us-central1.run.app"
+
+          echo "MCP_GATEWAY_URL=$GCP_TUNNEL_URL" >> $GITHUB_ENV
+          echo "MCP_GATEWAY_TOKEN=$MCP_TUNNEL_TOKEN" >> $GITHUB_ENV
           echo "TELEGRAM_BOT_TOKEN=$BOT_TOKEN" >> $GITHUB_ENV
           echo "TELEGRAM_CHAT_ID=$CHAT_ID" >> $GITHUB_ENV
 
           echo "Secrets loaded:"
-          echo "  MCP_GATEWAY_TOKEN: ${MCP_TOKEN:+SET}"
+          echo "  MCP_GATEWAY_URL: $GCP_TUNNEL_URL"
+          echo "  MCP_TUNNEL_TOKEN: ${MCP_TUNNEL_TOKEN:+SET}"
           echo "  TELEGRAM_BOT_TOKEN: ${BOT_TOKEN:+SET}"
           echo "  TELEGRAM_CHAT_ID: ${CHAT_ID:+SET}"
 
@@ -97,9 +103,10 @@ jobs:
           print("\n✅ All imports successful!")
           EOF
 
-      - name: Debug - Test MCP Gateway
+      - name: Debug - Test GCP Tunnel MCP
         id: mcp_test
         env:
+          MCP_GATEWAY_URL: ${{ env.MCP_GATEWAY_URL }}
           MCP_GATEWAY_TOKEN: ${{ env.MCP_GATEWAY_TOKEN }}
         run: |
           python3 << 'EOF'
@@ -109,15 +116,16 @@ jobs:
           import uuid
 
           token = os.environ.get("MCP_GATEWAY_TOKEN", "")
-          url = "https://or-infra.com/mcp"
+          url = os.environ.get("MCP_GATEWAY_URL", "https://mcp-router-979429709900.us-central1.run.app")
 
-          print(f"Testing MCP Gateway: {url}")
+          print(f"Testing GCP Tunnel MCP: {url}")
           print(f"Token: {'SET' if token else 'MISSING'}")
 
           if not token:
               print("⚠️ MCP token missing, skipping test")
               exit(0)
 
+          # Test tools/list via JSON-RPC
           payload = {
               "jsonrpc": "2.0",
               "id": str(uuid.uuid4()),
@@ -136,14 +144,21 @@ jobs:
                   timeout=30
               )
               print(f"Status: {resp.status_code}")
-              print(f"Response: {resp.text[:500]}")
+              print(f"Response: {resp.text[:1000]}")
 
               if resp.status_code == 200:
-                  print("✅ MCP Gateway accessible")
+                  data = resp.json()
+                  if "result" in data and "tools" in data["result"]:
+                      tools = data["result"]["tools"]
+                      print(f"\n✅ GCP Tunnel accessible - {len(tools)} tools available")
+                      gmail_tools = [t for t in tools if "gmail" in t.get("name", "").lower()]
+                      print(f"Gmail tools: {[t['name'] for t in gmail_tools]}")
+                  else:
+                      print("✅ GCP Tunnel accessible")
               else:
-                  print(f"❌ MCP Gateway error: {resp.status_code}")
+                  print(f"❌ GCP Tunnel error: {resp.status_code}")
           except Exception as e:
-              print(f"❌ MCP Gateway failed: {e}")
+              print(f"❌ GCP Tunnel failed: {e}")
           EOF
 
       - name: Debug - Run Agent

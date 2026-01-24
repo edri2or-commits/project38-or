@@ -7,10 +7,16 @@ Provides context about previous email exchanges:
 - Relationship type (frequent contact, rare, new)
 
 ADR-014 Phase 2: History Lookup
+
+Supports both:
+- GCP Tunnel (Cloud Run): JSON-RPC 2.0 format, has OAuth secrets
+- Railway MCP Gateway: Simple /api/mcp/call format
 """
 
 import logging
+import os
 import re
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -49,29 +55,40 @@ class EmailHistoryLookup:
     """Looks up past email history with senders.
 
     Uses Gmail search to find previous conversations.
+    Supports both GCP Tunnel (JSON-RPC) and Railway (simple JSON) formats.
 
     Example:
-        history = EmailHistoryLookup(mcp_gateway_url="https://or-infra.com/mcp/mcp")
+        history = EmailHistoryLookup()
         sender_context = await history.get_sender_history("sender@example.com")
     """
 
     def __init__(
         self,
-        # Use the direct /api/mcp/call endpoint which works reliably
-        mcp_gateway_url: str = "https://or-infra.com/api/mcp/call",
+        mcp_gateway_url: str | None = None,
     ):
         """Initialize EmailHistoryLookup.
 
         Args:
             mcp_gateway_url: URL of MCP Gateway for Gmail access
+                Default: GCP Tunnel which has OAuth secrets
         """
-        self.mcp_gateway_url = mcp_gateway_url
+        # Default to GCP Tunnel which has OAuth secrets
+        self.mcp_gateway_url = mcp_gateway_url or os.environ.get(
+            "MCP_GATEWAY_URL",
+            "https://mcp-router-979429709900.us-central1.run.app"
+        )
         self._mcp_token: str | None = None
+        # Detect if using GCP Tunnel (JSON-RPC) or Railway (simple format)
+        self.use_jsonrpc = "mcp-router" in self.mcp_gateway_url or "cloudfunctions" in self.mcp_gateway_url
 
     async def _get_mcp_token(self) -> str:
-        """Get MCP Gateway token."""
-        import os
+        """Get MCP Gateway token.
 
+        Tries in order:
+        1. MCP_GATEWAY_TOKEN env var
+        2. MCP-GATEWAY-TOKEN from GCP Secret Manager
+        3. MCP-TUNNEL-TOKEN from GCP Secret Manager (for GCP Tunnel)
+        """
         if self._mcp_token:
             return self._mcp_token
 
@@ -84,7 +101,14 @@ class EmailHistoryLookup:
             from src.secrets_manager import SecretManager
 
             manager = SecretManager()
+            # Try MCP Gateway token first
             token = manager.get_secret("MCP-GATEWAY-TOKEN")
+            if token:
+                self._mcp_token = token
+                return token
+
+            # Fall back to MCP Tunnel token
+            token = manager.get_secret("MCP-TUNNEL-TOKEN")
             if token:
                 self._mcp_token = token
                 return token
@@ -94,23 +118,33 @@ class EmailHistoryLookup:
         raise ValueError("MCP_GATEWAY_TOKEN not found")
 
     async def _call_mcp_tool(self, tool_name: str, params: dict) -> dict:
-        """Call an MCP Gateway tool via /api/mcp/call endpoint.
+        """Call an MCP Gateway tool.
 
-        Uses direct endpoint format:
-        {
-            "tool_name": "<tool_name>",
-            "arguments": {...}
-        }
+        Supports two formats:
+        - JSON-RPC 2.0 (GCP Tunnel): {"jsonrpc": "2.0", "method": "tools/call", ...}
+        - Simple JSON (Railway): {"tool_name": "...", "arguments": {...}}
         """
         token = await self._get_mcp_token()
 
-        # Direct endpoint format
-        payload = {
-            "tool_name": tool_name,
-            "arguments": params,
-        }
+        if self.use_jsonrpc:
+            # GCP Tunnel: JSON-RPC 2.0 format
+            payload = {
+                "jsonrpc": "2.0",
+                "id": str(uuid.uuid4()),
+                "method": "tools/call",
+                "params": {
+                    "name": tool_name,
+                    "arguments": params,
+                },
+            }
+        else:
+            # Railway: Simple JSON format
+            payload = {
+                "tool_name": tool_name,
+                "arguments": params,
+            }
 
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
             response = await client.post(
                 self.mcp_gateway_url,
                 headers={
@@ -125,13 +159,19 @@ class EmailHistoryLookup:
 
             result = response.json()
 
-            # /api/mcp/call returns {"status": "ok", "result": ...} or {"error": ...}
-            if result.get("status") == "error" or "error" in result:
-                error = result.get("error", "Unknown error")
-                return {"success": False, "error": error}
-
-            # Extract result from response
-            return result.get("result", result)
+            if self.use_jsonrpc:
+                # JSON-RPC response: {"jsonrpc": "2.0", "id": "...", "result": {...}}
+                if "error" in result:
+                    error = result["error"]
+                    msg = error.get("message", str(error)) if isinstance(error, dict) else str(error)
+                    return {"success": False, "error": msg}
+                return result.get("result", result)
+            else:
+                # Simple format: {"status": "ok", "result": ...} or {"error": ...}
+                if result.get("status") == "error" or "error" in result:
+                    error = result.get("error", "Unknown error")
+                    return {"success": False, "error": error}
+                return result.get("result", result)
 
     def _extract_email(self, from_field: str) -> str:
         """Extract email from From field."""
