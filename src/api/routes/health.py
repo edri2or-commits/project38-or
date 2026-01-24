@@ -118,6 +118,20 @@ async def mcp_gateway_status() -> dict:
         except Exception as e:
             mcp_app_error = str(e)
 
+    # Check if /mcp is actually mounted in the FastAPI app
+    mcp_mounted = False
+    mounted_paths = []
+    try:
+        from src.api.main import app as main_app
+        for route in main_app.routes:
+            path = getattr(route, "path", None)
+            if path:
+                mounted_paths.append(path)
+                if path == "/mcp" or path.startswith("/mcp"):
+                    mcp_mounted = True
+    except Exception as e:
+        mounted_paths = [f"Error: {e}"]
+
     return {
         "mcp_gateway_enabled_raw": mcp_enabled_raw,
         "mcp_gateway_enabled": mcp_enabled,
@@ -125,6 +139,8 @@ async def mcp_gateway_status() -> dict:
         "mcp_app_created": mcp_app_created,
         "mcp_app_error": mcp_app_error,
         "expected_path": "/mcp" if mcp_enabled and mcp_app_created else None,
+        "mcp_actually_mounted": mcp_mounted,
+        "all_paths_sample": mounted_paths[:20],  # First 20 paths
     }
 
 
