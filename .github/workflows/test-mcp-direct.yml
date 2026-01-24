@@ -32,33 +32,47 @@ jobs:
         env:
           MCP_TOKEN: ${{ steps.token.outputs.token }}
         run: |
-          echo "=== Test 1: /mcp (no trailing slash, no follow) ==="
-          curl -v -X POST "https://or-infra.com/mcp" \
+          echo "=== Test 0: Debug Routes ==="
+          curl -s "https://or-infra.com/debug/routes" | jq '.routes[] | select(.path | startswith("/mcp"))' || true
+
+          echo ""
+          echo "=== Test 1: POST /mcp (no trailing slash) ==="
+          curl -s -w "\nStatus: %{http_code}\n" -X POST "https://or-infra.com/mcp" \
             -H "Authorization: Bearer $MCP_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}' 2>&1 | tail -30
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}'
 
           echo ""
-          echo "=== Test 2: /mcp/ (with trailing slash) ==="
-          curl -v -X POST "https://or-infra.com/mcp/" \
+          echo "=== Test 2: POST /mcp/ (with trailing slash) ==="
+          curl -s -w "\nStatus: %{http_code}\n" -X POST "https://or-infra.com/mcp/" \
             -H "Authorization: Bearer $MCP_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}' 2>&1 | tail -30
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}'
 
           echo ""
-          echo "=== Test 3: /mcp (follow redirects) ==="
-          curl -L -v -X POST "https://or-infra.com/mcp" \
+          echo "=== Test 3: POST /mcp/mcp (double path) ==="
+          curl -s -w "\nStatus: %{http_code}\n" -X POST "https://or-infra.com/mcp/mcp" \
             -H "Authorization: Bearer $MCP_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}' 2>&1 | tail -30
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}'
 
           echo ""
-          echo "=== Test 4: GET /mcp ==="
-          curl -v "https://or-infra.com/mcp" 2>&1 | tail -20
+          echo "=== Test 4: POST /mcp/messages (FastMCP path) ==="
+          curl -s -w "\nStatus: %{http_code}\n" -X POST "https://or-infra.com/mcp/messages" \
+            -H "Authorization: Bearer $MCP_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}'
 
           echo ""
-          echo "=== Test 5: GET /mcp/ ==="
-          curl -v "https://or-infra.com/mcp/" 2>&1 | tail -20
+          echo "=== Test 5: GET /mcp/sse (FastMCP SSE) ==="
+          curl -s -w "\nStatus: %{http_code}\n" "https://or-infra.com/mcp/sse" | head -5
+
+          echo ""
+          echo "=== Test 6: POST with follow redirects ==="
+          curl -s -L -w "\nStatus: %{http_code}\n" -X POST "https://or-infra.com/mcp" \
+            -H "Authorization: Bearer $MCP_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}'
 
       - name: Post Results
         if: always()
@@ -66,35 +80,52 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MCP_TOKEN: ${{ steps.token.outputs.token }}
         run: |
-          RESULT1=$(curl -s -w "\nStatus: %{http_code}" -X POST "https://or-infra.com/mcp" \
+          ROUTES=$(curl -s "https://or-infra.com/debug/routes" | jq -c '[.routes[] | select(.path | startswith("/mcp"))]' 2>/dev/null || echo "[]")
+
+          R1=$(curl -s -w "\n%{http_code}" -X POST "https://or-infra.com/mcp" \
             -H "Authorization: Bearer $MCP_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}' 2>&1 | tail -5)
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}')
 
-          RESULT2=$(curl -s -w "\nStatus: %{http_code}" -X POST "https://or-infra.com/mcp/" \
+          R2=$(curl -s -w "\n%{http_code}" -X POST "https://or-infra.com/mcp/" \
             -H "Authorization: Bearer $MCP_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}' 2>&1 | tail -5)
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}')
 
-          RESULT3=$(curl -s -L -w "\nStatus: %{http_code}" -X POST "https://or-infra.com/mcp" \
+          R3=$(curl -s -w "\n%{http_code}" -X POST "https://or-infra.com/mcp/messages" \
             -H "Authorization: Bearer $MCP_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}' 2>&1 | tail -5)
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}')
 
-          gh issue comment 509 --repo ${{ github.repository }} --body "## MCP Direct Test
+          R4=$(curl -s -w "\n%{http_code}" -X POST "https://or-infra.com/mcp/mcp" \
+            -H "Authorization: Bearer $MCP_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","id":"1","method":"tools/list","params":{}}')
 
-          **Test 1: POST /mcp (no redirect):**
-          \`\`\`
-          $RESULT1
+          gh issue comment 509 --repo ${{ github.repository }} --body "## MCP Path Discovery
+
+          **Routes starting with /mcp:**
+          \`\`\`json
+          $ROUTES
           \`\`\`
 
-          **Test 2: POST /mcp/:**
+          **POST /mcp:** \`$(echo "$R1" | tail -1)\`
           \`\`\`
-          $RESULT2
+          $(echo "$R1" | head -10)
           \`\`\`
 
-          **Test 3: POST /mcp (follow redirects):**
+          **POST /mcp/:** \`$(echo "$R2" | tail -1)\`
           \`\`\`
-          $RESULT3
+          $(echo "$R2" | head -10)
+          \`\`\`
+
+          **POST /mcp/messages:** \`$(echo "$R3" | tail -1)\`
+          \`\`\`
+          $(echo "$R3" | head -10)
+          \`\`\`
+
+          **POST /mcp/mcp:** \`$(echo "$R4" | tail -1)\`
+          \`\`\`
+          $(echo "$R4" | head -10)
           \`\`\`
           "
