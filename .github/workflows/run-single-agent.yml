@@ -1,0 +1,65 @@
+name: Run Single Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Agent to run'
+        required: true
+        type: choice
+        options:
+          - health_synth
+          - cost_opt
+          - learn_insight
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  LITELLM_URL: https://litellm-gateway-production-0339.up.railway.app
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install httpx litellm
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Get API keys
+        run: |
+          ANTHROPIC_API_KEY=$(gcloud secrets versions access latest --secret="ANTHROPIC-API" --project=project38-483612)
+          GEMINI_API_KEY=$(gcloud secrets versions access latest --secret="GEMINI-API" --project=project38-483612)
+          echo "::add-mask::$ANTHROPIC_API_KEY"
+          echo "::add-mask::$GEMINI_API_KEY"
+          echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" >> $GITHUB_ENV
+          echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> $GITHUB_ENV
+
+      - name: Run agent
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m src.background_agents.runner --agent ${{ inputs.agent }}
+
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-metrics-${{ github.run_id }}
+          path: data/agent_metrics/
+          retention-days: 7
+          if-no-files-found: ignore
