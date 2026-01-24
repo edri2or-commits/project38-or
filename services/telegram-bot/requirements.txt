@@ -28,3 +28,7 @@ requests==2.32.3
 python-dotenv==1.0.1
 pydantic==2.10.6
 pydantic-settings==2.7.1
+
+# LangGraph for Smart Email Agent
+langgraph==0.2.62
+langchain-core==0.3.28

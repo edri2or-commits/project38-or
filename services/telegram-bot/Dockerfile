@@ -1,5 +1,7 @@
 # Telegram Bot Service - Dockerfile
 # Multi-stage build for Python FastAPI application
+#
+# Fetches src/agents via git clone for Smart Email Agent support
 
 FROM python:3.11-slim AS base
 
@@ -7,12 +9,14 @@ FROM python:3.11-slim AS base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONPATH=/app
 
-# Install system dependencies
+# Install system dependencies including git for fetching src/agents
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
+    git \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,6 +31,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
+
+# Fetch src/agents for Smart Email Agent using sparse checkout
+RUN git clone --depth 1 --filter=blob:none --sparse \
+    https://github.com/edri2or-commits/project38-or.git /tmp/repo && \
+    cd /tmp/repo && \
+    git sparse-checkout set src/agents && \
+    mkdir -p /app/src && \
+    cp -r /tmp/repo/src/agents /app/src/ && \
+    rm -rf /tmp/repo
 
 # Create non-root user
 RUN useradd -m -u 1000 botuser && \
