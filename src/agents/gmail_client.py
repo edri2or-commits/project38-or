@@ -126,7 +126,23 @@ class GmailClient:
                         error = mcp_response["error"]
                         msg = error.get("message", str(error)) if isinstance(error, dict) else str(error)
                         raise RuntimeError(f"MCP error: {msg}")
-                    return mcp_response.get("result", mcp_response)
+
+                    # Get the inner result
+                    inner_result = mcp_response.get("result", mcp_response)
+
+                    # MCP tool results are wrapped in content[].text structure
+                    # Format: {"content": [{"type": "text", "text": "{...JSON...}"}]}
+                    if isinstance(inner_result, dict) and "content" in inner_result:
+                        content = inner_result.get("content", [])
+                        if content and isinstance(content[0], dict):
+                            text_content = content[0].get("text", "")
+                            if isinstance(text_content, str) and text_content.startswith("{"):
+                                try:
+                                    return json_lib.loads(text_content)
+                                except json_lib.JSONDecodeError:
+                                    return inner_result
+
+                    return inner_result
                 else:
                     return encapsulated
             else:
