@@ -25,6 +25,10 @@ jobs:
           echo "=== MCP Test (direct call) ==="
           curl -s -X POST https://or-infra.com/api/mcp/test | jq .
 
+          echo ""
+          echo "=== MCP Call health_check ==="
+          curl -s -X POST "https://or-infra.com/api/mcp/call?tool_name=health_check" | jq .
+
       - name: Post Results
         if: always()
         env:
@@ -33,6 +37,7 @@ jobs:
           HEALTH=$(curl -s https://or-infra.com/api/health 2>&1)
           MCP=$(curl -s https://or-infra.com/api/mcp/status 2>&1)
           MCP_TEST=$(curl -s -X POST https://or-infra.com/api/mcp/test 2>&1)
+          MCP_CALL=$(curl -s -X POST "https://or-infra.com/api/mcp/call?tool_name=health_check" 2>&1)
 
           gh issue comment 509 --repo ${{ github.repository }} --body "## MCP Endpoint Check
 
@@ -49,5 +54,10 @@ jobs:
           **MCP Test (direct call):**
           \`\`\`json
           $MCP_TEST
+          \`\`\`
+
+          **MCP Call health_check:**
+          \`\`\`json
+          $MCP_CALL
           \`\`\`
           "
