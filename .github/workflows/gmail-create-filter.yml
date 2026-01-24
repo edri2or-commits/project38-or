@@ -1,0 +1,147 @@
+# Create Gmail filter to auto-delete emails
+name: Gmail Create Filter
+
+on:
+  workflow_dispatch:
+    inputs:
+      from_pattern:
+        description: 'From email pattern'
+        required: true
+        default: 'cloud-alerting-noreply@google.com'
+      action:
+        description: 'Filter action'
+        required: true
+        default: 'trash'
+        type: choice
+        options:
+          - trash
+          - archive
+          - read
+      issue_number:
+        description: 'Issue to post results'
+        required: false
+        default: '545'
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  create-filter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install google-auth google-auth-httplib2 google-api-python-client
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Create Gmail Filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FROM_PATTERN: ${{ inputs.from_pattern }}
+          FILTER_ACTION: ${{ inputs.action }}
+          ISSUE: ${{ inputs.issue_number }}
+        run: |
+          python3 << 'PYTHON'
+          import os
+          import subprocess
+          from google.oauth2.credentials import Credentials
+          from google.auth.transport.requests import Request
+          from googleapiclient.discovery import build
+
+          from_pattern = os.environ["FROM_PATTERN"]
+          filter_action = os.environ["FILTER_ACTION"]
+          issue = os.environ.get("ISSUE", "545")
+
+          # Auth
+          creds = Credentials(
+              token=None,
+              refresh_token=subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-REFRESH-TOKEN"]
+              ).decode().strip(),
+              token_uri="https://oauth2.googleapis.com/token",
+              client_id=subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-CLIENT-ID"]
+              ).decode().strip(),
+              client_secret=subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-CLIENT-SECRET"]
+              ).decode().strip(),
+          )
+          creds.refresh(Request())
+          service = build("gmail", "v1", credentials=creds)
+
+          print(f"Creating filter for: {from_pattern}")
+          print(f"Action: {filter_action}")
+
+          # Build filter criteria and action
+          filter_body = {
+              "criteria": {
+                  "from": from_pattern
+              },
+              "action": {}
+          }
+
+          if filter_action == "trash":
+              filter_body["action"]["addLabelIds"] = ["TRASH"]
+              filter_body["action"]["removeLabelIds"] = ["INBOX"]
+          elif filter_action == "archive":
+              filter_body["action"]["removeLabelIds"] = ["INBOX"]
+          elif filter_action == "read":
+              filter_body["action"]["removeLabelIds"] = ["UNREAD"]
+
+          try:
+              result = service.users().settings().filters().create(
+                  userId="me",
+                  body=filter_body
+              ).execute()
+
+              report = f"""## Gmail Filter Created
+
+          **From Pattern:** `{from_pattern}`
+          **Action:** {filter_action}
+          **Filter ID:** {result.get('id')}
+
+          ✅ Future emails from this sender will be automatically {'deleted' if filter_action == 'trash' else 'archived' if filter_action == 'archive' else 'marked as read'}!
+          """
+              print(report)
+              subprocess.run(["gh", "issue", "comment", issue, "--body", report], check=True)
+
+          except Exception as e:
+              error_msg = str(e)
+              if "Insufficient Permission" in error_msg or "insufficientPermissions" in error_msg:
+                  report = f"""## Gmail Filter - Manual Setup Required
+
+          The Gmail API doesn't allow filter creation with current OAuth scopes.
+
+          **Please create the filter manually:**
+          1. Go to https://mail.google.com/mail/u/0/#settings/filters
+          2. Click "Create a new filter"
+          3. In "From" field, enter: `{from_pattern}`
+          4. Click "Create filter"
+          5. Check "{'Delete it' if filter_action == 'trash' else 'Skip the Inbox'}"
+          6. Check "Also apply filter to matching conversations"
+          7. Click "Create filter"
+
+          ⚠️ This is a one-time manual step.
+          """
+              else:
+                  report = f"""## Gmail Filter Error
+
+          **Error:** {error_msg}
+
+          Please create filter manually at:
+          https://mail.google.com/mail/u/0/#settings/filters
+          """
+              print(report)
+              subprocess.run(["gh", "issue", "comment", issue, "--body", report], check=True)
+          PYTHON
