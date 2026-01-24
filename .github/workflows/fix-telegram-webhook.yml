@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  issues: write
 
 jobs:
   fix:
@@ -21,24 +22,50 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Check and Fix Webhook
+        id: webhook
         run: |
           TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
           echo "::add-mask::$TOKEN"
 
           WEBHOOK_URL="https://telegram-bot-production-053d.up.railway.app/webhook"
 
-          echo "=== Current Webhook Info ==="
-          curl -s "https://api.telegram.org/bot${TOKEN}/getWebhookInfo" | jq '.'
+          echo "=== Current Webhook Info ===" > /tmp/webhook_report.md
+          echo '```json' >> /tmp/webhook_report.md
+          BEFORE=$(curl -s "https://api.telegram.org/bot${TOKEN}/getWebhookInfo")
+          echo "$BEFORE" | jq '.' >> /tmp/webhook_report.md
+          echo '```' >> /tmp/webhook_report.md
 
-          echo ""
-          echo "=== Setting Webhook to: $WEBHOOK_URL ==="
-          curl -s -X POST "https://api.telegram.org/bot${TOKEN}/setWebhook" \
+          echo "" >> /tmp/webhook_report.md
+          echo "=== Setting Webhook to: $WEBHOOK_URL ===" >> /tmp/webhook_report.md
+          echo '```json' >> /tmp/webhook_report.md
+          SET_RESULT=$(curl -s -X POST "https://api.telegram.org/bot${TOKEN}/setWebhook" \
             -d "url=$WEBHOOK_URL" \
-            -d "drop_pending_updates=false" | jq '.'
+            -d "drop_pending_updates=false")
+          echo "$SET_RESULT" | jq '.' >> /tmp/webhook_report.md
+          echo '```' >> /tmp/webhook_report.md
 
-          echo ""
-          echo "=== Verifying Webhook ==="
-          curl -s "https://api.telegram.org/bot${TOKEN}/getWebhookInfo" | jq '.'
+          echo "" >> /tmp/webhook_report.md
+          echo "=== Verifying Webhook ===" >> /tmp/webhook_report.md
+          echo '```json' >> /tmp/webhook_report.md
+          AFTER=$(curl -s "https://api.telegram.org/bot${TOKEN}/getWebhookInfo")
+          echo "$AFTER" | jq '.' >> /tmp/webhook_report.md
+          echo '```' >> /tmp/webhook_report.md
 
-          echo ""
-          echo "✅ Done!"
+          # Check for errors
+          WEBHOOK_SET=$(echo "$AFTER" | jq -r '.result.url // "NOT SET"')
+          LAST_ERROR=$(echo "$AFTER" | jq -r '.result.last_error_message // "none"')
+          PENDING=$(echo "$AFTER" | jq -r '.result.pending_update_count // 0')
+
+          echo "" >> /tmp/webhook_report.md
+          echo "## Summary" >> /tmp/webhook_report.md
+          echo "- **Webhook URL**: \`$WEBHOOK_SET\`" >> /tmp/webhook_report.md
+          echo "- **Last Error**: $LAST_ERROR" >> /tmp/webhook_report.md
+          echo "- **Pending Updates**: $PENDING" >> /tmp/webhook_report.md
+
+          cat /tmp/webhook_report.md
+
+      - name: Post Results to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment 509 --repo ${{ github.repository }} --body-file /tmp/webhook_report.md
