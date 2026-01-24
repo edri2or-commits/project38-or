@@ -1,0 +1,124 @@
+name: Debug Agent
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  LITELLM_URL: https://litellm-gateway-production-0339.up.railway.app
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install httpx litellm openai
+
+      - name: Test imports
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          echo "Testing imports..."
+          python3 -c "
+          import sys
+          print('Python:', sys.version)
+
+          # Test basic imports
+          from src.background_agents.metrics import AgentMetrics, MetricsCollector
+          print('✅ metrics imported')
+
+          from src.smart_llm.classifier import TaskType, MODEL_MAPPING
+          print('✅ classifier imported')
+          print(f'   MODEL_MAPPING has {len(MODEL_MAPPING)} entries')
+
+          from src.background_agents.health_synth_agent import HealthSynthAgent
+          print('✅ HealthSynthAgent imported')
+
+          # Create agent
+          agent = HealthSynthAgent()
+          print('✅ Agent created')
+          print(f'   litellm_url: {agent.litellm_url}')
+          "
+
+      - name: Test LLM call directly
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          echo "Testing direct LLM call..."
+          python3 -c "
+          import asyncio
+          from openai import AsyncOpenAI
+
+          async def test():
+              print('Creating client...')
+              client = AsyncOpenAI(
+                  base_url='https://litellm-gateway-production-0339.up.railway.app',
+                  api_key='dummy'
+              )
+
+              print('Calling gemini-flash...')
+              response = await client.chat.completions.create(
+                  model='gemini-flash',
+                  messages=[{'role': 'user', 'content': 'Say hi'}],
+                  max_tokens=10
+              )
+
+              print(f'✅ Response: {response.choices[0].message.content}')
+              print(f'   Model: {response.model}')
+              print(f'   Tokens: {response.usage.total_tokens}')
+
+          asyncio.run(test())
+          "
+
+      - name: Test health data fetch
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          echo "Testing health data fetch..."
+          python3 -c "
+          import asyncio
+          from src.background_agents.health_synth_agent import HealthSynthAgent
+
+          async def test():
+              agent = HealthSynthAgent()
+              print('Fetching health data...')
+              data = await agent._get_health_data()
+              print(f'✅ Got health data')
+              print(f'   Services: {list(data.get(\"services\", {}).keys())}')
+              print(f'   Data source: {data.get(\"data_source\")}')
+
+          asyncio.run(test())
+          "
+
+      - name: Test full agent run
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          echo "Testing full agent run..."
+          python3 -c "
+          import asyncio
+          from src.background_agents.health_synth_agent import HealthSynthAgent
+
+          async def test():
+              agent = HealthSynthAgent()
+              print('Running agent...')
+              result = await agent.run()
+              print(f'✅ Agent completed')
+              print(f'   Status: {result.get(\"status\")}')
+              if 'summary' in result:
+                  print(f'   Summary status: {result[\"summary\"].get(\"overall_status\", \"N/A\")}')
+              if 'metrics' in result:
+                  print(f'   Tokens: {result[\"metrics\"].get(\"total_tokens\", 0)}')
+
+          asyncio.run(test())
+          "
