@@ -152,6 +152,60 @@ async def mcp_gateway_status() -> dict:
     }
 
 
+@router.post("/mcp/test")
+async def mcp_test() -> dict:
+    """Test MCP Gateway directly.
+
+    Calls MCP Gateway with a simple request to diagnose errors.
+
+    Returns:
+        dict: MCP response or error details
+    """
+    import os
+    import traceback
+
+    mcp_enabled = os.getenv("MCP_GATEWAY_ENABLED", "false").lower() == "true"
+    if not mcp_enabled:
+        return {"error": "MCP Gateway not enabled"}
+
+    try:
+        from src.mcp_gateway.server import create_mcp_server
+
+        mcp = create_mcp_server()
+        if mcp is None:
+            return {"error": "FastMCP not available"}
+
+        # Try to get the tools list
+        try:
+            # Get available tools from the server
+            tools = []
+            if hasattr(mcp, "_tools"):
+                tools = list(mcp._tools.keys())
+            elif hasattr(mcp, "tools"):
+                tools = [t.name for t in mcp.tools]
+
+            return {
+                "status": "ok",
+                "mcp_server_type": type(mcp).__name__,
+                "tools_count": len(tools),
+                "tools_sample": tools[:10] if tools else [],
+                "has_http_app": hasattr(mcp, "http_app"),
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+            }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }
+
+
 @router.get("/relay/status")
 async def relay_status() -> dict:
     """Check GitHub MCP Relay status.
