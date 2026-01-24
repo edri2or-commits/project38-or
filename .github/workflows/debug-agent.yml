@@ -53,10 +53,12 @@ jobs:
           "
 
       - name: Test LLM call directly
+        id: llm_test
+        continue-on-error: true
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          echo "Testing direct LLM call..."
+          echo "Testing direct LLM call..." | tee /tmp/llm_output.txt
           python3 -c "
           import asyncio
           import traceback
@@ -86,7 +88,17 @@ jobs:
                   raise
 
           asyncio.run(test())
-          "
+          " 2>&1 | tee -a /tmp/llm_output.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Report LLM test result
+        if: always()
+        run: |
+          echo "## LLM Test Result" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/llm_output.txt 2>/dev/null || echo "No output"
+          cat /tmp/llm_output.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Test health data fetch
         env:
