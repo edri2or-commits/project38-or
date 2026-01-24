@@ -276,6 +276,21 @@ async def save_conversation(
 # Lazy import to avoid circular dependencies
 _email_handler = None
 _approval_manager = None
+_email_agent_available = None
+
+
+def _check_email_agent():
+    """Check if email agent is available (lazy check)."""
+    global _email_agent_available
+    if _email_agent_available is None:
+        try:
+            from src.agents.smart_email.graph import run_smart_email_agent
+            _email_agent_available = True
+            logger.info("Smart Email Agent available")
+        except ImportError as e:
+            _email_agent_available = False
+            logger.warning(f"Smart Email Agent not available: {e}")
+    return _email_agent_available
 
 
 def _get_email_handler():
@@ -305,17 +320,15 @@ def _get_approval_manager():
 
 
 async def email_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /email command - show email triage summary.
+    """Handle /email command - run full email triage with LangGraph.
 
     Args:
         update: Telegram update object
         context: Telegram context object
     """
-    user = update.effective_user
     chat_id = update.effective_chat.id
 
-    handler = _get_email_handler()
-    if handler is None:
+    if not _check_email_agent():
         await update.message.reply_text(
             "❌ Email agent not available. Missing dependencies."
         )
@@ -324,36 +337,53 @@ async def email_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
     try:
-        response = await handler.process_message(
-            user_id=str(user.id),
-            chat_id=str(chat_id),
-            message="מה יש בתיבה?",  # "What's in the inbox?"
+        # Import and run the full email agent
+        from src.agents.smart_email.graph import run_smart_email_agent
+
+        # Run the full email scanning pipeline
+        result = await run_smart_email_agent(
+            hours=24,
+            send_telegram=False,  # We'll send it ourselves
+            enable_phase2=True,
+            enable_memory=True,
         )
 
-        await update.message.reply_text(
-            response.text,
-            parse_mode="HTML",
-        )
+        # Get the formatted message
+        message = result.get("telegram_message", "")
+        if not message:
+            message = "📬 לא נמצאו מיילים חדשים ב-24 השעות האחרונות."
+
+        # Send to user (split if too long)
+        if len(message) > 4096:
+            # Telegram message limit is 4096 chars
+            for i in range(0, len(message), 4096):
+                await update.message.reply_text(
+                    message[i:i+4096],
+                    parse_mode="HTML",
+                )
+        else:
+            await update.message.reply_text(
+                message,
+                parse_mode="HTML",
+            )
 
     except Exception as e:
-        logger.error(f"Email command error: {e}")
+        logger.error(f"Email command error: {e}", exc_info=True)
         await update.message.reply_text(
             "❌ שגיאה בקריאת המיילים. נסה שוב מאוחר יותר."
         )
 
 
 async def inbox_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /inbox command - show inbox status.
+    """Handle /inbox command - quick inbox status with counts.
 
     Args:
         update: Telegram update object
         context: Telegram context object
     """
-    user = update.effective_user
     chat_id = update.effective_chat.id
 
-    handler = _get_email_handler()
-    if handler is None:
+    if not _check_email_agent():
         await update.message.reply_text(
             "❌ Email agent not available."
         )
@@ -362,19 +392,45 @@ async def inbox_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
     try:
-        response = await handler.process_message(
-            user_id=str(user.id),
-            chat_id=str(chat_id),
-            message="תסכם לי את התיבה",  # "Summarize the inbox"
+        # Import and run the email agent
+        from src.agents.smart_email.graph import run_smart_email_agent
+
+        # Run with phase2 disabled for faster response
+        result = await run_smart_email_agent(
+            hours=24,
+            send_telegram=False,
+            enable_phase2=False,  # Faster - no research/drafts
+            enable_memory=False,
         )
 
+        # Build quick summary
+        total = result.get("total_count", 0)
+        p1 = result.get("p1_count", 0)
+        p2 = result.get("p2_count", 0)
+        p3 = result.get("p3_count", 0)
+        p4 = result.get("p4_count", 0)
+        system = result.get("system_emails_count", 0)
+
+        lines = [
+            "📊 סטטוס התיבה (24 שעות):",
+            "",
+            f"📬 סה\"כ: {total} מיילים",
+            f"🔴 דחוף (P1): {p1}",
+            f"🟠 חשוב (P2): {p2}",
+            f"🟡 מידע (P3): {p3}",
+            f"⚪ נמוך (P4): {p4}",
+            f"🔇 מערכת (מוסתר): {system}",
+            "",
+            "💡 כתוב /email לסקירה מלאה",
+        ]
+
         await update.message.reply_text(
-            response.text,
+            "\n".join(lines),
             parse_mode="HTML",
         )
 
     except Exception as e:
-        logger.error(f"Inbox command error: {e}")
+        logger.error(f"Inbox command error: {e}", exc_info=True)
         await update.message.reply_text(
             "❌ שגיאה בסיכום התיבה."
         )
@@ -452,11 +508,32 @@ def is_email_query(message: str) -> bool:
     return any(kw in message_lower for kw in email_keywords)
 
 
+def is_inbox_scan_query(message: str) -> bool:
+    """Check if message requests a full inbox scan.
+
+    Args:
+        message: User message text
+
+    Returns:
+        True if message requests inbox scan/summary
+    """
+    scan_keywords = [
+        "מה יש בתיבה", "תסרוק", "תבדוק מיילים", "סרוק",
+        "מה חדש", "יש מיילים", "תראה מיילים",
+        "check inbox", "scan email", "what's new",
+        "מה בתיבה", "תסכם", "סיכום",
+    ]
+    message_lower = message.lower()
+    return any(kw in message_lower for kw in scan_keywords)
+
+
 async def smart_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Smart text handler that routes to email or general chat.
 
-    Routes email-related queries to ConversationHandler,
-    other queries to LiteLLM.
+    Routes:
+    - Inbox scan queries -> Full email agent (LangGraph)
+    - Other email queries -> ConversationHandler
+    - General queries -> LiteLLM
 
     Args:
         update: Telegram update object
@@ -478,7 +555,39 @@ async def smart_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             except Exception as e:
                 logger.error(f"Edit approval error: {e}")
 
-    # Route based on content
+    # Route inbox scan queries to full email agent
+    if is_inbox_scan_query(user_message):
+        if _check_email_agent():
+            await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+            try:
+                from src.agents.smart_email.graph import run_smart_email_agent
+
+                result = await run_smart_email_agent(
+                    hours=24,
+                    send_telegram=False,
+                    enable_phase2=True,
+                    enable_memory=True,
+                )
+
+                message = result.get("telegram_message", "")
+                if not message:
+                    message = "📬 לא נמצאו מיילים חדשים."
+
+                if len(message) > 4096:
+                    for i in range(0, len(message), 4096):
+                        await update.message.reply_text(
+                            message[i:i+4096],
+                            parse_mode="HTML",
+                        )
+                else:
+                    await update.message.reply_text(message, parse_mode="HTML")
+                return
+
+            except Exception as e:
+                logger.error(f"Email agent error: {e}", exc_info=True)
+                # Fall through to conversation handler
+
+    # Route other email queries to conversation handler
     if is_email_query(user_message):
         handler = _get_email_handler()
         if handler:
