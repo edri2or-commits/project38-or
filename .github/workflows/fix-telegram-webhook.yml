@@ -27,7 +27,7 @@ jobs:
           TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
           echo "::add-mask::$TOKEN"
 
-          WEBHOOK_URL="https://telegram-bot-production-053d.up.railway.app/webhook"
+          WEBHOOK_URL="https://telegram-bot-production-dc9d.up.railway.app/webhook"
 
           echo "=== Current Webhook Info ===" > /tmp/webhook_report.md
           echo '```json' >> /tmp/webhook_report.md
