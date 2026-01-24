@@ -51,13 +51,13 @@ class EmailHistoryLookup:
     Uses Gmail search to find previous conversations.
 
     Example:
-        history = EmailHistoryLookup(mcp_gateway_url="https://or-infra.com/mcp/")
+        history = EmailHistoryLookup(mcp_gateway_url="https://or-infra.com/mcp")
         sender_context = await history.get_sender_history("sender@example.com")
     """
 
     def __init__(
         self,
-        mcp_gateway_url: str = "https://or-infra.com/mcp/",
+        mcp_gateway_url: str = "https://or-infra.com/mcp",
     ):
         """Initialize EmailHistoryLookup.
 
@@ -119,7 +119,7 @@ class EmailHistoryLookup:
             },
         }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             response = await client.post(
                 self.mcp_gateway_url,
                 headers={
