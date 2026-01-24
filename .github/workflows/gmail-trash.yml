@@ -1,0 +1,154 @@
+# Trash Gmail emails via direct API call
+name: Gmail Trash
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Gmail search query for emails to delete'
+        required: true
+        default: 'from:notify.railway.app OR from:notifications@github.com'
+        type: string
+      max_results:
+        description: 'Maximum emails to trash (max 500)'
+        required: false
+        default: '200'
+        type: string
+      dry_run:
+        description: 'Dry run (search only, no deletion)'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  trash-emails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: project38-483612
+
+      - name: Get OAuth Credentials
+        run: |
+          echo "Loading OAuth credentials from GCP Secret Manager..."
+          CLIENT_ID=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-CLIENT-ID")
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-CLIENT-SECRET")
+          REFRESH_TOKEN=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-REFRESH-TOKEN")
+
+          echo "GOOGLE_CLIENT_ID=$CLIENT_ID" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_SECRET=$CLIENT_SECRET" >> $GITHUB_ENV
+          echo "GOOGLE_REFRESH_TOKEN=$REFRESH_TOKEN" >> $GITHUB_ENV
+
+          echo "✅ OAuth credentials loaded"
+
+      - name: Trash Emails
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import os
+          import json
+          from google.oauth2.credentials import Credentials
+          from google.auth.transport.requests import Request
+          from googleapiclient.discovery import build
+
+          # Config
+          QUERY = "${{ inputs.query }}"
+          MAX_RESULTS = min(int("${{ inputs.max_results }}"), 500)
+          DRY_RUN = "${{ inputs.dry_run }}" == "true"
+
+          print(f"=== Gmail Trash Tool ===")
+          print(f"Query: {QUERY}")
+          print(f"Max Results: {MAX_RESULTS}")
+          print(f"Dry Run: {DRY_RUN}")
+          print()
+
+          # Get OAuth credentials
+          creds = Credentials(
+              token=None,
+              refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
+              token_uri="https://oauth2.googleapis.com/token",
+              client_id=os.environ["GOOGLE_CLIENT_ID"],
+              client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
+          )
+          creds.refresh(Request())
+
+          # Build Gmail service
+          service = build("gmail", "v1", credentials=creds)
+
+          # Search for emails
+          print("Searching for emails...")
+          results = service.users().messages().list(
+              userId="me",
+              q=QUERY,
+              maxResults=MAX_RESULTS
+          ).execute()
+
+          messages = results.get("messages", [])
+          print(f"Found {len(messages)} emails matching query")
+          print()
+
+          if not messages:
+              print("No emails to trash. Done!")
+              exit(0)
+
+          # Get details for first few
+          print("=== Sample of emails to be trashed ===")
+          for msg in messages[:10]:
+              msg_data = service.users().messages().get(
+                  userId="me",
+                  id=msg["id"],
+                  format="metadata",
+                  metadataHeaders=["Subject", "From", "Date"]
+              ).execute()
+
+              headers = {h["name"]: h["value"] for h in msg_data.get("payload", {}).get("headers", [])}
+              print(f"  - {headers.get('Date', 'N/A')[:20]} | {headers.get('From', 'N/A')[:30]} | {headers.get('Subject', 'N/A')[:50]}")
+
+          if len(messages) > 10:
+              print(f"  ... and {len(messages) - 10} more")
+          print()
+
+          if DRY_RUN:
+              print("⚠️  DRY RUN - No emails were deleted")
+              print("Set dry_run=false to actually delete emails")
+          else:
+              print("Trashing emails...")
+              trashed = 0
+              errors = 0
+              for msg in messages:
+                  try:
+                      service.users().messages().trash(userId="me", id=msg["id"]).execute()
+                      trashed += 1
+                      if trashed % 50 == 0:
+                          print(f"  Trashed {trashed}/{len(messages)} emails...")
+                  except Exception as e:
+                      errors += 1
+                      print(f"  Error trashing {msg['id']}: {e}")
+
+              print()
+              print(f"=== Results ===")
+              print(f"✅ Trashed: {trashed} emails")
+              if errors:
+                  print(f"❌ Errors: {errors}")
+
+          PYTHON_SCRIPT

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Gmail Trash/Delete Tools** (2026-01-24)
+  - `gmail_trash(message_id)` - Move single email to trash
+  - `gmail_batch_trash(query, max_results)` - Bulk delete emails by search query
+  - `gmail_unsubscribe_filter(sender_pattern, action)` - Instructions for auto-filter creation
+  - Added to MCP Gateway at `src/mcp_gateway/tools/workspace.py`
+  - Registered in `src/mcp_gateway/server.py`
+  - Tests added: `tests/test_mcp_gateway_tools_workspace.py`
+  - Use case: Clean up GitHub/Railway notification email floods
+
 ### Fixed
 - **Smart Email Agent - Production Ready** (2026-01-24, PRs #535-#541)
   - Fixed MCP `content[].text` response parsing in `gmail_client.py`
