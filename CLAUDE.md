@@ -514,6 +514,19 @@ project38-or/
 │   │   └── integration_agent.py   # IntegrationAgent GitHub/n8n (894 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # SMART EMAIL AGENT v2.0 (6 modules, ~1,200 lines) - ADR-014
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── agents/
+│   │   └── smart_email/           # LangGraph-based email processing
+│   │       ├── __init__.py        # Module exports (29 lines)
+│   │       ├── graph.py           # LangGraph state machine (313 lines)
+│   │       ├── state.py           # TypedDict state, enums (80 lines)
+│   │       ├── persona.py         # Hebrish prompts & templates (145 lines)
+│   │       └── nodes/
+│   │           ├── classify.py    # Haiku LLM + regex classification (280 lines)
+│   │           └── format_rtl.py  # RTL Telegram formatting (269 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # AGENT FACTORY & HARNESS (7 modules, ~2,100 lines)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── factory/

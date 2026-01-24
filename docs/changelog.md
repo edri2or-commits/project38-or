@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent v2.0 - LangGraph Refactor** (2026-01-23)
+  - New architecture using LangGraph state machine (FETCH→CLASSIFY→FORMAT→SEND)
+  - `src/agents/smart_email/graph.py` - LangGraph orchestration
+  - `src/agents/smart_email/nodes/classify.py` - Haiku LLM + regex fallback classification
+  - `src/agents/smart_email/nodes/format_rtl.py` - RTL Telegram formatting
+  - `src/agents/smart_email/persona.py` - Hebrish prompts and templates
+  - `src/agents/smart_email/state.py` - TypedDict state, Priority/Category enums
+  - Dependencies: `langgraph>=0.2.0`, `openai>=1.0.0`
+
 - **Smart Email Agent - ADR-014 Complete (Phase 1, 2 & 3)** (2026-01-23)
   - **Phase 1 - Core Agent:**
     - Autonomous email agent that scans Gmail inbox daily and sends summary to Telegram

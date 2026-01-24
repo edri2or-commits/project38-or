@@ -5994,5 +5994,55 @@ Total:                              = $0.071
 
 ---
 
+## Phase 46: Smart Email Agent v2.0 - LangGraph Refactor (2026-01-23)
+
+### Context
+
+ADR-014 defined a comprehensive Smart Email Agent architecture. Phase 46 implements the LangGraph-based v2.0 version with state machine orchestration.
+
+### Implementation
+
+**New Module**: `src/agents/smart_email/`
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `graph.py` | 313 | LangGraph state machine (FETCH→CLASSIFY→FORMAT→SEND) |
+| `state.py` | 141 | TypedDict state, Priority/Category enums, EmailItem dataclass |
+| `persona.py` | 144 | Hebrish prompts, templates, smart friend personality |
+| `nodes/classify.py` | 283 | Haiku LLM + regex fallback classification |
+| `nodes/format_rtl.py` | 268 | RTL Telegram formatting with Unicode RLM markers |
+| `__init__.py` | 28 | Module exports |
+
+**Total**: 1,177 lines of production code
+
+### Key Features
+
+- **LangGraph State Machine**: Typed state flows through nodes
+- **Haiku Classification**: Cost-efficient LLM via LiteLLM Gateway
+- **Regex Fallback**: Offline classification when LLM unavailable
+- **System Email Filtering**: GitHub, Railway, CI/CD auto-filtered
+- **Hebrish Persona**: Hebrew + English code-switching
+- **ADHD-Friendly Format**: Single urgent item focus option
+- **RTL Support**: Unicode RLM markers for mixed text
+
+### Dependencies Added
+
+- `langgraph>=0.2.0`
+- `openai>=1.0.0`
+
+### Verification
+
+```python
+from src.agents.smart_email import SmartEmailGraph
+agent = SmartEmailGraph()
+# Graph nodes: ['__start__', 'fetch_emails', 'classify_emails', 'format_telegram', 'send_telegram']
+```
+
+### Status
+
+**Phase 46: ✅ COMPLETE - LangGraph Smart Email Agent v2.0**
+
+---
+
 *Last Updated: 2026-01-23 UTC*
-*Status: **Phase 45 In Progress - Background Autonomous Agents***
+*Status: **Phase 46 Complete - Smart Email Agent v2.0***
