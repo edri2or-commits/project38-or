@@ -267,3 +267,288 @@ async def save_conversation(
             session.add(stats)
 
         await session.commit()
+
+
+# =============================================================================
+# Email Agent Handlers (Phase 4.12)
+# =============================================================================
+
+# Lazy import to avoid circular dependencies
+_email_handler = None
+_approval_manager = None
+
+
+def _get_email_handler():
+    """Get or create email conversation handler (lazy initialization)."""
+    global _email_handler
+    if _email_handler is None:
+        try:
+            from src.agents.smart_email.conversation import ConversationHandler
+            _email_handler = ConversationHandler()
+            logger.info("Email ConversationHandler initialized")
+        except ImportError as e:
+            logger.warning(f"Email agent not available: {e}")
+    return _email_handler
+
+
+def _get_approval_manager():
+    """Get or create approval manager (lazy initialization)."""
+    global _approval_manager
+    if _approval_manager is None:
+        try:
+            from src.agents.smart_email.actions import create_approval_manager
+            _approval_manager = create_approval_manager()
+            logger.info("ApprovalManager initialized")
+        except ImportError as e:
+            logger.warning(f"Approval manager not available: {e}")
+    return _approval_manager
+
+
+async def email_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /email command - show email triage summary.
+
+    Args:
+        update: Telegram update object
+        context: Telegram context object
+    """
+    user = update.effective_user
+    chat_id = update.effective_chat.id
+
+    handler = _get_email_handler()
+    if handler is None:
+        await update.message.reply_text(
+            "❌ Email agent not available. Missing dependencies."
+        )
+        return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
+    try:
+        response = await handler.process_message(
+            user_id=str(user.id),
+            chat_id=str(chat_id),
+            message="מה יש בתיבה?",  # "What's in the inbox?"
+        )
+
+        await update.message.reply_text(
+            response.text,
+            parse_mode="HTML",
+        )
+
+    except Exception as e:
+        logger.error(f"Email command error: {e}")
+        await update.message.reply_text(
+            "❌ שגיאה בקריאת המיילים. נסה שוב מאוחר יותר."
+        )
+
+
+async def inbox_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /inbox command - show inbox status.
+
+    Args:
+        update: Telegram update object
+        context: Telegram context object
+    """
+    user = update.effective_user
+    chat_id = update.effective_chat.id
+
+    handler = _get_email_handler()
+    if handler is None:
+        await update.message.reply_text(
+            "❌ Email agent not available."
+        )
+        return
+
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
+    try:
+        response = await handler.process_message(
+            user_id=str(user.id),
+            chat_id=str(chat_id),
+            message="תסכם לי את התיבה",  # "Summarize the inbox"
+        )
+
+        await update.message.reply_text(
+            response.text,
+            parse_mode="HTML",
+        )
+
+    except Exception as e:
+        logger.error(f"Inbox command error: {e}")
+        await update.message.reply_text(
+            "❌ שגיאה בסיכום התיבה."
+        )
+
+
+async def email_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle callback queries from email action buttons.
+
+    Handles: approve:req_xxx, reject:req_xxx, edit:req_xxx
+    """
+    query = update.callback_query
+    user = update.effective_user
+
+    if not query.data:
+        return
+
+    # Parse callback data
+    parts = query.data.split(":")
+    if len(parts) != 2:
+        return
+
+    action, request_id = parts
+
+    manager = _get_approval_manager()
+    if manager is None:
+        await query.answer("❌ Approval system unavailable")
+        return
+
+    try:
+        if action == "approve":
+            result = await manager.approve(request_id)
+            await query.answer("✅ פעולה בוצעה!")
+            await query.edit_message_text(
+                f"{query.message.text}\n\n{result.to_hebrew()}"
+            )
+
+        elif action == "reject":
+            manager.reject(request_id, reason="User rejected")
+            await query.answer("❌ פעולה בוטלה")
+            await query.edit_message_text(
+                f"{query.message.text}\n\n❌ הפעולה בוטלה"
+            )
+
+        elif action == "edit":
+            await query.answer("✏️ שלח את התוכן המעודכן")
+            # Store pending edit state in context
+            context.user_data["pending_edit"] = request_id
+
+        else:
+            await query.answer("Unknown action")
+
+    except ValueError as e:
+        await query.answer(f"❌ {str(e)}")
+    except Exception as e:
+        logger.error(f"Callback error: {e}")
+        await query.answer("❌ שגיאה בביצוע הפעולה")
+
+
+def is_email_query(message: str) -> bool:
+    """Check if message is an email-related query.
+
+    Args:
+        message: User message text
+
+    Returns:
+        True if message appears to be about email
+    """
+    email_keywords = [
+        "מייל", "תיבה", "inbox", "email", "gmail",
+        "שלח", "תענה", "תשלח", "העבר", "ארכב",
+        "מי שלח", "מה עם", "לגבי המייל",
+        "מיילים", "הודעות", "דואר",
+    ]
+    message_lower = message.lower()
+    return any(kw in message_lower for kw in email_keywords)
+
+
+async def smart_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Smart text handler that routes to email or general chat.
+
+    Routes email-related queries to ConversationHandler,
+    other queries to LiteLLM.
+
+    Args:
+        update: Telegram update object
+        context: Telegram context object
+    """
+    user = update.effective_user
+    chat_id = update.effective_chat.id
+    user_message = update.message.text
+
+    # Check for pending edit action
+    if context.user_data.get("pending_edit"):
+        manager = _get_approval_manager()
+        if manager:
+            request_id = context.user_data.pop("pending_edit")
+            try:
+                result = await manager.approve(request_id, modified_content=user_message)
+                await update.message.reply_text(result.to_hebrew())
+                return
+            except Exception as e:
+                logger.error(f"Edit approval error: {e}")
+
+    # Route based on content
+    if is_email_query(user_message):
+        handler = _get_email_handler()
+        if handler:
+            await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
+            try:
+                response = await handler.process_message(
+                    user_id=str(user.id),
+                    chat_id=str(chat_id),
+                    message=user_message,
+                )
+
+                # Check if action confirmation needed
+                if response.requires_confirmation and response.show_keyboard:
+                    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+                    manager = _get_approval_manager()
+                    if manager:
+                        # Create proposal
+                        from src.agents.smart_email.actions import ActionType
+
+                        action_type_map = {
+                            "reply": ActionType.REPLY,
+                            "forward": ActionType.FORWARD,
+                            "archive": ActionType.ARCHIVE,
+                        }
+                        action_type = action_type_map.get(
+                            response.action_to_confirm.value if response.action_to_confirm else "reply",
+                            ActionType.REPLY
+                        )
+
+                        proposal = manager.create_proposal(
+                            action_type=action_type,
+                            user_id=str(user.id),
+                            chat_id=str(chat_id),
+                            **response.action_details,
+                        )
+
+                        # Build keyboard
+                        keyboard = [
+                            [
+                                InlineKeyboardButton("✅ אשר", callback_data=f"approve:{proposal.id}"),
+                                InlineKeyboardButton("❌ בטל", callback_data=f"reject:{proposal.id}"),
+                            ]
+                        ]
+                        if action_type in (ActionType.REPLY, ActionType.FORWARD):
+                            keyboard[0].append(
+                                InlineKeyboardButton("✏️ ערוך", callback_data=f"edit:{proposal.id}")
+                            )
+
+                        reply_markup = InlineKeyboardMarkup(keyboard)
+                        proposal_text = manager.format_proposal_hebrew(proposal)
+
+                        await update.message.reply_text(
+                            proposal_text,
+                            reply_markup=reply_markup,
+                            parse_mode="HTML",
+                        )
+                        return
+
+                # Regular response
+                await update.message.reply_text(
+                    response.text,
+                    parse_mode="HTML",
+                )
+                return
+
+            except Exception as e:
+                logger.error(f"Email handler error: {e}")
+                # Fall through to general handler
+
+    # Default: use general LiteLLM handler
+    await text_message_handler(update, context)

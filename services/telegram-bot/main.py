@@ -11,9 +11,19 @@ from contextlib import asynccontextmanager
 
 from database import check_database_connection, close_db_connection, create_db_and_tables
 from fastapi import FastAPI, Request, Response
-from handlers import error_handler, generate_command, start_command, text_message_handler
+from handlers import (
+    error_handler,
+    generate_command,
+    start_command,
+    text_message_handler,
+    # Email agent handlers (Phase 4.12)
+    email_command,
+    inbox_command,
+    email_callback_handler,
+    smart_text_handler,
+)
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
 from config import get_settings, load_secrets_from_gcp
 
@@ -59,7 +69,13 @@ async def lifespan(app: FastAPI):
     # Register handlers
     telegram_app.add_handler(CommandHandler("start", start_command))
     telegram_app.add_handler(CommandHandler("generate", generate_command))
-    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message_handler))
+    # Email agent commands (Phase 4.12)
+    telegram_app.add_handler(CommandHandler("email", email_command))
+    telegram_app.add_handler(CommandHandler("inbox", inbox_command))
+    # Use smart handler that routes email queries to ConversationHandler
+    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, smart_text_handler))
+    # Callback handler for action approval buttons
+    telegram_app.add_handler(CallbackQueryHandler(email_callback_handler))
     telegram_app.add_error_handler(error_handler)
 
     # Initialize bot

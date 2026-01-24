@@ -584,22 +584,64 @@ class ActionExecutor:
         tool: str,
         params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Call MCP Gateway tool.
+        """Call MCP Gateway tool via HTTP.
 
-        This is a placeholder that would be replaced with actual
-        MCP client calls when integrated with the gateway.
+        Makes actual HTTP requests to the MCP Gateway at or-infra.com/mcp.
+        Requires MCP_GATEWAY_TOKEN environment variable.
         """
-        # In production, this would call the MCP Gateway
-        # For now, return a simulated response
-        logger.info(f"MCP call: {tool} with params: {params}")
+        import httpx
 
-        # Simulated success for development
-        return {
-            "success": True,
-            "tool": tool,
-            "params": params,
-            "message_id": f"msg_{uuid.uuid4().hex[:8]}",
+        token = os.environ.get("MCP_GATEWAY_TOKEN")
+        if not token:
+            logger.warning("MCP_GATEWAY_TOKEN not set, using simulated response")
+            # Fallback to simulated response for development
+            return {
+                "success": True,
+                "tool": tool,
+                "params": params,
+                "message_id": f"msg_{uuid.uuid4().hex[:8]}",
+                "simulated": True,
+            }
+
+        # Map tool names to gateway endpoints
+        tool_endpoints = {
+            "gmail_send": "/tools/gmail_send",
+            "gmail_search": "/tools/gmail_search",
+            "gmail_list": "/tools/gmail_list",
+            "gmail_modify": "/tools/gmail_modify",
         }
+
+        endpoint = tool_endpoints.get(tool, f"/tools/{tool}")
+        url = f"{self.mcp_gateway_url}{endpoint}"
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                    },
+                    json=params,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    logger.info(f"MCP call {tool} succeeded: {data.get('message_id', 'ok')}")
+                    return data
+                else:
+                    logger.error(f"MCP call {tool} failed: {response.status_code} - {response.text}")
+                    return {
+                        "success": False,
+                        "error": f"HTTP {response.status_code}: {response.text}",
+                    }
+
+        except httpx.TimeoutException:
+            logger.error(f"MCP call {tool} timed out")
+            return {"success": False, "error": "Request timed out"}
+        except Exception as e:
+            logger.error(f"MCP call {tool} exception: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _get_gmail_service(self):
         """Get Gmail API service.
