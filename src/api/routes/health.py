@@ -251,11 +251,19 @@ async def mcp_call_tool(tool_name: str = "health_check", arguments: dict = {}) -
 
         # Try to call the tool directly
         try:
+            import asyncio
+            import inspect
+
             # Get the tool
             tm = mcp._tool_manager
             tool = None
             if hasattr(tm, "get_tool"):
-                tool = tm.get_tool(tool_name)
+                getter = tm.get_tool(tool_name)
+                # Check if get_tool returns a coroutine
+                if asyncio.iscoroutine(getter):
+                    tool = await getter
+                else:
+                    tool = getter
             elif hasattr(tm, "_tools"):
                 tool = tm._tools.get(tool_name)
 
@@ -264,7 +272,6 @@ async def mcp_call_tool(tool_name: str = "health_check", arguments: dict = {}) -
 
             # Call the tool
             if hasattr(tool, "fn"):
-                import asyncio
                 if asyncio.iscoroutinefunction(tool.fn):
                     result = await tool.fn(**arguments)
                 else:
