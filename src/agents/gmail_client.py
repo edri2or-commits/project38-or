@@ -42,7 +42,7 @@ class GmailClient:
         """
         self.mcp_url = mcp_url or os.environ.get(
             "MCP_GATEWAY_URL",
-            "https://or-infra.com/mcp"
+            "https://or-infra.com/mcp/"
         )
         self.mcp_token = mcp_token or os.environ.get("MCP_GATEWAY_TOKEN", "")
 
