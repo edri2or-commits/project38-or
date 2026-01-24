@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent Phase 4.12 - Action System with Approval** (2026-01-24) ✅
+  - `src/agents/smart_email/actions/` - Action execution module (4 files, 900+ lines)
+  - `types.py` - ActionRequest, ActionResult, ActionStatus, AuditRecord dataclasses
+  - `executor.py` - ActionExecutor with Gmail API via MCP Gateway or direct API
+  - `approval.py` - ApprovalManager with timeout, Hebrew proposals, Telegram keyboards
+  - 14 supported actions: reply, forward, archive, mark_read/unread, mark_important, snooze, label, trash, delete, star
+  - Approval flow: AI proposes → User sees Hebrew proposal → Telegram buttons [אשר/בטל/ערוך] → Execute
+  - Full audit logging with AuditRecord.to_log_entry() and format_audit_log_hebrew()
+  - Undo capability for reversible actions (archive, label, star)
+  - 24 unit tests in `tests/test_smart_email.py::TestActionSystem`
+
 - **Smart Email Agent Phase 4.11 - Conversational Telegram** (2026-01-24) ✅
   - `src/agents/smart_email/conversation/` - Conversation module (3 files, 800+ lines)
   - `intents.py` - Intent classification with 7 intent types and 10 action types

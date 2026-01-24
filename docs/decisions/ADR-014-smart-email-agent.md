@@ -317,12 +317,15 @@ New architecture using LangGraph state machine:
 - [x] Context persistence via memory layer (ConversationContext)
 - [x] 20 unit tests in `tests/test_smart_email.py::TestConversation`
 
-#### 4.12 Action System with Approval (Planned)
-- [ ] `src/agents/smart_email/actions/` - Action execution module
-- [ ] Supported actions: reply, forward, archive, label, snooze
-- [ ] Approval flow: AI proposes → User approves → Execute
-- [ ] Audit log for all actions
-- [ ] Undo capability
+#### 4.12 Action System with Approval (Complete)
+- [x] `src/agents/smart_email/actions/types.py` - ActionRequest, ActionResult, AuditRecord types
+- [x] `src/agents/smart_email/actions/executor.py` - Gmail API action execution via MCP Gateway
+- [x] `src/agents/smart_email/actions/approval.py` - ApprovalManager with timeout, keyboard options
+- [x] Supported actions: reply, forward, archive, label, snooze, star, trash, delete
+- [x] Approval flow: AI proposes → User sees Hebrew proposal → Telegram buttons → Execute
+- [x] Audit log for compliance (AuditRecord, to_log_entry, format_audit_log_hebrew)
+- [x] Undo capability for reversible actions (archive, label, star)
+- [x] 24 unit tests in `tests/test_smart_email.py::TestActionSystem`
 
 ## Consequences
 
