@@ -22,7 +22,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install httpx litellm openai
+        run: |
+          pip install httpx litellm "openai>=1.0.0"
+          pip show openai | grep Version
 
       - name: Test imports
         env:
@@ -57,25 +59,31 @@ jobs:
           echo "Testing direct LLM call..."
           python3 -c "
           import asyncio
+          import traceback
           from openai import AsyncOpenAI
 
           async def test():
-              print('Creating client...')
-              client = AsyncOpenAI(
-                  base_url='https://litellm-gateway-production-0339.up.railway.app',
-                  api_key='dummy'
-              )
+              try:
+                  print('Creating client...')
+                  client = AsyncOpenAI(
+                      base_url='https://litellm-gateway-production-0339.up.railway.app',
+                      api_key='dummy'
+                  )
 
-              print('Calling gemini-flash...')
-              response = await client.chat.completions.create(
-                  model='gemini-flash',
-                  messages=[{'role': 'user', 'content': 'Say hi'}],
-                  max_tokens=10
-              )
+                  print('Calling gemini-flash...')
+                  response = await client.chat.completions.create(
+                      model='gemini-flash',
+                      messages=[{'role': 'user', 'content': 'Say hi'}],
+                      max_tokens=10
+                  )
 
-              print(f'✅ Response: {response.choices[0].message.content}')
-              print(f'   Model: {response.model}')
-              print(f'   Tokens: {response.usage.total_tokens}')
+                  print(f'✅ Response: {response.choices[0].message.content}')
+                  print(f'   Model: {response.model}')
+                  print(f'   Tokens: {response.usage.total_tokens}')
+              except Exception as e:
+                  print(f'❌ Error: {type(e).__name__}: {e}')
+                  traceback.print_exc()
+                  raise
 
           asyncio.run(test())
           "
