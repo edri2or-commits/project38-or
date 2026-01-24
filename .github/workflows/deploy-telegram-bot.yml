@@ -13,6 +13,7 @@ on:
           - create-service
           - status
           - setup-webhook
+          - set-mcp-token
 
 permissions:
   contents: read
@@ -151,6 +152,21 @@ jobs:
             -d '{
               "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"PORT\", value: \"8000\" }) }"
             }'
+
+          # MCP Gateway Token (for email agent)
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-GATEWAY-TOKEN" --project="project38-483612" 2>/dev/null || echo "")
+          if [ -n "$MCP_TOKEN" ]; then
+            curl -s -X POST \
+              "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"MCP_GATEWAY_TOKEN\", value: \"'$MCP_TOKEN'\" }) }"
+              }'
+            echo "✅ MCP_GATEWAY_TOKEN set"
+          else
+            echo "⚠️ MCP-GATEWAY-TOKEN not found in GCP, skipping"
+          fi
 
           echo "✅ Environment variables set"
           echo ""
@@ -291,6 +307,54 @@ curl https://$DOMAIN/webhook/info
           else
             echo "Service domain not available yet. Add domain in Railway dashboard."
           fi
+
+      - name: Set MCP Gateway Token
+        if: inputs.action == 'set-mcp-token'
+        env:
+          RAILWAY_TOKEN: ${{ steps.railway-token.outputs.token }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+        run: |
+          echo "🔑 Setting MCP Gateway Token..."
+
+          # Get service ID
+          SERVICE_ID=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'$RAILWAY_PROJECT_ID'\") { services { edges { node { id name } } } } }"
+            }' | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.id' 2>/dev/null || echo "")
+
+          if [ -z "$SERVICE_ID" ] || [ "$SERVICE_ID" = "null" ]; then
+            echo "❌ telegram-bot service not found"
+            exit 1
+          fi
+
+          echo "Service ID: $SERVICE_ID"
+
+          # Get MCP Gateway Token from GCP
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-GATEWAY-TOKEN" --project="project38-483612")
+
+          if [ -z "$MCP_TOKEN" ]; then
+            echo "❌ MCP-GATEWAY-TOKEN not found in GCP Secret Manager"
+            exit 1
+          fi
+
+          # Set the token in Railway
+          RESULT=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"MCP_GATEWAY_TOKEN\", value: \"'$MCP_TOKEN'\" }) }"
+            }')
+
+          echo "Result: $RESULT"
+          echo "✅ MCP_GATEWAY_TOKEN set successfully!"
+          echo ""
+          echo "Now trigger a deploy to apply the change:"
+          echo "  gh workflow run deploy-telegram-bot.yml -f action=deploy"
 
       - name: Summary
         run: |
