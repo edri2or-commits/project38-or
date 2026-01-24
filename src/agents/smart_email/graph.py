@@ -3,6 +3,7 @@
 Defines the email processing graph:
     Phase 1: FETCH → CLASSIFY → FORMAT → SEND
     Phase 2: FETCH → CLASSIFY → RESEARCH → HISTORY → DRAFT → FORMAT → SEND
+    Phase 4: FETCH → CLASSIFY → RESEARCH → HISTORY → DRAFT → VERIFY → FORMAT → SEND
 
 Phase 1 MVP features:
 - Gmail fetch via existing GmailClient
@@ -14,6 +15,9 @@ Phase 2 Intelligence features:
 - Web research for P1/P2 emails
 - Sender history lookup
 - Draft reply generation
+
+Phase 4 Full Capabilities:
+- Proof of completeness (verify no emails missed)
 """
 
 import logging
@@ -30,6 +34,7 @@ from src.agents.smart_email.nodes.draft import draft_node
 from src.agents.smart_email.nodes.format_rtl import format_telegram_node
 from src.agents.smart_email.nodes.history import history_node
 from src.agents.smart_email.nodes.research import research_node
+from src.agents.smart_email.nodes.verify import verify_completeness_node
 from src.agents.smart_email.state import EmailState, create_initial_state
 
 logger = logging.getLogger(__name__)
@@ -167,10 +172,10 @@ def create_email_graph(enable_phase2: bool = True) -> StateGraph:
     """Create the LangGraph state machine for email processing.
 
     Graph structure (Phase 1 - MVP):
-        fetch_emails → classify_emails → format_telegram → send_telegram → END
+        fetch_emails → classify_emails → verify → format_telegram → send_telegram → END
 
-    Graph structure (Phase 2 - Intelligence):
-        fetch → classify → research → history → draft → format → send → END
+    Graph structure (Phase 2/4 - Intelligence + Verification):
+        fetch → classify → research → history → draft → verify → format → send → END
 
     Args:
         enable_phase2: Enable Phase 2 intelligence nodes (research, history, draft)
@@ -187,24 +192,29 @@ def create_email_graph(enable_phase2: bool = True) -> StateGraph:
     graph.add_node("format_telegram", format_telegram_node)
     graph.add_node("send_telegram", send_telegram_node)
 
+    # Add Phase 4 verification node (always included)
+    graph.add_node("verify", verify_completeness_node)
+
     if enable_phase2:
         # Add Phase 2 intelligence nodes
         graph.add_node("research", research_node)
         graph.add_node("history", history_node)
         graph.add_node("draft", draft_node)
 
-        # Define edges with Phase 2 flow
+        # Define edges with Phase 2/4 flow
         graph.add_edge("fetch_emails", "classify_emails")
         graph.add_edge("classify_emails", "research")
         graph.add_edge("research", "history")
         graph.add_edge("history", "draft")
-        graph.add_edge("draft", "format_telegram")
+        graph.add_edge("draft", "verify")
+        graph.add_edge("verify", "format_telegram")
         graph.add_edge("format_telegram", "send_telegram")
         graph.add_edge("send_telegram", END)
     else:
-        # Phase 1 only - linear flow
+        # Phase 1 only - linear flow with verification
         graph.add_edge("fetch_emails", "classify_emails")
-        graph.add_edge("classify_emails", "format_telegram")
+        graph.add_edge("classify_emails", "verify")
+        graph.add_edge("verify", "format_telegram")
         graph.add_edge("format_telegram", "send_telegram")
         graph.add_edge("send_telegram", END)
 
@@ -286,12 +296,22 @@ class SmartEmailGraph:
         duration_ms = int((time.time() - state["start_time"]) * 1000)
         final_state["duration_ms"] = duration_ms
 
+        # Log verification result
+        verification = final_state.get("verification")
+        verified_str = "N/A"
+        if verification:
+            if hasattr(verification, "is_complete"):
+                verified_str = "✅" if verification.is_complete else "⚠️"
+            elif isinstance(verification, dict):
+                verified_str = "✅" if not verification.get("missed_ids") else "⚠️"
+
         logger.info(
             f"Completed run {state['run_id']} in {duration_ms}ms - "
             f"P1={final_state.get('p1_count', 0)}, "
             f"P2={final_state.get('p2_count', 0)}, "
             f"researched={final_state.get('research_count', 0)}, "
             f"drafts={final_state.get('drafts_count', 0)}, "
+            f"verified={verified_str}, "
             f"sent={final_state.get('telegram_sent', False)}"
         )
 
@@ -384,6 +404,19 @@ def main():
         if phase2:
             print(f"🔬 Researched: {result.get('research_count', 0)}")
             print(f"📝 Drafts: {result.get('drafts_count', 0)}")
+
+        # Phase 4: Verification stats
+        verification = result.get("verification")
+        if verification:
+            if hasattr(verification, "summary_hebrew"):
+                print(f"🔍 Verification: {verification.summary_hebrew()}")
+            elif isinstance(verification, dict):
+                gmail_total = verification.get("gmail_total", 0)
+                missed = len(verification.get("missed_ids", []))
+                if missed == 0:
+                    print(f"🔍 Verification: ✅ {gmail_total}/{gmail_total} (0 missed)")
+                else:
+                    print(f"🔍 Verification: ⚠️ {missed} missed emails!")
 
         print(f"⏱️ Duration: {result.get('duration_ms', 0)}ms")
 

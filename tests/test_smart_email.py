@@ -21,6 +21,7 @@ from src.agents.smart_email.state import (
     ResearchResult,
     SenderHistory,
     DraftReply,
+    VerificationResult,
     create_initial_state,
 )
 from src.agents.smart_email.nodes.classify import (
@@ -46,6 +47,10 @@ from src.agents.smart_email.nodes.draft import (
     determine_tone,
     determine_action_type,
     should_generate_draft,
+)
+from src.agents.smart_email.nodes.verify import (
+    verify_completeness_node,
+    get_verification_summary,
 )
 from src.agents.smart_email.graph import (
     SmartEmailGraph,
@@ -607,3 +612,251 @@ class TestIntegration:
         # Verify results
         assert result.get("total_count", 0) >= 0  # At least processed
         assert "telegram_message" in result or "errors" in result
+
+
+class TestVerificationNode:
+    """Tests for verification node (Phase 4: Proof of Completeness)."""
+
+    def test_verification_result_is_complete(self):
+        """Test VerificationResult.is_complete property."""
+        # Complete case - all emails accounted for
+        result = VerificationResult(
+            gmail_total=10,
+            processed_count=7,
+            skipped_system=3,
+            skipped_duplicates=0,
+            missed_ids=[],
+            verified=True,
+        )
+        assert result.is_complete is True
+
+        # Incomplete case - missing emails
+        result_incomplete = VerificationResult(
+            gmail_total=10,
+            processed_count=5,
+            skipped_system=3,
+            skipped_duplicates=0,
+            missed_ids=["id1", "id2"],
+            verified=False,
+        )
+        assert result_incomplete.is_complete is False
+
+    def test_verification_result_summary_hebrew(self):
+        """Test Hebrew summary generation."""
+        # Complete case
+        result = VerificationResult(
+            gmail_total=23,
+            processed_count=20,
+            skipped_system=3,
+            skipped_duplicates=0,
+            missed_ids=[],
+            verified=True,
+        )
+        summary = result.summary_hebrew()
+        assert "✅" in summary
+        assert "23/23" in summary
+        assert "0 פוספסו" in summary
+
+        # Incomplete case
+        result_incomplete = VerificationResult(
+            gmail_total=23,
+            processed_count=18,
+            skipped_system=3,
+            skipped_duplicates=0,
+            missed_ids=["id1", "id2"],
+            verified=False,
+        )
+        summary = result_incomplete.summary_hebrew()
+        assert "⚠️" in summary
+        assert "2 פוספסו" in summary
+
+    def test_verify_completeness_node_all_processed(self):
+        """Test verification when all emails are processed."""
+        # Create state with raw emails and processed emails matching
+        state = {
+            "raw_emails": [
+                {"id": "1", "subject": "Test 1"},
+                {"id": "2", "subject": "Test 2"},
+                {"id": "3", "subject": "Test 3"},
+            ],
+            "emails": [
+                EmailItem(
+                    id="1", thread_id="t1", subject="Test 1",
+                    sender="A", sender_email="a@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+                EmailItem(
+                    id="2", thread_id="t2", subject="Test 2",
+                    sender="B", sender_email="b@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+                EmailItem(
+                    id="3", thread_id="t3", subject="Test 3",
+                    sender="C", sender_email="c@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+            ],
+            "system_emails_count": 0,
+        }
+
+        result = verify_completeness_node(state)
+
+        assert "verification" in result
+        verification = result["verification"]
+        assert verification.gmail_total == 3
+        assert verification.processed_count == 3
+        assert verification.is_complete is True
+        assert len(verification.missed_ids) == 0
+
+    def test_verify_completeness_node_with_system_emails(self):
+        """Test verification when system emails are filtered."""
+        state = {
+            "raw_emails": [
+                {"id": "1", "subject": "Test 1"},
+                {"id": "2", "subject": "GitHub Notification"},
+                {"id": "3", "subject": "Test 2"},
+            ],
+            "emails": [
+                EmailItem(
+                    id="1", thread_id="t1", subject="Test 1",
+                    sender="A", sender_email="a@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+                EmailItem(
+                    id="3", thread_id="t3", subject="Test 2",
+                    sender="C", sender_email="c@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+            ],
+            "system_emails_count": 1,  # GitHub notification was filtered
+        }
+
+        result = verify_completeness_node(state)
+
+        verification = result["verification"]
+        assert verification.gmail_total == 3
+        assert verification.processed_count == 2
+        assert verification.skipped_system == 1
+        assert verification.is_complete is True
+
+    def test_verify_completeness_node_missing_emails(self):
+        """Test verification when emails are missed."""
+        state = {
+            "raw_emails": [
+                {"id": "1", "subject": "Test 1"},
+                {"id": "2", "subject": "Test 2"},
+                {"id": "3", "subject": "Test 3"},
+                {"id": "4", "subject": "Test 4"},
+            ],
+            "emails": [
+                EmailItem(
+                    id="1", thread_id="t1", subject="Test 1",
+                    sender="A", sender_email="a@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+                # Missing id 2, 3, 4
+            ],
+            "system_emails_count": 0,
+        }
+
+        result = verify_completeness_node(state)
+
+        verification = result["verification"]
+        assert verification.gmail_total == 4
+        assert verification.processed_count == 1
+        assert verification.is_complete is False
+        # Should have missed IDs
+        assert len(verification.missed_ids) > 0
+
+    def test_get_verification_summary_with_result(self):
+        """Test get_verification_summary helper function."""
+        verification = VerificationResult(
+            gmail_total=15,
+            processed_count=15,
+            skipped_system=0,
+            missed_ids=[],
+            verified=True,
+        )
+        state = {"verification": verification}
+
+        summary = get_verification_summary(state)
+
+        assert "✅" in summary
+        assert "15/15" in summary
+
+    def test_get_verification_summary_with_dict(self):
+        """Test get_verification_summary with dict input (serialized state)."""
+        state = {
+            "verification": {
+                "gmail_total": 10,
+                "processed_count": 10,
+                "skipped_system": 0,
+                "missed_ids": [],
+            }
+        }
+
+        summary = get_verification_summary(state)
+
+        assert "✅" in summary
+        assert "10/10" in summary
+
+    def test_get_verification_summary_no_verification(self):
+        """Test get_verification_summary when verification is None."""
+        state = {"verification": None}
+
+        summary = get_verification_summary(state)
+
+        assert "אימות לא רץ" in summary
+
+    def test_all_fetched_ids_tracked(self):
+        """Test that all fetched email IDs are tracked."""
+        state = {
+            "raw_emails": [
+                {"id": "email-001", "subject": "Test 1"},
+                {"id": "email-002", "subject": "Test 2"},
+            ],
+            "emails": [
+                EmailItem(
+                    id="email-001", thread_id="t1", subject="Test 1",
+                    sender="A", sender_email="a@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+            ],
+            "system_emails_count": 1,
+        }
+
+        result = verify_completeness_node(state)
+
+        assert "all_fetched_ids" in result
+        assert "email-001" in result["all_fetched_ids"]
+        assert "email-002" in result["all_fetched_ids"]
+        assert len(result["all_fetched_ids"]) == 2
+
+    def test_all_processed_ids_tracked(self):
+        """Test that all processed email IDs are tracked."""
+        state = {
+            "raw_emails": [
+                {"id": "email-001", "subject": "Test 1"},
+                {"id": "email-002", "subject": "Test 2"},
+            ],
+            "emails": [
+                EmailItem(
+                    id="email-001", thread_id="t1", subject="Test 1",
+                    sender="A", sender_email="a@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+                EmailItem(
+                    id="email-002", thread_id="t2", subject="Test 2",
+                    sender="B", sender_email="b@test.com",
+                    date="2026-01-24", snippet="test",
+                ),
+            ],
+            "system_emails_count": 0,
+        }
+
+        result = verify_completeness_node(state)
+
+        assert "all_processed_ids" in result
+        assert "email-001" in result["all_processed_ids"]
+        assert "email-002" in result["all_processed_ids"]
+        assert len(result["all_processed_ids"]) == 2

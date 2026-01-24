@@ -11,6 +11,9 @@ Phase 2 (Intelligence):
     - research_node: Web research for P1/P2 emails
     - history_node: Sender history lookup
     - draft_node: Reply draft generation
+
+Phase 4 (Full Capabilities):
+    - verify_completeness_node: Proof that no emails were missed
 """
 
 from src.agents.smart_email.nodes.classify import classify_emails_node
@@ -18,6 +21,7 @@ from src.agents.smart_email.nodes.draft import draft_node
 from src.agents.smart_email.nodes.format_rtl import format_telegram_node
 from src.agents.smart_email.nodes.history import history_node
 from src.agents.smart_email.nodes.research import research_node
+from src.agents.smart_email.nodes.verify import verify_completeness_node
 
 __all__ = [
     # Phase 1
@@ -27,4 +31,6 @@ __all__ = [
     "research_node",
     "history_node",
     "draft_node",
+    # Phase 4
+    "verify_completeness_node",
 ]

@@ -64,6 +64,35 @@ class DraftReply:
 
 
 @dataclass
+class VerificationResult:
+    """Verification that no emails were missed.
+
+    This proves completeness by comparing Gmail total count
+    with actually processed + explicitly skipped counts.
+    """
+    gmail_total: int = 0           # Total emails returned by Gmail API
+    processed_count: int = 0       # Actually classified and processed
+    skipped_system: int = 0        # System emails filtered out
+    skipped_duplicates: int = 0    # Duplicate emails skipped
+    missed_ids: list[str] = field(default_factory=list)  # IDs not processed
+    verified: bool = False         # True if gmail_total == processed + skipped
+
+    @property
+    def is_complete(self) -> bool:
+        """Check if all emails were accounted for."""
+        expected = self.processed_count + self.skipped_system + self.skipped_duplicates
+        return self.gmail_total == expected and len(self.missed_ids) == 0
+
+    def summary_hebrew(self) -> str:
+        """Generate Hebrew summary for Telegram footer."""
+        if self.is_complete:
+            return f"✅ {self.gmail_total}/{self.gmail_total} מיילים נסרקו (0 פוספסו)"
+        else:
+            missed = len(self.missed_ids)
+            return f"⚠️ {self.processed_count}/{self.gmail_total} מיילים נסרקו ({missed} פוספסו)"
+
+
+@dataclass
 class EmailItem:
     """Single email with classification."""
     id: str
@@ -146,6 +175,11 @@ class EmailState(TypedDict, total=False):
     telegram_sent: bool
     telegram_error: str | None
 
+    # Verification (Phase 4: Proof of Completeness)
+    verification: VerificationResult | None
+    all_fetched_ids: list[str]     # All email IDs from Gmail API
+    all_processed_ids: list[str]   # All email IDs that were processed
+
     # Metadata
     run_id: str
     start_time: float
@@ -197,6 +231,9 @@ def create_initial_state(
         telegram_message="",
         telegram_sent=False,
         telegram_error=None,
+        verification=None,
+        all_fetched_ids=[],
+        all_processed_ids=[],
         run_id=f"smart_email_{int(time.time())}",
         start_time=time.time(),
         duration_ms=0,
