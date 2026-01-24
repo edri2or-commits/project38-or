@@ -18,7 +18,7 @@ alembic==1.14.1
 openai==1.59.7
 
 # Google Cloud (for secrets)
-google-cloud-secret-manager==2.21.2
+google-cloud-secret-manager==2.21.1
 
 # HTTP Client
 httpx==0.28.1
