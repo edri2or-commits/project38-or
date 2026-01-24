@@ -5,8 +5,9 @@ Tests cover:
 - Classification node (LLM + regex fallback)
 - Format RTL node (Telegram formatting)
 - Research, History, Draft nodes
-- Verification node (Phase 4: Proof of Completeness)
+- Verification node (Phase 4.1: Proof of Completeness)
 - Memory layer (Phase 4.10: Sender Intelligence)
+- Conversation module (Phase 4.11: Conversational Telegram)
 - Full graph execution
 
 ADR-014: Smart Email Agent with Telegram Integration
@@ -1132,3 +1133,202 @@ class TestMemoryLayer:
         assert agent.enable_phase2 is True
         assert agent.enable_memory is True
         assert agent.graph is not None
+
+
+class TestConversation:
+    """Tests for conversation module (Phase 4.11: Conversational Telegram)."""
+
+    def test_intent_classification_imports(self):
+        """Test that conversation module is importable."""
+        from src.agents.smart_email.conversation import (
+            ConversationHandler,
+            ConversationResponse,
+            Intent,
+            ActionType,
+            classify_intent,
+        )
+
+        # Verify enum values
+        assert Intent.EMAIL_QUERY.value == "email_query"
+        assert Intent.ACTION_REQUEST.value == "action_request"
+        assert ActionType.REPLY.value == "reply"
+
+    def test_classify_intent_email_query(self):
+        """Test intent classification for email queries."""
+        from src.agents.smart_email.conversation import classify_intent, Intent
+
+        result = classify_intent("מה עם המייל מדני?")
+        assert result.intent == Intent.EMAIL_QUERY
+        assert result.entities.get("sender_ref") == "דני"
+        assert result.confidence >= 0.7
+
+    def test_classify_intent_sender_query(self):
+        """Test intent classification for sender queries."""
+        from src.agents.smart_email.conversation import classify_intent, Intent
+
+        result = classify_intent("מה עם דוד?")
+        assert result.intent == Intent.SENDER_QUERY
+        assert result.entities.get("sender_name") == "דוד"
+
+    def test_classify_intent_action_request(self):
+        """Test intent classification for action requests."""
+        from src.agents.smart_email.conversation import classify_intent, Intent, ActionType
+
+        result = classify_intent("שלח לו שאני מאשר")
+        assert result.intent == Intent.ACTION_REQUEST
+        assert result.action_type == ActionType.REPLY
+
+    def test_classify_intent_action_reply(self):
+        """Test action detection for reply intent."""
+        from src.agents.smart_email.conversation import classify_intent, ActionType
+
+        result = classify_intent("תענה לו שזה בסדר")
+        assert result.action_type == ActionType.REPLY
+
+    def test_classify_intent_summary_request(self):
+        """Test intent classification for summary requests."""
+        from src.agents.smart_email.conversation import classify_intent, Intent
+
+        result = classify_intent("תסכם לי את המיילים")
+        assert result.intent == Intent.SUMMARY_REQUEST
+
+    def test_classify_intent_inbox_status(self):
+        """Test intent classification for inbox status."""
+        from src.agents.smart_email.conversation import classify_intent, Intent
+
+        result = classify_intent("מה חדש בתיבה?")
+        assert result.intent == Intent.SUMMARY_REQUEST
+
+    def test_classify_intent_help(self):
+        """Test intent classification for help requests."""
+        from src.agents.smart_email.conversation import classify_intent, Intent
+
+        result = classify_intent("עזרה")
+        assert result.intent == Intent.HELP_REQUEST
+
+    def test_classify_intent_general(self):
+        """Test intent classification for general messages."""
+        from src.agents.smart_email.conversation import classify_intent, Intent
+
+        result = classify_intent("שלום, מה קורה?")
+        assert result.intent == Intent.GENERAL
+
+    def test_conversation_response_dataclass(self):
+        """Test ConversationResponse dataclass."""
+        from src.agents.smart_email.conversation import ConversationResponse, ActionType
+
+        response = ConversationResponse(
+            text="Test response",
+            requires_confirmation=True,
+            action_to_confirm=ActionType.REPLY,
+            suggestions=["option1", "option2"],
+        )
+
+        assert response.text == "Test response"
+        assert response.requires_confirmation is True
+        assert response.action_to_confirm == ActionType.REPLY
+        assert len(response.suggestions) == 2
+
+    def test_conversation_handler_initialization(self):
+        """Test ConversationHandler initialization."""
+        from src.agents.smart_email.conversation import ConversationHandler
+
+        handler = ConversationHandler()
+
+        assert handler._store is None
+        assert handler._initialized is False
+
+    @pytest.mark.asyncio
+    async def test_conversation_handler_help(self):
+        """Test ConversationHandler help request."""
+        from src.agents.smart_email.conversation import ConversationHandler
+
+        handler = ConversationHandler()
+        response = await handler.process_message(
+            user_id="test_user",
+            chat_id="test_chat",
+            message="עזרה",
+        )
+
+        assert "עוזר המיילים" in response.text
+        assert len(response.suggestions) > 0
+
+    @pytest.mark.asyncio
+    async def test_conversation_handler_summary_no_store(self):
+        """Test ConversationHandler summary without memory store."""
+        from src.agents.smart_email.conversation import ConversationHandler
+
+        handler = ConversationHandler()
+        # Don't initialize - no database
+        response = await handler.process_message(
+            user_id="test_user",
+            chat_id="test_chat",
+            message="תסכם לי",
+        )
+
+        # Should handle gracefully
+        assert response.text is not None
+
+    def test_intent_result_is_confident(self):
+        """Test IntentResult.is_confident method."""
+        from src.agents.smart_email.conversation.intents import IntentResult, Intent
+
+        high_confidence = IntentResult(intent=Intent.EMAIL_QUERY, confidence=0.8)
+        assert high_confidence.is_confident(threshold=0.6) is True
+
+        low_confidence = IntentResult(intent=Intent.GENERAL, confidence=0.4)
+        assert low_confidence.is_confident(threshold=0.6) is False
+
+    def test_entity_extraction_email_from(self):
+        """Test entity extraction for 'המייל מ[שם]' pattern."""
+        from src.agents.smart_email.conversation import classify_intent
+
+        result = classify_intent("תזכיר לי על המייל מהבנק")
+        assert result.entities.get("sender_ref") == "הבנק"
+
+    def test_entity_extraction_email_of(self):
+        """Test entity extraction for 'המייל של [שם]' pattern."""
+        from src.agents.smart_email.conversation import classify_intent
+
+        result = classify_intent("המייל של יוסי")
+        assert result.entities.get("sender_name") == "יוסי"
+
+    def test_action_type_detection_approve(self):
+        """Test action type detection for approval."""
+        from src.agents.smart_email.conversation import classify_intent, ActionType
+
+        result = classify_intent("תאשר את זה")
+        assert result.action_type == ActionType.APPROVE
+
+    def test_action_type_detection_archive(self):
+        """Test action type detection for archive."""
+        from src.agents.smart_email.conversation import classify_intent, ActionType
+
+        result = classify_intent("ארכב את זה")
+        assert result.action_type == ActionType.ARCHIVE
+
+    def test_get_intent_description_hebrew(self):
+        """Test Hebrew descriptions for intents."""
+        from src.agents.smart_email.conversation import (
+            get_intent_description_hebrew,
+            Intent,
+        )
+
+        desc = get_intent_description_hebrew(Intent.EMAIL_QUERY)
+        assert "מייל" in desc
+
+        desc = get_intent_description_hebrew(Intent.ACTION_REQUEST)
+        assert "פעולה" in desc
+
+    def test_get_action_description_hebrew(self):
+        """Test Hebrew descriptions for actions."""
+        from src.agents.smart_email.conversation import (
+            get_action_description_hebrew,
+            ActionType,
+        )
+
+        desc = get_action_description_hebrew(ActionType.REPLY)
+        assert "לענות" in desc
+
+        desc = get_action_description_hebrew(ActionType.ARCHIVE)
+        assert "לארכב" in desc

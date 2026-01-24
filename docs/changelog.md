@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent Phase 4.11 - Conversational Telegram** (2026-01-24) ✅
+  - `src/agents/smart_email/conversation/` - Conversation module (3 files, 800+ lines)
+  - `intents.py` - Intent classification with 7 intent types and 10 action types
+  - `handler.py` - Conversation handler with memory integration and action confirmation
+  - Hebrew-aware regex patterns for natural language queries
+  - Natural language queries: "מה עם המייל מדני?" → Looks up sender
+  - Action requests: "שלח לו שאני מאשר" → Queues for confirmation
+  - 20 unit tests in `tests/test_smart_email.py::TestConversation`
+
 - **Smart Email Agent Phase 4.10 - Sender Intelligence** (2026-01-24) ✅
   - `src/agents/smart_email/memory/` - Memory layer module (3 files, 700+ lines)
   - `types.py` - Memory dataclasses (SenderProfile, InteractionRecord, ConversationContext)
