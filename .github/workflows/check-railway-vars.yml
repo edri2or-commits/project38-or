@@ -1,0 +1,115 @@
+# Check Railway environment variables for web service
+name: Check Railway Variables
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  RAILWAY_API: https://backboard.railway.app/graphql/v2
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project="${PROJECT_ID}")
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: List All Services
+        run: |
+          echo "=== Listing all Railway services ==="
+          QUERY='query { projects { edges { node { id name services { edges { node { id name } } } } } } }'
+
+          curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ')\"}" | jq '.'
+
+      - name: Check MCP Gateway Enabled
+        id: check_vars
+        run: |
+          echo "=== Checking environment variables ==="
+
+          # Get project by delightful-cat name (our Railway project)
+          # Project ID from GitHub vars
+          PROJECT_ID="${{ vars.RAILWAY_PROJECT_ID }}"
+          ENV_ID="${{ vars.RAILWAY_ENVIRONMENT_ID }}"
+
+          if [ -z "$PROJECT_ID" ]; then
+            echo "⚠️ RAILWAY_PROJECT_ID not set in GitHub vars"
+            PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"  # fallback
+          fi
+
+          echo "Project ID: $PROJECT_ID"
+          echo "Environment ID: $ENV_ID"
+
+          # Query for services in project
+          QUERY='query { project(id: "'"$PROJECT_ID"'") { id name services { edges { node { id name } } } } }'
+
+          SERVICES=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ')\"}")
+
+          echo "Services in project:"
+          echo "$SERVICES" | jq '.data.project.services.edges[].node | {id, name}'
+
+          # Get the first service ID (web service)
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[0].node.id // empty')
+
+          if [ -n "$SERVICE_ID" ]; then
+            echo "Web Service ID: $SERVICE_ID"
+
+            # Query for variables
+            QUERY='query { variables(projectId: "'"$PROJECT_ID"'", environmentId: "'"$ENV_ID"'", serviceId: "'"$SERVICE_ID"'") }'
+
+            VARS=$(curl -s -X POST "$RAILWAY_API" \
+              -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ')\"}")
+
+            echo "Variables:"
+            # Don't print actual values, just keys
+            echo "$VARS" | jq 'if .data.variables then .data.variables | keys else . end'
+
+            # Check specifically for MCP_GATEWAY_ENABLED
+            MCP_ENABLED=$(echo "$VARS" | jq -r '.data.variables.MCP_GATEWAY_ENABLED // "NOT_SET"')
+            echo "MCP_GATEWAY_ENABLED: $MCP_ENABLED"
+            echo "mcp_enabled=$MCP_ENABLED" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Could not find service"
+            echo "mcp_enabled=ERROR" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MCP_STATUS: ${{ steps.check_vars.outputs.mcp_enabled }}
+        run: |
+          gh issue comment 509 --repo ${{ github.repository }} --body "## Railway Variables Check
+
+          **MCP_GATEWAY_ENABLED:** \`$MCP_STATUS\`
+
+          If this shows \`NOT_SET\` or \`null\`, the MCP Gateway won't be mounted.
+
+          To fix: Go to Railway Dashboard → web service → Variables → Add MCP_GATEWAY_ENABLED=true
+          "
