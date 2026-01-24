@@ -3,6 +3,7 @@
 Defines the email processing graph:
     Phase 1: FETCH → CLASSIFY → FORMAT → SEND
     Phase 2: FETCH → CLASSIFY → RESEARCH → HISTORY → DRAFT → FORMAT → SEND
+    Phase 4: FETCH → MEMORY → CLASSIFY → RESEARCH → HISTORY → DRAFT → VERIFY → RECORD → FORMAT → SEND
 
 Phase 1 MVP features:
 - Gmail fetch via existing GmailClient
@@ -14,6 +15,11 @@ Phase 2 Intelligence features:
 - Web research for P1/P2 emails
 - Sender history lookup
 - Draft reply generation
+
+Phase 4 Full Capabilities:
+- Proof of completeness (verify no emails missed)
+- Sender intelligence (memory enrichment)
+- Interaction recording (learn from emails)
 """
 
 import logging
@@ -29,7 +35,9 @@ from src.agents.smart_email.nodes.classify import classify_emails_node
 from src.agents.smart_email.nodes.draft import draft_node
 from src.agents.smart_email.nodes.format_rtl import format_telegram_node
 from src.agents.smart_email.nodes.history import history_node
+from src.agents.smart_email.nodes.memory import memory_enrich_node, memory_record_node
 from src.agents.smart_email.nodes.research import research_node
+from src.agents.smart_email.nodes.verify import verify_completeness_node
 from src.agents.smart_email.state import EmailState, create_initial_state
 
 logger = logging.getLogger(__name__)
@@ -163,17 +171,18 @@ async def send_telegram_node(state: EmailState) -> EmailState:
 
 # === Graph Definition ===
 
-def create_email_graph(enable_phase2: bool = True) -> StateGraph:
+def create_email_graph(enable_phase2: bool = True, enable_memory: bool = True) -> StateGraph:
     """Create the LangGraph state machine for email processing.
 
     Graph structure (Phase 1 - MVP):
-        fetch_emails → classify_emails → format_telegram → send_telegram → END
+        fetch_emails → classify_emails → verify → format_telegram → send_telegram → END
 
-    Graph structure (Phase 2 - Intelligence):
-        fetch → classify → research → history → draft → format → send → END
+    Graph structure (Phase 2/4 - Intelligence + Verification + Memory):
+        fetch → memory_enrich → classify → research → history → draft → verify → memory_record → format → send → END
 
     Args:
         enable_phase2: Enable Phase 2 intelligence nodes (research, history, draft)
+        enable_memory: Enable Phase 4 memory nodes (sender intelligence)
 
     Returns:
         Compiled LangGraph
@@ -187,26 +196,59 @@ def create_email_graph(enable_phase2: bool = True) -> StateGraph:
     graph.add_node("format_telegram", format_telegram_node)
     graph.add_node("send_telegram", send_telegram_node)
 
+    # Add Phase 4 verification node (always included)
+    graph.add_node("verify", verify_completeness_node)
+
+    # Add Phase 4 memory nodes (if enabled)
+    if enable_memory:
+        graph.add_node("memory_enrich", memory_enrich_node)
+        graph.add_node("memory_record", memory_record_node)
+
     if enable_phase2:
         # Add Phase 2 intelligence nodes
         graph.add_node("research", research_node)
         graph.add_node("history", history_node)
         graph.add_node("draft", draft_node)
 
-        # Define edges with Phase 2 flow
-        graph.add_edge("fetch_emails", "classify_emails")
-        graph.add_edge("classify_emails", "research")
-        graph.add_edge("research", "history")
-        graph.add_edge("history", "draft")
-        graph.add_edge("draft", "format_telegram")
-        graph.add_edge("format_telegram", "send_telegram")
-        graph.add_edge("send_telegram", END)
+        if enable_memory:
+            # Full Phase 4 flow with memory
+            graph.add_edge("fetch_emails", "memory_enrich")
+            graph.add_edge("memory_enrich", "classify_emails")
+            graph.add_edge("classify_emails", "research")
+            graph.add_edge("research", "history")
+            graph.add_edge("history", "draft")
+            graph.add_edge("draft", "verify")
+            graph.add_edge("verify", "memory_record")
+            graph.add_edge("memory_record", "format_telegram")
+            graph.add_edge("format_telegram", "send_telegram")
+            graph.add_edge("send_telegram", END)
+        else:
+            # Phase 2 flow without memory
+            graph.add_edge("fetch_emails", "classify_emails")
+            graph.add_edge("classify_emails", "research")
+            graph.add_edge("research", "history")
+            graph.add_edge("history", "draft")
+            graph.add_edge("draft", "verify")
+            graph.add_edge("verify", "format_telegram")
+            graph.add_edge("format_telegram", "send_telegram")
+            graph.add_edge("send_telegram", END)
     else:
-        # Phase 1 only - linear flow
-        graph.add_edge("fetch_emails", "classify_emails")
-        graph.add_edge("classify_emails", "format_telegram")
-        graph.add_edge("format_telegram", "send_telegram")
-        graph.add_edge("send_telegram", END)
+        if enable_memory:
+            # Phase 1 with memory
+            graph.add_edge("fetch_emails", "memory_enrich")
+            graph.add_edge("memory_enrich", "classify_emails")
+            graph.add_edge("classify_emails", "verify")
+            graph.add_edge("verify", "memory_record")
+            graph.add_edge("memory_record", "format_telegram")
+            graph.add_edge("format_telegram", "send_telegram")
+            graph.add_edge("send_telegram", END)
+        else:
+            # Phase 1 only - no memory
+            graph.add_edge("fetch_emails", "classify_emails")
+            graph.add_edge("classify_emails", "verify")
+            graph.add_edge("verify", "format_telegram")
+            graph.add_edge("format_telegram", "send_telegram")
+            graph.add_edge("send_telegram", END)
 
     # Set entry point
     graph.set_entry_point("fetch_emails")
@@ -230,16 +272,26 @@ class SmartEmailGraph:
             enable_history=True,
             enable_drafts=True,
         )
+
+    Phase 4 Example (with memory):
+        agent = SmartEmailGraph(enable_phase2=True, enable_memory=True)
+        result = await agent.run(hours=24)
+        # Sender profiles enriched, interactions recorded
     """
 
-    def __init__(self, enable_phase2: bool = True):
+    def __init__(self, enable_phase2: bool = True, enable_memory: bool = True):
         """Initialize the graph.
 
         Args:
             enable_phase2: Enable Phase 2 intelligence nodes
+            enable_memory: Enable Phase 4 sender intelligence memory
         """
         self.enable_phase2 = enable_phase2
-        self.graph = create_email_graph(enable_phase2=enable_phase2)
+        self.enable_memory = enable_memory
+        self.graph = create_email_graph(
+            enable_phase2=enable_phase2,
+            enable_memory=enable_memory,
+        )
 
     async def run(
         self,
@@ -286,12 +338,29 @@ class SmartEmailGraph:
         duration_ms = int((time.time() - state["start_time"]) * 1000)
         final_state["duration_ms"] = duration_ms
 
+        # Log verification result
+        verification = final_state.get("verification")
+        verified_str = "N/A"
+        if verification:
+            if hasattr(verification, "is_complete"):
+                verified_str = "✅" if verification.is_complete else "⚠️"
+            elif isinstance(verification, dict):
+                verified_str = "✅" if not verification.get("missed_ids") else "⚠️"
+
+        # Memory stats
+        memory_str = "off"
+        if final_state.get("memory_enabled"):
+            recorded = final_state.get("interactions_recorded", 0)
+            memory_str = f"on ({recorded} recorded)"
+
         logger.info(
             f"Completed run {state['run_id']} in {duration_ms}ms - "
             f"P1={final_state.get('p1_count', 0)}, "
             f"P2={final_state.get('p2_count', 0)}, "
             f"researched={final_state.get('research_count', 0)}, "
             f"drafts={final_state.get('drafts_count', 0)}, "
+            f"verified={verified_str}, "
+            f"memory={memory_str}, "
             f"sent={final_state.get('telegram_sent', False)}"
         )
 
@@ -304,6 +373,7 @@ async def run_smart_email_agent(
     hours: int = 24,
     send_telegram: bool = True,
     enable_phase2: bool = True,
+    enable_memory: bool = True,
     enable_research: bool = True,
     enable_history: bool = True,
     enable_drafts: bool = True,
@@ -316,6 +386,7 @@ async def run_smart_email_agent(
         hours: Hours to look back
         send_telegram: Whether to send to Telegram
         enable_phase2: Enable Phase 2 intelligence features
+        enable_memory: Enable Phase 4 sender intelligence memory
         enable_research: Enable web research for P1/P2 emails
         enable_history: Enable sender history lookup
         enable_drafts: Enable draft reply generation
@@ -335,8 +406,13 @@ async def run_smart_email_agent(
         print(f"Processed {result['total_count']} emails")
         print(f"Researched {result.get('research_count', 0)} emails")
         print(f"Generated {result.get('drafts_count', 0)} drafts")
+
+        # Phase 4 with memory
+        result = asyncio.run(run_smart_email_agent(hours=24, enable_memory=True))
+        print(f"Memory enabled: {result.get('memory_enabled', False)}")
+        print(f"Interactions recorded: {result.get('interactions_recorded', 0)}")
     """
-    agent = SmartEmailGraph(enable_phase2=enable_phase2)
+    agent = SmartEmailGraph(enable_phase2=enable_phase2, enable_memory=enable_memory)
     return await agent.run(
         hours=hours,
         send_telegram=send_telegram,
@@ -384,6 +460,26 @@ def main():
         if phase2:
             print(f"🔬 Researched: {result.get('research_count', 0)}")
             print(f"📝 Drafts: {result.get('drafts_count', 0)}")
+
+        # Phase 4: Memory stats
+        if result.get("memory_enabled"):
+            print(f"🧠 Memory: Enabled")
+            print(f"📊 Interactions recorded: {result.get('interactions_recorded', 0)}")
+        else:
+            print(f"🧠 Memory: Disabled (no DATABASE_URL)")
+
+        # Phase 4: Verification stats
+        verification = result.get("verification")
+        if verification:
+            if hasattr(verification, "summary_hebrew"):
+                print(f"🔍 Verification: {verification.summary_hebrew()}")
+            elif isinstance(verification, dict):
+                gmail_total = verification.get("gmail_total", 0)
+                missed = len(verification.get("missed_ids", []))
+                if missed == 0:
+                    print(f"🔍 Verification: ✅ {gmail_total}/{gmail_total} (0 missed)")
+                else:
+                    print(f"🔍 Verification: ⚠️ {missed} missed emails!")
 
         print(f"⏱️ Duration: {result.get('duration_ms', 0)}ms")
 

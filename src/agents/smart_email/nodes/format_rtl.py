@@ -14,7 +14,8 @@ from src.agents.smart_email.persona import (
     format_work_report,
     get_greeting,
 )
-from src.agents.smart_email.state import EmailItem, EmailState, Priority
+from src.agents.smart_email.nodes.verify import get_verification_summary
+from src.agents.smart_email.state import EmailItem, EmailState, Priority, VerificationResult
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,7 @@ def format_telegram_message_hebrish(
     duration_seconds: float,
     research_count: int = 0,
     drafts_count: int = 0,
+    verification: VerificationResult | dict | None = None,
 ) -> str:
     """Format full Telegram message in Hebrish style.
 
@@ -125,6 +127,9 @@ def format_telegram_message_hebrish(
         p4_count: P4 email count
         system_count: Filtered system emails count
         duration_seconds: Processing duration
+        research_count: Number of emails researched
+        drafts_count: Number of drafts generated
+        verification: Verification result proving no emails missed
 
     Returns:
         Formatted Telegram message
@@ -193,6 +198,20 @@ def format_telegram_message_hebrish(
     lines.append(format_work_report(duration_seconds, sources=research_count))
     if drafts_count > 0:
         lines.append(f"✏️ _{drafts_count} טיוטות תשובה מוכנות_")
+
+    # Phase 4: Verification footer
+    if verification:
+        if isinstance(verification, VerificationResult):
+            lines.append(f"🔍 {verification.summary_hebrew()}")
+        elif isinstance(verification, dict):
+            gmail_total = verification.get("gmail_total", 0)
+            missed = len(verification.get("missed_ids", []))
+            if missed == 0:
+                lines.append(f"🔍 ✅ {gmail_total}/{gmail_total} מיילים נסרקו (0 פוספסו)")
+            else:
+                processed = verification.get("processed_count", 0)
+                lines.append(f"🔍 ⚠️ {processed}/{gmail_total} מיילים נסרקו ({missed} פוספסו)")
+
     lines.append("_Smart Email Agent v2.0_")
 
     return "\n".join(lines)
@@ -284,6 +303,7 @@ async def format_telegram_node(state: EmailState) -> EmailState:
         duration_seconds=duration,
         research_count=state.get("research_count", 0),
         drafts_count=state.get("drafts_count", 0),
+        verification=state.get("verification"),  # Phase 4: Add verification
     )
 
     return {
