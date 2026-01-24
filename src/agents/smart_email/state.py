@@ -30,6 +30,40 @@ class EmailCategory(Enum):
 
 
 @dataclass
+class ResearchResult:
+    """Web research result for an email."""
+    email_id: str
+    query: str
+    findings: list[str] = field(default_factory=list)
+    sources: list[str] = field(default_factory=list)
+    summary: str = ""
+    relevant_deadlines: list[str] = field(default_factory=list)
+    forms_found: list[str] = field(default_factory=list)
+
+
+@dataclass
+class SenderHistory:
+    """History of communication with a sender."""
+    sender_email: str
+    total_emails: int = 0
+    last_contact: str = ""
+    common_topics: list[str] = field(default_factory=list)
+    previous_threads: list[str] = field(default_factory=list)
+    relationship_type: str = ""  # new, recurring, frequent
+
+
+@dataclass
+class DraftReply:
+    """Draft reply suggestion for an email."""
+    email_id: str
+    subject: str
+    body: str
+    tone: str = "professional"  # professional, friendly, formal
+    action_type: str = ""  # reply, forward, schedule_meeting
+    confidence: float = 0.0
+
+
+@dataclass
 class EmailItem:
     """Single email with classification."""
     id: str
@@ -56,6 +90,11 @@ class EmailItem:
     ai_summary: str = ""
     ai_action_suggestion: str = ""
 
+    # Phase 2: Research & History (filled by intelligence nodes)
+    research: ResearchResult | None = None
+    sender_history: SenderHistory | None = None
+    draft_reply: DraftReply | None = None
+
 
 @dataclass
 class CalendarEvent:
@@ -76,6 +115,9 @@ class EmailState(TypedDict, total=False):
     # Input
     user_id: str
     hours_lookback: int
+    enable_research: bool          # Phase 2: Enable web research
+    enable_history: bool           # Phase 2: Enable history lookup
+    enable_drafts: bool            # Phase 2: Enable draft generation
 
     # Fetched data
     raw_emails: list[dict]         # Raw Gmail messages
@@ -84,6 +126,13 @@ class EmailState(TypedDict, total=False):
     # Processed data
     emails: list[EmailItem]        # Classified emails
     system_emails_count: int       # Filtered system notifications
+
+    # Phase 2: Research & Intelligence
+    research_results: list[ResearchResult]   # Web research findings
+    sender_histories: list[SenderHistory]    # Communication history
+    draft_replies: list[DraftReply]          # Suggested replies
+    research_count: int            # Emails researched
+    drafts_count: int              # Drafts generated
 
     # Counts
     total_count: int
@@ -107,12 +156,18 @@ class EmailState(TypedDict, total=False):
 def create_initial_state(
     user_id: str = "default",
     hours_lookback: int = 24,
+    enable_research: bool = True,
+    enable_history: bool = True,
+    enable_drafts: bool = True,
 ) -> EmailState:
     """Create initial state for the graph.
 
     Args:
         user_id: User identifier
         hours_lookback: Hours to look back for emails
+        enable_research: Enable web research for P1/P2 emails
+        enable_history: Enable sender history lookup
+        enable_drafts: Enable draft reply generation
 
     Returns:
         Initial EmailState
@@ -122,10 +177,18 @@ def create_initial_state(
     return EmailState(
         user_id=user_id,
         hours_lookback=hours_lookback,
+        enable_research=enable_research,
+        enable_history=enable_history,
+        enable_drafts=enable_drafts,
         raw_emails=[],
         calendar_events=[],
         emails=[],
         system_emails_count=0,
+        research_results=[],
+        sender_histories=[],
+        draft_replies=[],
+        research_count=0,
+        drafts_count=0,
         total_count=0,
         p1_count=0,
         p2_count=0,
