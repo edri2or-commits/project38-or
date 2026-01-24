@@ -137,7 +137,7 @@ jobs:
 
                   result = await run_smart_email_agent(
                       hours=int('$HOURS'),
-                      send_telegram=$SEND_TELEGRAM == 'true',
+                      send_telegram='$SEND_TELEGRAM' == 'true',
                       enable_phase2=True,
                       enable_research=True,
                       enable_history=True,
