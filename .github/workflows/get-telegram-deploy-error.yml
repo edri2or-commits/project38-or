@@ -73,19 +73,19 @@ jobs:
             BUILD_LOGS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
               -H "Authorization: Bearer $RAILWAY_TOKEN" \
               -H "Content-Type: application/json" \
-              -d '{"query": "query { buildLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 100) }"}')
-            echo "$BUILD_LOGS" | jq -r '.data.buildLogs // .errors' >> /tmp/report.md 2>/dev/null || echo "$BUILD_LOGS" >> /tmp/report.md
+              -d '{"query": "query { buildLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 100) { message timestamp severity } }"}')
+            echo "$BUILD_LOGS" | jq -r 'if .data.buildLogs then .data.buildLogs[].message else . end' >> /tmp/report.md 2>/dev/null || echo "$BUILD_LOGS" >> /tmp/report.md
             echo '```' >> /tmp/report.md
 
-            # Get deploy logs
+            # Get deployment logs
             echo "" >> /tmp/report.md
-            echo "### Deploy Logs" >> /tmp/report.md
+            echo "### Deployment Logs" >> /tmp/report.md
             echo '```' >> /tmp/report.md
             DEPLOY_LOGS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
               -H "Authorization: Bearer $RAILWAY_TOKEN" \
               -H "Content-Type: application/json" \
-              -d '{"query": "query { deployLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 100) }"}')
-            echo "$DEPLOY_LOGS" | jq -r '.data.deployLogs // .errors' >> /tmp/report.md 2>/dev/null || echo "$DEPLOY_LOGS" >> /tmp/report.md
+              -d '{"query": "query { deploymentLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 100) { message timestamp severity } }"}')
+            echo "$DEPLOY_LOGS" | jq -r 'if .data.deploymentLogs then .data.deploymentLogs[].message else . end' >> /tmp/report.md 2>/dev/null || echo "$DEPLOY_LOGS" >> /tmp/report.md
             echo '```' >> /tmp/report.md
           else
             echo "" >> /tmp/report.md
