@@ -1,0 +1,39 @@
+name: Test LiteLLM Gateway
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test health endpoint
+        run: |
+          echo "Testing LiteLLM Gateway health..."
+          HEALTH=$(curl -s -m 30 https://litellm-gateway-production-0339.up.railway.app/health || echo '{"error": "failed"}')
+          echo "Health response: $HEALTH"
+
+      - name: Test model list
+        run: |
+          echo "Testing model list..."
+          MODELS=$(curl -s -m 30 https://litellm-gateway-production-0339.up.railway.app/models || echo '{"error": "failed"}')
+          echo "Models response: $MODELS"
+
+      - name: Test simple completion
+        run: |
+          echo "Testing simple completion with gemini-flash..."
+          RESPONSE=$(curl -s -m 60 -X POST https://litellm-gateway-production-0339.up.railway.app/chat/completions \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "gemini-flash",
+              "messages": [{"role": "user", "content": "Say hello in 5 words."}],
+              "max_tokens": 50
+            }' || echo '{"error": "failed"}')
+          echo "Completion response: $RESPONSE"
+
+      - name: Summary
+        run: |
+          echo "## LiteLLM Gateway Test Results" >> $GITHUB_STEP_SUMMARY
