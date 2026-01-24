@@ -112,35 +112,42 @@ jobs:
           python -c "
           import asyncio
           import sys
+          import traceback
           sys.path.insert(0, '.')
 
-          from src.agents.smart_email.graph import run_smart_email_agent
-
           async def main():
-              result = await run_smart_email_agent(
-                  hours=int('$HOURS'),
-                  send_telegram=$SEND_TELEGRAM == 'true',
-                  enable_phase2=True,
-                  enable_research=True,
-                  enable_history=True,
-                  enable_drafts=True,
-              )
+              try:
+                  from src.agents.smart_email.graph import run_smart_email_agent
 
-              # Print summary
-              print('\\n=== Results ===')
-              print(f'Total emails: {result.get(\"total_count\", 0)}')
-              print(f'System filtered: {result.get(\"system_emails_count\", 0)}')
-              print(f'P1 (urgent): {result.get(\"p1_count\", 0)}')
-              print(f'P2 (important): {result.get(\"p2_count\", 0)}')
-              print(f'P3 (info): {result.get(\"p3_count\", 0)}')
-              print(f'P4 (low): {result.get(\"p4_count\", 0)}')
-              print(f'Researched: {result.get(\"research_count\", 0)}')
-              print(f'Drafts generated: {result.get(\"drafts_count\", 0)}')
-              print(f'Duration: {result.get(\"duration_ms\", 0)}ms')
-              print(f'Telegram sent: {result.get(\"telegram_sent\", False)}')
+                  result = await run_smart_email_agent(
+                      hours=int('$HOURS'),
+                      send_telegram=$SEND_TELEGRAM == 'true',
+                      enable_phase2=True,
+                      enable_research=True,
+                      enable_history=True,
+                      enable_drafts=True,
+                  )
 
-              if result.get('errors'):
-                  print(f'Errors: {result.get(\"errors\")}')
+                  # Print summary
+                  print('\\n=== Results ===')
+                  print(f'Total emails: {result.get(\"total_count\", 0)}')
+                  print(f'System filtered: {result.get(\"system_emails_count\", 0)}')
+                  print(f'P1 (urgent): {result.get(\"p1_count\", 0)}')
+                  print(f'P2 (important): {result.get(\"p2_count\", 0)}')
+                  print(f'P3 (info): {result.get(\"p3_count\", 0)}')
+                  print(f'P4 (low): {result.get(\"p4_count\", 0)}')
+                  print(f'Researched: {result.get(\"research_count\", 0)}')
+                  print(f'Drafts generated: {result.get(\"drafts_count\", 0)}')
+                  print(f'Duration: {result.get(\"duration_ms\", 0)}ms')
+                  print(f'Telegram sent: {result.get(\"telegram_sent\", False)}')
+
+                  if result.get('errors'):
+                      print(f'Errors: {result.get(\"errors\")}')
+                      sys.exit(1)
+
+              except Exception as e:
+                  print(f'\\n❌ EXCEPTION: {type(e).__name__}: {e}')
+                  traceback.print_exc()
                   sys.exit(1)
 
           asyncio.run(main())
