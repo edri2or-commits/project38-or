@@ -1,0 +1,133 @@
+name: Debug Telegram Bot Config
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'check'
+        type: choice
+        options:
+          - check
+          - fix-root-dir
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  RAILWAY_PROJECT_ID: "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+  RAILWAY_ENVIRONMENT_ID: "99c99a18-aea2-4d01-9360-6a93705102a0"
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check Service Configuration
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.token }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          echo "## Telegram Bot Configuration Debug" > /tmp/report.md
+          echo "" >> /tmp/report.md
+
+          # Get telegram-bot service ID
+          SERVICE_ID="88ea65cc-de05-41e5-a709-1750d4b3cbcb"
+
+          echo "### Service Details" >> /tmp/report.md
+          echo "Service ID: \`$SERVICE_ID\`" >> /tmp/report.md
+          echo "" >> /tmp/report.md
+
+          # Get full service configuration using serviceConfigForDeploy
+          echo "### Service Source" >> /tmp/report.md
+          echo '```json' >> /tmp/report.md
+          SOURCE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { id name source { repo branch } } }"}')
+          echo "$SOURCE" | jq '.' >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+
+          # Get service instance settings
+          echo "" >> /tmp/report.md
+          echo "### Service Instance (deployment settings)" >> /tmp/report.md
+          echo '```json' >> /tmp/report.md
+          INSTANCE=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { serviceInstances { edges { node { id buildCommand startCommand rootDirectory } } } } }"}')
+          echo "$INSTANCE" | jq '.' >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+
+          # Get latest deployment
+          echo "" >> /tmp/report.md
+          echo "### Latest Deployments" >> /tmp/report.md
+          echo '```json' >> /tmp/report.md
+          DEPLOY=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { deployments(first: 3) { edges { node { id status staticUrl createdAt } } } } }"}')
+          echo "$DEPLOY" | jq '.' >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+
+          # Get service variables
+          echo "" >> /tmp/report.md
+          echo "### Environment Variables (keys only)" >> /tmp/report.md
+          echo '```json' >> /tmp/report.md
+          VARS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "query { variables(projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\") }"}')
+          echo "$VARS" | jq 'if .data.variables then .data.variables | keys else . end' >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+
+          if [ "$ACTION" = "fix-root-dir" ]; then
+            echo "" >> /tmp/report.md
+            echo "### 🔧 Fixing Root Directory" >> /tmp/report.md
+
+            # Set root directory using serviceInstanceUpdate
+            FIX=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { serviceInstanceUpdate(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", input: { rootDirectory: \"services/telegram-bot\" }) }"}')
+            echo '```json' >> /tmp/report.md
+            echo "$FIX" | jq '.' >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+
+            # Trigger redeploy
+            echo "" >> /tmp/report.md
+            echo "### Triggering Redeploy" >> /tmp/report.md
+            REDEPLOY=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { serviceInstanceRedeploy(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\") }"}')
+            echo '```json' >> /tmp/report.md
+            echo "$REDEPLOY" | jq '.' >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+          fi
+
+          cat /tmp/report.md
+
+      - name: Post Results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment 509 --repo ${{ github.repository }} --body-file /tmp/report.md
