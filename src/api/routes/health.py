@@ -177,19 +177,37 @@ async def mcp_test() -> dict:
 
         # Try to get the tools list
         try:
-            # Get available tools from the server
+            # Get available tools from the server - try all known attribute names
             tools = []
+            tools_attr = None
             if hasattr(mcp, "_tools"):
+                tools_attr = "_tools"
                 tools = list(mcp._tools.keys())
             elif hasattr(mcp, "tools"):
-                tools = [t.name for t in mcp.tools]
+                tools_attr = "tools"
+                try:
+                    tools = [t.name for t in mcp.tools]
+                except Exception:
+                    tools = list(mcp.tools) if hasattr(mcp.tools, "__iter__") else []
+            elif hasattr(mcp, "_tool_manager"):
+                tools_attr = "_tool_manager"
+                tm = mcp._tool_manager
+                if hasattr(tm, "list_tools"):
+                    tools = [t.name for t in tm.list_tools()]
+                elif hasattr(tm, "_tools"):
+                    tools = list(tm._tools.keys())
+
+            # Get all attributes to debug
+            attrs = [a for a in dir(mcp) if not a.startswith("__")]
 
             return {
                 "status": "ok",
                 "mcp_server_type": type(mcp).__name__,
                 "tools_count": len(tools),
+                "tools_attr_used": tools_attr,
                 "tools_sample": tools[:10] if tools else [],
                 "has_http_app": hasattr(mcp, "http_app"),
+                "mcp_attrs": attrs[:20],  # First 20 attributes
             }
         except Exception as e:
             return {
