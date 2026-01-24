@@ -111,11 +111,16 @@ async def send_telegram_node(state: EmailState) -> EmailState:
         chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
         if not token or not chat_id:
-            # Try GCP Secret Manager
-            from src.secrets_manager import SecretManager
-            manager = SecretManager()
-            token = token or manager.get_secret("TELEGRAM-BOT-TOKEN")
-            chat_id = chat_id or manager.get_secret("TELEGRAM-CHAT-ID")
+            # Try GCP Secret Manager (only if available)
+            try:
+                from src.secrets_manager import SecretManager
+                manager = SecretManager()
+                token = token or manager.get_secret("TELEGRAM-BOT-TOKEN")
+                chat_id = chat_id or manager.get_secret("TELEGRAM-CHAT-ID")
+            except ImportError:
+                logger.warning("SecretManager not available, skipping fallback")
+            except Exception as e:
+                logger.warning(f"SecretManager failed: {e}")
 
         if not token or not chat_id:
             raise ValueError("Telegram config not found")
