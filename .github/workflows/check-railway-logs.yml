@@ -1,0 +1,113 @@
+# Check Railway logs for MCP Gateway initialization
+name: Check Railway Logs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  PROJECT_ID: project38-483612
+  RAILWAY_API: https://backboard.railway.app/graphql/v2
+
+jobs:
+  check-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: get-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project="${PROJECT_ID}")
+          echo "::add-mask::${TOKEN}"
+          echo "token=${TOKEN}" >> $GITHUB_OUTPUT
+
+      - name: Get Latest Deployment Logs
+        id: logs
+        run: |
+          PROJECT_ID="${{ vars.RAILWAY_PROJECT_ID || '95ec21cc-9ada-41c5-8485-12f9a00e0116' }}"
+
+          echo "=== Getting latest deployment ==="
+
+          # Get recent deployments
+          QUERY='query { deployments(first: 1, input: { projectId: "'"$PROJECT_ID"'" }) { edges { node { id status createdAt } } } }'
+
+          DEPLOY=$(curl -s -X POST "$RAILWAY_API" \
+            -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ')\"}")
+
+          echo "Latest deployment:"
+          echo "$DEPLOY" | jq '.data.deployments.edges[0].node'
+
+          DEPLOY_ID=$(echo "$DEPLOY" | jq -r '.data.deployments.edges[0].node.id // empty')
+
+          if [ -n "$DEPLOY_ID" ]; then
+            echo "Deployment ID: $DEPLOY_ID"
+
+            # Get build logs
+            echo ""
+            echo "=== Build Logs ==="
+            QUERY='query { deployment(id: "'"$DEPLOY_ID"'") { id status buildLogs } }'
+
+            LOGS=$(curl -s -X POST "$RAILWAY_API" \
+              -H "Authorization: Bearer ${{ steps.get-token.outputs.token }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\": \"$(echo $QUERY | tr '\n' ' ')\"}")
+
+            # Show last 100 lines of build logs
+            echo "$LOGS" | jq -r '.data.deployment.buildLogs // "No build logs"' | tail -100
+          fi
+
+      - name: Test MCP Direct
+        run: |
+          echo "=== Testing MCP endpoints directly ==="
+
+          echo "1. Health check:"
+          curl -s https://or-infra.com/api/health | jq .
+
+          echo ""
+          echo "2. OpenAPI docs (should list /mcp if mounted):"
+          curl -s https://or-infra.com/openapi.json | jq '.paths | keys | map(select(startswith("/mcp")))'
+
+          echo ""
+          echo "3. Direct /mcp test:"
+          curl -s -w "\nHTTP Status: %{http_code}\n" https://or-infra.com/mcp | head -20
+
+      - name: Post Results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEALTH=$(curl -s https://or-infra.com/api/health 2>&1)
+          MCP_PATHS=$(curl -s https://or-infra.com/openapi.json 2>&1 | jq -r '.paths | keys | map(select(startswith("/mcp"))) | join(", ") // "NONE"')
+          MCP_TEST=$(curl -s -w "\nStatus: %{http_code}" https://or-infra.com/mcp 2>&1 | tail -5)
+
+          gh issue comment 509 --repo ${{ github.repository }} --body "## Railway Logs Check
+
+          **Health:**
+          \`\`\`json
+          $HEALTH
+          \`\`\`
+
+          **MCP Paths in OpenAPI:** \`$MCP_PATHS\`
+
+          **MCP Direct Test:**
+          \`\`\`
+          $MCP_TEST
+          \`\`\`
+
+          If MCP Paths shows 'NONE', the MCP Gateway is not mounted at startup.
+          Check build logs for ImportError or fastmcp issues.
+          "
