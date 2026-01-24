@@ -32,10 +32,15 @@ jobs:
         run: |
           RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
           BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=project38-483612)
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-GATEWAY-TOKEN" --project=project38-483612 2>/dev/null || echo "")
           echo "::add-mask::$RAILWAY_TOKEN"
           echo "::add-mask::$BOT_TOKEN"
+          if [ -n "$MCP_TOKEN" ]; then
+            echo "::add-mask::$MCP_TOKEN"
+          fi
           echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
           echo "bot_token=$BOT_TOKEN" >> $GITHUB_OUTPUT
+          echo "mcp_token=$MCP_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Find or Create Telegram Bot Service
         id: service
@@ -158,6 +163,7 @@ jobs:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
           SERVICE_ID: ${{ steps.service.outputs.service_id }}
           BOT_TOKEN: ${{ steps.secrets.outputs.bot_token }}
+          MCP_TOKEN: ${{ steps.secrets.outputs.mcp_token }}
         run: |
           echo "Setting environment variables..."
 
@@ -182,6 +188,18 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"GCP_PROJECT_ID\", value: \"project38-483612\" }) }"}')
           echo "Result: $RESULT3" > /dev/null
+
+          # Set MCP_GATEWAY_TOKEN for email agent
+          if [ -n "$MCP_TOKEN" ]; then
+            echo "Setting MCP_GATEWAY_TOKEN..."
+            RESULT4=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"MCP_GATEWAY_TOKEN\", value: \"'"$MCP_TOKEN"'\" }) }"}')
+            echo "MCP_GATEWAY_TOKEN set ✅"
+          else
+            echo "⚠️ MCP_GATEWAY_TOKEN not available in GCP - email agent will use simulated responses"
+          fi
 
           # Get PostgreSQL service and its DATABASE_URL
           echo "Finding PostgreSQL service..."
