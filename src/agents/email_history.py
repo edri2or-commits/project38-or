@@ -93,20 +93,54 @@ class EmailHistoryLookup:
         raise ValueError("MCP_GATEWAY_TOKEN not found")
 
     async def _call_mcp_tool(self, tool_name: str, params: dict) -> dict:
-        """Call an MCP Gateway tool."""
+        """Call an MCP Gateway tool using JSON-RPC 2.0 format.
+
+        MCP uses JSON-RPC 2.0:
+        {
+            "jsonrpc": "2.0",
+            "id": <request_id>,
+            "method": "tools/call",
+            "params": {"name": "<tool_name>", "arguments": {...}}
+        }
+        """
+        import uuid
+
         token = await self._get_mcp_token()
+
+        # Build JSON-RPC 2.0 request
+        request_id = str(uuid.uuid4())
+        payload = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "tools/call",
+            "params": {
+                "name": tool_name,
+                "arguments": params,
+            },
+        }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{self.mcp_gateway_url}/tools/{tool_name}",
-                headers={"Authorization": f"Bearer {token}"},
-                json=params,
+                self.mcp_gateway_url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
             )
 
             if response.status_code != 200:
                 return {"success": False, "error": response.text}
 
-            return response.json()
+            result = response.json()
+
+            # JSON-RPC response has result or error
+            if "error" in result:
+                error = result["error"]
+                return {"success": False, "error": error.get("message", str(error))}
+
+            # Extract result from JSON-RPC response
+            return result.get("result", result)
 
     def _extract_email(self, from_field: str) -> str:
         """Extract email from From field."""

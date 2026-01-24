@@ -212,7 +212,15 @@ class EmailAgent:
         raise ValueError("MCP_GATEWAY_TOKEN not found in env or Secret Manager")
 
     async def _call_mcp_tool(self, tool_name: str, params: dict) -> dict:
-        """Call an MCP Gateway tool.
+        """Call an MCP Gateway tool using JSON-RPC 2.0 format.
+
+        MCP uses JSON-RPC 2.0:
+        {
+            "jsonrpc": "2.0",
+            "id": <request_id>,
+            "method": "tools/call",
+            "params": {"name": "<tool_name>", "arguments": {...}}
+        }
 
         Args:
             tool_name: Name of the tool (e.g., "gmail_search")
@@ -221,20 +229,45 @@ class EmailAgent:
         Returns:
             Tool response
         """
+        import uuid
+
         token = await self._get_mcp_token()
+
+        # Build JSON-RPC 2.0 request
+        request_id = str(uuid.uuid4())
+        payload = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "tools/call",
+            "params": {
+                "name": tool_name,
+                "arguments": params,
+            },
+        }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{self.mcp_gateway_url}/tools/{tool_name}",
-                headers={"Authorization": f"Bearer {token}"},
-                json=params,
+                self.mcp_gateway_url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
             )
 
             if response.status_code != 200:
                 logger.error(f"MCP tool {tool_name} failed: {response.text}")
                 return {"success": False, "error": response.text}
 
-            return response.json()
+            result = response.json()
+
+            # JSON-RPC response has result or error
+            if "error" in result:
+                error = result["error"]
+                return {"success": False, "error": error.get("message", str(error))}
+
+            # Extract result from JSON-RPC response
+            return result.get("result", result)
 
     async def _fetch_emails(self, hours: int = 24) -> list[dict]:
         """Fetch unread emails from the last N hours.
