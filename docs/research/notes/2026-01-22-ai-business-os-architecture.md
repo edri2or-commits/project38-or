@@ -234,8 +234,8 @@ This is an **organizational/business architecture** guide rather than a technica
 ## Related
 
 - **Related ADRs:**
-  - [ADR-010: Multi-LLM Routing Strategy](../decisions/ADR-010-multi-llm-routing-strategy.md) - LiteLLM validates routing concept
-  - [ADR-007: n8n Webhook Activation](../decisions/ADR-007-n8n-webhook-activation-architecture.md) - n8n deployment validates
+  - [ADR-010: Multi-LLM Routing Strategy](../../decisions/ADR-010-multi-llm-routing-strategy.md) - LiteLLM validates routing concept
+  - [ADR-007: n8n Webhook Activation](../../decisions/ADR-007-n8n-webhook-activation-architecture.md) - n8n deployment validates
 
 - **Related code:**
   - n8n deployment on Railway (validates self-hosted approach)
