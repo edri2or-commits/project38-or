@@ -121,14 +121,16 @@ class EmailHistoryLookup:
         """Call an MCP Gateway tool.
 
         Supports two formats:
-        - JSON-RPC 2.0 (GCP Tunnel): {"jsonrpc": "2.0", "method": "tools/call", ...}
-        - Simple JSON (Railway): {"tool_name": "...", "arguments": {...}}
+        - GCP Tunnel: {"data": "{JSON-RPC encapsulated}"} - protocol encapsulation
+        - Railway: {"tool_name": "...", "arguments": {...}} - simple format
         """
+        import json as json_lib
+
         token = await self._get_mcp_token()
 
         if self.use_jsonrpc:
-            # GCP Tunnel: JSON-RPC 2.0 format
-            payload = {
+            # GCP Tunnel: Protocol encapsulation format
+            mcp_message = {
                 "jsonrpc": "2.0",
                 "id": str(uuid.uuid4()),
                 "method": "tools/call",
@@ -137,6 +139,8 @@ class EmailHistoryLookup:
                     "arguments": params,
                 },
             }
+            # Wrap in data field as expected by GCP Tunnel
+            payload = {"data": json_lib.dumps(mcp_message)}
         else:
             # Railway: Simple JSON format
             payload = {
@@ -160,12 +164,23 @@ class EmailHistoryLookup:
             result = response.json()
 
             if self.use_jsonrpc:
-                # JSON-RPC response: {"jsonrpc": "2.0", "id": "...", "result": {...}}
+                # GCP Tunnel response: {"result": "{JSON-RPC encapsulated}"}
                 if "error" in result:
                     error = result["error"]
                     msg = error.get("message", str(error)) if isinstance(error, dict) else str(error)
                     return {"success": False, "error": msg}
-                return result.get("result", result)
+
+                # Parse encapsulated JSON-RPC response
+                encapsulated = result.get("result", result)
+                if isinstance(encapsulated, str):
+                    mcp_response = json_lib.loads(encapsulated)
+                    if "error" in mcp_response:
+                        error = mcp_response["error"]
+                        msg = error.get("message", str(error)) if isinstance(error, dict) else str(error)
+                        return {"success": False, "error": msg}
+                    return mcp_response.get("result", mcp_response)
+                else:
+                    return encapsulated
             else:
                 # Simple format: {"status": "ok", "result": ...} or {"error": ...}
                 if result.get("status") == "error" or "error" in result:

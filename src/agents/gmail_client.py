@@ -60,8 +60,8 @@ class GmailClient:
         """Call an MCP tool via the MCP Gateway.
 
         Supports two formats:
-        - JSON-RPC 2.0 (GCP Tunnel): {"jsonrpc": "2.0", "method": "tools/call", ...}
-        - Simple JSON (Railway): {"tool_name": "...", "arguments": {...}}
+        - GCP Tunnel: {"data": "{JSON-RPC encapsulated}"} - protocol encapsulation
+        - Railway: {"tool_name": "...", "arguments": {...}} - simple format
 
         Args:
             tool_name: Name of the MCP tool
@@ -70,6 +70,8 @@ class GmailClient:
         Returns:
             Tool result
         """
+        import json as json_lib
+
         headers = {"Content-Type": "application/json"}
         if self.mcp_token:
             headers["Authorization"] = f"Bearer {self.mcp_token}"
@@ -77,8 +79,9 @@ class GmailClient:
         url = self.mcp_url
 
         if self.use_jsonrpc:
-            # GCP Tunnel: JSON-RPC 2.0 format
-            payload = {
+            # GCP Tunnel: Protocol encapsulation format
+            # The MCP message must be wrapped in a 'data' field (string or object)
+            mcp_message = {
                 "jsonrpc": "2.0",
                 "id": str(uuid.uuid4()),
                 "method": "tools/call",
@@ -87,6 +90,8 @@ class GmailClient:
                     "arguments": params,
                 },
             }
+            # Wrap in data field as expected by GCP Tunnel
+            payload = {"data": json_lib.dumps(mcp_message)}
         else:
             # Railway: Simple JSON format
             payload = {
@@ -106,13 +111,24 @@ class GmailClient:
             result = response.json()
 
             if self.use_jsonrpc:
-                # JSON-RPC response: {"jsonrpc": "2.0", "id": "...", "result": {...}}
+                # GCP Tunnel response: {"result": "{JSON-RPC encapsulated}"}
                 if "error" in result:
                     error = result["error"]
                     msg = error.get("message", str(error)) if isinstance(error, dict) else str(error)
                     raise RuntimeError(f"MCP error: {msg}")
-                # Extract result from JSON-RPC response
-                return result.get("result", result)
+
+                # The response has a 'result' field containing stringified JSON-RPC
+                encapsulated = result.get("result", result)
+                if isinstance(encapsulated, str):
+                    # Parse the encapsulated JSON-RPC response
+                    mcp_response = json_lib.loads(encapsulated)
+                    if "error" in mcp_response:
+                        error = mcp_response["error"]
+                        msg = error.get("message", str(error)) if isinstance(error, dict) else str(error)
+                        raise RuntimeError(f"MCP error: {msg}")
+                    return mcp_response.get("result", mcp_response)
+                else:
+                    return encapsulated
             else:
                 # Simple format: {"status": "ok", "result": ...} or {"status": "error", ...}
                 if result.get("status") == "error" or "error" in result:
