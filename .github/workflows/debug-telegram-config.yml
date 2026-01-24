@@ -101,15 +101,26 @@ jobs:
 
           if [ "$ACTION" = "fix-root-dir" ]; then
             echo "" >> /tmp/report.md
-            echo "### 🔧 Fixing Root Directory" >> /tmp/report.md
+            echo "### 🔧 Fixing Root Directory (using serviceUpdate)" >> /tmp/report.md
 
-            # Set root directory using serviceInstanceUpdate
+            # Set root directory using serviceUpdate (what quick-deploy uses)
             FIX=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { serviceUpdate(id: \"'"$SERVICE_ID"'\", input: { rootDirectory: \"services/telegram-bot\" }) { id rootDirectory } }"}')
+            echo '```json' >> /tmp/report.md
+            echo "$FIX" | jq '.' >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+
+            # Also try serviceInstanceUpdate
+            echo "" >> /tmp/report.md
+            echo "### Also trying serviceInstanceUpdate" >> /tmp/report.md
+            FIX2=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
               -H "Authorization: Bearer $RAILWAY_TOKEN" \
               -H "Content-Type: application/json" \
               -d '{"query": "mutation { serviceInstanceUpdate(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", input: { rootDirectory: \"services/telegram-bot\" }) }"}')
             echo '```json' >> /tmp/report.md
-            echo "$FIX" | jq '.' >> /tmp/report.md
+            echo "$FIX2" | jq '.' >> /tmp/report.md
             echo '```' >> /tmp/report.md
 
             # Trigger redeploy
