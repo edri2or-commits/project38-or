@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  issues: write
 
 jobs:
   search:
@@ -42,5 +43,19 @@ jobs:
           echo "::add-mask::$GOOGLE_OAUTH_CLIENT_SECRET"
           echo "::add-mask::$GOOGLE_OAUTH_REFRESH_TOKEN"
 
-          # Run the search
-          python scripts/search_railway_emails.py
+          # Run the search and save output
+          python scripts/search_railway_emails.py | tee /tmp/railway_emails.txt
+
+      - name: Post Results to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OUTPUT=$(cat /tmp/railway_emails.txt | head -100)
+          gh issue comment 509 --repo ${{ github.repository }} --body "## Railway Email Search Results
+
+          **Run ID:** ${{ github.run_id }}
+          **Timestamp:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+          \`\`\`
+          $OUTPUT
+          \`\`\`"
