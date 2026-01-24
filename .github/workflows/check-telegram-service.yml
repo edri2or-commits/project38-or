@@ -1,0 +1,97 @@
+name: Check Telegram Service on Railway
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  RAILWAY_PROJECT_ID: "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+  RAILWAY_ENVIRONMENT_ID: "99c99a18-aea2-4d01-9360-6a93705102a0"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Check Service Details
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.token }}
+        run: |
+          echo "## Railway Service Status" > /tmp/report.md
+          echo "" >> /tmp/report.md
+
+          # List all services
+          echo "### All Services in Project" >> /tmp/report.md
+          echo '```json' >> /tmp/report.md
+          SERVICES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { services { edges { node { id name } } } } }"
+            }')
+          echo "$SERVICES" | jq '.' >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+
+          # Find telegram-bot service
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.id' | head -1)
+          echo "Service ID: $SERVICE_ID"
+
+          if [ -n "$SERVICE_ID" ] && [ "$SERVICE_ID" != "null" ]; then
+            echo "" >> /tmp/report.md
+            echo "### Telegram Bot Service Details" >> /tmp/report.md
+            echo '```json' >> /tmp/report.md
+
+            # Get detailed service info
+            SERVICE_DETAILS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "query { service(id: \"'"$SERVICE_ID"'\") { id name repo { fullRepoName } rootDirectory deployments(first: 5) { edges { node { id status createdAt } } } serviceInstances { edges { node { id startCommand domains { serviceDomains { domain } } } } } } }"
+              }')
+            echo "$SERVICE_DETAILS" | jq '.' >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+
+            # Get latest deployment logs
+            LATEST_DEPLOY=$(echo "$SERVICE_DETAILS" | jq -r '.data.service.deployments.edges[0].node.id // empty')
+            if [ -n "$LATEST_DEPLOY" ]; then
+              echo "" >> /tmp/report.md
+              echo "### Latest Deployment: $LATEST_DEPLOY" >> /tmp/report.md
+              DEPLOY_STATUS=$(echo "$SERVICE_DETAILS" | jq -r '.data.service.deployments.edges[0].node.status // "unknown"')
+              echo "**Status:** $DEPLOY_STATUS" >> /tmp/report.md
+            fi
+
+            # Get domain
+            DOMAIN=$(echo "$SERVICE_DETAILS" | jq -r '.data.service.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // "NO DOMAIN"')
+            echo "" >> /tmp/report.md
+            echo "### Domain: \`$DOMAIN\`" >> /tmp/report.md
+          else
+            echo "" >> /tmp/report.md
+            echo "### ⚠️ No telegram-bot service found!" >> /tmp/report.md
+          fi
+
+          cat /tmp/report.md
+
+      - name: Post Results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment 509 --repo ${{ github.repository }} --body-file /tmp/report.md
