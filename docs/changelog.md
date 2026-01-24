@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **GCP Tunnel Protocol Encapsulation Format** (2026-01-24)
+  - Fixed GCP Tunnel request format to wrap MCP messages in `data` field
+  - Format: `{"data": "{JSON-RPC stringified}"}`
+  - Updated `gmail_client.py` and `email_history.py` to use correct format
+  - Updated `test-gcp-tunnel-gmail.yml` workflow to test with correct format
+  - Fixes "Missing 'data' field" error from GCP Tunnel
+
 - **Smart Email Agent - GCP Tunnel for Gmail OAuth** (2026-01-24)
   - Updated `gmail_client.py` to use GCP Tunnel (Cloud Run) by default
   - GCP Tunnel has access to Google OAuth secrets via GCP Secret Manager

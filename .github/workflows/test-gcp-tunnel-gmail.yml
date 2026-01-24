@@ -35,20 +35,24 @@ jobs:
       - name: Test GCP Tunnel tools/list
         run: |
           echo "=== Testing tools/list ==="
+          # GCP Tunnel expects MCP message wrapped in 'data' field (protocol encapsulation)
+          MCP_MSG='{"jsonrpc": "2.0", "id": "test-1", "method": "tools/list", "params": {}}'
           curl -s -X POST "https://mcp-router-979429709900.us-central1.run.app" \
             -H "Authorization: Bearer ${{ env.MCP_TUNNEL_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc": "2.0", "id": "test-1", "method": "tools/list", "params": {}}' \
-            | tee /tmp/tools_list.json | jq '.result.tools | map(.name) | join(", ")' || echo "Error"
+            -d "{\"data\": $(echo "$MCP_MSG" | jq -c @json)}" \
+            | tee /tmp/tools_list.json | jq '.result | fromjson | .result.tools | map(.name) | join(", ")' || echo "Error"
 
       - name: Test gmail_list via GCP Tunnel
         run: |
           echo "=== Testing gmail_list ==="
+          # GCP Tunnel expects MCP message wrapped in 'data' field (protocol encapsulation)
+          MCP_MSG='{"jsonrpc": "2.0", "id": "test-2", "method": "tools/call", "params": {"name": "gmail_list", "arguments": {"label": "INBOX", "max_results": 5}}}'
           curl -s --max-time 60 -X POST "https://mcp-router-979429709900.us-central1.run.app" \
             -H "Authorization: Bearer ${{ env.MCP_TUNNEL_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc": "2.0", "id": "test-2", "method": "tools/call", "params": {"name": "gmail_list", "arguments": {"label": "INBOX", "max_results": 5}}}' \
-            | tee /tmp/gmail_list.json | jq . || echo "Error"
+            -d "{\"data\": $(echo "$MCP_MSG" | jq -c @json)}" \
+            | tee /tmp/gmail_list.json | jq '.result | fromjson' || echo "Error"
 
       - name: Post Results
         if: always()
