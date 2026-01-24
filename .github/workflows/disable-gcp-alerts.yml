@@ -1,0 +1,82 @@
+# Disable GCP Cloud Monitoring alerting policies
+name: Disable GCP Alerts
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'list'
+        type: choice
+        options:
+          - list
+          - disable-all
+      issue_number:
+        description: 'Issue to post results'
+        required: false
+        default: '545'
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  manage-alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: project38-483612
+
+      - name: Manage Alerting Policies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ inputs.action }}
+          ISSUE: ${{ inputs.issue_number }}
+        run: |
+          echo "=== GCP Alerting Policies Management ==="
+          echo "Action: $ACTION"
+          echo ""
+
+          # List all alerting policies
+          echo "Fetching alerting policies..."
+          POLICIES=$(gcloud alpha monitoring policies list --format="json" 2>/dev/null || echo "[]")
+
+          if [ "$POLICIES" = "[]" ]; then
+            echo "No alerting policies found."
+            REPORT="## GCP Alerting Policies\n\nNo alerting policies found in project."
+          else
+            echo "Found policies:"
+            echo "$POLICIES" | jq -r '.[] | "- \(.displayName) (\(.name)) - enabled: \(.enabled)"'
+
+            if [ "$ACTION" = "disable-all" ]; then
+              echo ""
+              echo "Disabling all policies..."
+
+              DISABLED=0
+              for POLICY_NAME in $(echo "$POLICIES" | jq -r '.[].name'); do
+                echo "Disabling: $POLICY_NAME"
+                gcloud alpha monitoring policies update "$POLICY_NAME" --no-enabled 2>/dev/null && DISABLED=$((DISABLED+1))
+              done
+
+              REPORT="## GCP Alerting Policies Disabled\n\n**Action:** disable-all\n**Disabled:** $DISABLED policies\n\n✅ Done! You will no longer receive GCP alerting emails."
+            else
+              # Just list
+              POLICY_LIST=$(echo "$POLICIES" | jq -r '.[] | "- **\(.displayName)** - enabled: \(.enabled)"')
+              REPORT="## GCP Alerting Policies\n\n$POLICY_LIST\n\nRun with action=disable-all to disable all policies."
+            fi
+          fi
+
+          # Post to issue
+          echo -e "$REPORT"
+          gh issue comment "$ISSUE" --body "$(echo -e "$REPORT")"
