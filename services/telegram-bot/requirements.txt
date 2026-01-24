@@ -12,7 +12,7 @@ python-telegram-bot==21.10
 sqlalchemy==2.0.36
 sqlmodel==0.0.27
 asyncpg==0.30.0
-alembic==1.14.3
+alembic==1.14.1
 
 # OpenAI SDK (for LiteLLM Gateway)
 openai==1.59.7
