@@ -164,6 +164,7 @@ jobs:
           SERVICE_ID: ${{ steps.service.outputs.service_id }}
           BOT_TOKEN: ${{ steps.secrets.outputs.bot_token }}
           MCP_TOKEN: ${{ steps.secrets.outputs.mcp_token }}
+          DOMAIN: ${{ steps.domain.outputs.domain }}
         run: |
           echo "Setting environment variables..."
 
@@ -174,6 +175,18 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"TELEGRAM_BOT_TOKEN\", value: \"'"$BOT_TOKEN"'\" }) }"}')
           echo "Result: $RESULT1"
+
+          # Set TELEGRAM_WEBHOOK_URL - critical for webhook to work
+          if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "null" ]; then
+            echo "Setting TELEGRAM_WEBHOOK_URL to https://${DOMAIN}..."
+            WEBHOOK_RESULT=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "mutation { variableUpsert(input: { projectId: \"'"$RAILWAY_PROJECT_ID"'\", environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", name: \"TELEGRAM_WEBHOOK_URL\", value: \"https://'"$DOMAIN"'\" }) }"}')
+            echo "TELEGRAM_WEBHOOK_URL set ✅"
+          else
+            echo "⚠️ No domain available - TELEGRAM_WEBHOOK_URL not set"
+          fi
 
           echo "Setting LITELLM_GATEWAY_URL..."
           RESULT2=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
