@@ -74,13 +74,14 @@ jobs:
       - name: Get secrets from GCP
         id: secrets
         run: |
-          # Get MCP Gateway token
-          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-GATEWAY-TOKEN" 2>/dev/null || echo "")
+          # Get MCP Tunnel token (for GCP Tunnel which has OAuth secrets)
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-TUNNEL-TOKEN" 2>/dev/null || echo "")
           if [ -n "$MCP_TOKEN" ]; then
             echo "MCP_GATEWAY_TOKEN=$MCP_TOKEN" >> $GITHUB_ENV
-            echo "✅ MCP Gateway token loaded"
+            echo "MCP_GATEWAY_URL=https://mcp-router-979429709900.us-central1.run.app" >> $GITHUB_ENV
+            echo "✅ MCP Tunnel token loaded (GCP Tunnel)"
           else
-            echo "⚠️ MCP Gateway token not found"
+            echo "⚠️ MCP Tunnel token not found"
           fi
 
           # Get Telegram bot token
@@ -106,6 +107,7 @@ jobs:
         id: run_agent
         env:
           PYTHONPATH: ${{ github.workspace }}
+          MCP_GATEWAY_URL: ${{ env.MCP_GATEWAY_URL }}
           MCP_GATEWAY_TOKEN: ${{ env.MCP_GATEWAY_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ env.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ env.TELEGRAM_CHAT_ID }}
