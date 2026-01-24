@@ -1,13 +1,19 @@
 """LangGraph state machine for Smart Email Agent v2.0.
 
 Defines the email processing graph:
-    FETCH → CLASSIFY → FORMAT → SEND
+    Phase 1: FETCH → CLASSIFY → FORMAT → SEND
+    Phase 2: FETCH → CLASSIFY → RESEARCH → HISTORY → DRAFT → FORMAT → SEND
 
 Phase 1 MVP features:
 - Gmail fetch via existing GmailClient
 - LLM classification with Haiku
 - Hebrish RTL formatting
 - Telegram delivery
+
+Phase 2 Intelligence features:
+- Web research for P1/P2 emails
+- Sender history lookup
+- Draft reply generation
 """
 
 import logging
@@ -20,7 +26,10 @@ from langgraph.graph import END, StateGraph
 
 from src.agents.gmail_client import GmailClient
 from src.agents.smart_email.nodes.classify import classify_emails_node
+from src.agents.smart_email.nodes.draft import draft_node
 from src.agents.smart_email.nodes.format_rtl import format_telegram_node
+from src.agents.smart_email.nodes.history import history_node
+from src.agents.smart_email.nodes.research import research_node
 from src.agents.smart_email.state import EmailState, create_initial_state
 
 logger = logging.getLogger(__name__)
@@ -149,11 +158,17 @@ async def send_telegram_node(state: EmailState) -> EmailState:
 
 # === Graph Definition ===
 
-def create_email_graph() -> StateGraph:
+def create_email_graph(enable_phase2: bool = True) -> StateGraph:
     """Create the LangGraph state machine for email processing.
 
-    Graph structure:
+    Graph structure (Phase 1 - MVP):
         fetch_emails → classify_emails → format_telegram → send_telegram → END
+
+    Graph structure (Phase 2 - Intelligence):
+        fetch → classify → research → history → draft → format → send → END
+
+    Args:
+        enable_phase2: Enable Phase 2 intelligence nodes (research, history, draft)
 
     Returns:
         Compiled LangGraph
@@ -161,17 +176,32 @@ def create_email_graph() -> StateGraph:
     # Create graph with state schema
     graph = StateGraph(EmailState)
 
-    # Add nodes
+    # Add Phase 1 nodes
     graph.add_node("fetch_emails", fetch_emails_node)
     graph.add_node("classify_emails", classify_emails_node)
     graph.add_node("format_telegram", format_telegram_node)
     graph.add_node("send_telegram", send_telegram_node)
 
-    # Define edges (linear flow for MVP)
-    graph.add_edge("fetch_emails", "classify_emails")
-    graph.add_edge("classify_emails", "format_telegram")
-    graph.add_edge("format_telegram", "send_telegram")
-    graph.add_edge("send_telegram", END)
+    if enable_phase2:
+        # Add Phase 2 intelligence nodes
+        graph.add_node("research", research_node)
+        graph.add_node("history", history_node)
+        graph.add_node("draft", draft_node)
+
+        # Define edges with Phase 2 flow
+        graph.add_edge("fetch_emails", "classify_emails")
+        graph.add_edge("classify_emails", "research")
+        graph.add_edge("research", "history")
+        graph.add_edge("history", "draft")
+        graph.add_edge("draft", "format_telegram")
+        graph.add_edge("format_telegram", "send_telegram")
+        graph.add_edge("send_telegram", END)
+    else:
+        # Phase 1 only - linear flow
+        graph.add_edge("fetch_emails", "classify_emails")
+        graph.add_edge("classify_emails", "format_telegram")
+        graph.add_edge("format_telegram", "send_telegram")
+        graph.add_edge("send_telegram", END)
 
     # Set entry point
     graph.set_entry_point("fetch_emails")
@@ -186,17 +216,34 @@ class SmartEmailGraph:
         agent = SmartEmailGraph()
         result = await agent.run(hours=24)
         print(result["telegram_message"])
+
+    Phase 2 Example:
+        agent = SmartEmailGraph(enable_phase2=True)
+        result = await agent.run(
+            hours=24,
+            enable_research=True,
+            enable_history=True,
+            enable_drafts=True,
+        )
     """
 
-    def __init__(self):
-        """Initialize the graph."""
-        self.graph = create_email_graph()
+    def __init__(self, enable_phase2: bool = True):
+        """Initialize the graph.
+
+        Args:
+            enable_phase2: Enable Phase 2 intelligence nodes
+        """
+        self.enable_phase2 = enable_phase2
+        self.graph = create_email_graph(enable_phase2=enable_phase2)
 
     async def run(
         self,
         hours: int = 24,
         user_id: str = "default",
         send_telegram: bool = True,
+        enable_research: bool = True,
+        enable_history: bool = True,
+        enable_drafts: bool = True,
     ) -> dict[str, Any]:
         """Run the email processing graph.
 
@@ -204,14 +251,20 @@ class SmartEmailGraph:
             hours: Hours to look back for emails
             user_id: User identifier
             send_telegram: Whether to send to Telegram
+            enable_research: Enable web research for P1/P2 emails
+            enable_history: Enable sender history lookup
+            enable_drafts: Enable draft reply generation
 
         Returns:
             Final state as dict
         """
-        # Create initial state
+        # Create initial state with Phase 2 flags
         state = create_initial_state(
             user_id=user_id,
             hours_lookback=hours,
+            enable_research=enable_research if self.enable_phase2 else False,
+            enable_history=enable_history if self.enable_phase2 else False,
+            enable_drafts=enable_drafts if self.enable_phase2 else False,
         )
 
         logger.info(f"Starting SmartEmailGraph run {state['run_id']}")
@@ -232,6 +285,8 @@ class SmartEmailGraph:
             f"Completed run {state['run_id']} in {duration_ms}ms - "
             f"P1={final_state.get('p1_count', 0)}, "
             f"P2={final_state.get('p2_count', 0)}, "
+            f"researched={final_state.get('research_count', 0)}, "
+            f"drafts={final_state.get('drafts_count', 0)}, "
             f"sent={final_state.get('telegram_sent', False)}"
         )
 
@@ -243,6 +298,10 @@ class SmartEmailGraph:
 async def run_smart_email_agent(
     hours: int = 24,
     send_telegram: bool = True,
+    enable_phase2: bool = True,
+    enable_research: bool = True,
+    enable_history: bool = True,
+    enable_drafts: bool = True,
 ) -> dict[str, Any]:
     """Run the Smart Email Agent.
 
@@ -251,6 +310,10 @@ async def run_smart_email_agent(
     Args:
         hours: Hours to look back
         send_telegram: Whether to send to Telegram
+        enable_phase2: Enable Phase 2 intelligence features
+        enable_research: Enable web research for P1/P2 emails
+        enable_history: Enable sender history lookup
+        enable_drafts: Enable draft reply generation
 
     Returns:
         Execution result dict
@@ -259,11 +322,23 @@ async def run_smart_email_agent(
         import asyncio
         from src.agents.smart_email import run_smart_email_agent
 
+        # Phase 1 only (fast, no LLM calls for research)
+        result = asyncio.run(run_smart_email_agent(hours=24, enable_phase2=False))
+
+        # Phase 2 full intelligence
         result = asyncio.run(run_smart_email_agent(hours=24))
         print(f"Processed {result['total_count']} emails")
+        print(f"Researched {result.get('research_count', 0)} emails")
+        print(f"Generated {result.get('drafts_count', 0)} drafts")
     """
-    agent = SmartEmailGraph()
-    return await agent.run(hours=hours, send_telegram=send_telegram)
+    agent = SmartEmailGraph(enable_phase2=enable_phase2)
+    return await agent.run(
+        hours=hours,
+        send_telegram=send_telegram,
+        enable_research=enable_research,
+        enable_history=enable_history,
+        enable_drafts=enable_drafts,
+    )
 
 
 # === CLI Entry Point ===
@@ -271,19 +346,25 @@ async def run_smart_email_agent(
 def main():
     """CLI entry point for testing."""
     import asyncio
+    import sys
 
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
+    # Parse CLI args
+    phase2 = "--phase1-only" not in sys.argv
+
     print("🤖 Smart Email Agent v2.0 (LangGraph)")
+    print(f"📊 Mode: {'Phase 2 (Full Intelligence)' if phase2 else 'Phase 1 (MVP)'}")
     print("=" * 50)
 
     async def test_run():
         result = await run_smart_email_agent(
             hours=24,
             send_telegram=False,  # Don't send for testing
+            enable_phase2=phase2,
         )
 
         print(f"\n✅ Success: {not result.get('errors')}")
@@ -293,6 +374,12 @@ def main():
         print(f"🟠 P2: {result.get('p2_count', 0)}")
         print(f"🟡 P3: {result.get('p3_count', 0)}")
         print(f"⚪ P4: {result.get('p4_count', 0)}")
+
+        # Phase 2 stats
+        if phase2:
+            print(f"🔬 Researched: {result.get('research_count', 0)}")
+            print(f"📝 Drafts: {result.get('drafts_count', 0)}")
+
         print(f"⏱️ Duration: {result.get('duration_ms', 0)}ms")
 
         if result.get("telegram_message"):

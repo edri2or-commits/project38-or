@@ -78,6 +78,25 @@ def format_email_item(email: EmailItem, include_details: bool = True) -> list[st
         if email.ai_action_suggestion:
             lines.append(f"     💡 {email.ai_action_suggestion}")
 
+        # Phase 2: Research findings
+        if email.research and email.research.summary:
+            lines.append(f"     🔬 _{email.research.summary[:60]}_")
+            if email.research.relevant_deadlines:
+                deadlines = ", ".join(email.research.relevant_deadlines[:2])
+                lines.append(f"     📅 דדליינים: {deadlines}")
+
+        # Phase 2: Sender history
+        if email.sender_history and email.sender_history.relationship_type != "new":
+            h = email.sender_history
+            if h.relationship_type == "frequent":
+                lines.append(f"     👤 קשר קבוע ({h.total_emails} הודעות)")
+            elif h.relationship_type == "recurring":
+                lines.append(f"     👤 שולח חוזר ({h.total_emails} הודעות)")
+
+        # Phase 2: Draft indicator
+        if email.draft_reply and email.draft_reply.confidence > 0.5:
+            lines.append("     ✏️ _יש טיוטת תשובה מוכנה_")
+
         # Reason (for P1)
         if email.priority == Priority.P1 and email.priority_reason:
             lines.append(f"     📋 _{email.priority_reason}_")
@@ -93,6 +112,8 @@ def format_telegram_message_hebrish(
     p4_count: int,
     system_count: int,
     duration_seconds: float,
+    research_count: int = 0,
+    drafts_count: int = 0,
 ) -> str:
     """Format full Telegram message in Hebrish style.
 
@@ -169,7 +190,9 @@ def format_telegram_message_hebrish(
     # Footer
     lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━━━━━")
-    lines.append(format_work_report(duration_seconds, sources=0))
+    lines.append(format_work_report(duration_seconds, sources=research_count))
+    if drafts_count > 0:
+        lines.append(f"✏️ _{drafts_count} טיוטות תשובה מוכנות_")
     lines.append("_Smart Email Agent v2.0_")
 
     return "\n".join(lines)
@@ -259,6 +282,8 @@ async def format_telegram_node(state: EmailState) -> EmailState:
         p4_count=state.get("p4_count", 0),
         system_count=state.get("system_emails_count", 0),
         duration_seconds=duration,
+        research_count=state.get("research_count", 0),
+        drafts_count=state.get("drafts_count", 0),
     )
 
     return {
