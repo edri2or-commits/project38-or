@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent Phase 4 Plan** (2026-01-24)
+  - Updated ADR-014 with Phase 4: Full Capabilities
+  - Proof of completeness system (verify no emails missed)
+  - Attachment handling (download, display, PDF extraction, OCR)
+  - Telegram inline keyboard (interactive buttons per email)
+  - Sender history display in output
+  - Smart form assistance (pre-fill, extract fields)
+  - Full email body reading (not just snippet)
+
 - **Gmail Trash/Delete Tools** (2026-01-24)
   - `gmail_trash(message_id)` - Move single email to trash
   - `gmail_batch_trash(query, max_results)` - Bulk delete emails by search query

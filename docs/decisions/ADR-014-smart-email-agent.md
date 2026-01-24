@@ -2,6 +2,7 @@
 
 ## Status
 **APPROVED** - 2026-01-23
+**Phase 4 IN PROGRESS** - 2026-01-24
 
 ## Context
 
@@ -172,6 +173,104 @@ New architecture using LangGraph state machine:
 - [x] `.github/workflows/daily-email-agent.yml` - Updated to use v2.0 LangGraph
 - [x] Workflow triggered successfully via `workflow_dispatch` (Run #21312936232)
 
+### Phase 4: Full Capabilities 🔄 IN PROGRESS (2026-01-24)
+
+**Goal**: Make the agent production-ready with zero missed emails and full interactivity.
+
+#### 4.1 Proof of Completeness (Anti-Miss System)
+- [ ] `src/agents/smart_email/nodes/verify.py` - Verification node
+  - Gmail count vs processed count comparison
+  - Audit log with every email ID
+  - Report: "Processed X of Y, missed: [list]"
+  - Re-fetch verification step
+- [ ] `EmailState.verification` field with:
+  ```python
+  @dataclass
+  class VerificationResult:
+      gmail_total: int          # Total emails from Gmail API
+      processed_count: int      # Actually processed
+      skipped_system: int       # System emails filtered
+      missed_ids: list[str]     # IDs that weren't processed
+      verified: bool            # True if gmail_total == processed + skipped
+  ```
+- [ ] Telegram footer: "✅ 23/23 מיילים נסרקו (0 פוספסו)"
+
+#### 4.2 Full Email Body Reading
+- [ ] Add `gmail_get_message(id)` tool to MCP Gateway
+- [ ] Read full body instead of snippet (500 chars → full)
+- [ ] Update `classify.py` to use full body for classification
+- [ ] Better context for research and drafts
+
+#### 4.3 Attachment Handling
+- [ ] `src/agents/smart_email/nodes/attachments.py` - New node
+- [ ] Extend `EmailItem` with:
+  ```python
+  attachments: list[AttachmentInfo] = field(default_factory=list)
+
+  @dataclass
+  class AttachmentInfo:
+      id: str
+      filename: str
+      mime_type: str
+      size: int
+      download_url: str  # Pre-signed or MCP tool call
+  ```
+- [ ] Add `gmail_get_attachment(message_id, attachment_id)` to MCP Gateway
+- [ ] List attachments in Telegram output with download buttons
+
+#### 4.4 PDF & Document Processing
+- [ ] Add `pdfplumber` or `PyPDF2` to requirements
+- [ ] Extract text from PDF attachments
+- [ ] Identify forms (שדות למילוי, checkboxes)
+- [ ] Extract deadlines from document text
+
+#### 4.5 OCR for Images & Scanned Documents
+- [ ] Integrate Google Vision API (already have GCP access)
+- [ ] Or use `pytesseract` for local OCR
+- [ ] Process image attachments (JPG, PNG)
+- [ ] Extract text from scanned forms
+
+#### 4.6 Telegram Inline Keyboard (Interactive Buttons)
+- [ ] Update Telegram bot to support inline keyboards
+- [ ] Per-email buttons:
+  ```
+  [📖 הצג עוד] [✏️ טיוטה] [📥 ארכיון] [🔗 קבצים]
+  ```
+- [ ] Callback handlers for each button
+- [ ] Expand email → show full body + history + research
+- [ ] Draft button → show pre-written reply for approval
+- [ ] Files button → list attachments with download links
+
+#### 4.7 Sender History Display
+- [ ] Add history summary to Telegram output:
+  ```
+  🔄 שולח מוכר: 15 מיילים קודמים
+  📅 אחרון: לפני 3 ימים
+  📌 נושאים: חשבוניות, תשלומים
+  ```
+- [ ] Relationship badge: 🆕 חדש | 🔄 חוזר | ⭐ תכוף
+
+#### 4.8 Smart Form Assistance
+- [ ] Identify fillable forms in attachments
+- [ ] Extract form fields and their types
+- [ ] Pre-fill with known user data (from preferences)
+- [ ] Present as interactive Telegram message:
+  ```
+  📝 טופס 101 - ביטוח לאומי
+  ├── שם: [אור ישראלי] ✅
+  ├── ת.ז: [*****1234] ✅
+  ├── תאריך: [למלא]
+  └── [📤 פתח טופס מלא]
+  ```
+
+#### 4.9 Verification Tests
+- [ ] `tests/test_email_completeness.py` - Integration tests
+  - Mock Gmail with 50 emails
+  - Verify all 50 processed or explicitly skipped
+  - Zero in `missed_ids`
+- [ ] `tests/test_attachments.py` - Attachment handling tests
+- [ ] `tests/test_telegram_buttons.py` - Interactive button tests
+
 ## Consequences
 
 ### Positive
@@ -219,3 +318,4 @@ New architecture using LangGraph state machine:
 | 2026-01-24 | Removed unsupported unread_only parameter | Claude |
 | 2026-01-24 | Added graceful SecretManager fallback | Claude |
 | 2026-01-24 | Production verified (Run #21316555022) ✅ | Claude |
+| 2026-01-24 | Added Phase 4: Full Capabilities - attachments, OCR, buttons, proof of completeness | Claude |
