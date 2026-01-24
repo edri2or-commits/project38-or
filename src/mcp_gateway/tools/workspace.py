@@ -224,12 +224,17 @@ async def gmail_search(query: str, max_results: int = 10) -> dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
-async def gmail_list(label: str = "INBOX", max_results: int = 10) -> dict[str, Any]:
+async def gmail_list(
+    label: str = "INBOX",
+    max_results: int = 10,
+    unread_only: bool = False,
+) -> dict[str, Any]:
     """List recent emails in a label.
 
     Args:
         label: Gmail label (default: INBOX)
         max_results: Maximum number of results
+        unread_only: Only return unread emails (default: False)
 
     Returns:
         List of recent email summaries
@@ -237,11 +242,17 @@ async def gmail_list(label: str = "INBOX", max_results: int = 10) -> dict[str, A
     try:
         headers = await _get_headers()
 
+        # Build params - add UNREAD label if filtering for unread
+        params: dict[str, Any] = {"labelIds": label, "maxResults": max_results}
+        if unread_only:
+            # Add UNREAD to labels filter
+            params["labelIds"] = [label, "UNREAD"]
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{GMAIL_API}/users/me/messages",
                 headers=headers,
-                params={"labelIds": label, "maxResults": max_results},
+                params=params,
             )
 
             if response.status_code != 200:

@@ -262,20 +262,25 @@ def create_mcp_server() -> Any | None:
         return await gmail_search(query, max_results)
 
     @mcp.tool
-    async def gmail_list(label: str = "INBOX", max_results: int = 10) -> dict:
+    async def gmail_list(
+        label: str = "INBOX",
+        max_results: int = 10,
+        unread_only: bool = False,
+    ) -> dict:
         """
         List recent emails in a label.
 
         Args:
             label: Gmail label (default: INBOX)
             max_results: Maximum number of results (default: 10)
+            unread_only: Only return unread emails (default: False)
 
         Returns:
             List of recent email summaries
         """
         from .tools.workspace import gmail_list
 
-        return await gmail_list(label, max_results)
+        return await gmail_list(label, max_results, unread_only)
 
     @mcp.tool
     async def calendar_list_events(
