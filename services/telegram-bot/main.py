@@ -139,6 +139,27 @@ async def health_check() -> dict:
     }
 
 
+@app.get("/debug/routes")
+async def debug_routes() -> dict:
+    """Debug endpoint to list all registered routes.
+
+    Returns:
+        dict: List of all routes with their methods and paths
+    """
+    routes = []
+    for route in app.routes:
+        if hasattr(route, 'methods') and hasattr(route, 'path'):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods) if route.methods else [],
+                "name": route.name,
+            })
+    return {
+        "webhook_path_setting": settings.telegram_webhook_path,
+        "routes": routes,
+    }
+
+
 @app.post(settings.telegram_webhook_path)
 async def telegram_webhook(request: Request) -> Response:
     """Telegram webhook endpoint.
