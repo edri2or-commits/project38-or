@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart Email Agent Phase 4.1 - Proof of Completeness** (2026-01-24) ✅
+  - `src/agents/smart_email/nodes/verify.py` - Verification node (153 lines)
+  - `VerificationResult` dataclass with `is_complete` and `summary_hebrew()`
+  - Tracks `all_fetched_ids` and `all_processed_ids` in state
+  - Telegram footer: "🔍 ✅ 23/23 מיילים נסרקו (0 פוספסו)"
+  - 10 unit tests in `tests/test_smart_email.py::TestVerificationNode`
+  - Updated graph flow: FETCH → ... → VERIFY → FORMAT → SEND
+
 - **Smart Email Agent Phase 4 Plan** (2026-01-24)
   - Updated ADR-014 with Phase 4: Full Capabilities
   - Proof of completeness system (verify no emails missed)
