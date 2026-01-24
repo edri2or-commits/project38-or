@@ -119,6 +119,10 @@ jobs:
           echo "   Hours: $HOURS"
           echo "   Send Telegram: $SEND_TELEGRAM"
           echo "   Phase 2 Intelligence: Enabled"
+          echo "   MCP_GATEWAY_URL: ${MCP_GATEWAY_URL:-(not set)}"
+          echo "   MCP_GATEWAY_TOKEN: ${MCP_GATEWAY_TOKEN:+SET}"
+          echo "   TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:+SET}"
+          echo "   TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-(not set)}"
           echo ""
 
           python -c "
@@ -153,14 +157,29 @@ jobs:
                   print(f'Duration: {result.get(\"duration_ms\", 0)}ms')
                   print(f'Telegram sent: {result.get(\"telegram_sent\", False)}')
 
-                  if result.get('errors'):
-                      print(f'Errors: {result.get(\"errors\")}')
-                      sys.exit(1)
+                  # Only fail on critical errors, not Telegram failures
+                  errors = result.get('errors', [])
+                  if errors:
+                      print(f'Errors: {errors}')
+                      # Check if it's just a Telegram error
+                      critical = [e for e in errors if 'telegram' not in str(e).lower()]
+                      if critical:
+                          sys.exit(1)
+                      else:
+                          print('⚠️ Telegram error only - not failing workflow')
+
+                  # Check Telegram status
+                  if result.get('telegram_error'):
+                      print(f'⚠️ Telegram error: {result.get(\"telegram_error\")}')
 
               except Exception as e:
                   print(f'\\n❌ EXCEPTION: {type(e).__name__}: {e}')
                   traceback.print_exc()
-                  sys.exit(1)
+                  # Don't fail on Telegram-related exceptions
+                  if 'telegram' in str(e).lower():
+                      print('⚠️ Telegram exception - continuing')
+                  else:
+                      sys.exit(1)
 
           asyncio.run(main())
           "
