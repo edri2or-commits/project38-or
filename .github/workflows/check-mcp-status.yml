@@ -1,0 +1,64 @@
+# Check if MCP Gateway is actually mounted on Railway
+name: Check MCP Status
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Health Endpoint
+        run: |
+          echo "=== Checking or-infra.com health ==="
+          curl -s https://or-infra.com/api/health | jq . || echo "Health check failed"
+
+      - name: Check Root
+        run: |
+          echo "=== Checking root ==="
+          curl -s -I https://or-infra.com/ | head -10
+
+      - name: Check MCP Without Trailing Slash
+        run: |
+          echo "=== Checking /mcp (no trailing slash) ==="
+          curl -v https://or-infra.com/mcp 2>&1 | tail -20
+
+      - name: Check MCP With Trailing Slash
+        run: |
+          echo "=== Checking /mcp/ (with trailing slash) ==="
+          curl -v https://or-infra.com/mcp/ 2>&1 | tail -20
+
+      - name: Test MCP JSON-RPC
+        run: |
+          echo "=== Testing MCP JSON-RPC ==="
+          curl -s -X POST https://or-infra.com/mcp \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc": "2.0", "id": "1", "method": "tools/list", "params": {}}' \
+            | jq . || echo "MCP request failed"
+
+      - name: Post Results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEALTH=$(curl -s https://or-infra.com/api/health 2>&1 | head -c 500 || echo "Failed")
+          MCP_RESPONSE=$(curl -s -X POST https://or-infra.com/mcp \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc": "2.0", "id": "1", "method": "tools/list", "params": {}}' 2>&1 | head -c 500 || echo "Failed")
+
+          gh issue comment 509 --repo ${{ github.repository }} --body "## MCP Status Check
+
+          **Health Endpoint:**
+          \`\`\`
+          $HEALTH
+          \`\`\`
+
+          **MCP Response:**
+          \`\`\`
+          $MCP_RESPONSE
+          \`\`\`
+          "
