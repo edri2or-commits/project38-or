@@ -270,7 +270,7 @@ jobs:
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "mutation { serviceUpdate(id: \"'"$SERVICE_ID"'\", input: { rootDirectory: \"services/telegram-bot\" }) { id rootDirectory } }"
+              "query": "mutation { serviceInstanceUpdate(environmentId: \"'"$RAILWAY_ENVIRONMENT_ID"'\", serviceId: \"'"$SERVICE_ID"'\", input: { rootDirectory: \"services/telegram-bot\" }) }"
             }')
           echo "Root directory response: $ROOT"
 
