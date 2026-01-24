@@ -224,8 +224,8 @@ The research is valuable as an **architectural reference** for future enhancemen
 ## Related
 
 - **Related ADRs:**
-  - [ADR-010: Multi-LLM Routing Strategy](../decisions/ADR-010-multi-llm-routing-strategy.md) - Already implements LiteLLM Gateway
-  - [ADR-009: Research Integration Architecture](../decisions/ADR-009-research-integration-architecture.md) - This process
+  - [ADR-010: Multi-LLM Routing Strategy](../../decisions/ADR-010-multi-llm-routing-strategy.md) - Already implements LiteLLM Gateway
+  - [ADR-009: Research Integration Architecture](../../decisions/ADR-009-research-integration-architecture.md) - This process
 
 - **Related experiments:** None yet
 

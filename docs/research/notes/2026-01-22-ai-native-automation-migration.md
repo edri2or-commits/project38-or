@@ -197,10 +197,10 @@
 
 ## Related Documentation
 
-- [ADR-008: Robust Automation Strategy](../decisions/ADR-008-robust-automation-strategy.md)
-- [ADR-007: n8n Webhook Activation Architecture](../decisions/ADR-007-n8n-webhook-activation-architecture.md)
-- [Research: Ralph Wiggum Autonomous Build](2026-01-21-ralph-wiggum-autonomous-build.md)
-- [MCP Gateway Architecture](../autonomous/08-mcp-gateway-architecture.md)
+- [ADR-008: Robust Automation Strategy](../../decisions/ADR-008-robust-automation-strategy.md)
+- [ADR-007: n8n Webhook Activation Architecture](../../decisions/ADR-007-n8n-webhook-activation-architecture.md)
+- [Research: Ralph Wiggum Autonomous Build](2026-01-22-ralph-wiggum-autonomous-build.md)
+- [MCP Gateway Architecture](../../autonomous/08-mcp-gateway-architecture.md)
 
 ---
 
