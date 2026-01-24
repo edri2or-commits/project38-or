@@ -49,6 +49,9 @@ class GmailClient:
     def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -> dict[str, Any]:
         """Call an MCP tool via the gateway.
 
+        FastMCP uses POST to /mcp with JSON body:
+        {"tool": "tool_name", "inputs": {...}}
+
         Args:
             tool_name: Name of the MCP tool
             params: Tool parameters
@@ -56,17 +59,18 @@ class GmailClient:
         Returns:
             Tool result
         """
-        headers = {}
+        headers = {"Content-Type": "application/json"}
         if self.mcp_token:
             headers["Authorization"] = f"Bearer {self.mcp_token}"
 
-        # MCP Gateway expects tool calls at /tools/{tool_name}
-        url = f"{self.mcp_url}/tools/{tool_name}"
+        # FastMCP expects tool calls at base URL with tool/inputs in body
+        # URL should be https://or-infra.com/mcp (base URL, not /mcp/mcp)
+        url = self.mcp_url
 
         try:
             response = httpx.post(
                 url,
-                json=params,
+                json={"tool": tool_name, "inputs": params},
                 headers=headers,
                 timeout=30,
             )
