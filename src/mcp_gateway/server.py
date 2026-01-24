@@ -283,6 +283,60 @@ def create_mcp_server() -> Any | None:
         return await gmail_list(label, max_results, unread_only)
 
     @mcp.tool
+    async def gmail_trash(message_id: str) -> dict:
+        """
+        Move a single email to trash.
+
+        Args:
+            message_id: Gmail message ID to trash
+
+        Returns:
+            Result with success status
+        """
+        from .tools.workspace import gmail_trash
+
+        return await gmail_trash(message_id)
+
+    @mcp.tool
+    async def gmail_batch_trash(query: str, max_results: int = 100) -> dict:
+        """
+        Move multiple emails to trash based on search query.
+
+        Use this to bulk-delete notification emails, e.g.:
+        - "from:notifications@github.com" - GitHub notifications
+        - "from:notify.railway.app" - Railway notifications
+        - "from:github.com OR from:railway.app" - Both
+
+        Args:
+            query: Gmail search query
+            max_results: Maximum emails to trash (default: 100, max: 500)
+
+        Returns:
+            Result with count of trashed emails
+        """
+        from .tools.workspace import gmail_batch_trash
+
+        return await gmail_batch_trash(query, max_results)
+
+    @mcp.tool
+    async def gmail_unsubscribe_filter(
+        sender_pattern: str, action: str = "trash"
+    ) -> dict:
+        """
+        Get instructions for creating a Gmail filter to auto-handle future emails.
+
+        Args:
+            sender_pattern: Email pattern to filter (e.g., "notifications@github.com")
+            action: What to do ("trash", "archive", "skip_inbox")
+
+        Returns:
+            Step-by-step instructions for manual filter creation
+        """
+        from .tools.workspace import gmail_unsubscribe_filter
+
+        return await gmail_unsubscribe_filter(sender_pattern, action)
+
+    @mcp.tool
     async def calendar_list_events(
         calendar_id: str = "primary",
         max_results: int = 10,
@@ -664,6 +718,7 @@ if __name__ == "__main__":
     print("    - get_metrics: Get system metrics")
     print("  Google Workspace:")
     print("    - gmail_send, gmail_search, gmail_list")
+    print("    - gmail_trash, gmail_batch_trash, gmail_unsubscribe_filter")
     print("    - calendar_list_events, calendar_create_event")
     print("    - drive_list_files, drive_create_folder")
     print("    - sheets_read, sheets_write, sheets_create")

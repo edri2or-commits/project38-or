@@ -420,6 +420,226 @@ class TestGmailList:
 
 
 # =============================================================================
+# Gmail Trash Tools Tests
+# =============================================================================
+
+
+class TestGmailTrash:
+    """Tests for gmail_trash function."""
+
+    @pytest.mark.asyncio
+    async def test_gmail_trash_success(self):
+        """Test successful email trashing."""
+        from src.mcp_gateway.tools.workspace import gmail_trash
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"id": "msg-123"}
+
+        with patch("src.mcp_gateway.tools.workspace._get_headers", new_callable=AsyncMock) as mock_headers:
+            mock_headers.return_value = {"Authorization": "Bearer token"}
+
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.post.return_value = mock_response
+                mock_client.return_value.__aenter__.return_value = mock_instance
+
+                result = await gmail_trash(message_id="msg-123")
+
+        assert result["success"] is True
+        assert result["message_id"] == "msg-123"
+        assert result["action"] == "trashed"
+
+    @pytest.mark.asyncio
+    async def test_gmail_trash_not_found(self):
+        """Test trashing non-existent email."""
+        from src.mcp_gateway.tools.workspace import gmail_trash
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "Message not found"
+
+        with patch("src.mcp_gateway.tools.workspace._get_headers", new_callable=AsyncMock) as mock_headers:
+            mock_headers.return_value = {"Authorization": "Bearer token"}
+
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.post.return_value = mock_response
+                mock_client.return_value.__aenter__.return_value = mock_instance
+
+                result = await gmail_trash(message_id="invalid-id")
+
+        assert result["success"] is False
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_gmail_trash_exception(self):
+        """Test trashing handles exceptions."""
+        from src.mcp_gateway.tools.workspace import gmail_trash
+
+        with patch("src.mcp_gateway.tools.workspace._get_headers", new_callable=AsyncMock) as mock_headers:
+            mock_headers.side_effect = Exception("Auth failed")
+
+            result = await gmail_trash(message_id="msg-123")
+
+        assert result["success"] is False
+        assert "Auth failed" in result["error"]
+
+
+class TestGmailBatchTrash:
+    """Tests for gmail_batch_trash function."""
+
+    @pytest.mark.asyncio
+    async def test_gmail_batch_trash_success(self):
+        """Test successful batch trashing."""
+        from src.mcp_gateway.tools.workspace import gmail_batch_trash
+
+        search_response = MagicMock()
+        search_response.status_code = 200
+        search_response.json.return_value = {
+            "messages": [{"id": "msg-1"}, {"id": "msg-2"}, {"id": "msg-3"}]
+        }
+
+        trash_response = MagicMock()
+        trash_response.status_code = 200
+
+        with patch("src.mcp_gateway.tools.workspace._get_headers", new_callable=AsyncMock) as mock_headers:
+            mock_headers.return_value = {"Authorization": "Bearer token"}
+
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.get.return_value = search_response
+                mock_instance.post.return_value = trash_response
+                mock_client.return_value.__aenter__.return_value = mock_instance
+
+                result = await gmail_batch_trash(
+                    query="from:notifications@github.com",
+                    max_results=100,
+                )
+
+        assert result["success"] is True
+        assert result["found"] == 3
+        assert result["trashed_count"] == 3
+        assert result["query"] == "from:notifications@github.com"
+
+    @pytest.mark.asyncio
+    async def test_gmail_batch_trash_no_results(self):
+        """Test batch trashing with no matching emails."""
+        from src.mcp_gateway.tools.workspace import gmail_batch_trash
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"messages": []}
+
+        with patch("src.mcp_gateway.tools.workspace._get_headers", new_callable=AsyncMock) as mock_headers:
+            mock_headers.return_value = {"Authorization": "Bearer token"}
+
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.get.return_value = mock_response
+                mock_client.return_value.__aenter__.return_value = mock_instance
+
+                result = await gmail_batch_trash(query="nonexistent@example.com")
+
+        assert result["success"] is True
+        assert result["trashed_count"] == 0
+        assert "No messages found" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_gmail_batch_trash_caps_at_500(self):
+        """Test batch trashing caps at 500 emails."""
+        from src.mcp_gateway.tools.workspace import gmail_batch_trash
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"messages": []}
+
+        with patch("src.mcp_gateway.tools.workspace._get_headers", new_callable=AsyncMock) as mock_headers:
+            mock_headers.return_value = {"Authorization": "Bearer token"}
+
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.get.return_value = mock_response
+                mock_client.return_value.__aenter__.return_value = mock_instance
+
+                # Request 1000, should be capped to 500
+                result = await gmail_batch_trash(query="test", max_results=1000)
+
+        # Verify the API was called with max 500
+        call_args = mock_instance.get.call_args
+        params = call_args.kwargs["params"]
+        assert params["maxResults"] == 500
+
+    @pytest.mark.asyncio
+    async def test_gmail_batch_trash_partial_errors(self):
+        """Test batch trashing with some failures."""
+        from src.mcp_gateway.tools.workspace import gmail_batch_trash
+
+        search_response = MagicMock()
+        search_response.status_code = 200
+        search_response.json.return_value = {
+            "messages": [{"id": "msg-1"}, {"id": "msg-2"}]
+        }
+
+        success_response = MagicMock()
+        success_response.status_code = 200
+
+        fail_response = MagicMock()
+        fail_response.status_code = 500
+
+        with patch("src.mcp_gateway.tools.workspace._get_headers", new_callable=AsyncMock) as mock_headers:
+            mock_headers.return_value = {"Authorization": "Bearer token"}
+
+            with patch("httpx.AsyncClient") as mock_client:
+                mock_instance = AsyncMock()
+                mock_instance.get.return_value = search_response
+                # First trash succeeds, second fails
+                mock_instance.post.side_effect = [success_response, fail_response]
+                mock_client.return_value.__aenter__.return_value = mock_instance
+
+                result = await gmail_batch_trash(query="test")
+
+        assert result["success"] is True
+        assert result["trashed_count"] == 1
+        assert len(result["errors"]) == 1
+
+
+class TestGmailUnsubscribeFilter:
+    """Tests for gmail_unsubscribe_filter function."""
+
+    @pytest.mark.asyncio
+    async def test_gmail_unsubscribe_filter_returns_instructions(self):
+        """Test that function returns manual instructions."""
+        from src.mcp_gateway.tools.workspace import gmail_unsubscribe_filter
+
+        result = await gmail_unsubscribe_filter(
+            sender_pattern="notifications@github.com",
+            action="trash",
+        )
+
+        assert result["success"] is True
+        assert result["type"] == "instructions"
+        assert "steps" in result
+        assert len(result["steps"]) > 0
+        assert "notifications@github.com" in result["steps"][2]
+        assert "filter_url" in result
+
+    @pytest.mark.asyncio
+    async def test_gmail_unsubscribe_filter_archive_action(self):
+        """Test instructions for archive action."""
+        from src.mcp_gateway.tools.workspace import gmail_unsubscribe_filter
+
+        result = await gmail_unsubscribe_filter(
+            sender_pattern="notify.railway.app",
+            action="archive",
+        )
+
+        assert result["success"] is True
+        # Verify archive instruction is present
+        assert any("Skip the Inbox" in step for step in result["steps"])
+
+
+# =============================================================================
 # Calendar Tools Tests
 # =============================================================================
 

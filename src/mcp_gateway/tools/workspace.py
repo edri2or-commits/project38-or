@@ -300,6 +300,141 @@ async def gmail_list(
 
 
 # =============================================================================
+# Gmail Trash/Archive Tools
+# =============================================================================
+
+
+async def gmail_trash(message_id: str) -> dict[str, Any]:
+    """Move a single email to trash.
+
+    Args:
+        message_id: Gmail message ID to trash
+
+    Returns:
+        Result with success status
+    """
+    try:
+        headers = await _get_headers()
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{GMAIL_API}/users/me/messages/{message_id}/trash",
+                headers=headers,
+            )
+
+            if response.status_code != 200:
+                return {"success": False, "error": response.text}
+
+            return {"success": True, "message_id": message_id, "action": "trashed"}
+
+    except Exception as e:
+        logger.error(f"gmail_trash failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def gmail_batch_trash(query: str, max_results: int = 100) -> dict[str, Any]:
+    """Move multiple emails to trash based on search query.
+
+    Args:
+        query: Gmail search query (e.g., "from:notifications@github.com")
+        max_results: Maximum number of emails to trash (default: 100, max: 500)
+
+    Returns:
+        Result with count of trashed emails
+    """
+    try:
+        # Cap at 500 to prevent accidents
+        max_results = min(max_results, 500)
+
+        headers = await _get_headers()
+        trashed_count = 0
+        errors = []
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # First, search for messages
+            response = await client.get(
+                f"{GMAIL_API}/users/me/messages",
+                headers=headers,
+                params={"q": query, "maxResults": max_results},
+            )
+
+            if response.status_code != 200:
+                return {"success": False, "error": response.text}
+
+            data = response.json()
+            messages = data.get("messages", [])
+
+            if not messages:
+                return {
+                    "success": True,
+                    "trashed_count": 0,
+                    "message": "No messages found matching query",
+                }
+
+            # Trash each message
+            for msg in messages:
+                trash_response = await client.post(
+                    f"{GMAIL_API}/users/me/messages/{msg['id']}/trash",
+                    headers=headers,
+                )
+
+                if trash_response.status_code == 200:
+                    trashed_count += 1
+                else:
+                    errors.append(
+                        {"id": msg["id"], "error": trash_response.status_code}
+                    )
+
+            result = {
+                "success": True,
+                "query": query,
+                "found": len(messages),
+                "trashed_count": trashed_count,
+            }
+
+            if errors:
+                result["errors"] = errors
+
+            return result
+
+    except Exception as e:
+        logger.error(f"gmail_batch_trash failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def gmail_unsubscribe_filter(
+    sender_pattern: str, action: str = "trash"
+) -> dict[str, Any]:
+    """Create a filter to automatically handle future emails from a sender.
+
+    Note: Gmail API filter creation requires additional scopes.
+    This function provides instructions for manual filter creation.
+
+    Args:
+        sender_pattern: Email pattern to filter (e.g., "notifications@github.com")
+        action: What to do with matching emails ("trash", "archive", "skip_inbox")
+
+    Returns:
+        Instructions for creating the filter manually
+    """
+    return {
+        "success": True,
+        "type": "instructions",
+        "message": "Gmail filter creation requires manual setup",
+        "steps": [
+            "1. Go to https://mail.google.com/mail/u/0/#settings/filters",
+            "2. Click 'Create a new filter'",
+            f"3. In 'From' field, enter: {sender_pattern}",
+            "4. Click 'Create filter'",
+            f"5. Select: {'Delete it' if action == 'trash' else 'Skip the Inbox' if action == 'archive' else action}",
+            "6. Check 'Also apply filter to matching conversations'",
+            "7. Click 'Create filter'",
+        ],
+        "filter_url": "https://mail.google.com/mail/u/0/#settings/filters",
+    }
+
+
+# =============================================================================
 # Calendar Tools
 # =============================================================================
 
