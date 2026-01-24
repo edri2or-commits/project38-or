@@ -1,0 +1,43 @@
+# Quick check of MCP status endpoint
+name: Check MCP Endpoint
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check MCP Status Endpoint
+        run: |
+          echo "=== Health Check ==="
+          curl -s https://or-infra.com/api/health | jq .
+
+          echo ""
+          echo "=== MCP Status ==="
+          curl -s https://or-infra.com/api/mcp/status | jq .
+
+      - name: Post Results
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEALTH=$(curl -s https://or-infra.com/api/health 2>&1)
+          MCP=$(curl -s https://or-infra.com/api/mcp/status 2>&1)
+
+          gh issue comment 509 --repo ${{ github.repository }} --body "## MCP Endpoint Check
+
+          **Health:**
+          \`\`\`json
+          $HEALTH
+          \`\`\`
+
+          **MCP Status:**
+          \`\`\`json
+          $MCP
+          \`\`\`
+          "
