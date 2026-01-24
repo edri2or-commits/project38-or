@@ -1,0 +1,119 @@
+# Check Gmail and post results to issue
+name: Gmail Check Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Gmail search query'
+        required: true
+        default: 'from:notify.railway.app OR from:notifications@github.com'
+      issue_number:
+        description: 'Issue number to post results'
+        required: true
+        default: '545'
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install google-auth google-auth-httplib2 google-api-python-client
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Check Gmail and Report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          QUERY: ${{ inputs.query }}
+        run: |
+          # Get OAuth creds
+          CLIENT_ID=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-CLIENT-ID")
+          CLIENT_SECRET=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-CLIENT-SECRET")
+          REFRESH_TOKEN=$(gcloud secrets versions access latest --secret="GOOGLE-OAUTH-REFRESH-TOKEN")
+
+          python3 << 'PYTHON'
+          import os
+          import subprocess
+          from google.oauth2.credentials import Credentials
+          from google.auth.transport.requests import Request
+          from googleapiclient.discovery import build
+
+          query = os.environ["QUERY"]
+          issue = os.environ["ISSUE_NUMBER"]
+
+          # Auth
+          creds = Credentials(
+              token=None,
+              refresh_token=os.environ.get("REFRESH_TOKEN") or subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-REFRESH-TOKEN"]
+              ).decode().strip(),
+              token_uri="https://oauth2.googleapis.com/token",
+              client_id=os.environ.get("CLIENT_ID") or subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-CLIENT-ID"]
+              ).decode().strip(),
+              client_secret=os.environ.get("CLIENT_SECRET") or subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-CLIENT-SECRET"]
+              ).decode().strip(),
+          )
+          creds.refresh(Request())
+
+          service = build("gmail", "v1", credentials=creds)
+
+          # Search
+          results = service.users().messages().list(userId="me", q=query, maxResults=100).execute()
+          messages = results.get("messages", [])
+
+          # Build report
+          report = f"## Gmail Check Report\n\n"
+          report += f"**Query:** `{query}`\n"
+          report += f"**Found:** {len(messages)} emails\n\n"
+
+          if messages:
+              report += "### Sample (first 15):\n\n"
+              report += "| Date | From | Subject |\n|------|------|--------|\n"
+              for msg in messages[:15]:
+                  try:
+                      m = service.users().messages().get(
+                          userId="me", id=msg["id"], format="metadata",
+                          metadataHeaders=["Subject", "From", "Date"]
+                      ).execute()
+                      h = {x["name"]: x["value"] for x in m.get("payload", {}).get("headers", [])}
+                      date = h.get("Date", "")[:20]
+                      frm = h.get("From", "")[:30]
+                      subj = h.get("Subject", "")[:40]
+                      report += f"| {date} | {frm} | {subj} |\n"
+                  except:
+                      pass
+              if len(messages) > 15:
+                  report += f"\n... and {len(messages) - 15} more\n"
+          else:
+              report += "✅ **No emails found matching query - inbox is clean!**\n"
+
+          print(report)
+
+          # Post to issue
+          import subprocess
+          subprocess.run([
+              "gh", "issue", "comment", issue,
+              "--body", report
+          ], check=True)
+
+          PYTHON
