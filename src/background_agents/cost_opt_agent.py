@@ -78,18 +78,35 @@ class CostOptAgent:
             "data_source": "real",
         }
 
-        # Try to get Railway service costs via MCP Gateway
+        # Try to get Railway service costs via MCP Gateway (JSON-RPC 2.0)
         try:
+            import uuid
+
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # Get service list from MCP Gateway
+                # Build JSON-RPC 2.0 request for MCP Gateway
+                request_id = str(uuid.uuid4())
+                payload = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "railway_list_services",
+                        "arguments": {},
+                    },
+                }
+
                 response = await client.post(
-                    "https://or-infra.com/mcp/tools/railway_list_services",
-                    json={},
+                    "https://or-infra.com/mcp",
+                    json=payload,
                     headers={"Content-Type": "application/json"},
                 )
 
                 if response.status_code == 200:
-                    services_data = response.json()
+                    json_rpc_result = response.json()
+                    # Extract result from JSON-RPC 2.0 response
+                    if "error" in json_rpc_result:
+                        raise ValueError(json_rpc_result["error"].get("message", "Unknown error"))
+                    services_data = json_rpc_result.get("result", json_rpc_result)
                     services = services_data.get("services", [])
 
                     # Estimate costs based on service count and typical usage

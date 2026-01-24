@@ -49,8 +49,13 @@ class GmailClient:
     def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -> dict[str, Any]:
         """Call an MCP tool via the gateway.
 
-        FastMCP uses POST to /mcp with JSON body:
-        {"tool": "tool_name", "inputs": {...}}
+        MCP uses JSON-RPC 2.0 format over HTTP:
+        {
+            "jsonrpc": "2.0",
+            "id": <request_id>,
+            "method": "tools/call",
+            "params": {"name": "<tool_name>", "arguments": {...}}
+        }
 
         Args:
             tool_name: Name of the MCP tool
@@ -59,23 +64,44 @@ class GmailClient:
         Returns:
             Tool result
         """
+        import uuid
+
         headers = {"Content-Type": "application/json"}
         if self.mcp_token:
             headers["Authorization"] = f"Bearer {self.mcp_token}"
 
-        # FastMCP expects tool calls at base URL with tool/inputs in body
-        # URL should be https://or-infra.com/mcp (base URL, not /mcp/mcp)
+        # MCP Gateway URL - POST with JSON-RPC 2.0 format
         url = self.mcp_url
+
+        # Build JSON-RPC 2.0 request
+        request_id = str(uuid.uuid4())
+        payload = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "tools/call",
+            "params": {
+                "name": tool_name,
+                "arguments": params,
+            },
+        }
 
         try:
             response = httpx.post(
                 url,
-                json={"tool": tool_name, "inputs": params},
+                json=payload,
                 headers=headers,
                 timeout=30,
             )
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+
+            # JSON-RPC response has result or error
+            if "error" in result:
+                error = result["error"]
+                raise RuntimeError(f"MCP error: {error.get('message', error)}")
+
+            # Extract result from JSON-RPC response
+            return result.get("result", result)
         except httpx.HTTPError as e:
             logger.error(f"MCP call failed: {e}")
             raise
