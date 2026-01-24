@@ -609,6 +609,10 @@ def create_mcp_app() -> object | None:
     """
     Create ASGI app for mounting in FastAPI.
 
+    Uses stateless HTTP with JSON responses for simple request-response pattern.
+    This allows clients to make regular HTTP POST requests and receive JSON
+    responses instead of requiring SSE/streaming connections.
+
     Returns:
         ASGI application, or None if fastmcp not available.
 
@@ -624,7 +628,9 @@ def create_mcp_app() -> object | None:
     if mcp is None:
         return None
 
-    return mcp.http_app()
+    # Use JSON responses in stateless mode for simple HTTP request-response
+    # This enables clients to make regular POST requests without SSE
+    return mcp.http_app(json_response=True, stateless_http=True)
 
 
 # Module-level server instance for standalone use
