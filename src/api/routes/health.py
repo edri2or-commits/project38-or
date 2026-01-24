@@ -120,17 +120,24 @@ async def mcp_gateway_status() -> dict:
 
     # Check if /mcp is actually mounted in the FastAPI app
     mcp_mounted = False
-    mounted_paths = []
+    mounted_apps = []
+    route_types = []
     try:
+        from starlette.routing import Mount
         from src.api.main import app as main_app
+
         for route in main_app.routes:
-            path = getattr(route, "path", None)
-            if path:
-                mounted_paths.append(path)
-                if path == "/mcp" or path.startswith("/mcp"):
+            route_type = type(route).__name__
+            route_types.append(route_type)
+
+            # Check for mounted ASGI apps
+            if isinstance(route, Mount):
+                mount_path = route.path
+                mounted_apps.append(mount_path)
+                if mount_path == "/mcp":
                     mcp_mounted = True
     except Exception as e:
-        mounted_paths = [f"Error: {e}"]
+        mounted_apps = [f"Error: {e}"]
 
     return {
         "mcp_gateway_enabled_raw": mcp_enabled_raw,
@@ -140,7 +147,8 @@ async def mcp_gateway_status() -> dict:
         "mcp_app_error": mcp_app_error,
         "expected_path": "/mcp" if mcp_enabled and mcp_app_created else None,
         "mcp_actually_mounted": mcp_mounted,
-        "all_paths_sample": mounted_paths[:20],  # First 20 paths
+        "mounted_apps": mounted_apps,
+        "route_types_sample": list(set(route_types))[:10],
     }
 
 
