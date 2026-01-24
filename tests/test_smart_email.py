@@ -1332,3 +1332,477 @@ class TestConversation:
 
         desc = get_action_description_hebrew(ActionType.ARCHIVE)
         assert "לארכב" in desc
+# Phase 4.12: Action System Tests
+# ============================================================================
+
+
+class TestActionSystem:
+    """Tests for Phase 4.12 Action System with Approval."""
+
+    def test_action_type_enum(self):
+        """Test ActionType enum values."""
+        from src.agents.smart_email.actions import ActionType
+
+        assert ActionType.REPLY.value == "reply"
+        assert ActionType.FORWARD.value == "forward"
+        assert ActionType.ARCHIVE.value == "archive"
+        assert ActionType.MARK_READ.value == "mark_read"
+        assert ActionType.SNOOZE.value == "snooze"
+
+    def test_action_status_enum(self):
+        """Test ActionStatus enum values."""
+        from src.agents.smart_email.actions import ActionStatus
+
+        assert ActionStatus.PENDING.value == "pending"
+        assert ActionStatus.APPROVED.value == "approved"
+        assert ActionStatus.REJECTED.value == "rejected"
+        assert ActionStatus.COMPLETED.value == "completed"
+        assert ActionStatus.FAILED.value == "failed"
+        assert ActionStatus.EXPIRED.value == "expired"
+
+    def test_action_request_creation(self):
+        """Test ActionRequest creation."""
+        from src.agents.smart_email.actions import (
+            ActionRequest,
+            ActionType,
+            ActionStatus,
+        )
+
+        request = ActionRequest(
+            id="req_test123",
+            action_type=ActionType.REPLY,
+            user_id="user_123",
+            chat_id="chat_456",
+            email_id="msg_abc",
+            email_sender="dan@example.com",
+            reply_content="אני מאשר",
+        )
+
+        assert request.id == "req_test123"
+        assert request.action_type == ActionType.REPLY
+        assert request.status == ActionStatus.PENDING
+        assert request.email_sender == "dan@example.com"
+        assert request.reply_content == "אני מאשר"
+
+    def test_action_request_is_expired_false(self):
+        """Test ActionRequest.is_expired returns False for fresh request."""
+        from datetime import datetime, timedelta
+        from src.agents.smart_email.actions import ActionRequest, ActionType
+
+        request = ActionRequest(
+            id="req_test",
+            action_type=ActionType.ARCHIVE,
+            user_id="user_123",
+            chat_id="chat_456",
+            expires_at=datetime.now() + timedelta(minutes=5),
+        )
+
+        assert request.is_expired() is False
+
+    def test_action_request_is_expired_true(self):
+        """Test ActionRequest.is_expired returns True for expired request."""
+        from datetime import datetime, timedelta
+        from src.agents.smart_email.actions import ActionRequest, ActionType
+
+        request = ActionRequest(
+            id="req_test",
+            action_type=ActionType.ARCHIVE,
+            user_id="user_123",
+            chat_id="chat_456",
+            expires_at=datetime.now() - timedelta(minutes=1),
+        )
+
+        assert request.is_expired() is True
+
+    def test_action_request_can_execute(self):
+        """Test ActionRequest.can_execute logic."""
+        from datetime import datetime, timedelta
+        from src.agents.smart_email.actions import (
+            ActionRequest,
+            ActionType,
+            ActionStatus,
+        )
+
+        # Pending - cannot execute
+        pending = ActionRequest(
+            id="req_pending",
+            action_type=ActionType.ARCHIVE,
+            user_id="user_123",
+            chat_id="chat_456",
+            status=ActionStatus.PENDING,
+            expires_at=datetime.now() + timedelta(minutes=5),
+        )
+        assert pending.can_execute() is False
+
+        # Approved - can execute
+        approved = ActionRequest(
+            id="req_approved",
+            action_type=ActionType.ARCHIVE,
+            user_id="user_123",
+            chat_id="chat_456",
+            status=ActionStatus.APPROVED,
+            expires_at=datetime.now() + timedelta(minutes=5),
+        )
+        assert approved.can_execute() is True
+
+    def test_action_result_to_hebrew_success(self):
+        """Test ActionResult.to_hebrew for success."""
+        from src.agents.smart_email.actions import (
+            ActionResult,
+            ActionType,
+            ActionStatus,
+        )
+
+        result = ActionResult(
+            request_id="req_test",
+            action_type=ActionType.REPLY,
+            success=True,
+            status=ActionStatus.COMPLETED,
+        )
+
+        hebrew = result.to_hebrew()
+        assert "✅" in hebrew
+        assert "תשובה" in hebrew
+        assert "בהצלחה" in hebrew
+
+    def test_action_result_to_hebrew_failure(self):
+        """Test ActionResult.to_hebrew for failure."""
+        from src.agents.smart_email.actions import (
+            ActionResult,
+            ActionType,
+            ActionStatus,
+        )
+
+        result = ActionResult(
+            request_id="req_test",
+            action_type=ActionType.ARCHIVE,
+            success=False,
+            status=ActionStatus.FAILED,
+            error="Network error",
+        )
+
+        hebrew = result.to_hebrew()
+        assert "❌" in hebrew
+        assert "ארכיון" in hebrew
+        assert "Network error" in hebrew
+
+    def test_audit_record_to_log_entry(self):
+        """Test AuditRecord.to_log_entry formatting."""
+        from datetime import datetime
+        from src.agents.smart_email.actions import (
+            AuditRecord,
+            ActionType,
+            ActionStatus,
+        )
+
+        record = AuditRecord(
+            id="audit_123",
+            request_id="req_456",
+            user_id="user_789",
+            action_type=ActionType.REPLY,
+            email_subject="Test Subject",
+            status=ActionStatus.COMPLETED,
+            requested_at=datetime.now(),
+        )
+
+        log_entry = record.to_log_entry()
+        assert "✅" in log_entry
+        assert "user_789" in log_entry
+        assert "reply" in log_entry
+        assert "Test Subject" in log_entry
+
+    def test_approval_manager_create_proposal(self):
+        """Test ApprovalManager.create_proposal."""
+        from src.agents.smart_email.actions import (
+            ApprovalManager,
+            ActionType,
+            ActionStatus,
+        )
+
+        manager = ApprovalManager()
+        proposal = manager.create_proposal(
+            action_type=ActionType.REPLY,
+            user_id="user_123",
+            chat_id="chat_456",
+            email_sender="dan@example.com",
+            reply_content="אני מאשר",
+        )
+
+        assert proposal.id.startswith("req_")
+        assert proposal.action_type == ActionType.REPLY
+        assert proposal.status == ActionStatus.PENDING
+        assert proposal.email_sender == "dan@example.com"
+        assert proposal.reply_content == "אני מאשר"
+        assert proposal.expires_at is not None
+
+    def test_approval_manager_get_pending(self):
+        """Test ApprovalManager.get_pending."""
+        from src.agents.smart_email.actions import ApprovalManager, ActionType
+
+        manager = ApprovalManager()
+
+        # Create proposals for different users
+        manager.create_proposal(
+            action_type=ActionType.REPLY,
+            user_id="user_1",
+            chat_id="chat_1",
+        )
+        manager.create_proposal(
+            action_type=ActionType.ARCHIVE,
+            user_id="user_2",
+            chat_id="chat_2",
+        )
+
+        # Get all pending
+        all_pending = manager.get_pending()
+        assert len(all_pending) == 2
+
+        # Get for specific user
+        user1_pending = manager.get_pending(user_id="user_1")
+        assert len(user1_pending) == 1
+        assert user1_pending[0].action_type == ActionType.REPLY
+
+    def test_approval_manager_reject(self):
+        """Test ApprovalManager.reject."""
+        from src.agents.smart_email.actions import (
+            ApprovalManager,
+            ActionType,
+            ActionStatus,
+        )
+
+        manager = ApprovalManager()
+        proposal = manager.create_proposal(
+            action_type=ActionType.ARCHIVE,
+            user_id="user_123",
+            chat_id="chat_456",
+        )
+
+        # Reject
+        result = manager.reject(proposal.id, reason="לא מתאים")
+        assert result is True
+
+        # Should not be pending anymore
+        pending = manager.get_pending(user_id="user_123")
+        assert len(pending) == 0
+
+        # Should be in history with rejected status
+        assert proposal.status == ActionStatus.REJECTED
+
+    def test_approval_manager_cancel(self):
+        """Test ApprovalManager.cancel."""
+        from src.agents.smart_email.actions import (
+            ApprovalManager,
+            ActionType,
+            ActionStatus,
+        )
+
+        manager = ApprovalManager()
+        proposal = manager.create_proposal(
+            action_type=ActionType.FORWARD,
+            user_id="user_123",
+            chat_id="chat_456",
+        )
+
+        # Cancel
+        result = manager.cancel(proposal.id)
+        assert result is True
+        assert proposal.status == ActionStatus.CANCELLED
+
+    def test_approval_manager_format_proposal_hebrew_reply(self):
+        """Test ApprovalManager.format_proposal_hebrew for reply."""
+        from src.agents.smart_email.actions import ApprovalManager, ActionType
+
+        manager = ApprovalManager()
+        proposal = manager.create_proposal(
+            action_type=ActionType.REPLY,
+            user_id="user_123",
+            chat_id="chat_456",
+            email_sender="דני",
+            email_subject="שאלה חשובה",
+            reply_content="אני מאשר את ההצעה",
+        )
+
+        formatted = manager.format_proposal_hebrew(proposal)
+        assert "לשלוח תשובה" in formatted
+        assert "דני" in formatted
+        assert "שאלה חשובה" in formatted
+        assert "אני מאשר את ההצעה" in formatted
+
+    def test_approval_manager_format_proposal_hebrew_archive(self):
+        """Test ApprovalManager.format_proposal_hebrew for archive."""
+        from src.agents.smart_email.actions import ApprovalManager, ActionType
+
+        manager = ApprovalManager()
+        proposal = manager.create_proposal(
+            action_type=ActionType.ARCHIVE,
+            user_id="user_123",
+            chat_id="chat_456",
+            email_sender="spam@example.com",
+            email_subject="Spam email",
+        )
+
+        formatted = manager.format_proposal_hebrew(proposal)
+        assert "לארכב" in formatted
+        assert "spam@example.com" in formatted
+
+    def test_approval_manager_get_keyboard_options(self):
+        """Test ApprovalManager.get_keyboard_options."""
+        from src.agents.smart_email.actions import ApprovalManager, ActionType
+
+        manager = ApprovalManager()
+        proposal = manager.create_proposal(
+            action_type=ActionType.REPLY,
+            user_id="user_123",
+            chat_id="chat_456",
+        )
+
+        buttons = manager.get_keyboard_options(proposal)
+        assert len(buttons) >= 2
+
+        # Should have approve and reject
+        button_texts = [b["text"] for b in buttons]
+        assert any("אשר" in t for t in button_texts)
+        assert any("בטל" in t for t in button_texts)
+
+        # Reply should have edit button
+        assert any("ערוך" in t for t in button_texts)
+
+    def test_approval_manager_get_keyboard_options_archive(self):
+        """Test ApprovalManager.get_keyboard_options for archive (no edit)."""
+        from src.agents.smart_email.actions import ApprovalManager, ActionType
+
+        manager = ApprovalManager()
+        proposal = manager.create_proposal(
+            action_type=ActionType.ARCHIVE,
+            user_id="user_123",
+            chat_id="chat_456",
+        )
+
+        buttons = manager.get_keyboard_options(proposal)
+        button_texts = [b["text"] for b in buttons]
+
+        # Archive should NOT have edit button
+        assert not any("ערוך" in t for t in button_texts)
+
+    @pytest.mark.asyncio
+    async def test_action_executor_not_approved(self):
+        """Test ActionExecutor rejects non-approved requests."""
+        from src.agents.smart_email.actions import (
+            ActionExecutor,
+            ActionRequest,
+            ActionType,
+            ActionStatus,
+        )
+
+        executor = ActionExecutor()
+        request = ActionRequest(
+            id="req_test",
+            action_type=ActionType.ARCHIVE,
+            user_id="user_123",
+            chat_id="chat_456",
+            status=ActionStatus.PENDING,  # Not approved
+        )
+
+        result = await executor.execute(request)
+        assert result.success is False
+        assert "not approved" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_action_executor_reply_no_content(self):
+        """Test ActionExecutor rejects reply without content."""
+        from datetime import datetime, timedelta
+        from src.agents.smart_email.actions import (
+            ActionExecutor,
+            ActionRequest,
+            ActionType,
+            ActionStatus,
+        )
+
+        executor = ActionExecutor()
+        request = ActionRequest(
+            id="req_test",
+            action_type=ActionType.REPLY,
+            user_id="user_123",
+            chat_id="chat_456",
+            status=ActionStatus.APPROVED,
+            expires_at=datetime.now() + timedelta(minutes=5),
+            reply_content=None,  # No content
+        )
+
+        result = await executor.execute(request)
+        assert result.success is False
+        assert "content" in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_approval_manager_approve(self):
+        """Test ApprovalManager.approve executes action."""
+        from src.agents.smart_email.actions import ApprovalManager, ActionType
+
+        manager = ApprovalManager()
+        proposal = manager.create_proposal(
+            action_type=ActionType.REPLY,
+            user_id="user_123",
+            chat_id="chat_456",
+            email_sender="dan@example.com",
+            reply_content="Test reply",
+        )
+
+        # Approve should execute via MCP (simulated)
+        result = await manager.approve(proposal.id)
+
+        # MCP gateway is simulated, so it should succeed
+        assert result.success is True
+        assert result.action_type == ActionType.REPLY
+
+    @pytest.mark.asyncio
+    async def test_approval_manager_approve_expired(self):
+        """Test ApprovalManager.approve rejects expired request."""
+        from datetime import datetime, timedelta
+        from src.agents.smart_email.actions import ApprovalManager, ActionType
+
+        manager = ApprovalManager(approval_timeout_minutes=0)  # Immediate expiry
+
+        proposal = manager.create_proposal(
+            action_type=ActionType.REPLY,
+            user_id="user_123",
+            chat_id="chat_456",
+            reply_content="Test reply",
+        )
+
+        # Force expiration
+        proposal.expires_at = datetime.now() - timedelta(minutes=1)
+
+        with pytest.raises(ValueError, match="expired"):
+            await manager.approve(proposal.id)
+
+    def test_create_approval_manager_factory(self):
+        """Test create_approval_manager factory function."""
+        from src.agents.smart_email.actions import create_approval_manager
+
+        manager = create_approval_manager(
+            use_mcp_gateway=True,
+            timeout_minutes=10,
+        )
+
+        assert manager is not None
+        assert manager.approval_timeout.total_seconds() == 600
+        assert manager.executor.use_mcp_gateway is True
+
+    def test_action_executor_get_audit_log(self):
+        """Test ActionExecutor.get_audit_log."""
+        from src.agents.smart_email.actions import ActionExecutor
+
+        executor = ActionExecutor()
+
+        # Initially empty
+        log = executor.get_audit_log()
+        assert len(log) == 0
+
+    def test_action_executor_format_audit_log_empty(self):
+        """Test ActionExecutor.format_audit_log_hebrew with no records."""
+        from src.agents.smart_email.actions import ActionExecutor
+
+        executor = ActionExecutor()
+        formatted = executor.format_audit_log_hebrew()
+
+        assert "אין פעולות" in formatted
