@@ -40,9 +40,11 @@ class GmailClient:
             mcp_url: MCP Gateway URL (default: from env or production URL)
             mcp_token: MCP Gateway token (default: from env)
         """
+        # FastMCP http_app routes at /mcp path, so when mounted at /mcp,
+        # the full path becomes /mcp/mcp
         self.mcp_url = mcp_url or os.environ.get(
             "MCP_GATEWAY_URL",
-            "https://or-infra.com/mcp"
+            "https://or-infra.com/mcp/mcp"
         )
         self.mcp_token = mcp_token or os.environ.get("MCP_GATEWAY_TOKEN", "")
 
