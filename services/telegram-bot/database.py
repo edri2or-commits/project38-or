@@ -162,3 +162,25 @@ async def check_database_connection() -> bool:
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         return False
+
+
+def async_session_maker() -> AsyncSession:
+    """Get an async session for use in async with blocks.
+
+    This is a convenience function that returns a session from the session maker.
+    Should be used as: async with async_session_maker() as session: ...
+
+    Returns:
+        AsyncSession: A new database session
+
+    Raises:
+        RuntimeError: If database is not configured
+
+    Example:
+        >>> async with async_session_maker() as session:
+        >>>     result = await session.execute(select(Model))
+    """
+    maker = _get_session_maker()
+    if maker is None:
+        raise RuntimeError("Database not configured - DATABASE_URL not set")
+    return maker()
