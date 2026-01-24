@@ -18,24 +18,41 @@ jobs:
 
           echo ""
           echo "1. Health check tool:"
-          curl -s -X POST "https://or-infra.com/api/mcp/call?tool_name=health_check" | tee /tmp/health_check.json | jq .
+          curl -s -X POST "https://or-infra.com/api/mcp/call" \
+            -H "Content-Type: application/json" \
+            -d '{"tool_name": "health_check", "arguments": {}}' \
+            | tee /tmp/health_check.json | jq .
 
           echo ""
           echo "2. Get metrics tool:"
-          curl -s -X POST "https://or-infra.com/api/mcp/call?tool_name=get_metrics" | tee /tmp/get_metrics.json | jq .
+          curl -s -X POST "https://or-infra.com/api/mcp/call" \
+            -H "Content-Type: application/json" \
+            -d '{"tool_name": "get_metrics", "arguments": {}}' \
+            | tee /tmp/get_metrics.json | jq .
 
           echo ""
           echo "3. n8n_list tool:"
-          curl -s -X POST "https://or-infra.com/api/mcp/call?tool_name=n8n_list" | tee /tmp/n8n_list.json | jq .
+          curl -s -X POST "https://or-infra.com/api/mcp/call" \
+            -H "Content-Type: application/json" \
+            -d '{"tool_name": "n8n_list", "arguments": {}}' \
+            | tee /tmp/n8n_list.json | jq .
+
+          echo ""
+          echo "4. Gmail list tool (test unread):"
+          curl -s --max-time 60 -X POST "https://or-infra.com/api/mcp/call" \
+            -H "Content-Type: application/json" \
+            -d '{"tool_name": "gmail_list", "arguments": {"label": "INBOX", "max_results": 5, "unread_only": true}}' \
+            | tee /tmp/gmail_list.json | jq .
 
       - name: Post Results
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          HEALTH=$(cat /tmp/health_check.json 2>/dev/null | head -50 || echo "No output")
-          METRICS=$(cat /tmp/get_metrics.json 2>/dev/null | head -50 || echo "No output")
-          N8N=$(cat /tmp/n8n_list.json 2>/dev/null | head -50 || echo "No output")
+          HEALTH=$(cat /tmp/health_check.json 2>/dev/null | head -30 || echo "No output")
+          METRICS=$(cat /tmp/get_metrics.json 2>/dev/null | head -30 || echo "No output")
+          N8N=$(cat /tmp/n8n_list.json 2>/dev/null | head -30 || echo "No output")
+          GMAIL=$(cat /tmp/gmail_list.json 2>/dev/null | head -50 || echo "No output")
 
           gh issue comment 509 --repo ${{ github.repository }} --body "## MCP Tool Call Test
 
@@ -52,5 +69,10 @@ jobs:
           **n8n_list:**
           \`\`\`json
           $N8N
+          \`\`\`
+
+          **gmail_list (unread):**
+          \`\`\`json
+          $GMAIL
           \`\`\`
           "
