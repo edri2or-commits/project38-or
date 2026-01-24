@@ -156,10 +156,11 @@ class GmailClient:
         """
         try:
             # Call gmail_list via MCP Gateway
+            # Note: GCP Tunnel doesn't support unread_only, so we fetch all INBOX
+            # and filter UNREAD label client-side if needed
             result = self._call_mcp_tool("gmail_list", {
                 "label": "INBOX",
                 "max_results": max_results,
-                "unread_only": True,
             })
 
             messages: list[EmailMessage] = []
