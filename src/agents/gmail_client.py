@@ -91,6 +91,7 @@ class GmailClient:
                 json=payload,
                 headers=headers,
                 timeout=30,
+                follow_redirects=True,
             )
             response.raise_for_status()
             result = response.json()

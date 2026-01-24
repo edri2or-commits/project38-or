@@ -119,7 +119,7 @@ class EmailHistoryLookup:
             },
         }
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             response = await client.post(
                 self.mcp_gateway_url,
                 headers={
