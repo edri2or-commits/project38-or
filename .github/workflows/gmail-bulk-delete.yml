@@ -89,10 +89,14 @@ jobs:
               ids = [m["id"] for m in messages]
               print(f"Round {rounds}: Found {len(ids)} emails, deleting...")
 
-              # batchDelete - deletes up to 1000 at once!
-              service.users().messages().batchDelete(
+              # batchModify - move to TRASH (works with gmail.modify scope)
+              service.users().messages().batchModify(
                   userId="me",
-                  body={"ids": ids}
+                  body={
+                      "ids": ids,
+                      "addLabelIds": ["TRASH"],
+                      "removeLabelIds": ["INBOX"]
+                  }
               ).execute()
 
               total_deleted += len(ids)
