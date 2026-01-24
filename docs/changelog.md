@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Smart Email Agent - Production Ready** (2026-01-24, PRs #535-#541)
+  - Fixed MCP `content[].text` response parsing in `gmail_client.py`
+  - Removed unsupported `unread_only` parameter from gmail_list call
+  - Added graceful SecretManager fallback (handle ImportError)
+  - Fixed Python syntax error in workflow (`'$VAR' == 'true'`)
+  - Improved error handling (don't fail on Telegram errors)
+  - Added debug output for env vars in workflow
+  - Production verified: Run #21316555022 ✅
+
 - **GCP Tunnel Protocol Encapsulation Format** (2026-01-24)
   - Fixed GCP Tunnel request format to wrap MCP messages in `data` field
   - Format: `{"data": "{JSON-RPC stringified}"}`
