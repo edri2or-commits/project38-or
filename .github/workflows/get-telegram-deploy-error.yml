@@ -1,0 +1,87 @@
+name: Get Telegram Deploy Error
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  RAILWAY_PROJECT_ID: "95ec21cc-9ada-41c5-8485-12f9a00e0116"
+  RAILWAY_ENVIRONMENT_ID: "99c99a18-aea2-4d01-9360-6a93705102a0"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Get Deployment Details
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.token }}
+        run: |
+          SERVICE_ID="88ea65cc-de05-41e5-a709-1750d4b3cbcb"
+
+          echo "## Deployment Error Details" > /tmp/report.md
+          echo "" >> /tmp/report.md
+
+          # Get latest deployment with more details
+          echo "### Latest Deployments" >> /tmp/report.md
+          echo '```json' >> /tmp/report.md
+          DEPLOYS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { deployments(first: 5) { edges { node { id status createdAt meta { image } } } } } }"}')
+          echo "$DEPLOYS" | jq '.' >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+
+          # Get latest failed deployment ID
+          FAILED_ID=$(echo "$DEPLOYS" | jq -r '.data.service.deployments.edges[] | select(.node.status == "FAILED") | .node.id' | head -1)
+
+          if [ -n "$FAILED_ID" ] && [ "$FAILED_ID" != "null" ]; then
+            echo "" >> /tmp/report.md
+            echo "### Failed Deployment Details: \`$FAILED_ID\`" >> /tmp/report.md
+            echo '```json' >> /tmp/report.md
+
+            DEPLOY_DETAIL=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"query": "query { deployment(id: \"'"$FAILED_ID"'\") { id status createdAt staticUrl environmentId serviceId meta { image } } }"}')
+            echo "$DEPLOY_DETAIL" | jq '.' >> /tmp/report.md
+            echo '```' >> /tmp/report.md
+          fi
+
+          # Get build logs via deploymentLogs if available
+          echo "" >> /tmp/report.md
+          echo "### Build/Deploy Logs (if available)" >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+          LOGS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query": "query { deploymentLogs(deploymentId: \"'"$FAILED_ID"'\", limit: 50) { logs { message severity timestamp } } }"}')
+          echo "$LOGS" | jq -r 'if .data.deploymentLogs.logs then .data.deploymentLogs.logs[].message else . end' >> /tmp/report.md 2>/dev/null || echo "$LOGS" >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+
+          cat /tmp/report.md
+
+      - name: Post Results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment 509 --repo ${{ github.repository }} --body-file /tmp/report.md
