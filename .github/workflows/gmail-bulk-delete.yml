@@ -1,0 +1,113 @@
+# Fast bulk delete using Gmail batchDelete API (1000 emails per request)
+name: Gmail Bulk Delete
+
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Gmail search query'
+        required: true
+        default: 'from:notify.railway.app OR from:notifications@github.com'
+      issue_number:
+        description: 'Issue to post results'
+        required: false
+        default: '545'
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  bulk-delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install google-auth google-auth-httplib2 google-api-python-client
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Bulk Delete Emails
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUERY: ${{ inputs.query }}
+          ISSUE: ${{ inputs.issue_number }}
+        run: |
+          python3 << 'PYTHON'
+          import os
+          import subprocess
+          from google.oauth2.credentials import Credentials
+          from google.auth.transport.requests import Request
+          from googleapiclient.discovery import build
+
+          query = os.environ["QUERY"]
+          issue = os.environ.get("ISSUE", "545")
+
+          # Auth
+          creds = Credentials(
+              token=None,
+              refresh_token=subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-REFRESH-TOKEN"]
+              ).decode().strip(),
+              token_uri="https://oauth2.googleapis.com/token",
+              client_id=subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-CLIENT-ID"]
+              ).decode().strip(),
+              client_secret=subprocess.check_output(
+                  ["gcloud", "secrets", "versions", "access", "latest", "--secret=GOOGLE-OAUTH-CLIENT-SECRET"]
+              ).decode().strip(),
+          )
+          creds.refresh(Request())
+          service = build("gmail", "v1", credentials=creds)
+
+          print(f"Query: {query}")
+          total_deleted = 0
+          rounds = 0
+          max_rounds = 20  # Safety limit
+
+          while rounds < max_rounds:
+              rounds += 1
+              # Get up to 1000 message IDs
+              results = service.users().messages().list(
+                  userId="me", q=query, maxResults=1000
+              ).execute()
+
+              messages = results.get("messages", [])
+              if not messages:
+                  print(f"No more messages. Total deleted: {total_deleted}")
+                  break
+
+              ids = [m["id"] for m in messages]
+              print(f"Round {rounds}: Found {len(ids)} emails, deleting...")
+
+              # batchDelete - deletes up to 1000 at once!
+              service.users().messages().batchDelete(
+                  userId="me",
+                  body={"ids": ids}
+              ).execute()
+
+              total_deleted += len(ids)
+              print(f"Deleted {len(ids)}. Total so far: {total_deleted}")
+
+          # Post results to issue
+          report = f"""## Gmail Bulk Delete Complete
+
+          **Query:** `{query}`
+          **Total Deleted:** {total_deleted} emails
+          **Rounds:** {rounds}
+
+          ✅ Done!
+          """
+
+          subprocess.run(["gh", "issue", "comment", issue, "--body", report], check=True)
+          print(report)
+          PYTHON
