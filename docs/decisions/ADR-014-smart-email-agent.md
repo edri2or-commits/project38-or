@@ -214,3 +214,8 @@ New architecture using LangGraph state machine:
 | 2026-01-24 | Added 38 unit tests (`tests/test_smart_email.py`) | Claude |
 | 2026-01-24 | Updated workflow to use v2.0 LangGraph SmartEmailGraph | Claude |
 | 2026-01-24 | Verified workflow runs successfully (Run #21312936232) | Claude |
+| 2026-01-24 | Fixed GCP Tunnel integration (PRs #535-#541) | Claude |
+| 2026-01-24 | Fixed MCP content[].text response parsing | Claude |
+| 2026-01-24 | Removed unsupported unread_only parameter | Claude |
+| 2026-01-24 | Added graceful SecretManager fallback | Claude |
+| 2026-01-24 | Production verified (Run #21316555022) ✅ | Claude |
