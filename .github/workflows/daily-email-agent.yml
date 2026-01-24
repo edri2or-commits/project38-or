@@ -1,8 +1,9 @@
-# Daily Email Agent - Scans emails and sends summary to Telegram
+# Daily Email Agent v2.0 - LangGraph-based email processing
 #
 # Runs automatically every morning at 07:00 Israel time (05:00 UTC)
 # Can also be triggered manually via workflow_dispatch
 #
+# Architecture: FETCH → CLASSIFY → RESEARCH → HISTORY → DRAFT → FORMAT → SEND
 # ADR-014: Smart Email Agent with Telegram Integration
 
 name: Daily Email Agent
@@ -56,7 +57,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install httpx openai
+          pip install httpx openai langgraph
 
       - name: Authenticate to GCP
         id: auth
@@ -91,7 +92,7 @@ jobs:
             echo "⚠️ Telegram chat ID not found"
           fi
 
-      - name: Run Email Agent
+      - name: Run Email Agent v2.0
         if: ${{ !inputs.dry_run }}
         id: run_agent
         env:
@@ -102,38 +103,44 @@ jobs:
           HOURS="${{ inputs.hours || '24' }}"
           SEND_TELEGRAM="${{ inputs.send_telegram != 'false' && 'true' || 'false' }}"
 
-          echo "📧 Running Email Agent..."
+          echo "📧 Running Smart Email Agent v2.0 (LangGraph)..."
           echo "   Hours: $HOURS"
           echo "   Send Telegram: $SEND_TELEGRAM"
+          echo "   Phase 2 Intelligence: Enabled"
           echo ""
 
           python -c "
           import asyncio
-          import json
-          import os
           import sys
           sys.path.insert(0, '.')
 
-          from src.agents.email_agent import EmailAgent
+          from src.agents.smart_email.graph import run_smart_email_agent
 
           async def main():
-              agent = EmailAgent()
-              result = await agent.run(
+              result = await run_smart_email_agent(
                   hours=int('$HOURS'),
-                  send_telegram=$SEND_TELEGRAM == 'true'
+                  send_telegram=$SEND_TELEGRAM == 'true',
+                  enable_phase2=True,
+                  enable_research=True,
+                  enable_history=True,
+                  enable_drafts=True,
               )
 
               # Print summary
               print('\\n=== Results ===')
-              print(f'Success: {result.get(\"success\")}')
-              print(f'Emails processed: {result.get(\"emails_processed\", 0)}')
+              print(f'Total emails: {result.get(\"total_count\", 0)}')
+              print(f'System filtered: {result.get(\"system_emails_count\", 0)}')
               print(f'P1 (urgent): {result.get(\"p1_count\", 0)}')
               print(f'P2 (important): {result.get(\"p2_count\", 0)}')
-              print(f'Calendar events: {result.get(\"calendar_events\", 0)}')
+              print(f'P3 (info): {result.get(\"p3_count\", 0)}')
+              print(f'P4 (low): {result.get(\"p4_count\", 0)}')
+              print(f'Researched: {result.get(\"research_count\", 0)}')
+              print(f'Drafts generated: {result.get(\"drafts_count\", 0)}')
+              print(f'Duration: {result.get(\"duration_ms\", 0)}ms')
               print(f'Telegram sent: {result.get(\"telegram_sent\", False)}')
 
-              if result.get('error'):
-                  print(f'Error: {result.get(\"error\")}')
+              if result.get('errors'):
+                  print(f'Errors: {result.get(\"errors\")}')
                   sys.exit(1)
 
           asyncio.run(main())
@@ -142,23 +149,28 @@ jobs:
       - name: Dry Run Mode
         if: ${{ inputs.dry_run }}
         run: |
-          echo "🧪 DRY RUN MODE"
+          echo "🧪 DRY RUN MODE - Smart Email Agent v2.0"
           echo ""
           echo "Would run Email Agent with:"
           echo "  Hours: ${{ inputs.hours || '24' }}"
           echo "  Send Telegram: ${{ inputs.send_telegram != 'false' }}"
+          echo "  Phase 2: Enabled (research, history, drafts)"
           echo ""
           echo "Environment check:"
           echo "  MCP_GATEWAY_TOKEN: ${{ env.MCP_GATEWAY_TOKEN != '' && '✅ Set' || '❌ Missing' }}"
           echo "  TELEGRAM_CHAT_ID: ${{ env.TELEGRAM_CHAT_ID != '' && '✅ Set' || '❌ Missing' }}"
           echo ""
-          echo "Testing imports..."
+          echo "Testing v2.0 imports..."
 
           python -c "
           import sys
           sys.path.insert(0, '.')
-          from src.agents.email_agent import EmailAgent, EmailCategory, Priority
-          print('✅ EmailAgent imported successfully')
+          from src.agents.smart_email.graph import SmartEmailGraph, run_smart_email_agent
+          from src.agents.smart_email.state import EmailCategory, Priority
+          print('✅ SmartEmailGraph v2.0 imported successfully')
+
+          graph = SmartEmailGraph(enable_phase2=True)
+          print(f'   Graph nodes: {list(graph.graph.nodes.keys())}')
           print(f'   Categories: {[c.value for c in EmailCategory]}')
           print(f'   Priorities: {[p.name for p in Priority]}')
           "

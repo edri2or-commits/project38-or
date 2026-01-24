@@ -162,7 +162,15 @@ New architecture using LangGraph state machine:
 - [x] `src/agents/smart_email/persona.py` - Hebrish prompts and templates
 - [x] `src/agents/smart_email/nodes/classify.py` - Haiku LLM + regex classification
 - [x] `src/agents/smart_email/nodes/format_rtl.py` - RTL Telegram formatting
+- [x] `src/agents/smart_email/nodes/research.py` - Web research for P1/P2 emails
+- [x] `src/agents/smart_email/nodes/history.py` - Sender history lookup
+- [x] `src/agents/smart_email/nodes/draft.py` - Draft reply generation
 - [x] Dependencies: `langgraph>=0.2.0`, `openai>=1.0.0`
+
+### Tests & CI ✅ COMPLETE (2026-01-24)
+- [x] `tests/test_smart_email.py` - 38 tests covering all nodes and graph
+- [x] `.github/workflows/daily-email-agent.yml` - Updated to use v2.0 LangGraph
+- [x] Workflow triggered successfully via `workflow_dispatch` (Run #21312936232)
 
 ## Consequences
 
@@ -203,3 +211,6 @@ New architecture using LangGraph state machine:
 | 2026-01-23 | Phase 1 completed - Core agent | Claude |
 | 2026-01-23 | Phase 2 completed - Intelligence (history, drafts, research) | Claude |
 | 2026-01-23 | Phase 3 completed - Advanced features (forms, deadlines, preferences, tasks) | Claude |
+| 2026-01-24 | Added 38 unit tests (`tests/test_smart_email.py`) | Claude |
+| 2026-01-24 | Updated workflow to use v2.0 LangGraph SmartEmailGraph | Claude |
+| 2026-01-24 | Verified workflow runs successfully (Run #21312936232) | Claude |
