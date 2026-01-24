@@ -279,3 +279,41 @@ jobs:
             -d '{"query": "query { service(id: \"'"$SERVICE_ID"'\") { name repo { fullRepoName } rootDirectory deployments(first: 2) { edges { node { id status createdAt } } } } }"}')
           echo "Final status:"
           echo "$FINAL" | jq '.'
+
+      - name: Setup Telegram Webhook
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          SERVICE_ID: ${{ steps.service.outputs.service_id }}
+        run: |
+          echo "Getting service domain..."
+
+          # Get domain from Railway
+          DOMAIN=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { service(id: \"'"$SERVICE_ID"'\") { serviceInstances { edges { node { domains { serviceDomains { domain } } } } } } }"
+            }' | jq -r '.data.service.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // empty')
+
+          if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "null" ]; then
+            echo "⚠️ No domain found - webhook setup skipped"
+            exit 0
+          fi
+
+          echo "Domain: $DOMAIN"
+
+          # Wait for service to be ready
+          echo "Waiting for service to be ready..."
+          sleep 15
+
+          # Call webhook setup endpoint
+          echo "Setting up Telegram webhook..."
+          WEBHOOK_RESULT=$(curl -s -X POST "https://${DOMAIN}/webhook/setup" || echo "failed")
+          echo "Webhook setup result: $WEBHOOK_RESULT"
+
+          # Verify webhook is set
+          echo "Verifying webhook..."
+          WEBHOOK_INFO=$(curl -s "https://${DOMAIN}/webhook/info" || echo "failed")
+          echo "Webhook info: $WEBHOOK_INFO"
+
+          echo "✅ Webhook setup complete"
