@@ -6115,5 +6115,94 @@ Total: 8 broken links fixed
 
 ---
 
+## Phase 48: GCP Tunnel Production Integration (2026-01-24)
+
+### Context
+
+After Phase 47 verification, attempted to run Smart Email Agent in production. Discovered multiple integration issues between the email agent and GCP Tunnel (Cloud Run MCP router).
+
+**Root Cause**: Railway MCP Gateway at `or-infra.com` lacks Google OAuth secrets. GCP Tunnel at Cloud Run has access to all GCP secrets but uses different protocol format.
+
+### Issues Discovered & Fixed
+
+| Issue | Error Message | Root Cause | Fix |
+|-------|---------------|------------|-----|
+| 1 | `unread_only unexpected argument` | GCP Tunnel gmail_list doesn't support this param | Removed parameter |
+| 2 | `Missing 'data' field` | GCP Tunnel expects `{"data": "{JSON-RPC}"}` | Added protocol encapsulation |
+| 3 | 0 emails returned (no error) | MCP response in `content[].text` not parsed | Added nested JSON parsing |
+| 4 | `ModuleNotFoundError: google.cloud` | SecretManager import fails without GCP SDK | Added try/except ImportError |
+| 5 | Python SyntaxError | `$SEND_TELEGRAM == 'true'` invalid Python | Changed to `'$SEND_TELEGRAM' == 'true'` |
+
+### Technical Details
+
+**MCP Response Structure** (discovered via debugging):
+```
+Level 1: {"result": "{stringified JSON-RPC}"}
+Level 2: {"jsonrpc": "2.0", "result": {"content": [...]}}
+Level 3: {"content": [{"type": "text", "text": "{actual data}"}]}
+Level 4: {"success": true, "messages": [...]}  ← actual emails here
+```
+
+**Files Modified**:
+- `src/agents/gmail_client.py` - Protocol encapsulation + nested parsing
+- `src/agents/smart_email/graph.py` - SecretManager fallback
+- `.github/workflows/daily-email-agent.yml` - Token fix + error handling
+
+### PRs Merged
+
+| PR | Title | Status |
+|----|-------|--------|
+| #535 | fix(email-agent): use MCP-TUNNEL-TOKEN for GCP Tunnel | ✅ Merged |
+| #536 | fix(gmail): remove unsupported unread_only parameter | ✅ Merged |
+| #537 | fix(gmail): parse MCP content[].text structure | ✅ Merged |
+| #538 | fix(gmail): parse MCP content[].text response structure | ✅ Merged |
+| #539 | fix(workflow): improve error handling and debug output | ✅ Merged |
+| #540 | fix(telegram): handle missing SecretManager gracefully | ✅ Merged |
+| #541 | fix(workflow): fix Python syntax error in send_telegram | ✅ Merged |
+| #542 | docs(adr): update ADR-014 with production completion | ✅ Merged |
+
+### Verification
+
+```
+Run #21316555022: ✅ SUCCESS
+Run #21318298369: ✅ SUCCESS (second verification)
+```
+
+**Result**: 50 emails fetched, all classified as system notifications (GitHub, Railway), filtered correctly.
+
+### Lessons Learned
+
+**1. Protocol Encapsulation Matters**
+- Different MCP endpoints use different formats
+- Railway: simple JSON `{"tool_name": ..., "arguments": ...}`
+- GCP Tunnel: JSON-RPC wrapped in `{"data": "{...}"}`
+- **Recommendation**: Document protocol format in endpoint config
+
+**2. Response Parsing Depth**
+- MCP responses can have 4+ levels of JSON nesting
+- Each level may be stringified and need re-parsing
+- **Recommendation**: Create unified MCP response parser utility
+
+**3. Debug Workflow Value**
+- `debug-email-agent.yml` with `send_telegram=False` was critical
+- Isolated failures to specific components
+- **Recommendation**: Always have debug variant of production workflows
+
+**4. Incremental Fixes**
+- 7 PRs to fix one integration = too many iterations
+- Each fix revealed next issue in chain
+- **Recommendation**: Test against real endpoint earlier in development
+
+**5. Dependency Awareness**
+- `google-cloud-secretmanager` not installed in workflow
+- Code assumed GCP SDK always available
+- **Recommendation**: Graceful degradation for optional dependencies
+
+### Status
+
+**Phase 48: ✅ COMPLETE - GCP Tunnel Production Integration**
+
+---
+
 *Last Updated: 2026-01-24 UTC*
-*Status: **Phase 47 Complete - ADR-014 Verification***
+*Status: **Phase 48 Complete - Production Integration***
