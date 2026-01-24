@@ -1,0 +1,208 @@
+# Debug workflow to capture email agent errors
+name: Debug Email Agent
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install httpx openai langgraph
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: project38-483612
+
+      - name: Get secrets
+        run: |
+          MCP_TOKEN=$(gcloud secrets versions access latest --secret="MCP-GATEWAY-TOKEN" 2>/dev/null || echo "")
+          BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" 2>/dev/null || echo "")
+          CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" 2>/dev/null || echo "")
+
+          echo "MCP_GATEWAY_TOKEN=$MCP_TOKEN" >> $GITHUB_ENV
+          echo "TELEGRAM_BOT_TOKEN=$BOT_TOKEN" >> $GITHUB_ENV
+          echo "TELEGRAM_CHAT_ID=$CHAT_ID" >> $GITHUB_ENV
+
+          echo "Secrets loaded:"
+          echo "  MCP_GATEWAY_TOKEN: ${MCP_TOKEN:+SET}"
+          echo "  TELEGRAM_BOT_TOKEN: ${BOT_TOKEN:+SET}"
+          echo "  TELEGRAM_CHAT_ID: ${CHAT_ID:+SET}"
+
+      - name: Debug - Test Imports
+        id: imports
+        run: |
+          python3 << 'EOF'
+          import sys
+          sys.path.insert(0, '.')
+
+          print("Testing imports...")
+
+          try:
+              from src.agents.smart_email.graph import SmartEmailGraph, run_smart_email_agent
+              print("✅ graph.py imported")
+          except Exception as e:
+              print(f"❌ graph.py: {e}")
+              sys.exit(1)
+
+          try:
+              from src.agents.smart_email.state import EmailCategory, Priority
+              print("✅ state.py imported")
+          except Exception as e:
+              print(f"❌ state.py: {e}")
+              sys.exit(1)
+
+          try:
+              from src.agents.gmail_client import GmailClient
+              print("✅ gmail_client.py imported")
+          except Exception as e:
+              print(f"❌ gmail_client.py: {e}")
+              sys.exit(1)
+
+          try:
+              from src.agents.smart_email.nodes.classify import classify_emails_node
+              print("✅ classify.py imported")
+          except Exception as e:
+              print(f"❌ classify.py: {e}")
+              sys.exit(1)
+
+          try:
+              from src.agents.smart_email.nodes.format_rtl import format_telegram_node
+              print("✅ format_rtl.py imported")
+          except Exception as e:
+              print(f"❌ format_rtl.py: {e}")
+              sys.exit(1)
+
+          print("\n✅ All imports successful!")
+          EOF
+
+      - name: Debug - Test MCP Gateway
+        id: mcp_test
+        env:
+          MCP_GATEWAY_TOKEN: ${{ env.MCP_GATEWAY_TOKEN }}
+        run: |
+          python3 << 'EOF'
+          import os
+          import httpx
+          import json
+          import uuid
+
+          token = os.environ.get("MCP_GATEWAY_TOKEN", "")
+          url = "https://or-infra.com/mcp"
+
+          print(f"Testing MCP Gateway: {url}")
+          print(f"Token: {'SET' if token else 'MISSING'}")
+
+          if not token:
+              print("⚠️ MCP token missing, skipping test")
+              exit(0)
+
+          payload = {
+              "jsonrpc": "2.0",
+              "id": str(uuid.uuid4()),
+              "method": "tools/list",
+              "params": {}
+          }
+
+          try:
+              resp = httpx.post(
+                  url,
+                  json=payload,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Content-Type": "application/json"
+                  },
+                  timeout=30
+              )
+              print(f"Status: {resp.status_code}")
+              print(f"Response: {resp.text[:500]}")
+
+              if resp.status_code == 200:
+                  print("✅ MCP Gateway accessible")
+              else:
+                  print(f"❌ MCP Gateway error: {resp.status_code}")
+          except Exception as e:
+              print(f"❌ MCP Gateway failed: {e}")
+          EOF
+
+      - name: Debug - Run Agent
+        id: run_agent
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          MCP_GATEWAY_TOKEN: ${{ env.MCP_GATEWAY_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ env.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ env.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 << 'EOF' 2>&1 | tee /tmp/agent_output.txt
+          import asyncio
+          import sys
+          import traceback
+          sys.path.insert(0, '.')
+
+          async def main():
+              try:
+                  from src.agents.smart_email.graph import run_smart_email_agent
+
+                  print("Starting Smart Email Agent...")
+                  result = await run_smart_email_agent(
+                      hours=24,
+                      send_telegram=False,  # Don't send for debug
+                      enable_phase2=True,
+                  )
+
+                  print("\n=== Results ===")
+                  print(f"Total emails: {result.get('total_count', 0)}")
+                  print(f"P1: {result.get('p1_count', 0)}")
+                  print(f"P2: {result.get('p2_count', 0)}")
+                  print(f"Errors: {result.get('errors', [])}")
+
+                  if result.get("telegram_message"):
+                      print("\n=== Message Preview ===")
+                      print(result["telegram_message"][:500])
+
+              except Exception as e:
+                  print(f"\n❌ EXCEPTION: {type(e).__name__}: {e}")
+                  traceback.print_exc()
+                  sys.exit(1)
+
+          asyncio.run(main())
+          EOF
+
+      - name: Post Results to Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OUTPUT=$(cat /tmp/agent_output.txt 2>/dev/null | tail -100 || echo "No output captured")
+
+          gh issue comment 509 --repo ${{ github.repository }} --body "## Debug Email Agent Results
+
+          **Workflow Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          **Status:** ${{ job.status }}
+
+          ### Output
+          \`\`\`
+          $OUTPUT
+          \`\`\`
+          " || echo "Could not post to issue 509"
