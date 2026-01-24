@@ -224,6 +224,73 @@ async def mcp_test() -> dict:
         }
 
 
+@router.post("/mcp/call")
+async def mcp_call_tool(tool_name: str = "health_check", arguments: dict = {}) -> dict:
+    """Call an MCP tool directly.
+
+    Args:
+        tool_name: Name of tool to call
+        arguments: Tool arguments
+
+    Returns:
+        dict: Tool result or error
+    """
+    import os
+    import traceback
+
+    mcp_enabled = os.getenv("MCP_GATEWAY_ENABLED", "false").lower() == "true"
+    if not mcp_enabled:
+        return {"error": "MCP Gateway not enabled"}
+
+    try:
+        from src.mcp_gateway.server import create_mcp_server
+
+        mcp = create_mcp_server()
+        if mcp is None:
+            return {"error": "FastMCP not available"}
+
+        # Try to call the tool directly
+        try:
+            # Get the tool
+            tm = mcp._tool_manager
+            tool = None
+            if hasattr(tm, "get_tool"):
+                tool = tm.get_tool(tool_name)
+            elif hasattr(tm, "_tools"):
+                tool = tm._tools.get(tool_name)
+
+            if tool is None:
+                return {"error": f"Tool not found: {tool_name}"}
+
+            # Call the tool
+            if hasattr(tool, "fn"):
+                import asyncio
+                if asyncio.iscoroutinefunction(tool.fn):
+                    result = await tool.fn(**arguments)
+                else:
+                    result = tool.fn(**arguments)
+            elif callable(tool):
+                result = await tool(**arguments)
+            else:
+                return {"error": f"Tool not callable: {type(tool)}"}
+
+            return {"status": "ok", "result": result}
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+            }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }
+
+
 @router.get("/relay/status")
 async def relay_status() -> dict:
     """Check GitHub MCP Relay status.
