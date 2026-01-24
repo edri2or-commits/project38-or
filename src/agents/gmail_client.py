@@ -40,23 +40,21 @@ class GmailClient:
             mcp_url: MCP Gateway URL (default: from env or production URL)
             mcp_token: MCP Gateway token (default: from env)
         """
-        # FastMCP http_app routes at /mcp path, so when mounted at /mcp,
-        # the full path becomes /mcp/mcp
+        # Use the direct /api/mcp/call endpoint which works reliably
+        # The FastMCP http_app at /mcp/mcp has issues with JSON-RPC handling
         self.mcp_url = mcp_url or os.environ.get(
             "MCP_GATEWAY_URL",
-            "https://or-infra.com/mcp/mcp"
+            "https://or-infra.com/api/mcp/call"
         )
         self.mcp_token = mcp_token or os.environ.get("MCP_GATEWAY_TOKEN", "")
 
     def _call_mcp_tool(self, tool_name: str, params: dict[str, Any]) -> dict[str, Any]:
-        """Call an MCP tool via the gateway.
+        """Call an MCP tool via the /api/mcp/call endpoint.
 
-        MCP uses JSON-RPC 2.0 format over HTTP:
+        Uses the direct FastAPI endpoint format:
         {
-            "jsonrpc": "2.0",
-            "id": <request_id>,
-            "method": "tools/call",
-            "params": {"name": "<tool_name>", "arguments": {...}}
+            "tool_name": "<tool_name>",
+            "arguments": {...}
         }
 
         Args:
@@ -66,25 +64,15 @@ class GmailClient:
         Returns:
             Tool result
         """
-        import uuid
-
         headers = {"Content-Type": "application/json"}
         if self.mcp_token:
             headers["Authorization"] = f"Bearer {self.mcp_token}"
 
-        # MCP Gateway URL - POST with JSON-RPC 2.0 format
+        # Direct endpoint format - simple JSON body
         url = self.mcp_url
-
-        # Build JSON-RPC 2.0 request
-        request_id = str(uuid.uuid4())
         payload = {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": params,
-            },
+            "tool_name": tool_name,
+            "arguments": params,
         }
 
         try:
@@ -98,12 +86,12 @@ class GmailClient:
             response.raise_for_status()
             result = response.json()
 
-            # JSON-RPC response has result or error
-            if "error" in result:
-                error = result["error"]
-                raise RuntimeError(f"MCP error: {error.get('message', error)}")
+            # /api/mcp/call returns {"status": "ok", "result": ...} or {"status": "error", ...}
+            if result.get("status") == "error" or "error" in result:
+                error = result.get("error", "Unknown error")
+                raise RuntimeError(f"MCP error: {error}")
 
-            # Extract result from JSON-RPC response
+            # Extract result from response
             return result.get("result", result)
         except httpx.HTTPError as e:
             logger.error(f"MCP call failed: {e}")

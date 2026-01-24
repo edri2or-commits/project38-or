@@ -57,9 +57,8 @@ class EmailHistoryLookup:
 
     def __init__(
         self,
-        # FastMCP http_app routes at /mcp path, so when mounted at /mcp,
-        # the full path becomes /mcp/mcp
-        mcp_gateway_url: str = "https://or-infra.com/mcp/mcp",
+        # Use the direct /api/mcp/call endpoint which works reliably
+        mcp_gateway_url: str = "https://or-infra.com/api/mcp/call",
     ):
         """Initialize EmailHistoryLookup.
 
@@ -95,30 +94,20 @@ class EmailHistoryLookup:
         raise ValueError("MCP_GATEWAY_TOKEN not found")
 
     async def _call_mcp_tool(self, tool_name: str, params: dict) -> dict:
-        """Call an MCP Gateway tool using JSON-RPC 2.0 format.
+        """Call an MCP Gateway tool via /api/mcp/call endpoint.
 
-        MCP uses JSON-RPC 2.0:
+        Uses direct endpoint format:
         {
-            "jsonrpc": "2.0",
-            "id": <request_id>,
-            "method": "tools/call",
-            "params": {"name": "<tool_name>", "arguments": {...}}
+            "tool_name": "<tool_name>",
+            "arguments": {...}
         }
         """
-        import uuid
-
         token = await self._get_mcp_token()
 
-        # Build JSON-RPC 2.0 request
-        request_id = str(uuid.uuid4())
+        # Direct endpoint format
         payload = {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": params,
-            },
+            "tool_name": tool_name,
+            "arguments": params,
         }
 
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
@@ -136,12 +125,12 @@ class EmailHistoryLookup:
 
             result = response.json()
 
-            # JSON-RPC response has result or error
-            if "error" in result:
-                error = result["error"]
-                return {"success": False, "error": error.get("message", str(error))}
+            # /api/mcp/call returns {"status": "ok", "result": ...} or {"error": ...}
+            if result.get("status") == "error" or "error" in result:
+                error = result.get("error", "Unknown error")
+                return {"success": False, "error": error}
 
-            # Extract result from JSON-RPC response
+            # Extract result from response
             return result.get("result", result)
 
     def _extract_email(self, from_field: str) -> str:
