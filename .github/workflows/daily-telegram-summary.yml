@@ -1,6 +1,9 @@
-name: Test Telegram Summary
+name: Daily Telegram Summary
 
 on:
+  schedule:
+    # Daily at 08:00 UTC (11:00 Israel time)
+    - cron: '0 8 * * *'
   workflow_dispatch:
 
 permissions:
