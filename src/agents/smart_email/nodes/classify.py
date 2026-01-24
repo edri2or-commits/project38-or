@@ -192,7 +192,7 @@ def parse_classification_result(
 
 
 async def classify_emails_node(state: EmailState) -> EmailState:
-    """LangGraph node: Classify all fetched emails.
+    """Classify all fetched emails via LangGraph node.
 
     Takes raw emails from state, classifies each one using LLM,
     and returns EmailItem objects with classifications.

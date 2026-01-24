@@ -232,7 +232,7 @@ def format_adhd_friendly(
 
 
 async def format_telegram_node(state: EmailState) -> EmailState:
-    """LangGraph node: Format classified emails for Telegram.
+    """Format classified emails for Telegram via LangGraph node.
 
     Takes classified emails and formats them into a Hebrish
     Telegram message.

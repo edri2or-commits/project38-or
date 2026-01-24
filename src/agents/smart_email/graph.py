@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # === Node Functions ===
 
 async def fetch_emails_node(state: EmailState) -> EmailState:
-    """LangGraph node: Fetch emails from Gmail.
+    """Fetch emails from Gmail via LangGraph node.
 
     Uses the existing GmailClient to fetch unread emails.
 
@@ -79,7 +79,7 @@ async def fetch_emails_node(state: EmailState) -> EmailState:
 
 
 async def send_telegram_node(state: EmailState) -> EmailState:
-    """LangGraph node: Send message to Telegram.
+    """Send message to Telegram via LangGraph node.
 
     Args:
         state: Current graph state with telegram_message
