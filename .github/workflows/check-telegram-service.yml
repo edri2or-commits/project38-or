@@ -39,54 +39,45 @@ jobs:
           echo "## Railway Service Status" > /tmp/report.md
           echo "" >> /tmp/report.md
 
-          # List all services
+          # List all services with domains
           echo "### All Services in Project" >> /tmp/report.md
           echo '```json' >> /tmp/report.md
           SERVICES=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { services { edges { node { id name } } } } }"
+              "query": "query { project(id: \"'"$RAILWAY_PROJECT_ID"'\") { services { edges { node { id name serviceInstances { edges { node { domains { serviceDomains { domain } } } } } deployments(first: 1) { edges { node { id status } } } } } } } }"
             }')
           echo "$SERVICES" | jq '.' >> /tmp/report.md
           echo '```' >> /tmp/report.md
 
-          # Find telegram-bot service
+          # Extract domains for each service
+          echo "" >> /tmp/report.md
+          echo "### Service Domains Summary" >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+          echo "$SERVICES" | jq -r '.data.project.services.edges[] |
+            "\(.node.name): \(.node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // "NO DOMAIN") - deploy: \(.node.deployments.edges[0].node.status // "none")"'  >> /tmp/report.md
+          echo '```' >> /tmp/report.md
+
+          # Check telegram-bot specifically
+          echo "" >> /tmp/report.md
+          echo "### telegram-bot service" >> /tmp/report.md
           SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.id' | head -1)
-          echo "Service ID: $SERVICE_ID"
+          DOMAIN=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // "NO DOMAIN"')
+          STATUS=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot") | .node.deployments.edges[0].node.status // "none"')
+          echo "- Service ID: \`$SERVICE_ID\`" >> /tmp/report.md
+          echo "- Domain: \`$DOMAIN\`" >> /tmp/report.md
+          echo "- Deployment Status: \`$STATUS\`" >> /tmp/report.md
 
-          if [ -n "$SERVICE_ID" ] && [ "$SERVICE_ID" != "null" ]; then
-            echo "" >> /tmp/report.md
-            echo "### Telegram Bot Service Details" >> /tmp/report.md
-            echo '```json' >> /tmp/report.md
-
-            # Get detailed service info
-            SERVICE_DETAILS=$(curl -s -X POST "https://backboard.railway.app/graphql/v2" \
-              -H "Authorization: Bearer $RAILWAY_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{
-                "query": "query { service(id: \"'"$SERVICE_ID"'\") { id name repo { fullRepoName } rootDirectory deployments(first: 5) { edges { node { id status createdAt } } } serviceInstances { edges { node { id startCommand domains { serviceDomains { domain } } } } } } }"
-              }')
-            echo "$SERVICE_DETAILS" | jq '.' >> /tmp/report.md
-            echo '```' >> /tmp/report.md
-
-            # Get latest deployment logs
-            LATEST_DEPLOY=$(echo "$SERVICE_DETAILS" | jq -r '.data.service.deployments.edges[0].node.id // empty')
-            if [ -n "$LATEST_DEPLOY" ]; then
-              echo "" >> /tmp/report.md
-              echo "### Latest Deployment: $LATEST_DEPLOY" >> /tmp/report.md
-              DEPLOY_STATUS=$(echo "$SERVICE_DETAILS" | jq -r '.data.service.deployments.edges[0].node.status // "unknown"')
-              echo "**Status:** $DEPLOY_STATUS" >> /tmp/report.md
-            fi
-
-            # Get domain
-            DOMAIN=$(echo "$SERVICE_DETAILS" | jq -r '.data.service.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // "NO DOMAIN"')
-            echo "" >> /tmp/report.md
-            echo "### Domain: \`$DOMAIN\`" >> /tmp/report.md
-          else
-            echo "" >> /tmp/report.md
-            echo "### ⚠️ No telegram-bot service found!" >> /tmp/report.md
-          fi
+          # Check telegram-bot-v2
+          echo "" >> /tmp/report.md
+          echo "### telegram-bot-v2 service" >> /tmp/report.md
+          SERVICE_ID2=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot-v2") | .node.id' | head -1)
+          DOMAIN2=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot-v2") | .node.serviceInstances.edges[0].node.domains.serviceDomains[0].domain // "NO DOMAIN"')
+          STATUS2=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "telegram-bot-v2") | .node.deployments.edges[0].node.status // "none"')
+          echo "- Service ID: \`$SERVICE_ID2\`" >> /tmp/report.md
+          echo "- Domain: \`$DOMAIN2\`" >> /tmp/report.md
+          echo "- Deployment Status: \`$STATUS2\`" >> /tmp/report.md
 
           cat /tmp/report.md
 
