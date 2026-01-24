@@ -224,17 +224,28 @@ async def mcp_test() -> dict:
         }
 
 
+class MCPCallRequest(BaseModel):
+    """Request body for MCP tool call."""
+
+    tool_name: str = "health_check"
+    arguments: dict = {}
+
+
 @router.post("/mcp/call")
-async def mcp_call_tool(tool_name: str = "health_check", arguments: dict = {}) -> dict:
+async def mcp_call_tool(request: MCPCallRequest) -> dict:
     """Call an MCP tool directly.
 
+    Accepts JSON body with tool_name and arguments.
+    Example: {"tool_name": "gmail_list", "arguments": {"label": "INBOX"}}
+
     Args:
-        tool_name: Name of tool to call
-        arguments: Tool arguments
+        request: MCPCallRequest with tool_name and arguments
 
     Returns:
         dict: Tool result or error
     """
+    tool_name = request.tool_name
+    arguments = request.arguments
     import os
     import traceback
 
