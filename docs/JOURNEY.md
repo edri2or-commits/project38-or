@@ -6353,5 +6353,57 @@ Per פרוטוקול אמת requirements, verified counts:
 
 ---
 
+## Phase 50: ADR-009 Fix - SYSTEM MAPPING Stage (2026-01-25)
+
+### Problem Statement
+
+The WAT Framework implementation (PR #609, reverted in PR #610) duplicated 4 existing concepts:
+- `ToolRegistry` → already existed in `src/mcp/registry.py`
+- `AgentDomain` → already existed in `src/multi_agent/base.py`
+- `AgentCapability` → already existed in `src/multi_agent/base.py`
+- Self-Healing → already existed in `src/autonomous_controller.py`
+
+**Root Cause:** ADR-009's 5-stage research integration process had no step requiring codebase search before implementation.
+
+### Solution
+
+Added mandatory **Stage 1.5: SYSTEM MAPPING** between CAPTURE and TRIAGE:
+
+```
+Before: CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE (5 stages)
+After:  CAPTURE → SYSTEM MAPPING → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE (6 stages)
+```
+
+**Stage 1.5 Requirements:**
+1. Extract key concepts from research
+2. Search codebase: `grep -r "pattern" src/`
+3. Map to existing modules
+4. Decide: CREATE_NEW / EXTEND_EXISTING / SKIP
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `docs/decisions/ADR-009-*.md` | Added Stage 1.5 with examples and decision matrix |
+| `docs/research/templates/research-note.md` | Added required "System Mapping" section |
+| `docs/research/PROCESS.md` | Updated to 6-stage process |
+| `CLAUDE.md` | Updated process description |
+| `docs/changelog.md` | Documented the fix |
+
+### 4-Layer Documentation Update
+
+| Layer | File | Action |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | ✅ Updated to 6-stage process |
+| Layer 2 | `ADR-009` | ✅ Added Stage 1.5 |
+| Layer 3 | `JOURNEY.md` | ✅ This entry |
+| Layer 4 | `docs/changelog.md` | ✅ Added fix entry |
+
+### Status
+
+**Phase 50: ✅ COMPLETE - ADR-009 SYSTEM MAPPING Stage**
+
+---
+
 *Last Updated: 2026-01-25 UTC*
-*Status: **Phase 49 Complete - Zero-Loss Intake System***
+*Status: **Phase 50 Complete - ADR-009 SYSTEM MAPPING Fix***
