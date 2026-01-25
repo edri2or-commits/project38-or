@@ -33,20 +33,37 @@ jobs:
         run: |
           pip install httpx litellm "openai>=1.0.0"
 
-      - name: Run agent
+      - name: Test dry run first
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          set -o pipefail
-          python -m src.background_agents.runner --agent ${{ inputs.agent }} 2>&1 | tee output.txt
-          EXIT_CODE=$?
+          echo "Testing dry run..."
+          python -m src.background_agents.runner --dry-run 2>&1 | tee dry_run_output.txt || true
+          echo "## Dry Run Result" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat dry_run_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
+      - name: Run agent
+        id: run_agent
+        continue-on-error: true
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python -m src.background_agents.runner --agent ${{ inputs.agent }} 2>&1 | tee output.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Report result
+        if: always()
+        run: |
           echo "## Agent Run Result" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat output.txt >> $GITHUB_STEP_SUMMARY
+          cat output.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output captured" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-          exit $EXIT_CODE
+      - name: Fail if needed
+        if: steps.run_agent.outcome == 'failure'
+        run: exit 1
 
       - name: Upload metrics
         if: always()
