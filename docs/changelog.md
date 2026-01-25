@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Zero-Loss Intake System Phase 2 - Smart Classification** (2026-01-25) ✅
+  - `src/intake/classifier.py` - Unified classifier with confidence cascade (~350 lines)
+  - `IntakeClassifier` - Combines domain, product, and task classification
+  - Confidence-based cascade: Rule-based → Haiku 4.5 → Sonnet 4.5
+  - `FewShotStore` - Inter-Cascade learning (Sonnet teaches Haiku over time)
+  - Priority calculation (P1-P4) based on domain and product potential
+  - Automatic routing to skills (adr-architect, email-assistant, research-ingestion)
+  - Validated by External Research 2026 §3.2: Cascade Classifier pattern
+
 - **Zero-Loss Intake System Phase 1** (2026-01-25) ✅
   - `src/intake/` - Zero-loss input processing module (4 files, ~850 lines)
   - `queue.py` - Redis Streams wrapper with in-memory fallback for event sourcing

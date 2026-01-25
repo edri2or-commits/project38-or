@@ -315,6 +315,91 @@ class TestProductDetector:
         assert small.market_size_indicator == "small"
 
 
+class TestIntakeClassifier:
+    """Tests for IntakeClassifier with cascade."""
+
+    def test_classify_personal(self):
+        """Test classifying personal content."""
+        from src.intake import IntakeClassifier
+
+        classifier = IntakeClassifier(llm_client=None, enable_cascade=False)
+        result = classifier.classify("צריך לקבוע תור לרופא משפחה")
+
+        assert result.domain.value == "personal"
+        assert result.priority in ("P2", "P3")
+
+    def test_classify_business(self):
+        """Test classifying business content."""
+        from src.intake import IntakeClassifier
+
+        classifier = IntakeClassifier(llm_client=None, enable_cascade=False)
+        result = classifier.classify("צריך לשלוח חשבונית ללקוח על הפרויקט")
+
+        assert result.domain.value == "business"
+        assert result.priority in ("P1", "P2")
+        assert result.route_to == "email-assistant"
+
+    def test_classify_with_product_potential(self):
+        """Test classifying content with product potential."""
+        from src.intake import IntakeClassifier
+
+        classifier = IntakeClassifier(llm_client=None, enable_cascade=False)
+        result = classifier.classify("בניתי לעצמי סקריפט שמארגן לי את הקבצים")
+
+        assert result.has_product_potential is True
+        assert result.product_score > 0
+        assert result.route_to == "adr-architect"
+
+    def test_classify_event(self):
+        """Test classifying an IntakeEvent."""
+        from src.intake import IntakeClassifier, IntakeEvent
+
+        classifier = IntakeClassifier(llm_client=None, enable_cascade=False)
+        event = IntakeEvent(content="צריך לשלוח חשבונית ללקוח")
+
+        updated_event = classifier.classify_event(event)
+
+        assert updated_event.domain == "business"
+        assert updated_event.priority is not None
+        assert "classification" in updated_event.metadata
+
+    def test_few_shot_store(self):
+        """Test the FewShotStore for Inter-Cascade learning."""
+        from src.intake.classifier import FewShotStore
+
+        store = FewShotStore()
+
+        # Add an example
+        store.add(
+            query="Test query",
+            domain="personal",
+            classification={"domain": "personal", "confidence": 0.9},
+            model_used="sonnet"
+        )
+
+        # Retrieve examples
+        examples = store.get_examples("personal", count=5)
+        assert len(examples) == 1
+        assert examples[0].domain == "personal"
+        assert examples[0].model_used == "sonnet"
+
+    def test_few_shot_format_for_prompt(self):
+        """Test formatting few-shot examples for prompts."""
+        from src.intake.classifier import FewShotStore
+
+        store = FewShotStore()
+        store.add(
+            query="הלוואי שהיה אפליקציה",
+            domain="personal",
+            classification={"domain": "personal", "confidence": 0.85},
+            model_used="sonnet"
+        )
+
+        formatted = store.format_for_prompt("personal", count=1)
+        assert "example classifications" in formatted.lower()
+        assert "הלוואי" in formatted
+
+
 class TestIntegration:
     """Integration tests for the intake module."""
 

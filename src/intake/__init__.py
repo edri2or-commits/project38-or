@@ -37,6 +37,11 @@ from src.intake.outbox import (
     OutboxEntry,
     TransactionalOutbox,
 )
+from src.intake.classifier import (
+    IntakeClassifier,
+    IntakeClassificationResult,
+    FewShotStore,
+)
 
 __all__ = [
     # Domain Classification
@@ -52,4 +57,8 @@ __all__ = [
     # Outbox
     "OutboxEntry",
     "TransactionalOutbox",
+    # Unified Classifier (Phase 2)
+    "IntakeClassifier",
+    "IntakeClassificationResult",
+    "FewShotStore",
 ]
