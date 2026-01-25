@@ -1,6 +1,6 @@
 # Experiment 004: GSD State Management Pattern
 
-**Status**: IN_PROGRESS
+**Status**: REJECTED (pattern doesn't integrate without hook modification)
 **Started**: 2026-01-25
 **Research Note**: `docs/research/notes/2026-01-25-saas-factory-gsd-framework.md`
 
@@ -75,13 +75,20 @@ The GSD Framework proposes externalizing LLM "memory" to files:
 | Date | Session | Observation | Rating |
 |------|---------|-------------|--------|
 | 2026-01-25 | Initial | Created STATE.md, testing pattern | ⏳ |
-| 2026-01-25 | Test #1 | SessionStart hook did NOT read STATE.md automatically. Context came from system-reminder showing file changes, not from intentional state loading. User must explicitly request "קרא STATE.md". | ⚠️ Partial |
+| 2026-01-25 | Test #1 | SessionStart hook did NOT read STATE.md automatically | ⚠️ Partial |
+| 2026-01-25 | Decision | **Removed STATE.md** - loose file at root could confuse system | ❌ Rejected |
 
 ### Test #1 Details
 - **Expected**: Claude reads STATE.md at session start, immediately knows context
 - **Actual**: Claude learned about STATE.md from system-reminder (file modification notice)
 - **Gap**: No automatic loading mechanism exists
 - **Conclusion**: Pattern requires either (a) manual user request, or (b) hook modification
+
+### Rejection Rationale
+- STATE.md at root without integration = potential confusion
+- Contains instructions that aren't enforced
+- Better to keep existing 4-layer system (CLAUDE.md, JOURNEY.md, ADRs, technical docs)
+- Research note preserved for future reference if we want to revisit with proper hook integration
 
 ---
 
@@ -97,5 +104,5 @@ The GSD Framework proposes externalizing LLM "memory" to files:
 
 ## Files
 
-- `/STATE.md` - The state file being tested
-- `/docs/research/notes/2026-01-25-saas-factory-gsd-framework.md` - Source research
+- ~~`/STATE.md`~~ - Removed (caused confusion without proper integration)
+- `/docs/research/notes/2026-01-25-saas-factory-gsd-framework.md` - Source research (preserved)
