@@ -7,15 +7,15 @@ The process ensures that new AI discoveries are integrated safely and measurably
 
 **Architecture Decision:** [ADR-009](../decisions/ADR-009-research-integration-architecture.md)
 
-## The 5-Stage Process
+## The 6-Stage Process
 
 ```
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│   CAPTURE    │───▶│    TRIAGE    │───▶│  EXPERIMENT  │───▶│   EVALUATE   │───▶│  INTEGRATE   │
-│              │    │              │    │              │    │              │    │              │
-│  Document    │    │  Classify    │    │  Isolated    │    │  Compare to  │    │  Feature     │
-│  discovery   │    │  impact      │    │  test        │    │  baseline    │    │  flag        │
-└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│   CAPTURE    │───▶│   SYSTEM     │───▶│    TRIAGE    │───▶│  EXPERIMENT  │───▶│   EVALUATE   │───▶│  INTEGRATE   │
+│              │    │   MAPPING    │    │              │    │              │    │              │    │              │
+│  Document    │    │  Search for  │    │  Classify    │    │  Isolated    │    │  Compare to  │    │  Feature     │
+│  discovery   │    │  existing    │    │  impact      │    │  test        │    │  baseline    │    │  flag        │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
 ```
 
 ## Stage 1: Capture
@@ -35,6 +35,76 @@ cp docs/research/templates/research-note.md docs/research/notes/$(date +%Y-%m-%d
 - **Summary**: 3 sentences max
 - **Hypothesis**: "If we do X, then Y will improve by Z"
 - **Impact Estimate**: Scope, effort, risk
+
+## Stage 1.5: System Mapping (CRITICAL)
+
+⚠️ **This stage is MANDATORY before Triage. Skip this and you risk creating duplicate code.**
+
+### Purpose
+
+Prevent duplicate implementations by verifying concepts don't already exist in the codebase.
+
+### Why This Exists
+
+Added 2026-01-25 after the WAT Framework incident:
+- Research proposed: ToolRegistry, AgentDomain, AgentCapability, Self-Healing
+- All already existed in: `src/mcp/registry.py`, `src/multi_agent/base.py`, `src/autonomous_controller.py`
+- Result: 1,800 lines of duplicate code created, then reverted (PR #609 → PR #610)
+- Root cause: No system mapping was performed
+
+### Required Steps
+
+1. **Extract Concepts** - List key concepts from the research
+2. **Search Codebase** - `grep -r "pattern" src/` for each concept
+3. **Map to Existing** - Document which files contain related code
+4. **Decide** - CREATE_NEW / EXTEND_EXISTING / SKIP
+
+### Search Examples
+
+```bash
+# For a "Tool Registry" concept:
+grep -r "ToolRegistry\|tool.*registry\|Registry.*tool" src/
+grep -r "class.*Registry" src/
+
+# For an "Agent" concept:
+grep -r "class.*Agent" src/
+grep -r "Agent.*Domain\|AgentCapability" src/
+
+# For a "Self-Healing" concept:
+grep -r "self.heal\|self_heal\|healing" src/
+grep -r "recovery\|rollback" src/
+```
+
+### Decision Matrix
+
+| Search Result | Decision | Action |
+|--------------|----------|--------|
+| Nothing found | CREATE_NEW | Proceed to TRIAGE as new implementation |
+| Similar concept, different implementation | EXTEND_EXISTING | Add to existing module |
+| Exact duplicate | SKIP | Archive note, document why redundant |
+
+### Template Section
+
+The research note template includes a "System Mapping (REQUIRED)" section that must be completed:
+
+```markdown
+## System Mapping (REQUIRED)
+
+### Concepts to Search
+| Concept | Search Terms |
+|---------|--------------|
+| [name] | `pattern1`, `pattern2` |
+
+### Search Results
+| Concept | Search Command | Files Found | Lines |
+|---------|---------------|-------------|-------|
+| [name] | `grep -r "X" src/` | `src/file.py` | 42-67 |
+
+### Mapping Decision
+| Concept | Decision | Rationale |
+|---------|----------|-----------|
+| [name] | EXTEND_EXISTING | Similar to src/existing.py |
+```
 
 ## Stage 2: Triage (Weekly Review)
 
