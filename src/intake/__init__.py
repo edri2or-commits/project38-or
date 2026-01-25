@@ -51,6 +51,19 @@ from src.intake.security import (
     ThreatDetection,
     HITLRequest,
 )
+from src.intake.adhd_ux import (
+    ADHDUXManager,
+    InterruptionManager,
+    ProactiveEngagement,
+    CognitiveLoadDetector,
+    InterruptionUrgency,
+    FlowState,
+    NudgeType,
+    QuietWindow,
+    PendingNotification,
+    GentleNudge,
+    CognitiveLoadEstimate,
+)
 
 __all__ = [
     # Domain Classification
@@ -78,4 +91,16 @@ __all__ = [
     "ThreatType",
     "ThreatDetection",
     "HITLRequest",
+    # ADHD UX (Phase 4)
+    "ADHDUXManager",
+    "InterruptionManager",
+    "ProactiveEngagement",
+    "CognitiveLoadDetector",
+    "InterruptionUrgency",
+    "FlowState",
+    "NudgeType",
+    "QuietWindow",
+    "PendingNotification",
+    "GentleNudge",
+    "CognitiveLoadEstimate",
 ]

@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Zero-Loss Intake System Phase 4 - ADHD UX** (2026-01-25) ✅
+  - `src/intake/adhd_ux.py` - ADHD-friendly UX patterns (~550 lines)
+  - `InterruptionManager` - Context-aware interruption control
+    - Deep focus mode: Only critical notifications interrupt
+    - Light work mode: High priority can interrupt
+    - Break/transition modes: Queue flush and notification delivery
+  - `CognitiveLoadDetector` - Estimates mental load from activity patterns
+    - Factors: Time since break, context switches, time of day, active tasks
+    - Returns score 0.0-1.0 with level (low/moderate/high/overloaded)
+  - `QuietWindow` - Time-based quiet mode (overnight, lunch, custom)
+    - Supports overnight windows (22:00-07:00)
+    - Configurable critical-only mode
+  - `ProactiveEngagement` - Gentle nudges and reminders
+    - Task reminders after 24h inactivity
+    - Context restoration after breaks
+    - Break suggestions when cognitive load high
+    - Momentum checks during extended work
+  - `ADHDUXManager` - Unified coordinator for all ADHD UX features
+  - Validated by External Research 2026: ADHD UX patterns, gentle nudge > alert
+  - 15 unit tests in `tests/test_intake.py`
+
 - **Zero-Loss Intake System Phase 3 - Security Guard** (2026-01-25) ✅
   - `src/intake/security.py` - Security layer with threat detection (~400 lines)
   - `PromptInjectionDetector` - Acuvity-style detection with zero false positives on technical content

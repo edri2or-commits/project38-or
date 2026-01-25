@@ -527,16 +527,17 @@ project38-or/
 │   │           └── format_rtl.py  # RTL Telegram formatting (269 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
-│   │   # ZERO-LOSS INTAKE SYSTEM (6 modules, ~1,600 lines) - Alignment Prompt
+│   │   # ZERO-LOSS INTAKE SYSTEM (7 modules, ~2,150 lines) - Alignment Prompt
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── intake/                    # Zero-loss input processing
-│   │   ├── __init__.py            # Module exports (80 lines)
+│   │   ├── __init__.py            # Module exports (100 lines)
 │   │   ├── queue.py               # Redis Streams wrapper (260 lines)
 │   │   ├── outbox.py              # Transactional Outbox pattern (280 lines)
 │   │   ├── domain_classifier.py   # Personal/business/mixed classification (260 lines)
 │   │   ├── product_detector.py    # Product potential identification (300 lines)
 │   │   ├── classifier.py          # Unified cascade classifier with Inter-Cascade (350 lines)
-│   │   └── security.py            # Security guard with HITL support (400 lines)
+│   │   ├── security.py            # Security guard with HITL support (400 lines)
+│   │   └── adhd_ux.py             # ADHD-friendly UX: interruptions, nudges (550 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # AGENT FACTORY & HARNESS (7 modules, ~2,100 lines)
