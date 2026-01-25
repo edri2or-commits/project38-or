@@ -53,6 +53,7 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-011: ADR Architect](docs/decisions/ADR-011-adr-architect-structured-request-processing.md) - 9-step workflow for scattered requests → structured ADRs
 - [ADR-012: Context Integrity Enforcement](docs/decisions/ADR-012-context-integrity-enforcement.md) - Automated 4-layer documentation enforcement
 - [ADR-015: Smart Model Routing](docs/decisions/ADR-015-smart-model-routing-implementation.md) - 4-phase plan: Haiku/Sonnet/Opus routing, background jobs, 60%+ cost reduction
+- [ADR-016: WAT Framework Implementation](docs/decisions/ADR-016-wat-framework-implementation.md) - Workflows, Agents, Tools framework for self-healing automation
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
@@ -649,6 +650,17 @@ project38-or/
 │   │   └── orchestrator.py          # Multi-path execution engine (540 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
+│   │   # WAT FRAMEWORK (5 modules, ~1,800 lines) - ADR-016
+│   │   # ═══════════════════════════════════════════════════════════════════
+│   ├── wat/                         # Workflows, Agents, Tools framework
+│   │   ├── __init__.py              # Module exports (72 lines)
+│   │   ├── types.py                 # Core data structures (450 lines)
+│   │   ├── registry.py              # ToolRegistry with discovery (420 lines)
+│   │   ├── workflow.py              # Workflow engine & YAML parsing (400 lines)
+│   │   ├── agent.py                 # AgentDefinition & dispatch (380 lines)
+│   │   └── executor.py              # SelfHealingExecutor with Loop pattern (480 lines)
+│   │
+│   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # WORKFLOWS (2 modules, ~850 lines)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   └── workflows/
@@ -686,6 +698,11 @@ project38-or/
 │
 ├── experiments/                   # Isolated experiments (ADR-009)
 │   └── README.md                  # Experiment guidelines and templates
+│
+├── workflows/                     # WAT Framework workflow definitions (ADR-016)
+│   ├── README.md                  # Workflow documentation
+│   ├── lead-gen-dentist.yaml      # Lead generation workflow
+│   └── data-enrichment.yaml       # Data enrichment pipeline
 │
 ├── config/                        # Configuration files
 │   └── feature_flags.yaml         # Feature flag definitions
@@ -906,6 +923,127 @@ System:
 ```
 
 **Full specification**: [ADR-009 Phase 5](docs/decisions/ADR-009-research-integration-architecture.md#phase-5-research-ingestion--autonomy-enhancement)
+
+---
+
+## WAT Framework (ADR-016)
+
+**Status**: ✅ **Implemented** (2026-01-25)
+
+The **WAT Framework** (Workflows, Agents, Tools) provides a unified architecture for probabilistic agentic automation with self-healing capabilities.
+
+### The WAT Ontology
+
+| Component | Purpose | Implementation |
+|-----------|---------|----------------|
+| **Workflows (W)** | Goal definitions in YAML/Markdown | `src/wat/workflow.py` |
+| **Agents (A)** | Cognitive engines with capability matching | `src/wat/agent.py` |
+| **Tools (T)** | Atomic execution units (MCP tools, Python) | `src/wat/registry.py` |
+
+### Self-Healing Loop Pattern
+
+```
+1. Execute Tool
+2. If error:
+   a. Classify error (network, rate_limit, auth, dependency, etc.)
+   b. Match recovery strategy
+   c. Apply action: retry, backoff, install_dependency, fallback
+   d. Retry up to max_attempts
+3. If still failing: escalate to human
+```
+
+### Key Components
+
+| Component | Lines | Purpose |
+|-----------|-------|---------|
+| `types.py` | 450 | Core data structures (ToolDefinition, WorkflowStep, etc.) |
+| `registry.py` | 420 | Unified tool discovery from MCP servers, modules, skills |
+| `workflow.py` | 400 | YAML/Markdown workflow parsing, validation, composition |
+| `agent.py` | 380 | Agent definition, capability matching, dispatch routing |
+| `executor.py` | 480 | Self-healing execution with the Loop pattern |
+
+### Usage Example
+
+```python
+from src.wat import ToolRegistry, Workflow, AgentDefinition, SelfHealingExecutor
+
+# Discover tools from MCP servers
+registry = ToolRegistry()
+registry.discover_mcp_tools("src/mcp_gateway/tools")
+
+# Load workflow
+workflow = Workflow.from_yaml("workflows/lead-gen-dentist.yaml")
+
+# Create agent
+agent = AgentDefinition(
+    name="data-agent",
+    domain=AgentDomain.DATA,
+    tools=["search_places", "enrich_contacts"],
+)
+
+# Execute with self-healing
+executor = SelfHealingExecutor(registry)
+result = await executor.run(workflow, agent, inputs={"location": "SF"})
+
+print(f"Status: {result.status}, Cost: ${result.total_cost_usd:.4f}")
+```
+
+### Workflow Definition Format
+
+```yaml
+name: my-workflow
+description: What this accomplishes
+version: "1.0.0"
+
+inputs:
+  param:
+    type: str
+    description: Input parameter
+    required: true
+
+steps:
+  - id: step1
+    tool: search_places
+    description: Search for businesses
+    inputs:
+      query: "$inputs.niche"
+
+  - id: step2
+    tool: enrich_data
+    input_mappings:
+      data: "$prev.output"
+    on_error: skip
+
+constraints:
+  - "Do not fabricate data"
+
+error_handlers:
+  - error_type: rate_limit
+    action: retry_with_backoff
+    max_attempts: 5
+
+timeout_seconds: 300
+cost_budget_usd: 1.0
+```
+
+### Error Recovery Strategies
+
+| Error Type | Default Action | Description |
+|------------|----------------|-------------|
+| `network` | `retry_with_backoff` | Connection failures |
+| `rate_limit` | `retry_with_backoff` | API throttling (longer backoff) |
+| `authentication` | `refresh_auth` | Token refresh |
+| `dependency` | `install_dependency` | Auto-install missing packages |
+| `timeout` | `increase_timeout` | Extend timeout by 30s |
+
+### Available Workflows
+
+| Workflow | Description |
+|----------|-------------|
+| `lead-gen-dentist.yaml` | Dentist lead generation with Google Maps |
+| `data-enrichment.yaml` | Company data enrichment pipeline |
+
+**Architecture Decision**: [ADR-016: WAT Framework Implementation](docs/decisions/ADR-016-wat-framework-implementation.md)
 
 ---
 
