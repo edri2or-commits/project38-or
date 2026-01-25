@@ -1,4 +1,4 @@
-# ADR-013: Smart Model Routing Implementation
+# ADR-015: Smart Model Routing Implementation
 
 **Date**: 2026-01-23
 **Status**: 🟡 Proposed

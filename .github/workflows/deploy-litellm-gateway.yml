@@ -157,7 +157,7 @@ jobs:
               "query": "mutation { variableUpsert(input: { projectId: \"'$RAILWAY_PROJECT_ID'\", environmentId: \"'$RAILWAY_ENVIRONMENT_ID'\", serviceId: \"'$SERVICE_ID'\", name: \"GEMINI_API_KEY\", value: \"'$GEMINI_API_KEY'\" }) }"
             }'
 
-          # DeepSeek API Key (ADR-013: Smart Model Routing)
+          # DeepSeek API Key (ADR-015: Smart Model Routing)
           curl -s -X POST \
             "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \

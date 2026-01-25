@@ -262,7 +262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Measurable outputs: recommendations count, savings identified, insights generated
   - Files: `src/background_agents/` (6 files, ~900 lines)
 
-- **ADR-013: Smart Model Routing Implementation** (2026-01-23)
+- **ADR-015: Smart Model Routing Implementation** (2026-01-23)
   - Gap analysis: Only ~3% of codebase actually uses LLMs despite full infrastructure
   - 4-phase implementation plan:
     - Phase 1: Add Haiku to LiteLLM, fix Factory Generator, create SmartLLMClient

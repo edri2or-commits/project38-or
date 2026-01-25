@@ -4,7 +4,7 @@ Smart LLM Client with automatic model selection based on task type.
 This client routes requests to the most cost-effective model while maintaining
 quality. It uses the LiteLLM Gateway for unified access to multiple providers.
 
-ADR-013: Smart Model Routing Implementation
+ADR-015: Smart Model Routing Implementation
 """
 
 import logging

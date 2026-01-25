@@ -1,5 +1,5 @@
 """
-Smart LLM Client Module - ADR-013 Implementation.
+Smart LLM Client Module - ADR-015 Implementation.
 
 Provides intelligent model routing based on task complexity and cost optimization.
 Routes tasks to the most cost-effective model while maintaining quality.
@@ -28,7 +28,7 @@ Usage:
     )
 
 See Also:
-    - ADR-013: Smart Model Routing Implementation
+    - ADR-015: Smart Model Routing Implementation
     - services/litellm-gateway/litellm-config.yaml
 """
 
