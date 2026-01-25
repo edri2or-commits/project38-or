@@ -8,6 +8,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Zero-Loss Intake System Phase 5 - Automated Governance** (2026-01-25) ✅
+  - `src/intake/governance.py` - Automated governance patterns (~650 lines)
+  - `ADRWriterAgent` - Transforms scattered thoughts into structured ADRs
+    - 9-step workflow: INTAKE → SYSTEM MAPPING → REALITY CHECK → OPTIONS...
+    - Detects decision-related content (Hebrew + English patterns)
+    - Impulsivity detection (warns about rushed decisions)
+    - Generates ADR markdown with options, consequences, proof of work
+  - `ResearchGate` - Controls research integration pipeline (ADR-009)
+    - 5-stage pipeline: CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
+    - Validates research notes for each stage
+    - Decision matrix: Quality/Latency/Cost → ADOPT/REJECT/DEFER
+  - `GovernanceRouter` - Routes content to appropriate governance handlers
+  - Implements "פרוטוקול אמת" (Truth Protocol): No fabrication, all claims verified
+  - 18 unit tests in `tests/test_intake.py`
+
+- **Zero-Loss Intake System Phase 4 - ADHD UX** (2026-01-25) ✅
+  - `src/intake/adhd_ux.py` - ADHD-friendly UX patterns (~550 lines)
+  - `InterruptionManager` - Context-aware interruption control
+    - Deep focus mode: Only critical notifications interrupt
+    - Light work mode: High priority can interrupt
+    - Break/transition modes: Queue flush and notification delivery
+  - `CognitiveLoadDetector` - Estimates mental load from activity patterns
+    - Factors: Time since break, context switches, time of day, active tasks
+    - Returns score 0.0-1.0 with level (low/moderate/high/overloaded)
+  - `QuietWindow` - Time-based quiet mode (overnight, lunch, custom)
+    - Supports overnight windows (22:00-07:00)
+    - Configurable critical-only mode
+  - `ProactiveEngagement` - Gentle nudges and reminders
+    - Task reminders after 24h inactivity
+    - Context restoration after breaks
+    - Break suggestions when cognitive load high
+    - Momentum checks during extended work
+  - `ADHDUXManager` - Unified coordinator for all ADHD UX features
+  - Validated by External Research 2026: ADHD UX patterns, gentle nudge > alert
+  - 15 unit tests in `tests/test_intake.py`
+
+- **Zero-Loss Intake System Phase 3 - Security Guard** (2026-01-25) ✅
+  - `src/intake/security.py` - Security layer with threat detection (~400 lines)
+  - `PromptInjectionDetector` - Acuvity-style detection with zero false positives on technical content
+  - `SensitiveDataDetector` - Detects API keys, passwords, PII exposure
+  - `SecurityGuard` - Main guard with Human-in-the-Loop support
+  - "No Free Lunch" principle: HITL for borderline (60% suspicious), auto-block for critical
+  - Benign technical patterns NOT flagged ("kill process", "injection prevention")
+  - Validated by External Research 2026 §4.1: Acuvity leads in F1 score
+  - Firecracker sandbox documented for future implementation (Railway KVM limitation)
+
+- **Zero-Loss Intake System Phase 2 - Smart Classification** (2026-01-25) ✅
+  - `src/intake/classifier.py` - Unified classifier with confidence cascade (~350 lines)
+  - `IntakeClassifier` - Combines domain, product, and task classification
+  - Confidence-based cascade: Rule-based → Haiku 4.5 → Sonnet 4.5
+  - `FewShotStore` - Inter-Cascade learning (Sonnet teaches Haiku over time)
+  - Priority calculation (P1-P4) based on domain and product potential
+  - Automatic routing to skills (adr-architect, email-assistant, research-ingestion)
+  - Validated by External Research 2026 §3.2: Cascade Classifier pattern
+
+- **Zero-Loss Intake System Phase 1** (2026-01-25) ✅
+  - `src/intake/` - Zero-loss input processing module (4 files, ~850 lines)
+  - `queue.py` - Redis Streams wrapper with in-memory fallback for event sourcing
+  - `outbox.py` - Transactional Outbox pattern for guaranteed message delivery
+  - `domain_classifier.py` - Personal/business/mixed domain classification (Hebrew + English)
+  - `product_detector.py` - Detects when personal needs could become products
+  - Implements alignment prompt principles: "איבוד אפס לקלטים" and "מיון עצמי"
+  - Validated by External Research 2026: Redis Streams, Transactional Outbox, AG-UI
+  - 25+ unit tests in `tests/test_intake.py`
+
 - **Smart Email Agent Phase 4.12 - Action System with Approval** (2026-01-24) ✅
   - `src/agents/smart_email/actions/` - Action execution module (4 files, 900+ lines)
   - `types.py` - ActionRequest, ActionResult, ActionStatus, AuditRecord dataclasses
