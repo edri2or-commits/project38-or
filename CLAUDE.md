@@ -2537,6 +2537,33 @@ no_proxy=localhost,127.0.0.1,169.254.169.254,metadata.google.internal,*.googleap
 
 ---
 
+## GitHub Clients Decision Matrix
+
+**This project has THREE GitHub client implementations. This is intentional - they serve different purposes.**
+
+| Client | Auth Method | Sync/Async | When to Use |
+|--------|-------------|------------|-------------|
+| `src/github_api.py` | Bearer token (PAT) | Sync | Scripts, simple API calls, workflow triggers |
+| `src/github_app_client.py` | JWT + Installation token | Async | GitHub App operations requiring app identity |
+| `src/github_pr.py` | gh CLI → requests fallback | Sync | PR creation (tries gh CLI first for best UX) |
+
+**Decision Logic:**
+
+```
+Need to act as GitHub App (installation permissions)?
+├─ YES → Use github_app_client.py
+└─ NO → Is this a PR operation?
+         ├─ YES → Use github_pr.py (gh CLI with fallback)
+         └─ NO → Use github_api.py (simple, sync, reliable)
+```
+
+**Why not merge them?**
+- JWT App auth ≠ PAT auth (different token types, different permissions)
+- `gh CLI` provides better UX for PR operations when available
+- Async vs Sync matters for integration context
+
+---
+
 ## GitHub API Module (Universal Solution)
 
 **Problem:** `gh CLI` is not installed in Anthropic cloud environments, and curl fails due to proxy interference.

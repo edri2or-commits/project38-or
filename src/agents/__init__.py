@@ -1,102 +1,18 @@
-"""Agents module - Autonomous AI agents for project38-or.
+"""
+Agents module - Autonomous AI agents for task execution.
 
-This module contains specialized agents that run autonomously:
-- EmailAgent: Daily email scanning, classification, and Telegram delivery
-- WebResearcher: Investigates external websites based on email context
-- DraftGenerator: Creates intelligent email reply drafts
-- EmailHistoryLookup: Finds past conversations with senders
-- FormExtractor: Extracts form fields and pre-fills with user data
-- DeadlineTracker: Tracks deadlines and sends proactive reminders
-- UserPreferences: Learns from user actions and stores preferences
-- TaskIntegration: Creates and manages tasks from emails
+This module contains the Smart Email Agent (v2.0) which uses LangGraph
+for email processing, classification, and response generation.
 
-ADR-014: Smart Email Agent with Telegram Integration
+Note:
+    Legacy agents (email_agent, deadline_tracker, etc.) were removed
+    in system audit cleanup (2026-01-25). If historical reference needed,
+    see git history before commit that removed them.
+
+Usage:
+    from src.agents.smart_email import SmartEmailGraph, EmailState
 """
 
-from src.agents.deadline_tracker import (
-    Deadline,
-    DeadlineStatus,
-    DeadlineTracker,
-    DeadlineUrgency,
-)
-from src.agents.draft_generator import (
-    DraftGenerator,
-    DraftReply,
-    ReplyType,
-    ToneType,
-)
-from src.agents.email_agent import (
-    CalendarEvent,
-    DailySummary,
-    EmailAgent,
-    EmailCategory,
-    EmailItem,
-    Priority,
-)
-from src.agents.email_history import (
-    EmailHistoryLookup,
-    RelationshipType,
-    SenderHistory,
-)
-from src.agents.form_extractor import (
-    ExtractedForm,
-    FormExtractor,
-    FormField,
-    FormFieldType,
-)
-from src.agents.task_integration import (
-    TaskIntegration,
-    TaskItem,
-    TaskPriority,
-    TaskSource,
-    TaskStatus,
-)
-from src.agents.user_preferences import (
-    ActionType,
-    UserPreferences,
-)
-from src.agents.web_researcher import (
-    ResearchResult,
-    WebResearcher,
-)
+from src.agents.smart_email import SmartEmailGraph, EmailState
 
-__all__ = [
-    # Email Agent (Phase 1)
-    "EmailAgent",
-    "EmailItem",
-    "EmailCategory",
-    "Priority",
-    "DailySummary",
-    "CalendarEvent",
-    # Web Researcher (Phase 2)
-    "WebResearcher",
-    "ResearchResult",
-    # Draft Generator (Phase 2)
-    "DraftGenerator",
-    "DraftReply",
-    "ReplyType",
-    "ToneType",
-    # Email History (Phase 2)
-    "EmailHistoryLookup",
-    "SenderHistory",
-    "RelationshipType",
-    # Form Extractor (Phase 3)
-    "FormExtractor",
-    "ExtractedForm",
-    "FormField",
-    "FormFieldType",
-    # Deadline Tracker (Phase 3)
-    "DeadlineTracker",
-    "Deadline",
-    "DeadlineStatus",
-    "DeadlineUrgency",
-    # User Preferences (Phase 3)
-    "UserPreferences",
-    "ActionType",
-    # Task Integration (Phase 3)
-    "TaskIntegration",
-    "TaskItem",
-    "TaskPriority",
-    "TaskStatus",
-    "TaskSource",
-]
+__all__ = ["SmartEmailGraph", "EmailState"]

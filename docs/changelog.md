@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **System Audit Cleanup** (2026-01-25) - AUD-001 through AUD-007
+  - **ADR-013 → ADR-015**: Resolved numbering collision (Smart Model Routing)
+  - **Statistics Update**: CLAUDE.md now reflects actual counts (178 modules, 59,800+ lines)
+  - **GitHub Clients Documentation**: Added decision matrix for github_api/github_app_client/github_pr
+
+### Removed
+- **Dead Code Cleanup** (2026-01-25)
+  - `src/mcp_gateway/gcs_mcp_client.py` - Unused MCP client (~290 lines)
+  - `src/mcp_gateway/github_mcp_client.py` - Unused MCP client (~290 lines)
+  - `src/agents/` legacy modules (~180KB total):
+    - email_agent.py, deadline_tracker.py, draft_generator.py
+    - email_history.py, form_extractor.py, gmail_client.py
+    - task_integration.py, user_preferences.py, web_researcher.py
+  - **Note**: `src/agents/smart_email/` (LangGraph-based) is retained
+
 ### Added
+- `src/exceptions.py` - Unified exception hierarchy (AUD-007)
+  - Consolidates 28 duplicate exception classes across 7 modules
+  - Classes: APIClientError, AuthenticationError, RateLimitError, NotFoundError, etc.
+- `docs/audit/workflow-consolidation-candidates.md` - Workflow analysis for future cleanup
+
 - **Zero-Loss Intake System Phase 5 - Automated Governance** (2026-01-25) ✅
   - `src/intake/governance.py` - Automated governance patterns (~650 lines)
   - `ADRWriterAgent` - Transforms scattered thoughts into structured ADRs
