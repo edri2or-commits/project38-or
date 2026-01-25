@@ -530,6 +530,7 @@ project38-or/
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # ZERO-LOSS INTAKE SYSTEM (8 modules, ~2,800 lines) - Alignment Prompt
+│   │   # Type hints: Optional[Any] for injectable dependencies (2026-01-25)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── intake/                    # Zero-loss input processing
 │   │   ├── __init__.py            # Module exports (120 lines)
