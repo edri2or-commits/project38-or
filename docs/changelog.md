@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `n8n-workflows/daily-learning-summary.json` workflow template
   - Status: Implemented
 
+- **ADR-017: AI Landing Page Factory** (2026-01-25)
+  - `docs/decisions/ADR-017-ai-landing-page-factory.md` - Architecture decision record
+  - Formalizes 3D Framework: Design → Develop → Deploy
+  - Decision: DIY design extraction (Option B) over Firecrawl dependency
+  - Implementation: 3 phases, 64-102 hours, ~2,850 LOC
+  - Verified sources: Firecrawl v2.6.0, Gemini 3 (Google Blog)
+
 - **Research Note: AI Landing Page Factory** (2026-01-25)
   - `docs/research/notes/2026-01-25-ai-landing-page-factory.md` - Comprehensive research note
   - Documents 3D Framework: Design (Firecrawl) → Develop (Cursor) → Deploy (Next.js ISR)

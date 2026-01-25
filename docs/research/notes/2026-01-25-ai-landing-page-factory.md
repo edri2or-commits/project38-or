@@ -241,7 +241,7 @@ export const revalidate = 3600; // 1 hour
 ## Next Action
 
 - [x] **Spike** - Create experiment to test DIY design extraction vs Firecrawl
-- [x] **ADR** - Create ADR-016 for Landing Page Factory architecture decision
+- [x] **ADR** - Create ADR-017 for Landing Page Factory architecture decision
 
 **Reason for decision:** High potential value, but needs validation of DIY approach before committing to Firecrawl dependency. ADR needed to formalize the multi-phase implementation plan.
 
@@ -272,7 +272,7 @@ export const revalidate = 3600; // 1 hour
 - **Related ADRs:**
   - ADR-009: Research Integration Architecture
   - ADR-010: Multi-LLM Routing Strategy (LiteLLM)
-  - ADR-016: Landing Page Factory (to be created)
+  - ADR-017: Landing Page Factory (to be created)
 
 - **Related experiments:**
   - exp_004_design_extraction (proposed)
