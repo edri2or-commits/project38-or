@@ -354,6 +354,8 @@ def main() -> int:
             else:
                 print(f"  Status: FAILED")
                 print(f"  Error: {result.get('error', 'unknown')}")
+                if "traceback" in result:
+                    print(f"  Traceback:\n{result.get('traceback')}")
 
     # Set GitHub Actions outputs
     all_success = all(r.get("success", False) for r in results.values())
