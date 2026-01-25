@@ -30,9 +30,10 @@
 
 | Dimension | Value |
 |-----------|-------|
-| **State** | `EXECUTING` |
+| **State** | `PAUSED` |
 | **Confidence** | High |
 | **Blockers** | None |
+| **Waiting For** | New session to test resumption |
 
 ---
 
@@ -63,10 +64,22 @@ Testing the GSD STATE.md pattern to see if it improves session continuity and re
 
 ## Next Steps
 
-1. **Commit STATE.md** to repository
-2. **Test resumption** - Start new session, read STATE.md, verify context reload works
+1. ✅ ~~Commit STATE.md to repository~~ (Done)
+2. **Test resumption** - YOU ARE HERE
+   - Read this file at session start
+   - Confirm you understand the context
+   - Report: How fast was context loading?
 3. **Measure** - Track if context stays cleaner over long sessions
 4. **Decide** - After 2-3 sessions, decide to adopt/reject/modify
+
+### Test Protocol for Next Session
+```
+User says: "קרא STATE.md והמשך"
+Claude should:
+1. Read STATE.md
+2. Confirm: "אני באמצע ניסוי GSD - בודק את פטרן STATE.md"
+3. State next action: "הצעד הבא: לבדוק אם הקשר נטען נכון"
+```
 
 ---
 
