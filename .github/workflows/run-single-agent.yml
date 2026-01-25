@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 env:
   LITELLM_URL: https://litellm-gateway-production-0339.up.railway.app
@@ -60,6 +61,28 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat output.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output captured" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Post output to issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BODY="## Agent Output - Run #${{ github.run_number }}
+
+          ### Dry Run Output
+          \`\`\`
+          $(cat dry_run_output.txt 2>/dev/null || echo 'No dry run output')
+          \`\`\`
+
+          ### Agent Run Output
+          \`\`\`
+          $(cat output.txt 2>/dev/null || echo 'No agent output')
+          \`\`\`
+
+          Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          "
+
+          gh issue create --title "Agent Debug Output - Run #${{ github.run_number }}" --body "$BODY" --label "debug" || echo "Could not create issue"
 
       - name: Fail if needed
         if: steps.run_agent.outcome == 'failure'
