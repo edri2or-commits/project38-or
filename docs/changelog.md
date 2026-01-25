@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Zero-Loss Intake System Phase 1** (2026-01-25) ✅
+  - `src/intake/` - Zero-loss input processing module (4 files, ~850 lines)
+  - `queue.py` - Redis Streams wrapper with in-memory fallback for event sourcing
+  - `outbox.py` - Transactional Outbox pattern for guaranteed message delivery
+  - `domain_classifier.py` - Personal/business/mixed domain classification (Hebrew + English)
+  - `product_detector.py` - Detects when personal needs could become products
+  - Implements alignment prompt principles: "איבוד אפס לקלטים" and "מיון עצמי"
+  - Validated by External Research 2026: Redis Streams, Transactional Outbox, AG-UI
+  - 25+ unit tests in `tests/test_intake.py`
+
 - **Smart Email Agent Phase 4.12 - Action System with Approval** (2026-01-24) ✅
   - `src/agents/smart_email/actions/` - Action execution module (4 files, 900+ lines)
   - `types.py` - ActionRequest, ActionResult, ActionStatus, AuditRecord dataclasses
