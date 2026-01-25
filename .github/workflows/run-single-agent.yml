@@ -36,18 +36,23 @@ jobs:
 
       - name: Test with curl (comparison)
         run: |
-          echo "## Curl Tests (for comparison)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "=== CURL TESTS ===" > curl_output.txt
 
-          echo "Health endpoint:" >> $GITHUB_STEP_SUMMARY
-          curl -s -m 10 https://litellm-gateway-production-0339.up.railway.app/health >> $GITHUB_STEP_SUMMARY 2>&1 || echo "curl failed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Health endpoint:" >> curl_output.txt
+          curl -s -m 10 https://litellm-gateway-production-0339.up.railway.app/health >> curl_output.txt 2>&1 || echo "curl failed" >> curl_output.txt
+          echo "" >> curl_output.txt
 
-          echo "Completion endpoint:" >> $GITHUB_STEP_SUMMARY
+          echo "Completion endpoint:" >> curl_output.txt
           curl -s -m 30 -X POST https://litellm-gateway-production-0339.up.railway.app/chat/completions \
             -H "Content-Type: application/json" \
-            -d '{"model": "gemini-flash", "messages": [{"role": "user", "content": "Say hi"}], "max_tokens": 10}' >> $GITHUB_STEP_SUMMARY 2>&1 || echo "curl failed" >> $GITHUB_STEP_SUMMARY
+            -d '{"model": "gemini-flash", "messages": [{"role": "user", "content": "Say hi"}], "max_tokens": 10}' >> curl_output.txt 2>&1 || echo "curl failed" >> curl_output.txt
+          echo "" >> curl_output.txt
 
+          cat curl_output.txt
+
+          echo "## Curl Tests (for comparison)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat curl_output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Test dry run first
@@ -84,6 +89,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           BODY="## Agent Output - Run #${{ github.run_number }}
+
+          ### Curl Test Output (comparison)
+          \`\`\`
+          $(cat curl_output.txt 2>/dev/null || echo 'No curl output')
+          \`\`\`
 
           ### Dry Run Output
           \`\`\`
