@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **ADR-009 Fix: Added SYSTEM MAPPING Stage** (2026-01-25)
+  - Added mandatory Stage 1.5: SYSTEM MAPPING between CAPTURE and TRIAGE
+  - Prevents duplicate implementations by requiring codebase search before implementation
+  - Updated `docs/decisions/ADR-009-research-integration-architecture.md`
+  - Updated `docs/research/templates/research-note.md` with required System Mapping section
+  - Updated `docs/research/PROCESS.md` with 6-stage process (was 5-stage)
+  - **Root cause**: WAT Framework incident (PR #609 → reverted #610) duplicated 4 existing concepts
+  - **Prevention**: Now requires grep searches and decision matrix before proceeding
+
+### Fixed
+- **Type annotations in intake module** (2026-01-25)
+  - Added `Optional[Any]` type hints to fix mkdocs strict mode warnings
+  - Files: `queue.py`, `outbox.py`, `domain_classifier.py`, `classifier.py`
+  - Parameters: `redis_client`, `db_session`, `llm_client`
+- **Docstring formatting** (2026-01-25)
+  - Fixed D200 (one-line docstring) in `adhd_ux.py`
+  - Fixed D403 (capitalization) in `memory.py`
+
 - **System Audit Cleanup** (2026-01-25) - AUD-001 through AUD-007
   - **ADR-013 → ADR-015**: Resolved numbering collision (Smart Model Routing)
   - **Statistics Update**: CLAUDE.md now reflects actual counts (178 modules, 59,800+ lines)

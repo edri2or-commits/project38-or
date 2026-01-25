@@ -20,7 +20,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from src.intake.domain_classifier import DomainClassifier, DomainClassification, Domain
 from src.intake.product_detector import ProductDetector, ProductPotential
@@ -251,7 +251,7 @@ class IntakeClassifier:
 
     def __init__(
         self,
-        llm_client=None,
+        llm_client: Optional[Any] = None,
         few_shot_store: FewShotStore | None = None,
         enable_cascade: bool = True
     ):

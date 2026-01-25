@@ -39,6 +39,54 @@ _Check all that apply:_
 
 ---
 
+## System Mapping (REQUIRED)
+
+⚠️ **This section is MANDATORY before proceeding to Triage.**
+
+_Search the codebase for existing implementations of concepts in this research._
+
+### Concepts to Search
+
+_List key concepts from the research that might already exist:_
+
+| # | Concept | Search Terms |
+|---|---------|--------------|
+| 1 | [concept name] | `pattern1`, `pattern2` |
+| 2 | [concept name] | `pattern1`, `pattern2` |
+| 3 | [concept name] | `pattern1`, `pattern2` |
+
+### Search Results
+
+_Execute searches and document findings:_
+
+| Concept | Search Command | Files Found | Lines |
+|---------|---------------|-------------|-------|
+| [concept] | `grep -r "pattern" src/` | `src/file.py` | 42-67 |
+| [concept] | `grep -r "pattern" src/` | None | - |
+
+### Overlap Analysis
+
+_For each concept found, describe similarity:_
+
+- **[Concept 1]**: [Describe how it relates to existing code]
+- **[Concept 2]**: [Describe how it relates to existing code]
+
+### Mapping Decision
+
+_For each concept, decide:_
+
+| Concept | Decision | Rationale |
+|---------|----------|-----------|
+| [concept] | CREATE_NEW / EXTEND_EXISTING / SKIP | [Why] |
+
+**Overall Decision:**
+
+- [ ] **CREATE_NEW** - No significant overlap, create new module
+- [ ] **EXTEND_EXISTING** - Add to existing module: `[module path]`
+- [ ] **SKIP** - Already exists, archive this note
+
+---
+
 ## Hypothesis
 
 _State a testable hypothesis. Format: "If we [ACTION], then [METRIC] will [CHANGE] by [AMOUNT]"_

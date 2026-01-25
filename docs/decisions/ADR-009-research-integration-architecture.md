@@ -79,15 +79,16 @@ But lacks:
 ### Research Integration Protocol
 
 ```
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│   CAPTURE    │───▶│    TRIAGE    │───▶│  EXPERIMENT  │───▶│   EVALUATE   │───▶│  INTEGRATE   │
-│              │    │              │    │              │    │              │    │              │
-│ - Document   │    │ - Classify   │    │ - Isolated   │    │ - Compare    │    │ - Feature    │
-│   discovery  │    │   impact     │    │   test       │    │   to baseline│    │   flag       │
-│ - Source URL │    │ - Prioritize │    │ - Measure    │    │ - Decision   │    │ - Gradual    │
-│ - Hypothesis │    │ - Decide     │    │ - Document   │    │   ADOPT/     │    │   rollout    │
-│              │    │              │    │              │    │   REJECT     │    │              │
-└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│   CAPTURE    │───▶│   SYSTEM     │───▶│    TRIAGE    │───▶│  EXPERIMENT  │───▶│   EVALUATE   │───▶│  INTEGRATE   │
+│              │    │   MAPPING    │    │              │    │              │    │              │    │              │
+│ - Document   │    │              │    │ - Classify   │    │ - Isolated   │    │ - Compare    │    │ - Feature    │
+│   discovery  │    │ - Search     │    │   impact     │    │   test       │    │   to baseline│    │   flag       │
+│ - Source URL │    │   existing   │    │ - Prioritize │    │ - Measure    │    │ - Decision   │    │ - Gradual    │
+│ - Hypothesis │    │   code       │    │ - Decide     │    │ - Document   │    │   ADOPT/     │    │   rollout    │
+│              │    │ - Map to     │    │              │    │              │    │   REJECT     │    │              │
+│              │    │   modules    │    │              │    │              │    │              │    │              │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
 ```
 
 ### Stage Details
@@ -96,6 +97,48 @@ But lacks:
 - Create research note in `docs/research/notes/YYYY-MM-DD-title.md`
 - Include: source URL, summary, hypothesis, estimated impact
 - Template provided in `docs/research/templates/research-note.md`
+
+#### Stage 1.5: System Mapping (CRITICAL)
+
+**Purpose:** Prevent duplicate implementations by searching for existing code BEFORE proceeding.
+
+**Required Steps:**
+1. Extract key concepts from research (class names, patterns, algorithms)
+2. Search codebase for each concept: `grep -r "pattern" src/`
+3. Map research concepts to existing modules
+4. Decide: CREATE_NEW / EXTEND_EXISTING / SKIP
+
+**Search Examples:**
+```bash
+# For a "Tool Registry" concept:
+grep -r "ToolRegistry\|tool.*registry\|Registry.*tool" src/
+grep -r "class.*Registry" src/
+
+# For an "Agent Domain" concept:
+grep -r "AgentDomain\|Domain.*agent\|agent.*domain" src/
+grep -r "class.*Domain" src/
+```
+
+**Decision Matrix:**
+
+| Search Result | Decision | Action |
+|--------------|----------|--------|
+| Nothing found | CREATE_NEW | Proceed to TRIAGE as new implementation |
+| Similar concept, different implementation | EXTEND_EXISTING | Add to existing module, not new module |
+| Exact duplicate | SKIP | Archive note, document why redundant |
+
+**Required in Research Note:**
+- Section "System Mapping (REQUIRED)" with:
+  - Concepts extracted from research
+  - Search commands executed
+  - Files found (with line numbers)
+  - Decision for each concept
+
+**Why This Stage Exists:**
+- Added 2026-01-25 after WAT Framework incident (PR #609 → reverted in PR #610)
+- WAT duplicated: ToolRegistry, AgentDomain, AgentCapability, Self-Healing
+- All existed in: src/mcp/registry.py, src/multi_agent/base.py, src/autonomous_controller.py
+- Root cause: No system mapping was performed before implementation
 
 #### Stage 2: Triage
 - Weekly review of new research notes

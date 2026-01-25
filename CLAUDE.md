@@ -517,6 +517,7 @@ project38-or/
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # SMART EMAIL AGENT v2.0 (6 modules, ~1,200 lines) - ADR-014
+│   │   # Docstrings: D403 fix in memory.py (2026-01-25)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── agents/
 │   │   └── smart_email/           # LangGraph-based email processing
@@ -530,6 +531,7 @@ project38-or/
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # ZERO-LOSS INTAKE SYSTEM (8 modules, ~2,800 lines) - Alignment Prompt
+│   │   # Type hints: Optional[Any] for injectable dependencies (2026-01-25)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── intake/                    # Zero-loss input processing
 │   │   ├── __init__.py            # Module exports (120 lines)
@@ -723,7 +725,7 @@ project38-or/
 │   │   ├── ADR-009-*.md           # Research Integration
 │   │   └── ADR-010-*.md           # Multi-LLM Routing Strategy
 │   ├── research/                  # Research integration (ADR-009)
-│   │   ├── README.md              # 5-stage process guide
+│   │   ├── README.md              # 6-stage process guide
 │   │   ├── notes/                 # Research notes (YYYY-MM-DD-title.md)
 │   │   └── templates/             # Templates for research
 │   │       └── research-note.md   # Research note template
@@ -749,17 +751,22 @@ project38-or/
 
 Process for safely integrating new AI research (videos, papers, tools) into the system.
 
-### The 5-Stage Process
+### The 6-Stage Process
 
 ```
-CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
+CAPTURE → SYSTEM MAPPING → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
 ```
 
 1. **Capture**: Document discovery in `docs/research/notes/YYYY-MM-DD-title.md`
-2. **Triage**: Weekly review, classify as Spike/ADR/Backlog/Discard
-3. **Experiment**: Run isolated test in `experiments/exp_NNN_description/`
-4. **Evaluate**: Compare to baseline using decision matrix
-5. **Integrate**: Use feature flags for gradual rollout
+2. **System Mapping** (CRITICAL): Search codebase for existing implementations
+   - Extract concepts from research
+   - `grep -r "pattern" src/` for each concept
+   - Decide: CREATE_NEW / EXTEND_EXISTING / SKIP
+   - ⚠️ Added 2026-01-25 after WAT Framework duplicated 4 existing modules
+3. **Triage**: Weekly review, classify as Spike/ADR/Backlog/Discard
+4. **Experiment**: Run isolated test in `experiments/exp_NNN_description/`
+5. **Evaluate**: Compare to baseline using decision matrix
+6. **Integrate**: Use feature flags for gradual rollout
 
 ### Decision Matrix
 
