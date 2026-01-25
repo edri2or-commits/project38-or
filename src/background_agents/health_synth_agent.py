@@ -317,13 +317,16 @@ Respond ONLY with the JSON object, no markdown."""
             }
 
         except Exception as e:
-            logger.error(f"HealthSynthAgent failed: {e}")
+            import traceback
+            error_detail = traceback.format_exc()
+            logger.error(f"HealthSynthAgent failed: {e}\n{error_detail}")
             metrics.success = False
             metrics.error_message = str(e)
             result = {
                 "success": False,
                 "run_id": run_id,
                 "error": str(e),
+                "traceback": error_detail,
             }
 
         finally:
