@@ -126,7 +126,7 @@ Every week, review new research notes and classify:
 
 ### Auto Weekly Review (Autonomous Mode)
 
-The system can automatically process research notes. See [ADR-009 Phase 5](../decisions/ADR-009-research-integration-architecture.md#phase-5-research-ingestion--autonomy-enhancement).
+The system can automatically process research notes. See [ADR-009 Phase 5](../decisions/ADR-009-research-integration-architecture.md).
 
 **Triggers:**
 - Scheduled: Every Monday 09:00 UTC (GitHub Action)
