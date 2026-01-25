@@ -64,6 +64,19 @@ from src.intake.adhd_ux import (
     GentleNudge,
     CognitiveLoadEstimate,
 )
+from src.intake.governance import (
+    ADRWriterAgent,
+    ADRDraft,
+    ADRStatus,
+    ADRType,
+    ScatteredInput,
+    ResearchGate,
+    ResearchStage,
+    ResearchDecision,
+    ResearchGateResult,
+    GovernanceRouter,
+    GovernanceResult,
+)
 
 __all__ = [
     # Domain Classification
@@ -103,4 +116,16 @@ __all__ = [
     "PendingNotification",
     "GentleNudge",
     "CognitiveLoadEstimate",
+    # Governance (Phase 5)
+    "ADRWriterAgent",
+    "ADRDraft",
+    "ADRStatus",
+    "ADRType",
+    "ScatteredInput",
+    "ResearchGate",
+    "ResearchStage",
+    "ResearchDecision",
+    "ResearchGateResult",
+    "GovernanceRouter",
+    "GovernanceResult",
 ]

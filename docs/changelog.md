@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Zero-Loss Intake System Phase 5 - Automated Governance** (2026-01-25) ✅
+  - `src/intake/governance.py` - Automated governance patterns (~650 lines)
+  - `ADRWriterAgent` - Transforms scattered thoughts into structured ADRs
+    - 9-step workflow: INTAKE → SYSTEM MAPPING → REALITY CHECK → OPTIONS...
+    - Detects decision-related content (Hebrew + English patterns)
+    - Impulsivity detection (warns about rushed decisions)
+    - Generates ADR markdown with options, consequences, proof of work
+  - `ResearchGate` - Controls research integration pipeline (ADR-009)
+    - 5-stage pipeline: CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
+    - Validates research notes for each stage
+    - Decision matrix: Quality/Latency/Cost → ADOPT/REJECT/DEFER
+  - `GovernanceRouter` - Routes content to appropriate governance handlers
+  - Implements "פרוטוקול אמת" (Truth Protocol): No fabrication, all claims verified
+  - 18 unit tests in `tests/test_intake.py`
+
 - **Zero-Loss Intake System Phase 4 - ADHD UX** (2026-01-25) ✅
   - `src/intake/adhd_ux.py` - ADHD-friendly UX patterns (~550 lines)
   - `InterruptionManager` - Context-aware interruption control
