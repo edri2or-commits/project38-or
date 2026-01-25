@@ -13,26 +13,34 @@ jobs:
       - name: Test health endpoint
         run: |
           echo "Testing LiteLLM Gateway health..."
-          HEALTH=$(curl -s -m 30 https://litellm-gateway-production-0339.up.railway.app/health || echo '{"error": "failed"}')
+          HEALTH=$(curl -sf -m 30 https://litellm-gateway-production-0339.up.railway.app/health)
           echo "Health response: $HEALTH"
+          if echo "$HEALTH" | grep -q "Application not found"; then
+            echo "ERROR: Application not found!"
+            exit 1
+          fi
 
       - name: Test model list
         run: |
           echo "Testing model list..."
-          MODELS=$(curl -s -m 30 https://litellm-gateway-production-0339.up.railway.app/models || echo '{"error": "failed"}')
+          MODELS=$(curl -sf -m 30 https://litellm-gateway-production-0339.up.railway.app/models)
           echo "Models response: $MODELS"
 
       - name: Test simple completion
         run: |
           echo "Testing simple completion with gemini-flash..."
-          RESPONSE=$(curl -s -m 60 -X POST https://litellm-gateway-production-0339.up.railway.app/chat/completions \
+          RESPONSE=$(curl -sf -m 60 -X POST https://litellm-gateway-production-0339.up.railway.app/chat/completions \
             -H "Content-Type: application/json" \
             -d '{
               "model": "gemini-flash",
               "messages": [{"role": "user", "content": "Say hello in 5 words."}],
               "max_tokens": 50
-            }' || echo '{"error": "failed"}')
+            }')
           echo "Completion response: $RESPONSE"
+          if echo "$RESPONSE" | grep -q "Application not found"; then
+            echo "ERROR: Application not found!"
+            exit 1
+          fi
 
       - name: Summary
         run: |
