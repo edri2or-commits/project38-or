@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   LITELLM_URL: https://litellm-gateway-production-0339.up.railway.app
@@ -29,36 +28,28 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install dependencies
         run: |
           pip install httpx litellm "openai>=1.0.0"
-          pip show openai | grep Version
 
       - name: Run agent
-        id: run_agent
-        continue-on-error: true
         env:
           PYTHONPATH: ${{ github.workspace }}
-          GH_TOKEN: ${{ github.token }}
         run: |
-          python -m src.background_agents.runner --agent ${{ inputs.agent }} 2>&1 | tee /tmp/agent_output.txt
-          exit ${PIPESTATUS[0]}
+          set -o pipefail
+          python -m src.background_agents.runner --agent ${{ inputs.agent }} 2>&1 | tee output.txt
+          EXIT_CODE=$?
 
-      - name: Report result
-        if: always()
-        run: |
           echo "## Agent Run Result" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/agent_output.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output"
+          cat output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Fail if agent failed
-        if: steps.run_agent.outcome == 'failure'
-        run: exit 1
+          exit $EXIT_CODE
 
       - name: Upload metrics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: agent-metrics-${{ github.run_id }}
