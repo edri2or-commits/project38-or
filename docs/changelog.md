@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **ADR-016: n8n Daily Learning Agent** (2026-01-25)
+  - Architecture decision for daily learning summary workflow
+  - n8n workflow calling existing `LearningService` infrastructure
+  - Telegram delivery of insights summary at 08:00 UTC
+  - Reuses existing `LearnInsightAgent` and `LearningService` (no duplication)
+  - Status: Proposed
+
 ### Changed
 - **ADR-009 Fix: Added SYSTEM MAPPING Stage** (2026-01-25)
   - Added mandatory Stage 1.5: SYSTEM MAPPING between CAPTURE and TRIAGE
