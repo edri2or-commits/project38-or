@@ -34,6 +34,22 @@ jobs:
         run: |
           pip install httpx litellm "openai>=1.0.0"
 
+      - name: Test with curl (comparison)
+        run: |
+          echo "## Curl Tests (for comparison)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          echo "Health endpoint:" >> $GITHUB_STEP_SUMMARY
+          curl -s -m 10 https://litellm-gateway-production-0339.up.railway.app/health >> $GITHUB_STEP_SUMMARY 2>&1 || echo "curl failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Completion endpoint:" >> $GITHUB_STEP_SUMMARY
+          curl -s -m 30 -X POST https://litellm-gateway-production-0339.up.railway.app/chat/completions \
+            -H "Content-Type: application/json" \
+            -d '{"model": "gemini-flash", "messages": [{"role": "user", "content": "Say hi"}], "max_tokens": 10}' >> $GITHUB_STEP_SUMMARY 2>&1 || echo "curl failed" >> $GITHUB_STEP_SUMMARY
+
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
       - name: Test dry run first
         env:
           PYTHONPATH: ${{ github.workspace }}
