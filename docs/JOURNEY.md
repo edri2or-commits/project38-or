@@ -6306,7 +6306,7 @@ Key technology choices validated by research:
 | `c9cc964` | feat(intake): Add Smart Classification with Inter-Cascade (Phase 2) |
 | `8fd9547` | feat(intake): Add Security Guard with HITL (Phase 3) |
 | `9152b9a` | feat(intake): Add ADHD UX - Context-Aware Interruptions (Phase 4) |
-| TBD | feat(intake): Add Automated Governance - ADR Writer & Research Gate (Phase 5) |
+| `4f0d283` | feat(intake): Add Automated Governance - ADR Writer & Research Gate (Phase 5) |
 
 ### Key Design Decisions
 
