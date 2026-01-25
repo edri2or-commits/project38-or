@@ -142,3 +142,21 @@ jobs:
 
           asyncio.run(test())
           "
+
+      - name: Test runner module
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          echo "Testing runner module (same as run-single-agent)..."
+          python -m src.background_agents.runner --agent health_synth 2>&1 | tee /tmp/runner_output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "Exit code: $EXIT_CODE"
+          exit $EXIT_CODE
+
+      - name: Report runner result
+        if: always()
+        run: |
+          echo "## Runner Module Result" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/runner_output.txt >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
