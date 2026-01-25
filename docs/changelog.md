@@ -24,6 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Note**: `src/agents/smart_email/` (LangGraph-based) is retained
 
 ### Added
+- **WAT Framework - Workflows, Agents, Tools** (2026-01-25) ✅ - ADR-016
+  - `src/wat/` - Complete WAT Framework implementation (~1,800 lines)
+  - `types.py` - Core data structures (ToolDefinition, WorkflowStep, AgentCapability)
+  - `registry.py` - ToolRegistry with MCP/module/skill discovery
+  - `workflow.py` - Workflow engine with YAML/Markdown parsing
+  - `agent.py` - AgentDefinition with capability matching and dispatch
+  - `executor.py` - SelfHealingExecutor with the Loop pattern
+  - `workflows/` - WAT workflow definitions directory
+    - `lead-gen-dentist.yaml` - Lead generation example workflow
+    - `data-enrichment.yaml` - Data enrichment pipeline example
+  - Self-healing error recovery with classification:
+    - Network, rate_limit, authentication, dependency, timeout errors
+    - Automatic retry with backoff, dependency installation, auth refresh
+  - Cost tracking and budget enforcement
+  - 45+ unit tests in `tests/test_wat_framework.py`
+
 - `src/exceptions.py` - Unified exception hierarchy (AUD-007)
   - Consolidates 28 duplicate exception classes across 7 modules
   - Classes: APIClientError, AuthenticationError, RateLimitError, NotFoundError, etc.
