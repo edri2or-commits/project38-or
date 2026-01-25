@@ -75,6 +75,13 @@ The GSD Framework proposes externalizing LLM "memory" to files:
 | Date | Session | Observation | Rating |
 |------|---------|-------------|--------|
 | 2026-01-25 | Initial | Created STATE.md, testing pattern | ⏳ |
+| 2026-01-25 | Test #1 | SessionStart hook did NOT read STATE.md automatically. Context came from system-reminder showing file changes, not from intentional state loading. User must explicitly request "קרא STATE.md". | ⚠️ Partial |
+
+### Test #1 Details
+- **Expected**: Claude reads STATE.md at session start, immediately knows context
+- **Actual**: Claude learned about STATE.md from system-reminder (file modification notice)
+- **Gap**: No automatic loading mechanism exists
+- **Conclusion**: Pattern requires either (a) manual user request, or (b) hook modification
 
 ---
 
