@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Note**: `src/agents/smart_email/` (LangGraph-based) is retained
 
 ### Added
+- **ADR-016: n8n Error Scanner Agent** (2026-01-25) - PROPOSED
+  - Daily n8n workflow for comprehensive error scanning
+  - Scans: GitHub Actions failures, Railway deployments, Production health
+  - Auto-remediation: CI re-run, rollback, restart, cache clear
+  - Fix verification: Wait 60s + re-check + compare before/after
+  - Daily Telegram summary with P1-P4 priority classification
+  - Complements Night Watch (overnight) with daytime scanning
+  - Based on external research: SRE Auto-Remediation 2025 patterns
 - **GCP Tunnel Client Module** (2026-01-25) ✅
   - `src/gcp_tunnel_client.py` - Universal autonomy client (~270 lines)
   - Bypasses Anthropic proxy restrictions via `cloudfunctions.googleapis.com`
