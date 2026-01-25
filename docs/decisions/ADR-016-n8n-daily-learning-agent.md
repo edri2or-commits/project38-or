@@ -41,7 +41,7 @@ The system already has extensive learning infrastructure:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  n8n Workflow: "Daily Learning Summary"                         │
-│  Schedule: 08:00 UTC (11:00 Israel time) - once per day        │
+│  Schedule: 07:00 UTC (09:00 Israel time) - once per day        │
 │                                                                 │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
 │  │  Schedule   │───▶│ HTTP Request│───▶│  Telegram   │         │
@@ -124,7 +124,7 @@ async def get_daily_insights():
         "rule": {
           "interval": [{"field": "hours", "hoursInterval": 24}]
         },
-        "triggerTimes": {"item": [{"hour": 8}]}
+        "triggerTimes": {"item": [{"hour": 7}]}
       },
       "position": [250, 300]
     },

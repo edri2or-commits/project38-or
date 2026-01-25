@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ADR-016: n8n Daily Learning Agent** (2026-01-25)
   - Architecture decision for daily learning summary workflow
   - n8n workflow calling existing `LearningService` infrastructure
-  - Telegram delivery of insights summary at 08:00 UTC
+  - Telegram delivery of insights summary at 07:00 UTC (09:00 Israel)
   - Reuses existing `LearnInsightAgent` and `LearningService` (no duplication)
-  - Status: Proposed
+  - **Implementation:**
+    - `GET /api/learning/daily-insights` endpoint with Hebrew formatting
+    - `n8n-workflows/daily-learning-summary.json` workflow template
+  - Status: Implemented
 
 ### Changed
 - **ADR-009 Fix: Added SYSTEM MAPPING Stage** (2026-01-25)
