@@ -472,9 +472,7 @@ class ProactiveEngagement:
         )
 
     def generate_break_suggestion(self) -> Optional[GentleNudge]:
-        """
-        Generate break suggestion based on cognitive load.
-        """
+        """Generate break suggestion based on cognitive load."""
         load = self.manager.cognitive_detector.estimate()
 
         # Only suggest if load is high

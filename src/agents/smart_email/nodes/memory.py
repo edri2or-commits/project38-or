@@ -153,7 +153,7 @@ async def record_email_interaction(
 
 
 async def memory_enrich_node(state: EmailState) -> dict[str, Any]:
-    """LangGraph node: Enrich emails with sender memory.
+    """Enrich emails with sender memory (LangGraph node).
 
     This node runs BEFORE classification to provide sender context
     that helps with more accurate prioritization.
@@ -196,7 +196,7 @@ async def memory_enrich_node(state: EmailState) -> dict[str, Any]:
 
 
 async def memory_record_node(state: EmailState) -> dict[str, Any]:
-    """LangGraph node: Record email interactions in memory.
+    """Record email interactions in memory (LangGraph node).
 
     This node runs AFTER classification to record what was processed.
 

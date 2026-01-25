@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `Optional[Any]` type hints to fix mkdocs strict mode warnings
   - Files: `queue.py`, `outbox.py`, `domain_classifier.py`, `classifier.py`
   - Parameters: `redis_client`, `db_session`, `llm_client`
+- **Docstring formatting** (2026-01-25)
+  - Fixed D200 (one-line docstring) in `adhd_ux.py`
+  - Fixed D403 (capitalization) in `memory.py`
 
 - **System Audit Cleanup** (2026-01-25) - AUD-001 through AUD-007
   - **ADR-013 → ADR-015**: Resolved numbering collision (Smart Model Routing)
