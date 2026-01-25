@@ -36,21 +36,6 @@ jobs:
           pip install httpx litellm "openai>=1.0.0"
           pip show openai | grep Version
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
-
-      - name: Get API keys
-        run: |
-          ANTHROPIC_API_KEY=$(gcloud secrets versions access latest --secret="ANTHROPIC-API" --project=project38-483612)
-          GEMINI_API_KEY=$(gcloud secrets versions access latest --secret="GEMINI-API" --project=project38-483612)
-          echo "::add-mask::$ANTHROPIC_API_KEY"
-          echo "::add-mask::$GEMINI_API_KEY"
-          echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" >> $GITHUB_ENV
-          echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> $GITHUB_ENV
-
       - name: Run agent
         id: run_agent
         continue-on-error: true
