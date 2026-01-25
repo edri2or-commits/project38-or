@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **System Vision Documentation** (2026-01-25)
+  - `docs/VISION.md` - Core vision document defining who the user is and what the system is for
+  - Documents: ADHD-aware design, zero input loss, 24/7 readiness, personal + business tracks
+  - Updated `CLAUDE.md` to reference VISION.md as "Layer 0" - first read for all sessions
+  - Every future Claude session now knows the user's context and expectations
+
 - **Smart Email Agent Phase 4.12 - Action System with Approval** (2026-01-24) ✅
   - `src/agents/smart_email/actions/` - Action execution module (4 files, 900+ lines)
   - `types.py` - ActionRequest, ActionResult, ActionStatus, AuditRecord dataclasses

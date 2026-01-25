@@ -1,8 +1,18 @@
 # Project Context: project38-or
 
+> **קרא קודם:** [docs/VISION.md](docs/VISION.md) - החזון, המטרות, ומי המשתמש
+
 ## Overview
 
+**מערכת חיים אישית** - לא פרויקט טכני. שותפות AI לכל החיים.
+
 Personal AI System with **full autonomous capabilities** - Railway deployments, Google Workspace integration, multi-agent orchestration, and ML-based self-healing. This is a **public repository** on a GitHub Free personal account.
+
+### המשתמש היחיד
+- **לא מתכנת** - לא בא מעולם התכנות
+- **ADHD** - יכול להציף רעיונות ובלאגן, המערכת מחלצת זהב
+- **התפקיד שלו**: להזין רעיונות, בקשות, מחקרים - ולאשר
+- **התפקיד של המערכת**: לבצע, לבנות, לשמור על סדר, להיות מוכנה 24/7
 
 **Production Status**: ✅ **Deployed** at https://or-infra.com (Railway project: delightful-cat)
 
@@ -71,6 +81,7 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 
 **For AI Agents Starting New Session**:
 ```
+0. Read docs/VISION.md → WHO is the user, WHAT he wants, HOW to serve him
 1. Read CLAUDE.md (Layer 1) → Get current state
 2. Skim docs/JOURNEY.md (Layer 3) → Understand timeline
 3. Check docs/decisions/ (Layer 2) → Review recent ADRs
