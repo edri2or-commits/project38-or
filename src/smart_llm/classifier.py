@@ -4,7 +4,7 @@ Task Classifier for automatic model selection.
 Analyzes prompts to determine the optimal task type and model.
 Uses pattern matching and heuristics for fast, cost-free classification.
 
-ADR-013: Smart Model Routing Implementation
+ADR-015: Smart Model Routing Implementation
 """
 
 import re

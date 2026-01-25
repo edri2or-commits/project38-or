@@ -7,11 +7,11 @@ Personal AI System with **full autonomous capabilities** - Railway deployments, 
 **Production Status**: ✅ **Deployed** at https://or-infra.com (Railway project: delightful-cat)
 
 **Primary Stack:**
-- Python 3.11+ (87 modules, 29,200+ lines of code)
+- Python 3.11+ (178 modules, 59,800+ lines of code)
 - FastAPI (deployed, 11 API route modules)
 - PostgreSQL on Railway (deployed)
 - GCP Secret Manager for secrets (12 secrets)
-- GitHub Actions for CI/CD (20+ workflows)
+- GitHub Actions for CI/CD (129 workflows)
 - MCP Gateway for full autonomy
 
 ---
@@ -52,7 +52,7 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-010: Multi-LLM Routing Strategy](docs/decisions/ADR-010-multi-llm-routing-strategy.md) - LiteLLM Gateway for multi-provider AI routing
 - [ADR-011: ADR Architect](docs/decisions/ADR-011-adr-architect-structured-request-processing.md) - 9-step workflow for scattered requests → structured ADRs
 - [ADR-012: Context Integrity Enforcement](docs/decisions/ADR-012-context-integrity-enforcement.md) - Automated 4-layer documentation enforcement
-- [ADR-013: Smart Model Routing](docs/decisions/ADR-013-smart-model-routing-implementation.md) - 4-phase plan: Haiku/Sonnet/Opus routing, background jobs, 60%+ cost reduction
+- [ADR-015: Smart Model Routing](docs/decisions/ADR-015-smart-model-routing-implementation.md) - 4-phase plan: Haiku/Sonnet/Opus routing, background jobs, 60%+ cost reduction
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
@@ -436,11 +436,11 @@ The `src/workspace_mcp_bridge/` directory contains a custom implementation that 
 
 ## File Structure
 
-**Total: 92 Python modules, 30,500+ lines of production code**
+**Total: 178 Python modules, 59,800+ lines of production code**
 
 ```
 project38-or/
-├── src/                           # Production code (29,200+ lines)
+├── src/                           # Production code (59,800+ lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # CORE INFRASTRUCTURE (5 modules, ~700 lines)
@@ -677,7 +677,7 @@ project38-or/
 │       ├── Dockerfile
 │       └── package.json
 │
-├── tests/                         # pytest tests (148+ tests)
+├── tests/                         # pytest tests (74 files, ~2000 test cases)
 │   ├── e2e/                       # End-to-end tests
 │   │   └── test_full_deployment.py
 │   ├── load/                      # Load tests
@@ -2534,6 +2534,33 @@ no_proxy=localhost,127.0.0.1,169.254.169.254,metadata.google.internal,*.googleap
 - ✅ `requests` library with GitHub API - **works** (handles proxy correctly)
 
 **Important:** `gh CLI` is NOT installed in Anthropic cloud environments. Use Python modules instead.
+
+---
+
+## GitHub Clients Decision Matrix
+
+**This project has THREE GitHub client implementations. This is intentional - they serve different purposes.**
+
+| Client | Auth Method | Sync/Async | When to Use |
+|--------|-------------|------------|-------------|
+| `src/github_api.py` | Bearer token (PAT) | Sync | Scripts, simple API calls, workflow triggers |
+| `src/github_app_client.py` | JWT + Installation token | Async | GitHub App operations requiring app identity |
+| `src/github_pr.py` | gh CLI → requests fallback | Sync | PR creation (tries gh CLI first for best UX) |
+
+**Decision Logic:**
+
+```
+Need to act as GitHub App (installation permissions)?
+├─ YES → Use github_app_client.py
+└─ NO → Is this a PR operation?
+         ├─ YES → Use github_pr.py (gh CLI with fallback)
+         └─ NO → Use github_api.py (simple, sync, reliable)
+```
+
+**Why not merge them?**
+- JWT App auth ≠ PAT auth (different token types, different permissions)
+- `gh CLI` provides better UX for PR operations when available
+- Async vs Sync matters for integration context
 
 ---
 

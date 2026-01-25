@@ -1,7 +1,7 @@
 """
 Tests for SmartLLMClient module.
 
-ADR-013: Smart Model Routing Implementation
+ADR-015: Smart Model Routing Implementation
 """
 
 import pytest
@@ -290,7 +290,7 @@ class TestLLMResponse:
 
 
 class TestCostSavingsCalculation:
-    """Tests to verify cost savings claims from ADR-013."""
+    """Tests to verify cost savings claims from ADR-015."""
 
     def test_coding_savings_vs_sonnet(self):
         """Coding with DeepSeek should save 93% vs Sonnet."""

@@ -5919,8 +5919,8 @@ External research on cost optimization patterns:
 
 | File | Purpose |
 |------|---------|
-| `docs/decisions/ADR-013-smart-model-routing-implementation.md` | Full implementation plan |
-| `docs/changelog.md` | Updated with ADR-013 entry |
+| `docs/decisions/ADR-015-smart-model-routing-implementation.md` | Full implementation plan |
+| `docs/changelog.md` | Updated with ADR-015 entry |
 | `docs/JOURNEY.md` | This phase documentation |
 
 ### Status
