@@ -42,6 +42,15 @@ from src.intake.classifier import (
     IntakeClassificationResult,
     FewShotStore,
 )
+from src.intake.security import (
+    SecurityGuard,
+    PromptInjectionDetector,
+    SensitiveDataDetector,
+    ThreatLevel,
+    ThreatType,
+    ThreatDetection,
+    HITLRequest,
+)
 
 __all__ = [
     # Domain Classification
@@ -61,4 +70,12 @@ __all__ = [
     "IntakeClassifier",
     "IntakeClassificationResult",
     "FewShotStore",
+    # Security (Phase 3)
+    "SecurityGuard",
+    "PromptInjectionDetector",
+    "SensitiveDataDetector",
+    "ThreatLevel",
+    "ThreatType",
+    "ThreatDetection",
+    "HITLRequest",
 ]

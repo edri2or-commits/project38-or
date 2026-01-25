@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Zero-Loss Intake System Phase 3 - Security Guard** (2026-01-25) ✅
+  - `src/intake/security.py` - Security layer with threat detection (~400 lines)
+  - `PromptInjectionDetector` - Acuvity-style detection with zero false positives on technical content
+  - `SensitiveDataDetector` - Detects API keys, passwords, PII exposure
+  - `SecurityGuard` - Main guard with Human-in-the-Loop support
+  - "No Free Lunch" principle: HITL for borderline (60% suspicious), auto-block for critical
+  - Benign technical patterns NOT flagged ("kill process", "injection prevention")
+  - Validated by External Research 2026 §4.1: Acuvity leads in F1 score
+  - Firecracker sandbox documented for future implementation (Railway KVM limitation)
+
 - **Zero-Loss Intake System Phase 2 - Smart Classification** (2026-01-25) ✅
   - `src/intake/classifier.py` - Unified classifier with confidence cascade (~350 lines)
   - `IntakeClassifier` - Combines domain, product, and task classification
