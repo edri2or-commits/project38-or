@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Root cause**: WAT Framework incident (PR #609 → reverted #610) duplicated 4 existing concepts
   - **Prevention**: Now requires grep searches and decision matrix before proceeding
 
+### Fixed
+- **Type annotations in intake module** (2026-01-25)
+  - Added `Optional[Any]` type hints to fix mkdocs strict mode warnings
+  - Files: `queue.py`, `outbox.py`, `domain_classifier.py`, `classifier.py`
+  - Parameters: `redis_client`, `db_session`, `llm_client`
+
 - **System Audit Cleanup** (2026-01-25) - AUD-001 through AUD-007
   - **ADR-013 → ADR-015**: Resolved numbering collision (Smart Model Routing)
   - **Statistics Update**: CLAUDE.md now reflects actual counts (178 modules, 59,800+ lines)

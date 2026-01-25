@@ -17,7 +17,7 @@ import logging
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ class IntakeQueue:
     CONSUMER_GROUP = "intake_processors"
     MAX_STREAM_LENGTH = 10000  # Trim old events to prevent unbounded growth
 
-    def __init__(self, redis_client=None):
+    def __init__(self, redis_client: Optional[Any] = None):
         """Initialize queue with optional Redis client.
 
         Args:
