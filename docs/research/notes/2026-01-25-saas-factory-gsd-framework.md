@@ -184,10 +184,10 @@ LOG_LEVEL=error
 ## Related
 
 - Related ADRs:
-  - [ADR-002: Dual Documentation Strategy](../decisions/ADR-002-dual-documentation-strategy.md) - Existing 4-layer context
-  - [ADR-007: n8n Webhook Activation](../decisions/ADR-007-n8n-webhook-activation-architecture.md) - n8n patterns
-  - [ADR-008: Robust Automation Strategy](../decisions/ADR-008-robust-automation-strategy.md) - Multi-path automation
-  - [ADR-011: ADR Architect](../decisions/ADR-011-adr-architect-structured-request-processing.md) - Structured request processing
+  - [ADR-002: Dual Documentation Strategy](../../decisions/ADR-002-dual-documentation-strategy.md) - Existing 4-layer context
+  - [ADR-007: n8n Webhook Activation](../../decisions/ADR-007-n8n-webhook-activation-architecture.md) - n8n patterns
+  - [ADR-008: Robust Automation Strategy](../../decisions/ADR-008-robust-automation-strategy.md) - Multi-path automation
+  - [ADR-011: ADR Architect](../../decisions/ADR-011-adr-architect-structured-request-processing.md) - Structured request processing
 
 - Related experiments: None yet
 

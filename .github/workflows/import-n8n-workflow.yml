@@ -1,0 +1,119 @@
+name: Import n8n Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      workflow_file:
+        description: 'Workflow JSON file path (relative to repo root)'
+        required: true
+        default: 'docs/n8n/daily-learning-summary.json'
+      activate:
+        description: 'Activate workflow after import'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  import-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install httpx
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Get n8n API key
+        id: secrets
+        run: |
+          N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=project38-483612)
+          echo "::add-mask::$N8N_API_KEY"
+          echo "N8N_API_KEY=$N8N_API_KEY" >> $GITHUB_ENV
+
+      - name: Import workflow to n8n
+        env:
+          WORKFLOW_FILE: ${{ inputs.workflow_file }}
+          ACTIVATE: ${{ inputs.activate }}
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          import httpx
+
+          workflow_file = os.environ['WORKFLOW_FILE']
+          activate = os.environ.get('ACTIVATE', 'false').lower() == 'true'
+          api_key = os.environ['N8N_API_KEY']
+          base_url = 'https://n8n-production-2fe0.up.railway.app'
+
+          print(f"📂 Reading workflow from: {workflow_file}")
+          with open(workflow_file) as f:
+              workflow_data = json.load(f)
+
+          # Remove fields that shouldn't be in import
+          # NOTE: 'active' is READ-ONLY in n8n API - must NOT be included in POST
+          workflow_data.pop('id', None)
+          workflow_data.pop('createdAt', None)
+          workflow_data.pop('updatedAt', None)
+          workflow_data.pop('active', None)  # Remove - use /activate endpoint instead
+
+          print(f"📤 Importing workflow: {workflow_data.get('name', 'Unknown')}")
+
+          response = httpx.post(
+              f"{base_url}/api/v1/workflows",
+              json=workflow_data,
+              headers={
+                  "X-N8N-API-KEY": api_key,
+                  "Content-Type": "application/json"
+              },
+              timeout=30.0
+          )
+
+          if response.status_code in (200, 201):
+              result = response.json()
+              workflow_id = result.get('id', 'unknown')
+              print(f"✅ Workflow imported successfully!")
+              print(f"   ID: {workflow_id}")
+              print(f"   Name: {result.get('name', 'unknown')}")
+              print(f"   URL: {base_url}/workflow/{workflow_id}")
+
+              # Activate if requested (must use separate /activate endpoint)
+              if activate and workflow_id != 'unknown':
+                  print(f"🔄 Activating workflow...")
+                  activate_response = httpx.post(
+                      f"{base_url}/api/v1/workflows/{workflow_id}/activate",
+                      headers={"X-N8N-API-KEY": api_key},
+                      timeout=30.0
+                  )
+                  if activate_response.status_code == 200:
+                      print(f"   ✅ Workflow activated!")
+                  else:
+                      print(f"   ⚠️ Activation failed: {activate_response.status_code}")
+                      print(f"   Response: {activate_response.text}")
+          else:
+              print(f"❌ Failed to import workflow")
+              print(f"   Status: {response.status_code}")
+              print(f"   Response: {response.text}")
+              exit(1)
+          EOF
+
+      - name: Post result to summary
+        if: always()
+        run: |
+          echo "## n8n Workflow Import" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**File:** \`${{ inputs.workflow_file }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Activate:** ${{ inputs.activate }}" >> $GITHUB_STEP_SUMMARY

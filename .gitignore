@@ -47,6 +47,7 @@ secrets/
 !tests/golden/*.json
 !config/feature_flags.yaml
 !.github/doc-policy.json
+!docs/n8n/*.json
 
 # IDE
 .vscode/

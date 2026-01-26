@@ -14,7 +14,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ class DomainClassifier:
     HIGH_CONFIDENCE_THRESHOLD = 0.8
     LLM_ESCALATION_THRESHOLD = 0.6
 
-    def __init__(self, llm_client=None):
+    def __init__(self, llm_client: Optional[Any] = None):
         """Initialize classifier.
 
         Args:

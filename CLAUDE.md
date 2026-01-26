@@ -7,7 +7,7 @@ Personal AI System with **full autonomous capabilities** - Railway deployments, 
 **Production Status**: ✅ **Deployed** at https://or-infra.com (Railway project: delightful-cat)
 
 **Primary Stack:**
-- Python 3.11+ (178 modules, 59,800+ lines of code)
+- Python 3.11+ (167 modules, 53,700+ lines of code)
 - FastAPI (deployed, 11 API route modules)
 - PostgreSQL on Railway (deployed)
 - GCP Secret Manager for secrets (12 secrets)
@@ -52,8 +52,12 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-010: Multi-LLM Routing Strategy](docs/decisions/ADR-010-multi-llm-routing-strategy.md) - LiteLLM Gateway for multi-provider AI routing
 - [ADR-011: ADR Architect](docs/decisions/ADR-011-adr-architect-structured-request-processing.md) - 9-step workflow for scattered requests → structured ADRs
 - [ADR-012: Context Integrity Enforcement](docs/decisions/ADR-012-context-integrity-enforcement.md) - Automated 4-layer documentation enforcement
+- [ADR-013: Night Watch](docs/decisions/ADR-013-night-watch-autonomous-operations.md) - Autonomous overnight operations with morning summary
+- [ADR-014: Smart Email Agent](docs/decisions/ADR-014-smart-email-agent.md) - LangGraph-based email processing with Telegram integration
 - [ADR-015: Smart Model Routing](docs/decisions/ADR-015-smart-model-routing-implementation.md) - 4-phase plan: Haiku/Sonnet/Opus routing, background jobs, 60%+ cost reduction
-- [ADR-016: n8n Error Scanner Agent](docs/decisions/ADR-016-n8n-error-scanner-agent.md) - Daily error scanning, auto-remediation, fix verification
+- [ADR-016: n8n Daily Learning Agent](docs/decisions/ADR-016-n8n-daily-learning-agent.md) - Daily learning summary workflow with Telegram delivery
+- [ADR-017: AI Landing Page Factory](docs/decisions/ADR-017-ai-landing-page-factory.md) - 3D Framework (Design→Develop→Deploy) for automated landing page generation
+- [ADR-018: n8n Error Scanner Agent](docs/decisions/ADR-018-n8n-error-scanner-agent.md) - Daily error scanning, auto-remediation, fix verification
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
@@ -119,12 +123,12 @@ Frequency: Every major feature completion (not every commit)
 
 | Layer | Files | Size | Purpose |
 |-------|-------|------|---------|
-| Layer 1 (CLAUDE.md) | 1 | 65KB | Quick context |
-| Layer 2 (decisions/) | 5 ADRs | 55KB | Decision records |
-| Layer 3 (JOURNEY.md) | 1 | 52KB | Narrative timeline |
-| Layer 4a (integrations/) | 5 | 199KB | Practical research |
-| Layer 4b (autonomous/) | 9 | 240KB | Theory + code synthesis |
-| **Total** | **21** | **611KB** | Complete context |
+| Layer 1 (CLAUDE.md) | 1 | 119KB | Quick context |
+| Layer 2 (decisions/) | 15 ADRs | 233KB | Decision records |
+| Layer 3 (JOURNEY.md) | 1 | 220KB | Narrative timeline |
+| Layer 4a (integrations/) | 5 | 208KB | Practical research |
+| Layer 4b (autonomous/) | 11 | 273KB | Theory + code synthesis |
+| **Total** | **33** | **1,053KB** | Complete context |
 
 ### Industry Standards Referenced
 
@@ -437,11 +441,11 @@ The `src/workspace_mcp_bridge/` directory contains a custom implementation that 
 
 ## File Structure
 
-**Total: 178 Python modules, 59,800+ lines of production code**
+**Total: 167 Python modules, 53,700+ lines of production code**
 
 ```
 project38-or/
-├── src/                           # Production code (59,800+ lines)
+├── src/                           # Production code (53,700+ lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # CORE INFRASTRUCTURE (5 modules, ~700 lines)
@@ -516,6 +520,7 @@ project38-or/
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # SMART EMAIL AGENT v2.0 (6 modules, ~1,200 lines) - ADR-014
+│   │   # Docstrings: D403 fix in memory.py (2026-01-25)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── agents/
 │   │   └── smart_email/           # LangGraph-based email processing
@@ -529,6 +534,7 @@ project38-or/
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # ZERO-LOSS INTAKE SYSTEM (8 modules, ~2,800 lines) - Alignment Prompt
+│   │   # Type hints: Optional[Any] for injectable dependencies (2026-01-25)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── intake/                    # Zero-loss input processing
 │   │   ├── __init__.py            # Module exports (120 lines)
@@ -722,7 +728,7 @@ project38-or/
 │   │   ├── ADR-009-*.md           # Research Integration
 │   │   └── ADR-010-*.md           # Multi-LLM Routing Strategy
 │   ├── research/                  # Research integration (ADR-009)
-│   │   ├── README.md              # 5-stage process guide
+│   │   ├── README.md              # 6-stage process guide
 │   │   ├── notes/                 # Research notes (YYYY-MM-DD-title.md)
 │   │   └── templates/             # Templates for research
 │   │       └── research-note.md   # Research note template
@@ -748,17 +754,22 @@ project38-or/
 
 Process for safely integrating new AI research (videos, papers, tools) into the system.
 
-### The 5-Stage Process
+### The 6-Stage Process
 
 ```
-CAPTURE → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
+CAPTURE → SYSTEM MAPPING → TRIAGE → EXPERIMENT → EVALUATE → INTEGRATE
 ```
 
 1. **Capture**: Document discovery in `docs/research/notes/YYYY-MM-DD-title.md`
-2. **Triage**: Weekly review, classify as Spike/ADR/Backlog/Discard
-3. **Experiment**: Run isolated test in `experiments/exp_NNN_description/`
-4. **Evaluate**: Compare to baseline using decision matrix
-5. **Integrate**: Use feature flags for gradual rollout
+2. **System Mapping** (CRITICAL): Search codebase for existing implementations
+   - Extract concepts from research
+   - `grep -r "pattern" src/` for each concept
+   - Decide: CREATE_NEW / EXTEND_EXISTING / SKIP
+   - ⚠️ Added 2026-01-25 after WAT Framework duplicated 4 existing modules
+3. **Triage**: Weekly review, classify as Spike/ADR/Backlog/Discard
+4. **Experiment**: Run isolated test in `experiments/exp_NNN_description/`
+5. **Evaluate**: Compare to baseline using decision matrix
+6. **Integrate**: Use feature flags for gradual rollout
 
 ### Decision Matrix
 
@@ -865,7 +876,7 @@ Create a file with minimal info:
 ```bash
 echo "URL: https://arxiv.org/abs/2026.12345
 Title: New RAG Architecture
-Description: Claims 2x faster retrieval with same quality" > docs/research/inbox/new-research.txt
+Description: Claims 2x faster retrieval with same quality" > docs/research/notes/$(date +%Y-%m-%d)-new-rag-architecture.md
 ```
 
 #### What You Provide vs What System Infers

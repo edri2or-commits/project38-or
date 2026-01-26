@@ -21,7 +21,7 @@ import logging
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ class TransactionalOutbox:
 
     TABLE_NAME = "intake_outbox"
 
-    def __init__(self, db_session=None):
+    def __init__(self, db_session: Optional[Any] = None):
         """Initialize with optional database session.
 
         Args:

@@ -1,4 +1,4 @@
-# ADR-016: n8n Error Scanner Agent
+# ADR-018: n8n Error Scanner Agent
 
 ## Status
 **ACCEPTED** (2026-01-25) → Implementation in progress

@@ -392,3 +392,120 @@ async def get_learning_summary(
     """
     service = await ensure_initialized()
     return await service.get_learning_summary(days=days)
+
+
+# ============================================================================
+# DAILY INSIGHTS FOR N8N (ADR-016)
+# ============================================================================
+class DailyInsightsResponse(BaseModel):
+    """Response model for daily insights endpoint."""
+
+    success: bool
+    message: str
+    stats: dict[str, Any]
+    insights_count: int
+    generated_at: str
+
+
+def _format_hebrew_summary(
+    summary: dict[str, Any],
+    insights: list[Any],
+) -> str:
+    """Format learning summary as Hebrew message for Telegram.
+
+    Args:
+        summary: Learning summary from LearningService
+        insights: List of insights from generate_insights
+
+    Returns:
+        Formatted Hebrew message with markdown
+    """
+    today = datetime.now().strftime("%Y-%m-%d")
+    total_actions = summary.get("total_actions", 0)
+    success_rate = summary.get("overall_success_rate", 0) * 100
+    action_types = summary.get("action_types_tracked", 0)
+
+    # Determine trend emoji
+    stats_by_action = summary.get("stats_by_action", [])
+    improving = sum(1 for s in stats_by_action if s.get("trend") == "improving")
+    declining = sum(1 for s in stats_by_action if s.get("trend") == "declining")
+
+    if improving > declining:
+        trend_text = "משתפר"
+        trend_emoji = "📈"
+    elif declining > improving:
+        trend_text = "ירידה"
+        trend_emoji = "📉"
+    else:
+        trend_text = "יציב"
+        trend_emoji = "➡️"
+
+    # Build insights section
+    insights_text = ""
+    if insights:
+        insights_lines = []
+        for i, insight in enumerate(insights[:5], 1):  # Max 5 insights
+            desc = getattr(insight, "description", str(insight))
+            rec = getattr(insight, "recommendation", "")
+            impact = getattr(insight, "impact_level", "medium")
+            emoji = "🔴" if impact == "high" else "🟡" if impact == "medium" else "🟢"
+            insights_lines.append(f"{emoji} {desc}")
+            if rec:
+                insights_lines.append(f"   └ המלצה: {rec}")
+        insights_text = "\n".join(insights_lines)
+    else:
+        insights_text = "אין תובנות חדשות היום"
+
+    # Get top priority
+    critical_insights = summary.get("critical_insights", [])
+    if critical_insights:
+        top_priority = critical_insights[0].get("description", "לא זוהתה עדיפות")
+    else:
+        top_priority = "המערכת פועלת כשורה"
+
+    # Build message
+    message = f"""📊 *סיכום למידה יומי - {today}*
+
+*סטטיסטיקות:*
+• פעולות שנרשמו: {total_actions}
+• שיעור הצלחה: {success_rate:.1f}%
+• סוגי פעולות: {action_types}
+• מגמה: {trend_emoji} {trend_text}
+
+*תובנות ({len(insights)}):*
+{insights_text}
+
+*עדיפות מובילה:*
+{top_priority}
+
+_נוצר אוטומטית על ידי n8n Daily Learning Agent_"""
+
+    return message
+
+
+@router.get("/daily-insights", response_model=DailyInsightsResponse)
+async def get_daily_insights() -> DailyInsightsResponse:
+    """Get daily learning insights for n8n workflow.
+
+    Returns formatted insights suitable for Telegram message.
+    Called by n8n Daily Learning Summary workflow (ADR-016).
+
+    Returns:
+        DailyInsightsResponse with Hebrew message and stats
+    """
+    service = await ensure_initialized()
+
+    # Get summary and insights for the last 24 hours
+    summary = await service.get_learning_summary(days=1)
+    insights = await service.generate_insights(days=1)
+
+    # Format Hebrew message
+    message = _format_hebrew_summary(summary, insights)
+
+    return DailyInsightsResponse(
+        success=True,
+        message=message,
+        stats=summary,
+        insights_count=len(insights),
+        generated_at=datetime.now().isoformat(),
+    )
