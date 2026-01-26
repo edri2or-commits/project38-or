@@ -696,15 +696,13 @@ def _node_send_telegram() -> dict[str, Any]:
             "method": "POST",
             "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
             "authentication": "none",
-            "sendHeaders": True,
-            "headerParameters": {
-                "parameters": [
-                    {"name": "Content-Type", "value": "application/json"},
-                ]
-            },
             "sendBody": True,
-            "specifyBody": "json",
-            "jsonBody": '={"chat_id": "{{ $env.TELEGRAM_CHAT_ID }}", "text": {{ JSON.stringify($json.report) }}, "parse_mode": "Markdown"}',
+            "contentType": "json",
+            "body": {
+                "chat_id": "={{ $env.TELEGRAM_CHAT_ID }}",
+                "text": "={{ $json.report }}",
+                "parse_mode": "Markdown",
+            },
             "options": {
                 "response": {"response": {"responseFormat": "json"}},
             },
