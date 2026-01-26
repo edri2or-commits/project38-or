@@ -23,19 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Issues: #615 (Self-Healing), #616 (Vision), #617 (Video)
   - Total: ~3,400 lines of experiment code
 
-- **ADR-016: n8n Daily Learning Agent - Full Implementation** (2026-01-26)
+- **ADR-016: n8n Daily Learning Agent** (2026-01-26)
   - Architecture decision for daily learning summary workflow
   - n8n workflow calling existing `LearningService` infrastructure
-  - **Two triggers:**
-    - Schedule: 07:00 UTC (09:00 Israel) - automatic daily
-    - Webhook: POST `/webhook/daily-learning` - manual anytime
-  - **Implementation:**
-    - `GET /api/learning/daily-insights` endpoint with Hebrew formatting (PR #618)
-    - `docs/n8n/daily-learning-summary.json` workflow template
-    - `import-n8n-workflow.yml` - automated workflow import (PR #625, #626)
-    - `setup-n8n-telegram.yml` - automated Telegram credentials setup (PR #632)
-  - **Fully automated** - no manual UI steps required
-  - Status: Implemented and Active
+  - **Implementation (Partial):**
+    - ✅ `GET /api/learning/daily-insights` endpoint with Hebrew formatting (PR #618)
+    - ✅ `docs/n8n/daily-learning-summary.json` workflow template
+    - ✅ `import-n8n-workflow.yml` - workflow import automation (PR #625, #626)
+    - ✅ `setup-n8n-telegram.yml` - Telegram setup automation (PR #632)
+    - ✅ `check-n8n-workflows.yml` - diagnostic workflow (PR #639)
+    - ✅ `reset-n8n-api-key.yml` - API key management (PR #641)
+    - ✅ `debug-n8n-auth.yml` - auth debugging (PR #644)
+  - **⚠️ BLOCKED**: n8n API returns HTTP 401 Unauthorized
+    - Workflow not visible in n8n dashboard
+    - All import attempts fail at n8n API call
+    - API key reset and multiple redeploys did not resolve
+  - Status: **BLOCKED** - See ADR-016 Blocking Issue section
 
 - **ADR-017: AI Landing Page Factory** (2026-01-25)
   - `docs/decisions/ADR-017-ai-landing-page-factory.md` - Architecture decision record
