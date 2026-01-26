@@ -55,6 +55,8 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-013: Night Watch](docs/decisions/ADR-013-night-watch-autonomous-operations.md) - Autonomous overnight operations with morning summary
 - [ADR-014: Smart Email Agent](docs/decisions/ADR-014-smart-email-agent.md) - LangGraph-based email processing with Telegram integration
 - [ADR-015: Smart Model Routing](docs/decisions/ADR-015-smart-model-routing-implementation.md) - 4-phase plan: Haiku/Sonnet/Opus routing, background jobs, 60%+ cost reduction
+- [ADR-016: n8n Daily Learning Agent](docs/decisions/ADR-016-n8n-daily-learning-agent.md) - Daily learning summary workflow with Telegram delivery
+- [ADR-017: AI Landing Page Factory](docs/decisions/ADR-017-ai-landing-page-factory.md) - 3D Framework (Design→Develop→Deploy) for automated landing page generation
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings
