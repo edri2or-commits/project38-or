@@ -176,6 +176,7 @@ def _node_scan_github_actions() -> dict[str, Any]:
                 "parameters": [
                     {"name": "status", "value": "failure"},
                     {"name": "per_page", "value": "20"},
+                    {"name": "created", "value": ">={{ $now.minus(24, 'hours').toISO() }}"},
                 ]
             },
             "options": {
