@@ -1,0 +1,43 @@
+# Railway Configuration for PERSONAL Domain
+# Documentation: https://docs.railway.app/reference/config-as-code
+#
+# This is a separate Railway service for PERSONAL automation:
+# - Smart Email Agent
+# - Google Workspace integration
+#
+# Deploy as a separate service in Railway, NOT the main service.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+# PERSONAL Domain entrypoint
+startCommand = "PYTHONPATH=/app uvicorn apps.personal.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[env]
+# Environment variables for PERSONAL domain (set in Railway dashboard)
+#
+# PERSONAL Domain Environment (no BUSINESS secrets):
+# - GOOGLE-OAUTH-CLIENT-ID (via GCP)
+# - GOOGLE-OAUTH-CLIENT-SECRET (via GCP)
+# - GOOGLE-OAUTH-REFRESH-TOKEN (via GCP)
+# - TELEGRAM-BOT-TOKEN (for sending summaries)
+# - TELEGRAM-CHAT-ID (personal chat)
+# - MCP_GATEWAY_URL (GCP Tunnel URL)
+# - MCP_GATEWAY_TOKEN (for accessing Gmail via tunnel)
+#
+# DO NOT include:
+# - RAILWAY-API
+# - N8N-API
+# - github-app-private-key
+# - Other BUSINESS infrastructure secrets
+
+# Daily email summary cron job (05:00 UTC = 07:00 Israel time)
+[[crons]]
+schedule = "0 5 * * *"
+endpoint = "/run_email_summary"

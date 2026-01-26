@@ -272,168 +272,80 @@ async def save_conversation(
 # =============================================================================
 # Email Agent Handlers (Phase 4.12)
 # =============================================================================
+#
+# NOTE: After domain split (2026-01-26), the Smart Email Agent is now a PERSONAL
+# domain service that runs separately. This BUSINESS domain Telegram bot no longer
+# bundles the email agent code.
+#
+# Email functionality is available via:
+# 1. The PERSONAL service at /run_email_summary endpoint
+# 2. The daily-email-agent.yml GitHub Actions workflow
+#
+# See docs/split/SYSTEM_MAP.md for domain separation details.
 
-# Lazy import to avoid circular dependencies
+# Email agent is NOT bundled in BUSINESS domain
 _email_handler = None
 _approval_manager = None
-_email_agent_available = None
+_email_agent_available = False  # Hardcoded False - agent runs in PERSONAL domain
 
 
 def _check_email_agent():
-    """Check if email agent is available (lazy check)."""
-    global _email_agent_available
-    if _email_agent_available is None:
-        try:
-            from src.agents.smart_email.graph import run_smart_email_agent
-            _email_agent_available = True
-            logger.info("Smart Email Agent available")
-        except ImportError as e:
-            _email_agent_available = False
-            logger.warning(f"Smart Email Agent not available: {e}")
-    return _email_agent_available
+    """Check if email agent is available.
+
+    Always returns False because email agent runs in separate PERSONAL domain.
+    """
+    return False
 
 
 def _get_email_handler():
-    """Get or create email conversation handler (lazy initialization)."""
-    global _email_handler
-    if _email_handler is None:
-        try:
-            from src.agents.smart_email.conversation import ConversationHandler
-            _email_handler = ConversationHandler()
-            logger.info("Email ConversationHandler initialized")
-        except ImportError as e:
-            logger.warning(f"Email agent not available: {e}")
-    return _email_handler
+    """Get email conversation handler.
+
+    Returns None because email agent runs in separate PERSONAL domain.
+    """
+    return None
 
 
 def _get_approval_manager():
-    """Get or create approval manager (lazy initialization)."""
-    global _approval_manager
-    if _approval_manager is None:
-        try:
-            from src.agents.smart_email.actions import create_approval_manager
-            _approval_manager = create_approval_manager()
-            logger.info("ApprovalManager initialized")
-        except ImportError as e:
-            logger.warning(f"Approval manager not available: {e}")
-    return _approval_manager
+    """Get approval manager.
+
+    Returns None because email agent runs in separate PERSONAL domain.
+    """
+    return None
 
 
 async def email_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /email command - run full email triage with LangGraph.
+    """Handle /email command.
+
+    After domain split (2026-01-26), the email agent runs as a separate PERSONAL service.
+    This command now redirects users to use that service.
 
     Args:
         update: Telegram update object
         context: Telegram context object
     """
-    chat_id = update.effective_chat.id
-
-    if not _check_email_agent():
-        await update.message.reply_text(
-            "❌ Email agent not available. Missing dependencies."
-        )
-        return
-
-    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-
-    try:
-        # Import and run the full email agent
-        from src.agents.smart_email.graph import run_smart_email_agent
-
-        # Run the full email scanning pipeline
-        result = await run_smart_email_agent(
-            hours=24,
-            send_telegram=False,  # We'll send it ourselves
-            enable_phase2=True,
-            enable_memory=True,
-        )
-
-        # Get the formatted message
-        message = result.get("telegram_message", "")
-        if not message:
-            message = "📬 לא נמצאו מיילים חדשים ב-24 השעות האחרונות."
-
-        # Send to user (split if too long)
-        if len(message) > 4096:
-            # Telegram message limit is 4096 chars
-            for i in range(0, len(message), 4096):
-                await update.message.reply_text(
-                    message[i:i+4096],
-                    parse_mode="HTML",
-                )
-        else:
-            await update.message.reply_text(
-                message,
-                parse_mode="HTML",
-            )
-
-    except Exception as e:
-        logger.error(f"Email command error: {e}", exc_info=True)
-        await update.message.reply_text(
-            "❌ שגיאה בקריאת המיילים. נסה שוב מאוחר יותר."
-        )
+    # Email agent runs in PERSONAL domain, not in this BUSINESS bot
+    await update.message.reply_text(
+        "📧 Email agent runs as a separate PERSONAL service.\n\n"
+        "Your daily email summary is delivered automatically at 07:00 Israel time.\n"
+        "To run manually, use the daily-email-agent GitHub Actions workflow."
+    )
 
 
 async def inbox_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /inbox command - quick inbox status with counts.
+    """Handle /inbox command.
+
+    After domain split (2026-01-26), the email agent runs as a separate PERSONAL service.
+    This command now redirects users to use that service.
 
     Args:
         update: Telegram update object
         context: Telegram context object
     """
-    chat_id = update.effective_chat.id
-
-    if not _check_email_agent():
-        await update.message.reply_text(
-            "❌ Email agent not available."
-        )
-        return
-
-    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-
-    try:
-        # Import and run the email agent
-        from src.agents.smart_email.graph import run_smart_email_agent
-
-        # Run with phase2 disabled for faster response
-        result = await run_smart_email_agent(
-            hours=24,
-            send_telegram=False,
-            enable_phase2=False,  # Faster - no research/drafts
-            enable_memory=False,
-        )
-
-        # Build quick summary
-        total = result.get("total_count", 0)
-        p1 = result.get("p1_count", 0)
-        p2 = result.get("p2_count", 0)
-        p3 = result.get("p3_count", 0)
-        p4 = result.get("p4_count", 0)
-        system = result.get("system_emails_count", 0)
-
-        lines = [
-            "📊 סטטוס התיבה (24 שעות):",
-            "",
-            f"📬 סה\"כ: {total} מיילים",
-            f"🔴 דחוף (P1): {p1}",
-            f"🟠 חשוב (P2): {p2}",
-            f"🟡 מידע (P3): {p3}",
-            f"⚪ נמוך (P4): {p4}",
-            f"🔇 מערכת (מוסתר): {system}",
-            "",
-            "💡 כתוב /email לסקירה מלאה",
-        ]
-
-        await update.message.reply_text(
-            "\n".join(lines),
-            parse_mode="HTML",
-        )
-
-    except Exception as e:
-        logger.error(f"Inbox command error: {e}", exc_info=True)
-        await update.message.reply_text(
-            "❌ שגיאה בסיכום התיבה."
-        )
+    # Email agent runs in PERSONAL domain, not in this BUSINESS bot
+    await update.message.reply_text(
+        "📧 Email status is available via the PERSONAL service.\n\n"
+        "Your daily email summary is delivered automatically at 07:00 Israel time."
+    )
 
 
 async def email_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -555,109 +467,24 @@ async def smart_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             except Exception as e:
                 logger.error(f"Edit approval error: {e}")
 
-    # Route inbox scan queries to full email agent
+    # Route inbox scan queries to redirect message (email agent is in PERSONAL domain)
     if is_inbox_scan_query(user_message):
-        if _check_email_agent():
-            await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-            try:
-                from src.agents.smart_email.graph import run_smart_email_agent
+        # Email agent runs in PERSONAL domain, redirect user
+        await update.message.reply_text(
+            "📧 Email scanning runs as a separate PERSONAL service.\n\n"
+            "Your daily summary is delivered automatically at 07:00 Israel time."
+        )
+        return
 
-                result = await run_smart_email_agent(
-                    hours=24,
-                    send_telegram=False,
-                    enable_phase2=True,
-                    enable_memory=True,
-                )
-
-                message = result.get("telegram_message", "")
-                if not message:
-                    message = "📬 לא נמצאו מיילים חדשים."
-
-                if len(message) > 4096:
-                    for i in range(0, len(message), 4096):
-                        await update.message.reply_text(
-                            message[i:i+4096],
-                            parse_mode="HTML",
-                        )
-                else:
-                    await update.message.reply_text(message, parse_mode="HTML")
-                return
-
-            except Exception as e:
-                logger.error(f"Email agent error: {e}", exc_info=True)
-                # Fall through to conversation handler
-
-    # Route other email queries to conversation handler
+    # Route email queries to redirect message (email agent is in PERSONAL domain)
     if is_email_query(user_message):
-        handler = _get_email_handler()
-        if handler:
-            await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-
-            try:
-                response = await handler.process_message(
-                    user_id=str(user.id),
-                    chat_id=str(chat_id),
-                    message=user_message,
-                )
-
-                # Check if action confirmation needed
-                if response.requires_confirmation and response.show_keyboard:
-                    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
-                    manager = _get_approval_manager()
-                    if manager:
-                        # Create proposal
-                        from src.agents.smart_email.actions import ActionType
-
-                        action_type_map = {
-                            "reply": ActionType.REPLY,
-                            "forward": ActionType.FORWARD,
-                            "archive": ActionType.ARCHIVE,
-                        }
-                        action_type = action_type_map.get(
-                            response.action_to_confirm.value if response.action_to_confirm else "reply",
-                            ActionType.REPLY
-                        )
-
-                        proposal = manager.create_proposal(
-                            action_type=action_type,
-                            user_id=str(user.id),
-                            chat_id=str(chat_id),
-                            **response.action_details,
-                        )
-
-                        # Build keyboard
-                        keyboard = [
-                            [
-                                InlineKeyboardButton("✅ אשר", callback_data=f"approve:{proposal.id}"),
-                                InlineKeyboardButton("❌ בטל", callback_data=f"reject:{proposal.id}"),
-                            ]
-                        ]
-                        if action_type in (ActionType.REPLY, ActionType.FORWARD):
-                            keyboard[0].append(
-                                InlineKeyboardButton("✏️ ערוך", callback_data=f"edit:{proposal.id}")
-                            )
-
-                        reply_markup = InlineKeyboardMarkup(keyboard)
-                        proposal_text = manager.format_proposal_hebrew(proposal)
-
-                        await update.message.reply_text(
-                            proposal_text,
-                            reply_markup=reply_markup,
-                            parse_mode="HTML",
-                        )
-                        return
-
-                # Regular response
-                await update.message.reply_text(
-                    response.text,
-                    parse_mode="HTML",
-                )
-                return
-
-            except Exception as e:
-                logger.error(f"Email handler error: {e}")
-                # Fall through to general handler
+        # Email agent runs in PERSONAL domain, redirect user
+        await update.message.reply_text(
+            "📧 Email operations run as a separate PERSONAL service.\n\n"
+            "Your daily summary is delivered automatically at 07:00 Israel time.\n"
+            "For email actions, use the daily-email-agent GitHub Actions workflow."
+        )
+        return
 
     # Default: use general LiteLLM handler
     await text_message_handler(update, context)

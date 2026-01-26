@@ -3,7 +3,8 @@ builder = "NIXPACKS"
 buildCommand = "pip install -r requirements.txt"
 
 [deploy]
-startCommand = "uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
+# BUSINESS Domain entrypoint (after domain split)
+startCommand = "PYTHONPATH=/app uvicorn apps.business.main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
@@ -12,8 +13,20 @@ restartPolicyMaxRetries = 10
 [env]
 # Environment variables (set in Railway dashboard)
 # DATABASE_URL - PostgreSQL connection string (auto-provided by Railway)
-# PYTHONPATH - Set to /app
+# PYTHONPATH - Automatically set via startCommand
 # PORT - Auto-provided by Railway
+#
+# BUSINESS Domain Environment (no PERSONAL secrets):
+# - RAILWAY-API (via GCP)
+# - N8N-API (via GCP)
+# - github-app-private-key (via GCP)
+# - MCP-GATEWAY-TOKEN (via GCP)
+# - ANTHROPIC-API, OPENAI-API, GEMINI-API (for LLM)
+#
+# DO NOT include:
+# - GOOGLE-OAUTH-* secrets
+# - WORKSPACE-MCP-* secrets
+# - TELEGRAM-CHAT-ID (personal)
 
 # Night Watch cron jobs (ADR-013)
 # Runs every hour during night hours (00:00-06:00 UTC)
