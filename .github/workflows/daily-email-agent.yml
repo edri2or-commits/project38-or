@@ -133,7 +133,8 @@ jobs:
 
           async def main():
               try:
-                  from src.agents.smart_email.graph import run_smart_email_agent
+                  # PERSONAL domain import (after domain split 2026-01-26)
+                  from apps.personal.agents.smart_email.graph import run_smart_email_agent
 
                   result = await run_smart_email_agent(
                       hours=int('$HOURS'),
@@ -203,9 +204,10 @@ jobs:
           python -c "
           import sys
           sys.path.insert(0, '.')
-          from src.agents.smart_email.graph import SmartEmailGraph, run_smart_email_agent
-          from src.agents.smart_email.state import EmailCategory, Priority
-          print('✅ SmartEmailGraph v2.0 imported successfully')
+          # PERSONAL domain imports (after domain split 2026-01-26)
+          from apps.personal.agents.smart_email.graph import SmartEmailGraph, run_smart_email_agent
+          from apps.personal.agents.smart_email.state import EmailCategory, Priority
+          print('✅ SmartEmailGraph v2.0 imported successfully (PERSONAL domain)')
 
           graph = SmartEmailGraph(enable_phase2=True)
           print(f'   Graph nodes: {list(graph.graph.nodes.keys())}')
