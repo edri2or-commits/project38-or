@@ -6405,5 +6405,103 @@ After:  CAPTURE → SYSTEM MAPPING → TRIAGE → EXPERIMENT → EVALUATE → IN
 
 ---
 
-*Last Updated: 2026-01-25 UTC*
-*Status: **Phase 50 Complete - ADR-009 SYSTEM MAPPING Fix***
+## Phase 51: AI Landing Page Factory Research (2026-01-25)
+
+### Research Discovery
+
+**Date**: 2026-01-25
+**Trigger**: User provided technical research document about "AI-Driven Landing Page Factory"
+**Method**: Source verification via web search + system mapping
+
+### The 3D Framework
+
+User provided comprehensive research on automated landing page generation:
+
+```
+DESIGN → DEVELOP → DEPLOY
+   ↓         ↓         ↓
+Firecrawl  Cursor   Next.js ISR
+(extraction) (generation) (rendering)
+```
+
+### Truth Protocol Verification
+
+**Critical Step**: Before accepting research claims, verified via web search.
+
+| Claim | Verification | Source |
+|-------|-------------|--------|
+| Firecrawl `formats=['branding']` | ✅ Confirmed | [GitHub v2.6.0](https://github.com/firecrawl/firecrawl/releases/tag/v2.6.0) |
+| Gemini 3 released Nov 2025 | ✅ Confirmed | [Google Blog](https://blog.google/products/gemini/gemini-3/) |
+| Gemini 3 Flash released Dec 2025 | ✅ Confirmed | [TechCrunch](https://techcrunch.com/2025/12/17/google-launches-gemini-3-flash-makes-it-the-default-model-in-the-gemini-app/) |
+| Firecrawl: $16/5k pages | ✅ Confirmed | [eesel.ai](https://www.eesel.ai/blog/firecrawl-pricing) |
+| Gemini 3 context: 1M tokens | ✅ Confirmed | [Google Blog](https://blog.google/products/gemini/gemini-3-flash/) |
+
+**Corrections Found**:
+- Document claimed "$16/3k pages" → Actual: $16/5k pages (MORE value)
+- Document claimed "$83/100k pages" → Actual: $83/50k pages (LESS value)
+
+### System Mapping (ADR-009 Compliance)
+
+Per the new Stage 1.5 requirement, mapped research concepts to existing code:
+
+| Research Concept | Existing Module | Overlap | Decision |
+|-----------------|-----------------|---------|----------|
+| Design extraction | `src/mcp/browser.py` | 20% | **EXTEND** |
+| Code generation | `src/factory/generator.py` | 30% | **EXTEND** |
+| LLM routing | `services/litellm-gateway/` | 90% | Config change |
+| Cursor rules | None | 0% | **CREATE NEW** |
+| ISR automation | None | 0% | **CREATE NEW** |
+
+**Overall Overlap**: 15-20% with existing architecture
+
+### Architecture Decision
+
+**ADR-017 Created**: Selected DIY Design Extraction (Option B) over Firecrawl
+
+| Option | Monthly Cost | Decision |
+|--------|-------------|----------|
+| Firecrawl | $16-333/month | ❌ Rejected |
+| DIY (Browser + Claude) | ~$0.05/site | ✅ Selected |
+
+**Rationale**: Uses existing `src/mcp/browser.py` infrastructure, no external dependency
+
+### Implementation Roadmap Documented
+
+| Phase | Hours | New LOC | Description |
+|-------|-------|---------|-------------|
+| Phase 1 | 14-22 | ~350 | Design token extraction |
+| Phase 2 | 20-30 | ~1,200 | UI component generation |
+| Phase 3 | 30-50 | ~1,300 | pSEO automation |
+| **Total** | **64-102** | **~2,850** | |
+
+### 4-Layer Documentation
+
+| Layer | File | Status |
+|-------|------|--------|
+| Layer 1 | `CLAUDE.md` | ✅ ADR-017 added to list |
+| Layer 2 | `docs/decisions/ADR-017-ai-landing-page-factory.md` | ✅ Created (280 lines) |
+| Layer 3 | `docs/JOURNEY.md` | ✅ This entry |
+| Layer 4 | `docs/research/notes/2026-01-25-ai-landing-page-factory.md` | ✅ Created (320 lines) |
+| Changelog | `docs/changelog.md` | ✅ Updated |
+
+### PR & Merge
+
+- **PR #620**: docs(research): add AI Landing Page Factory research note and ADR-017
+- **Merge SHA**: `64a3ce2`
+- **ADR Renumber**: Originally ADR-016, changed to ADR-017 due to conflict with n8n Daily Learning Agent
+
+### Key Learnings
+
+1. **Truth Protocol Works**: Web verification caught pricing discrepancies
+2. **System Mapping Prevents Duplication**: Found 15-20% overlap with existing modules
+3. **ADR Numbering**: Check main branch before creating new ADRs
+4. **Research → ADR Pipeline**: ADR-009 process successfully guided the integration
+
+### Status
+
+**Phase 51: ✅ COMPLETE - AI Landing Page Factory Research**
+
+---
+
+*Last Updated: 2026-01-26 UTC*
+*Status: **Phase 51 Complete - AI Landing Page Factory Research & ADR-017***
