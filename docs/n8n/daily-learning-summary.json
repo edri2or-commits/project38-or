@@ -12,12 +12,10 @@
           ]
         }
       },
-      "id": "schedule-trigger",
       "name": "Daily at 09:00 Israel",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [250, 300],
-      "notes": "07:00 UTC = 09:00 Israel time"
+      "position": [250, 300]
     },
     {
       "parameters": {
@@ -26,7 +24,6 @@
           "timeout": 30000
         }
       },
-      "id": "get-insights",
       "name": "Get Learning Insights",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -42,7 +39,6 @@
           },
           "conditions": [
             {
-              "id": "check-insights",
               "leftValue": "={{ $json.insights_count }}",
               "rightValue": 0,
               "operator": {
@@ -55,12 +51,10 @@
         },
         "options": {}
       },
-      "id": "has-insights",
       "name": "Has Insights?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [650, 300],
-      "notes": "Only send if there are insights to report"
+      "position": [650, 300]
     },
     {
       "parameters": {
@@ -70,26 +64,17 @@
           "parse_mode": "Markdown"
         }
       },
-      "id": "send-telegram",
       "name": "Send to Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [850, 200],
-      "credentials": {
-        "telegramApi": {
-          "id": "telegram-bot",
-          "name": "Telegram Bot"
-        }
-      }
+      "position": [850, 200]
     },
     {
       "parameters": {},
-      "id": "no-insights",
       "name": "No Insights (Skip)",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [850, 400],
-      "notes": "No new insights today, skip notification"
+      "position": [850, 400]
     }
   ],
   "connections": {
@@ -138,29 +123,6 @@
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": ""
-  },
-  "versionId": "1",
-  "meta": {
-    "templateCredsSetupCompleted": false,
-    "instanceId": "project38-or"
-  },
-  "tags": [
-    {
-      "name": "learning",
-      "id": "learning"
-    },
-    {
-      "name": "daily",
-      "id": "daily"
-    },
-    {
-      "name": "telegram",
-      "id": "telegram"
-    }
-  ],
-  "pinData": {},
-  "staticData": null,
-  "triggerCount": 0
+    "callerPolicy": "workflowsFromSameOwner"
+  }
 }
