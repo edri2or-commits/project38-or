@@ -1,0 +1,143 @@
+name: Check n8n Workflows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+env:
+  N8N_URL: "https://n8n-production-2fe0.up.railway.app"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get n8n API key
+        id: secrets
+        run: |
+          N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=project38-483612)
+          echo "::add-mask::$N8N_API_KEY"
+          echo "n8n_api_key=$N8N_API_KEY" >> $GITHUB_OUTPUT
+
+      - name: Check n8n Health
+        id: health
+        continue-on-error: true
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
+          echo "🏥 Checking n8n health..."
+          HEALTH=$(curl -s -w "\nHTTP_CODE:%{http_code}" "$N8N_URL/healthz" || echo "FAILED")
+          echo "Health response: $HEALTH"
+          echo "health_response<<EOF" >> $GITHUB_OUTPUT
+          echo "$HEALTH" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: List All Workflows
+        id: workflows
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
+          echo "📋 Listing all n8n workflows..."
+
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+
+          HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | grep -v "HTTP_CODE:")
+
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          # Count workflows
+          WORKFLOW_COUNT=$(echo "$BODY" | jq -r '.data | length // 0')
+          echo "Total workflows: $WORKFLOW_COUNT"
+
+          # List workflow names
+          echo "Workflows:"
+          echo "$BODY" | jq -r '.data[]? | "- \(.name) (ID: \(.id), Active: \(.active))"'
+
+          # Save for issue
+          echo "workflow_count=$WORKFLOW_COUNT" >> $GITHUB_OUTPUT
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "workflow_list<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" | jq -r '.data[]? | "- **\(.name)** (ID: \(.id), Active: \(.active))"' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check for Daily Learning Workflow
+        id: daily
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
+          echo "🔍 Looking for Daily Learning Summary workflow..."
+
+          RESPONSE=$(curl -s \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+
+          DAILY=$(echo "$RESPONSE" | jq -r '.data[]? | select(.name == "Daily Learning Summary")')
+
+          if [ -n "$DAILY" ]; then
+            echo "✅ Found Daily Learning Summary workflow!"
+            echo "$DAILY" | jq .
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "workflow_id=$(echo "$DAILY" | jq -r '.id')" >> $GITHUB_OUTPUT
+            echo "active=$(echo "$DAILY" | jq -r '.active')" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Daily Learning Summary workflow NOT FOUND"
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Results to Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/comment.md << 'EOF'
+          ## 🔍 n8n Workflow Check Results
+
+          **Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ### n8n Health
+          ```
+          ${{ steps.health.outputs.health_response }}
+          ```
+
+          ### Workflows Found: ${{ steps.workflows.outputs.workflow_count }}
+
+          HTTP Status: ${{ steps.workflows.outputs.http_code }}
+
+          ${{ steps.workflows.outputs.workflow_list }}
+
+          ### Daily Learning Summary
+
+          - **Found:** ${{ steps.daily.outputs.found }}
+          - **Workflow ID:** ${{ steps.daily.outputs.workflow_id || 'N/A' }}
+          - **Active:** ${{ steps.daily.outputs.active || 'N/A' }}
+
+          ---
+
+          **Next Steps:**
+          EOF
+
+          if [ "${{ steps.daily.outputs.found }}" = "true" ]; then
+            echo "- ✅ Workflow exists, verify in n8n dashboard" >> /tmp/comment.md
+            echo "- Dashboard URL: $N8N_URL" >> /tmp/comment.md
+          else
+            echo "- ❌ Workflow not found - need to re-import" >> /tmp/comment.md
+            echo "- Run: \`import-n8n-workflow.yml\` with activate=true" >> /tmp/comment.md
+          fi
+
+          gh issue comment 627 --repo ${{ github.repository }} --body-file /tmp/comment.md
