@@ -163,8 +163,14 @@ def _node_scan_github_actions() -> dict[str, Any]:
         "parameters": {
             "method": "GET",
             "url": f"https://api.github.com/repos/{CONFIG['github_repo']}/actions/runs",
-            "authentication": "genericCredentialType",
-            "genericAuthType": "httpHeaderAuth",
+            "authentication": "none",
+            "sendHeaders": True,
+            "headerParameters": {
+                "parameters": [
+                    {"name": "Authorization", "value": "=Bearer {{ $env.GITHUB_TOKEN }}"},
+                    {"name": "Accept", "value": "application/vnd.github.v3+json"},
+                ]
+            },
             "sendQuery": True,
             "queryParameters": {
                 "parameters": [
@@ -176,9 +182,6 @@ def _node_scan_github_actions() -> dict[str, Any]:
             "options": {
                 "response": {"response": {"responseFormat": "json"}},
             },
-        },
-        "credentials": {
-            "httpHeaderAuth": {"id": "github_token", "name": "GitHub Token"},
         },
     }
 
@@ -194,21 +197,20 @@ def _node_scan_railway_deployments() -> dict[str, Any]:
         "parameters": {
             "method": "POST",
             "url": f"{CONFIG['mcp_gateway_url']}/call",
-            "authentication": "genericCredentialType",
-            "genericAuthType": "httpHeaderAuth",
-            "sendBody": True,
-            "bodyParameters": {
+            "authentication": "none",
+            "sendHeaders": True,
+            "headerParameters": {
                 "parameters": [
-                    {"name": "tool", "value": "railway_deployments"},
-                    {"name": "arguments", "value": '{"limit": 20}'},
+                    {"name": "Authorization", "value": "=Bearer {{ $env.MCP_GATEWAY_TOKEN }}"},
+                    {"name": "Content-Type", "value": "application/json"},
                 ]
             },
+            "sendBody": True,
+            "specifyBody": "json",
+            "jsonBody": '{"tool": "railway_deployments", "arguments": {"limit": 20}}',
             "options": {
                 "response": {"response": {"responseFormat": "json"}},
             },
-        },
-        "credentials": {
-            "httpHeaderAuth": {"id": "mcp_gateway_token", "name": "MCP Gateway Token"},
         },
     }
 
@@ -477,12 +479,15 @@ def _node_fix_ci_failure() -> dict[str, Any]:
         "parameters": {
             "method": "POST",
             "url": f"=https://api.github.com/repos/{CONFIG['github_repo']}/actions/runs/{{{{ $json.id }}}}/rerun",
-            "authentication": "genericCredentialType",
-            "genericAuthType": "httpHeaderAuth",
+            "authentication": "none",
+            "sendHeaders": True,
+            "headerParameters": {
+                "parameters": [
+                    {"name": "Authorization", "value": "=Bearer {{ $env.GITHUB_TOKEN }}"},
+                    {"name": "Accept", "value": "application/vnd.github.v3+json"},
+                ]
+            },
             "options": {},
-        },
-        "credentials": {
-            "httpHeaderAuth": {"id": "github_token", "name": "GitHub Token"},
         },
     }
 
@@ -498,18 +503,17 @@ def _node_fix_deploy_failed() -> dict[str, Any]:
         "parameters": {
             "method": "POST",
             "url": f"{CONFIG['mcp_gateway_url']}/call",
-            "authentication": "genericCredentialType",
-            "genericAuthType": "httpHeaderAuth",
-            "sendBody": True,
-            "bodyParameters": {
+            "authentication": "none",
+            "sendHeaders": True,
+            "headerParameters": {
                 "parameters": [
-                    {"name": "tool", "value": "railway_deploy"},
-                    {"name": "arguments", "value": "{}"},
+                    {"name": "Authorization", "value": "=Bearer {{ $env.MCP_GATEWAY_TOKEN }}"},
+                    {"name": "Content-Type", "value": "application/json"},
                 ]
             },
-        },
-        "credentials": {
-            "httpHeaderAuth": {"id": "mcp_gateway_token", "name": "MCP Gateway Token"},
+            "sendBody": True,
+            "specifyBody": "json",
+            "jsonBody": '{"tool": "railway_deploy", "arguments": {}}',
         },
     }
 
@@ -525,18 +529,17 @@ def _node_fix_health_degraded() -> dict[str, Any]:
         "parameters": {
             "method": "POST",
             "url": f"{CONFIG['mcp_gateway_url']}/call",
-            "authentication": "genericCredentialType",
-            "genericAuthType": "httpHeaderAuth",
-            "sendBody": True,
-            "bodyParameters": {
+            "authentication": "none",
+            "sendHeaders": True,
+            "headerParameters": {
                 "parameters": [
-                    {"name": "tool", "value": "railway_deploy"},
-                    {"name": "arguments", "value": "{}"},
+                    {"name": "Authorization", "value": "=Bearer {{ $env.MCP_GATEWAY_TOKEN }}"},
+                    {"name": "Content-Type", "value": "application/json"},
                 ]
             },
-        },
-        "credentials": {
-            "httpHeaderAuth": {"id": "mcp_gateway_token", "name": "MCP Gateway Token"},
+            "sendBody": True,
+            "specifyBody": "json",
+            "jsonBody": '{"tool": "railway_deploy", "arguments": {}}',
         },
     }
 
@@ -552,18 +555,17 @@ def _node_fix_high_latency() -> dict[str, Any]:
         "parameters": {
             "method": "POST",
             "url": f"{CONFIG['mcp_gateway_url']}/call",
-            "authentication": "genericCredentialType",
-            "genericAuthType": "httpHeaderAuth",
-            "sendBody": True,
-            "bodyParameters": {
+            "authentication": "none",
+            "sendHeaders": True,
+            "headerParameters": {
                 "parameters": [
-                    {"name": "tool", "value": "n8n_trigger"},
-                    {"name": "arguments", "value": '{"workflow": "cache-clear"}'},
+                    {"name": "Authorization", "value": "=Bearer {{ $env.MCP_GATEWAY_TOKEN }}"},
+                    {"name": "Content-Type", "value": "application/json"},
                 ]
             },
-        },
-        "credentials": {
-            "httpHeaderAuth": {"id": "mcp_gateway_token", "name": "MCP Gateway Token"},
+            "sendBody": True,
+            "specifyBody": "json",
+            "jsonBody": '{"tool": "n8n_trigger", "arguments": {"workflow": "cache-clear"}}',
         },
     }
 
@@ -680,22 +682,32 @@ return { json: { report, stats: { fixed, partial, failed, total } } };
 
 
 def _node_send_telegram() -> dict[str, Any]:
-    """Send report to Telegram."""
+    """Send report to Telegram via HTTP API.
+
+    Uses environment variable TELEGRAM_BOT_TOKEN for authentication.
+    """
     return {
         "id": "send_telegram",
         "name": "Send to Telegram",
-        "type": "n8n-nodes-base.telegram",
-        "typeVersion": 1.1,
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
         "position": [2300, 400],
         "parameters": {
-            "chatId": CONFIG["telegram_chat_id"],
-            "text": "={{ $json.report }}",
-            "additionalFields": {
-                "parse_mode": "Markdown",
+            "method": "POST",
+            "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+            "authentication": "none",
+            "sendHeaders": True,
+            "headerParameters": {
+                "parameters": [
+                    {"name": "Content-Type", "value": "application/json"},
+                ]
             },
-        },
-        "credentials": {
-            "telegramApi": {"id": "telegram_bot", "name": "Telegram Bot"},
+            "sendBody": True,
+            "specifyBody": "json",
+            "jsonBody": '={"chat_id": "{{ $env.TELEGRAM_CHAT_ID }}", "text": {{ JSON.stringify($json.report) }}, "parse_mode": "Markdown"}',
+            "options": {
+                "response": {"response": {"responseFormat": "json"}},
+            },
         },
     }
 
