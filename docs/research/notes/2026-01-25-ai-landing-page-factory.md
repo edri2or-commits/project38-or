@@ -252,7 +252,7 @@ export const revalidate = 3600; // 1 hour
 **Reviewed:** 2026-01-25
 **Decision:** Spike + ADR
 **Issue/PR:** TBD (to be created)
-**Experiment ID:** exp_004_design_extraction (proposed)
+**Experiment ID:** exp_007_design_extraction_poc (✅ Created 2026-01-26)
 
 ---
 
@@ -272,10 +272,10 @@ export const revalidate = 3600; // 1 hour
 - **Related ADRs:**
   - ADR-009: Research Integration Architecture
   - ADR-010: Multi-LLM Routing Strategy (LiteLLM)
-  - ADR-017: Landing Page Factory (to be created)
+  - ADR-017: AI Landing Page Factory (✅ Created, PR #620)
 
 - **Related experiments:**
-  - exp_004_design_extraction (proposed)
+  - exp_007_design_extraction_poc (✅ Created 2026-01-26)
 
 - **Related research notes:**
   - None yet

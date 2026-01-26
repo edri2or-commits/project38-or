@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Implementation: 3 phases, 64-102 hours, ~2,850 LOC
   - Verified sources: Firecrawl v2.6.0, Gemini 3 (Google Blog)
 
+- **Experiment: Design Extraction POC** (2026-01-26)
+  - `experiments/exp_007_design_extraction_poc/` - Minimal POC for design token extraction
+  - Extracts colors and fonts from CSS without browser dependency
+  - Claude analysis for intelligent token structuring
+  - Test mode (`--test`) and mock mode (`--mock`) for restricted environments
+  - Related: ADR-017 Phase 1
+
 - **Research Note: AI Landing Page Factory** (2026-01-25)
   - `docs/research/notes/2026-01-25-ai-landing-page-factory.md` - Comprehensive research note
   - Documents 3D Framework: Design (Firecrawl) → Develop (Cursor) → Deploy (Next.js ISR)
