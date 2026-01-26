@@ -64,10 +64,11 @@ jobs:
               workflow_data = json.load(f)
 
           # Remove fields that shouldn't be in import
+          # NOTE: 'active' is READ-ONLY in n8n API - must NOT be included in POST
           workflow_data.pop('id', None)
           workflow_data.pop('createdAt', None)
           workflow_data.pop('updatedAt', None)
-          workflow_data['active'] = activate
+          workflow_data.pop('active', None)  # Remove - use /activate endpoint instead
 
           print(f"📤 Importing workflow: {workflow_data.get('name', 'Unknown')}")
 
@@ -87,8 +88,21 @@ jobs:
               print(f"✅ Workflow imported successfully!")
               print(f"   ID: {workflow_id}")
               print(f"   Name: {result.get('name', 'unknown')}")
-              print(f"   Active: {result.get('active', False)}")
               print(f"   URL: {base_url}/workflow/{workflow_id}")
+
+              # Activate if requested (must use separate /activate endpoint)
+              if activate and workflow_id != 'unknown':
+                  print(f"🔄 Activating workflow...")
+                  activate_response = httpx.post(
+                      f"{base_url}/api/v1/workflows/{workflow_id}/activate",
+                      headers={"X-N8N-API-KEY": api_key},
+                      timeout=30.0
+                  )
+                  if activate_response.status_code == 200:
+                      print(f"   ✅ Workflow activated!")
+                  else:
+                      print(f"   ⚠️ Activation failed: {activate_response.status_code}")
+                      print(f"   Response: {activate_response.text}")
           else:
               print(f"❌ Failed to import workflow")
               print(f"   Status: {response.status_code}")
