@@ -93,20 +93,36 @@ jobs:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
         run: |
           echo "Creating new workflow..."
+          echo "Workflow JSON size: $(wc -c < workflow.json) bytes"
+          echo "Workflow JSON preview (first 500 chars):"
+          head -c 500 workflow.json
+          echo ""
 
-          RESPONSE=$(curl -s -X POST "${{ env.N8N_URL }}/api/v1/workflows" \
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ env.N8N_URL }}/api/v1/workflows" \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             -H "Content-Type: application/json" \
             -d @workflow.json)
 
-          echo "$RESPONSE" | jq '.'
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
 
-          WORKFLOW_ID=$(echo "$RESPONSE" | jq -r '.id')
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY" | jq '.' || echo "$BODY"
+
+          # Write to step summary for visibility
+          echo "## Create Workflow Result" >> $GITHUB_STEP_SUMMARY
+          echo "HTTP Status: $HTTP_CODE" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo "$BODY" | jq '.' >> $GITHUB_STEP_SUMMARY || echo "$BODY" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          WORKFLOW_ID=$(echo "$BODY" | jq -r '.id')
           if [ -n "$WORKFLOW_ID" ] && [ "$WORKFLOW_ID" != "null" ]; then
             echo "✅ Created workflow: $WORKFLOW_ID"
             echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
           else
             echo "❌ Failed to create workflow"
+            echo "Error message: $(echo "$BODY" | jq -r '.message // .error // \"unknown\"')"
             exit 1
           fi
 
