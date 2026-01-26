@@ -1,0 +1,215 @@
+name: Setup n8n Telegram Credentials
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: project38-483612
+  N8N_URL: https://n8n-production-2fe0.up.railway.app
+
+jobs:
+  setup-telegram:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Get secrets from GCP
+        id: secrets
+        run: |
+          N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=$GCP_PROJECT_ID)
+          TELEGRAM_BOT_TOKEN=$(gcloud secrets versions access latest --secret="TELEGRAM-BOT-TOKEN" --project=$GCP_PROJECT_ID)
+          TELEGRAM_CHAT_ID=$(gcloud secrets versions access latest --secret="TELEGRAM-CHAT-ID" --project=$GCP_PROJECT_ID)
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=$GCP_PROJECT_ID)
+
+          echo "::add-mask::$N8N_API_KEY"
+          echo "::add-mask::$TELEGRAM_BOT_TOKEN"
+          echo "::add-mask::$TELEGRAM_CHAT_ID"
+          echo "::add-mask::$RAILWAY_TOKEN"
+
+          echo "N8N_API_KEY=$N8N_API_KEY" >> $GITHUB_ENV
+          echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN" >> $GITHUB_ENV
+          echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID" >> $GITHUB_ENV
+          echo "RAILWAY_TOKEN=$RAILWAY_TOKEN" >> $GITHUB_ENV
+
+          echo "✅ All secrets loaded"
+
+      - name: Create Telegram credential in n8n
+        id: create-credential
+        run: |
+          echo "📤 Creating Telegram credential in n8n..."
+
+          # Check if credential already exists
+          EXISTING=$(curl -s -X GET \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/credentials" | jq -r '.data[] | select(.type == "telegramApi") | .id' | head -1)
+
+          if [ -n "$EXISTING" ]; then
+            echo "⚠️ Telegram credential already exists with ID: $EXISTING"
+            echo "credential_id=$EXISTING" >> $GITHUB_OUTPUT
+          else
+            # Create new credential
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              -H "Content-Type: application/json" \
+              "$N8N_URL/api/v1/credentials" \
+              -d '{
+                "name": "Telegram Bot",
+                "type": "telegramApi",
+                "data": {
+                  "accessToken": "'"$TELEGRAM_BOT_TOKEN"'"
+                }
+              }')
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            BODY=$(echo "$RESPONSE" | head -n -1)
+
+            echo "HTTP Code: $HTTP_CODE"
+
+            if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "201" ]]; then
+              CRED_ID=$(echo "$BODY" | jq -r '.id')
+              echo "✅ Telegram credential created! ID: $CRED_ID"
+              echo "credential_id=$CRED_ID" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Failed to create credential"
+              echo "Response: $BODY"
+              exit 1
+            fi
+          fi
+
+      - name: Set TELEGRAM_CHAT_ID in n8n via Railway
+        run: |
+          echo "🔧 Setting TELEGRAM_CHAT_ID in n8n service..."
+
+          # Get n8n service ID from Railway
+          SERVICES=$(curl -s -X POST \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://backboard.railway.app/graphql/v2" \
+            -d '{
+              "query": "query { project(id: \"95ec21cc-9ada-41c5-8485-12f9a00e0116\") { services { edges { node { id name } } } } }"
+            }')
+
+          N8N_SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "n8n") | .node.id')
+
+          if [ -z "$N8N_SERVICE_ID" ]; then
+            echo "❌ Could not find n8n service in Railway"
+            exit 1
+          fi
+
+          echo "Found n8n service: $N8N_SERVICE_ID"
+
+          # Set TELEGRAM_CHAT_ID environment variable
+          RESULT=$(curl -s -X POST \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://backboard.railway.app/graphql/v2" \
+            -d '{
+              "query": "mutation { variableUpsert(input: { projectId: \"95ec21cc-9ada-41c5-8485-12f9a00e0116\", environmentId: \"99c99a18-aea2-4d01-9360-6a93705102a0\", serviceId: \"'"$N8N_SERVICE_ID"'\", name: \"TELEGRAM_CHAT_ID\", value: \"'"$TELEGRAM_CHAT_ID"'\" }) }"
+            }')
+
+          echo "Railway response: $(echo $RESULT | jq -r '.data.variableUpsert // .errors')"
+          echo "✅ TELEGRAM_CHAT_ID set in n8n service"
+
+      - name: Update workflow to use credential
+        run: |
+          echo "🔄 Updating Daily Learning Summary workflow..."
+
+          CRED_ID="${{ steps.create-credential.outputs.credential_id }}"
+
+          # Get workflow ID
+          WORKFLOWS=$(curl -s -X GET \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+
+          WORKFLOW_ID=$(echo "$WORKFLOWS" | jq -r '.data[] | select(.name == "Daily Learning Summary") | .id' | head -1)
+
+          if [ -z "$WORKFLOW_ID" ]; then
+            echo "⚠️ Daily Learning Summary workflow not found. It will use the credential when imported."
+            exit 0
+          fi
+
+          echo "Found workflow: $WORKFLOW_ID"
+
+          # Get current workflow
+          WORKFLOW=$(curl -s -X GET \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows/$WORKFLOW_ID")
+
+          # Update Telegram node with credential reference
+          UPDATED=$(echo "$WORKFLOW" | jq --arg cred_id "$CRED_ID" '
+            .nodes = [.nodes[] |
+              if .type == "n8n-nodes-base.telegram" then
+                .credentials = {"telegramApi": {"id": $cred_id, "name": "Telegram Bot"}}
+              else
+                .
+              end
+            ]
+          ')
+
+          # Remove read-only fields
+          UPDATED=$(echo "$UPDATED" | jq 'del(.id, .createdAt, .updatedAt, .active, .versionId)')
+
+          # Update workflow
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            "$N8N_URL/api/v1/workflows/$WORKFLOW_ID" \
+            -d "$UPDATED")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+          if [[ "$HTTP_CODE" == "200" ]]; then
+            echo "✅ Workflow updated with Telegram credential!"
+          else
+            echo "⚠️ Workflow update returned: $HTTP_CODE"
+            echo "Response: $(echo "$RESPONSE" | head -n -1)"
+          fi
+
+      - name: Activate workflow
+        run: |
+          # Get workflow ID again
+          WORKFLOWS=$(curl -s -X GET \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+
+          WORKFLOW_ID=$(echo "$WORKFLOWS" | jq -r '.data[] | select(.name == "Daily Learning Summary") | .id' | head -1)
+
+          if [ -n "$WORKFLOW_ID" ]; then
+            echo "🔄 Activating workflow $WORKFLOW_ID..."
+
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "X-N8N-API-KEY: $N8N_API_KEY" \
+              "$N8N_URL/api/v1/workflows/$WORKFLOW_ID/activate")
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+            if [[ "$HTTP_CODE" == "200" ]]; then
+              echo "✅ Workflow activated!"
+            else
+              echo "⚠️ Activation returned: $HTTP_CODE"
+            fi
+          fi
+
+      - name: Post summary
+        if: always()
+        run: |
+          echo "## n8n Telegram Setup" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Telegram Credential | Created/Found |" >> $GITHUB_STEP_SUMMARY
+          echo "| TELEGRAM_CHAT_ID | Set in Railway |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Updated | Yes |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Activated | Yes |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Webhook URL:** \`$N8N_URL/webhook/daily-learning\`" >> $GITHUB_STEP_SUMMARY
