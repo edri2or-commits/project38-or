@@ -19,6 +19,18 @@
     },
     {
       "parameters": {
+        "httpMethod": "POST",
+        "path": "daily-learning",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
         "url": "https://or-infra.com/api/learning/daily-insights",
         "options": {
           "timeout": 30000
@@ -27,7 +39,7 @@
       "name": "Get Learning Insights",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [450, 300]
+      "position": [450, 400]
     },
     {
       "parameters": {
@@ -54,7 +66,7 @@
       "name": "Has Insights?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [650, 300]
+      "position": [650, 400]
     },
     {
       "parameters": {
@@ -67,18 +79,29 @@
       "name": "Send to Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [850, 200]
+      "position": [850, 300]
     },
     {
       "parameters": {},
       "name": "No Insights (Skip)",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
-      "position": [850, 400]
+      "position": [850, 500]
     }
   ],
   "connections": {
     "Daily at 09:00 Israel": {
+      "main": [
+        [
+          {
+            "node": "Get Learning Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
       "main": [
         [
           {
@@ -119,7 +142,6 @@
       ]
     }
   },
-  "active": false,
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
