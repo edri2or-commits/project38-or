@@ -1,0 +1,143 @@
+name: Debug n8n Auth
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get and validate API key
+        id: validate
+        run: |
+          echo "📋 Checking N8N-API secret..."
+
+          N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=project38-483612)
+
+          KEY_LENGTH=${#N8N_API_KEY}
+          echo "Key length: $KEY_LENGTH characters"
+
+          # Check if empty
+          if [ -z "$N8N_API_KEY" ]; then
+            echo "❌ API key is EMPTY!"
+            echo "key_status=empty" >> $GITHUB_OUTPUT
+          elif [ "$KEY_LENGTH" -lt 10 ]; then
+            echo "⚠️ API key is suspiciously short"
+            echo "key_status=short" >> $GITHUB_OUTPUT
+          else
+            echo "✅ API key looks valid ($KEY_LENGTH chars)"
+            echo "key_status=valid" >> $GITHUB_OUTPUT
+            # Show first/last 4 chars for debugging
+            echo "First 4: ${N8N_API_KEY:0:4}..."
+            echo "Last 4: ...${N8N_API_KEY: -4}"
+          fi
+
+          # Save for later steps (masked)
+          echo "::add-mask::$N8N_API_KEY"
+          echo "api_key=$N8N_API_KEY" >> $GITHUB_OUTPUT
+
+      - name: Test n8n API directly
+        env:
+          N8N_API_KEY: ${{ steps.validate.outputs.api_key }}
+        run: |
+          N8N_URL="https://n8n-production-2fe0.up.railway.app"
+
+          echo "🔍 Testing n8n API authentication..."
+          echo ""
+
+          # Test 1: Health (no auth)
+          echo "Test 1: Health endpoint (no auth)"
+          HEALTH=$(curl -s -w "\nHTTP:%{http_code}" "$N8N_URL/healthz")
+          echo "$HEALTH"
+          echo ""
+
+          # Test 2: Workflows with X-N8N-API-KEY header
+          echo "Test 2: Workflows with X-N8N-API-KEY header"
+          RESULT=$(curl -s -w "\nHTTP:%{http_code}" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+          echo "$RESULT"
+          echo ""
+
+          # Test 3: Try with Authorization Bearer
+          echo "Test 3: Workflows with Authorization: Bearer"
+          RESULT2=$(curl -s -w "\nHTTP:%{http_code}" \
+            -H "Authorization: Bearer $N8N_API_KEY" \
+            "$N8N_URL/api/v1/workflows")
+          echo "$RESULT2"
+          echo ""
+
+          # Test 4: Check if user management is enabled
+          echo "Test 4: Check /rest/settings"
+          SETTINGS=$(curl -s -w "\nHTTP:%{http_code}" "$N8N_URL/rest/settings")
+          echo "$SETTINGS" | head -5
+          echo ""
+
+          # Test 5: Try /api/v1/credentials (different endpoint)
+          echo "Test 5: Credentials endpoint"
+          CREDS=$(curl -s -w "\nHTTP:%{http_code}" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            "$N8N_URL/api/v1/credentials")
+          echo "$CREDS"
+
+      - name: Check Railway env vars
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          # Get Railway token from GCP
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+
+          echo "📋 Checking Railway environment variables..."
+
+          PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          # Get n8n service
+          SERVICES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { project(id: \\\"$PROJECT_ID\\\") { services { edges { node { id name } } } } }\"}")
+
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "n8n") | .node.id')
+          echo "Service ID: $SERVICE_ID"
+
+          # Get variables
+          VARS=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { variables(serviceId: \\\"$SERVICE_ID\\\", environmentId: \\\"$ENV_ID\\\") }\"}")
+
+          echo "Environment variables:"
+          echo "$VARS" | jq -r '.data.variables | keys[]' 2>/dev/null || echo "$VARS"
+
+      - name: Post results
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY_STATUS: ${{ steps.validate.outputs.key_status }}
+        run: |
+          cat > /tmp/comment.md << 'EOF'
+          ## 🔍 n8n Auth Debug Results
+
+          **Key Status:** $KEY_STATUS
+
+          See workflow run for detailed output:
+          https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+
+          gh issue comment 627 --repo ${{ github.repository }} --body-file /tmp/comment.md
