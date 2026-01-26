@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  issues: write
 
 env:
   N8N_URL: "https://n8n-production-2fe0.up.railway.app"
@@ -14,6 +15,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
@@ -30,11 +34,37 @@ jobs:
           echo "::add-mask::$N8N_API_KEY"
           echo "n8n_api_key=$N8N_API_KEY" >> $GITHUB_OUTPUT
 
-      - name: Create Minimal Test Workflow
+      - name: Test n8n API - List Workflows
+        id: list_test
         env:
           N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
         run: |
-          # Create a minimal workflow JSON
+          echo "Testing GET /api/v1/workflows..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$N8N_URL/api/v1/workflows" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP: $HTTP_CODE"
+          echo "list_http=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "list_response<<EOFLIST" >> $GITHUB_OUTPUT
+          echo "$BODY" | jq '.' 2>/dev/null || echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOFLIST" >> $GITHUB_OUTPUT
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ List failed"
+          else
+            COUNT=$(echo "$BODY" | jq '.data | length' 2>/dev/null || echo "0")
+            echo "✅ Found $COUNT workflows"
+          fi
+
+      - name: Test n8n API - Create Workflow
+        id: create_test
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
           cat > test-workflow.json << 'EOF'
           {
             "name": "Test Deploy - Delete Me",
@@ -58,11 +88,7 @@ jobs:
           }
           EOF
 
-          echo "Workflow JSON:"
-          cat test-workflow.json
-          echo ""
-
-          echo "Creating test workflow..."
+          echo "Testing POST /api/v1/workflows..."
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$N8N_URL/api/v1/workflows" \
             -H "X-N8N-API-KEY: $N8N_API_KEY" \
             -H "Content-Type: application/json" \
@@ -71,26 +97,52 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | head -n -1)
 
-          echo "HTTP Status: $HTTP_CODE"
-          echo "Response:"
-          echo "$BODY" | jq '.' || echo "$BODY"
+          echo "HTTP: $HTTP_CODE"
+          echo "create_http=$HTTP_CODE" >> $GITHUB_OUTPUT
+          echo "create_response<<EOFCREATE" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOFCREATE" >> $GITHUB_OUTPUT
 
-          # Write to summary
-          echo "## Test Workflow Deploy" >> $GITHUB_STEP_SUMMARY
-          echo "HTTP: $HTTP_CODE" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo "$BODY" | jq '.' >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "$BODY" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-          # Delete the test workflow if created
-          WORKFLOW_ID=$(echo "$BODY" | jq -r '.id')
+          WORKFLOW_ID=$(echo "$BODY" | jq -r '.id' 2>/dev/null)
           if [ -n "$WORKFLOW_ID" ] && [ "$WORKFLOW_ID" != "null" ]; then
-            echo "✅ Created workflow: $WORKFLOW_ID"
-            echo "Cleaning up..."
+            echo "✅ Created: $WORKFLOW_ID"
+            echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
+            # Clean up
             curl -s -X DELETE "$N8N_URL/api/v1/workflows/$WORKFLOW_ID" \
               -H "X-N8N-API-KEY: $N8N_API_KEY"
-            echo "✅ Deleted test workflow"
+            echo "✅ Cleaned up"
           else
-            echo "❌ Failed to create workflow"
-            exit 1
+            echo "❌ Create failed"
+          fi
+
+      - name: Post Results to Issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BODY="## n8n API Test Results - $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+### List Workflows (GET)
+- HTTP Status: ${{ steps.list_test.outputs.list_http }}
+
+### Create Workflow (POST)
+- HTTP Status: ${{ steps.create_test.outputs.create_http }}
+- Response:
+\`\`\`json
+${{ steps.create_test.outputs.create_response }}
+\`\`\`
+
+### Workflow ID (if created)
+${{ steps.create_test.outputs.workflow_id || 'None' }}
+"
+
+          # Create or update issue
+          ISSUE=$(gh issue list --repo ${{ github.repository }} --search "n8n API Test Results" --state open --limit 1 --json number -q '.[0].number')
+
+          if [ -n "$ISSUE" ]; then
+            gh issue comment "$ISSUE" --body "$BODY" --repo ${{ github.repository }}
+            echo "Added comment to issue #$ISSUE"
+          else
+            gh issue create --title "n8n API Test Results" --body "$BODY" --repo ${{ github.repository }}
+            echo "Created new issue"
           fi
