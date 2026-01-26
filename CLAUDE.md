@@ -57,6 +57,7 @@ This project uses a **4-layer context architecture** following 2026 industry bes
 - [ADR-015: Smart Model Routing](docs/decisions/ADR-015-smart-model-routing-implementation.md) - 4-phase plan: Haiku/Sonnet/Opus routing, background jobs, 60%+ cost reduction
 - [ADR-016: n8n Daily Learning Agent](docs/decisions/ADR-016-n8n-daily-learning-agent.md) - Daily learning summary workflow with Telegram delivery
 - [ADR-017: AI Landing Page Factory](docs/decisions/ADR-017-ai-landing-page-factory.md) - 3D Framework (Design→Develop→Deploy) for automated landing page generation
+- [ADR-018: n8n Error Scanner Agent](docs/decisions/ADR-018-n8n-error-scanner-agent.md) - Daily error scanning, auto-remediation, fix verification
 
 #### Layer 3: Journey Documentation (`docs/JOURNEY.md`)
 **Purpose**: Chronological narrative of project evolution with dates, milestones, learnings

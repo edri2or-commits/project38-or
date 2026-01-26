@@ -1,0 +1,198 @@
+name: Deploy Error Scanner to n8n
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - activate
+          - deactivate
+          - status
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  N8N_URL: "https://n8n-production-2fe0.up.railway.app"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get n8n API Key
+        id: secrets
+        run: |
+          N8N_API_KEY=$(gcloud secrets versions access latest --secret="N8N-API" --project=project38-483612)
+          echo "::add-mask::$N8N_API_KEY"
+          echo "n8n_api_key=$N8N_API_KEY" >> $GITHUB_OUTPUT
+
+      - name: Generate Workflow JSON
+        if: inputs.action == 'deploy'
+        run: |
+          python -c "
+          from src.workflows.error_scanner_workflow import get_workflow_json
+          import json
+          workflow = get_workflow_json()
+          with open('workflow.json', 'w') as f:
+              json.dump(workflow, f, indent=2)
+          print(f'Generated workflow: {workflow[\"name\"]}')
+          print(f'Nodes: {len(workflow[\"nodes\"])}')
+          "
+
+      - name: Check Existing Workflow
+        id: check
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
+          set +e
+
+          echo "Checking for existing Error Scanner workflow..."
+
+          RESPONSE=$(curl -s -X GET "${{ env.N8N_URL }}/api/v1/workflows" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json")
+
+          # Find workflow by name
+          WORKFLOW_ID=$(echo "$RESPONSE" | jq -r '.data[] | select(.name == "Error Scanner Agent - Daily") | .id')
+
+          if [ -n "$WORKFLOW_ID" ] && [ "$WORKFLOW_ID" != "null" ]; then
+            echo "Found existing workflow: $WORKFLOW_ID"
+            echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "No existing workflow found"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Workflow
+        if: inputs.action == 'deploy' && steps.check.outputs.exists == 'false'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
+          echo "Creating new workflow..."
+
+          RESPONSE=$(curl -s -X POST "${{ env.N8N_URL }}/api/v1/workflows" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @workflow.json)
+
+          echo "$RESPONSE" | jq '.'
+
+          WORKFLOW_ID=$(echo "$RESPONSE" | jq -r '.id')
+          if [ -n "$WORKFLOW_ID" ] && [ "$WORKFLOW_ID" != "null" ]; then
+            echo "✅ Created workflow: $WORKFLOW_ID"
+            echo "workflow_id=$WORKFLOW_ID" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Failed to create workflow"
+            exit 1
+          fi
+
+      - name: Update Workflow
+        if: inputs.action == 'deploy' && steps.check.outputs.exists == 'true'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          WORKFLOW_ID: ${{ steps.check.outputs.workflow_id }}
+        run: |
+          echo "Updating existing workflow $WORKFLOW_ID..."
+
+          RESPONSE=$(curl -s -X PUT "${{ env.N8N_URL }}/api/v1/workflows/$WORKFLOW_ID" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @workflow.json)
+
+          echo "$RESPONSE" | jq '.'
+          echo "✅ Updated workflow: $WORKFLOW_ID"
+
+      - name: Activate Workflow
+        if: inputs.action == 'deploy' || inputs.action == 'activate'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          WORKFLOW_ID: ${{ steps.check.outputs.workflow_id }}
+        run: |
+          # Use POST /activate (not PATCH) per ADR-007
+          echo "Activating workflow..."
+
+          RESPONSE=$(curl -s -X POST "${{ env.N8N_URL }}/api/v1/workflows/$WORKFLOW_ID/activate" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json")
+
+          echo "$RESPONSE" | jq '.'
+          echo "✅ Workflow activated"
+
+      - name: Deactivate Workflow
+        if: inputs.action == 'deactivate'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+          WORKFLOW_ID: ${{ steps.check.outputs.workflow_id }}
+        run: |
+          echo "Deactivating workflow..."
+
+          RESPONSE=$(curl -s -X POST "${{ env.N8N_URL }}/api/v1/workflows/$WORKFLOW_ID/deactivate" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json")
+
+          echo "$RESPONSE" | jq '.'
+          echo "✅ Workflow deactivated"
+
+      - name: Get Status
+        if: inputs.action == 'status'
+        env:
+          N8N_API_KEY: ${{ steps.secrets.outputs.n8n_api_key }}
+        run: |
+          echo "## Error Scanner Workflow Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          RESPONSE=$(curl -s -X GET "${{ env.N8N_URL }}/api/v1/workflows" \
+            -H "X-N8N-API-KEY: $N8N_API_KEY" \
+            -H "Content-Type: application/json")
+
+          WORKFLOW=$(echo "$RESPONSE" | jq '.data[] | select(.name == "Error Scanner Agent - Daily")')
+
+          if [ -n "$WORKFLOW" ] && [ "$WORKFLOW" != "null" ]; then
+            echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ID | $(echo $WORKFLOW | jq -r '.id') |" >> $GITHUB_STEP_SUMMARY
+            echo "| Name | $(echo $WORKFLOW | jq -r '.name') |" >> $GITHUB_STEP_SUMMARY
+            echo "| Active | $(echo $WORKFLOW | jq -r '.active') |" >> $GITHUB_STEP_SUMMARY
+            echo "| Updated | $(echo $WORKFLOW | jq -r '.updatedAt') |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Workflow found and operational" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Workflow not found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run with action=deploy to create the workflow" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Action: ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "- n8n URL: ${{ env.N8N_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow: Error Scanner Agent - Daily" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Schedule" >> $GITHUB_STEP_SUMMARY
+          echo "Runs daily at 07:00 UTC" >> $GITHUB_STEP_SUMMARY

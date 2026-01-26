@@ -43,6 +43,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Implementation Roadmap:** 3 phases, 64-102 hours total
   - **Next Actions:** Spike (exp_004) + ADR-017 proposed
 
+- **ADR-018: n8n Error Scanner Agent** (2026-01-26)
+  - `src/workflows/error_scanner_workflow.py` - n8n workflow builder (480 lines)
+  - `.github/workflows/deploy-error-scanner.yml` - Deployment workflow (165 lines)
+  - `tests/test_error_scanner_workflow.py` - Unit tests (150 lines)
+  - **Features:**
+    - Daily scan at 07:00 UTC (cron: `0 7 * * *`)
+    - Scans: GitHub Actions failures, Railway deployments, Production health, Monitoring status
+    - Auto-remediation: CI re-run, rollback, restart, cache clear (max 5 actions/run)
+    - Fix verification: Wait 60s + re-check
+    - Daily Telegram summary with P1-P4 priority classification
+  - Based on external research: SRE Auto-Remediation 2025 patterns
+  - Follows adr-architect 9-step workflow (ADR-011)
+  - Status: Pending deployment to n8n
+
 ### Changed
 - **ADR-009 Fix: Added SYSTEM MAPPING Stage** (2026-01-25)
   - Added mandatory Stage 1.5: SYSTEM MAPPING between CAPTURE and TRIAGE
