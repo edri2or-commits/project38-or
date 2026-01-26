@@ -1,9 +1,12 @@
 # ADR-016: n8n Daily Learning Agent
 
 **Date**: 2026-01-25
-**Status**: Implemented
+**Status**: BLOCKED - n8n API Authentication Failure
 **Deciders**: User (edri2or-commits), Claude AI Agent
 **Tags**: n8n, automation, learning, telegram, scheduled-tasks
+
+> ⚠️ **Blocking Issue (2026-01-26)**: n8n API returns HTTP 401 Unauthorized.
+> All workflow imports fail. Dashboard is empty. See [Blocking Issue](#blocking-issue) section.
 
 ---
 
@@ -213,25 +216,87 @@ _נוצר אוטומטית ב-{time}_
 
 ## Implementation Checklist
 
+## Blocking Issue
+
+**Discovered**: 2026-01-26 08:40 UTC
+**Status**: UNRESOLVED
+
+### Problem Statement
+
+n8n API returns HTTP 401 Unauthorized for all authenticated requests:
+
+```
+HTTP Status: 401
+Endpoint: GET /api/v1/workflows
+Header: X-N8N-API-KEY: [key from GCP Secret Manager]
+```
+
+### Evidence
+
+| Check | Result | Workflow Run |
+|-------|--------|--------------|
+| n8n health | ✅ `{"status":"ok"}` HTTP 200 | check-n8n-workflows.yml Run #5 |
+| n8n workflows API | ❌ HTTP 401 | check-n8n-workflows.yml Run #1-#5 (all failed) |
+| Import workflow | ❌ Fails at import step | import-n8n-workflow.yml Run #9, #10 |
+| User dashboard | ❌ Empty | User report: "הדשבורד ריק לגמרי" |
+
+### Remediation Attempts
+
+| Action | Result | Evidence |
+|--------|--------|----------|
+| Generate new API key | ✅ Completed | reset-n8n-api-key.yml Run #1 |
+| Update GCP Secret Manager | ✅ Completed | reset-n8n-api-key.yml Run #1 |
+| Update Railway env vars | ✅ Completed | deploy-n8n.yml Run #28, #29 |
+| Redeploy n8n service | ✅ Completed | deploy-n8n.yml Run #28, #29 |
+| Debug API auth | ✅ Completed | debug-n8n-auth.yml Run #1 |
+| **401 still occurs** | ❌ Not fixed | check-n8n-workflows.yml Run #5 (09:05 UTC) |
+
+### Root Cause Analysis
+
+**Status**: UNKNOWN
+
+Possible causes (not yet verified):
+1. n8n not reading N8N_API_KEY environment variable on startup
+2. Railway env var caching (redeploy not applying new values)
+3. n8n version incompatibility with API key authentication
+
+### Impact
+
+- ❌ Cannot import workflows to n8n via API
+- ❌ Workflow not visible in n8n dashboard
+- ❌ Daily Learning Summary not operational
+- ✅ API endpoint `/api/learning/daily-insights` works (tested via PR #618)
+
+### Next Steps
+
+1. Access n8n UI directly to verify container state
+2. Check Railway logs for n8n startup errors
+3. Consider alternative: manual workflow creation via UI
+
+---
+
 ### Phase 1: API Endpoint ✅
 - [x] Add `format_hebrew_summary()` function to `src/api/routes/learning.py` (PR #618)
 - [x] Add `GET /api/learning/daily-insights` endpoint (PR #618)
 - [ ] Add tests for new endpoint (deferred)
 - [x] Deploy to Railway (automatic via merge)
 
-### Phase 2: n8n Workflow ✅
+### Phase 2: n8n Workflow ⚠️ BLOCKED
 - [x] Create workflow JSON (`docs/n8n/daily-learning-summary.json`)
-- [x] Import to n8n via `import-n8n-workflow.yml` (Run #5, #6, #7)
-- [x] Configure Schedule Trigger (07:00 UTC = 09:00 Israel)
-- [x] Configure HTTP Request node
-- [x] Add manual webhook trigger (PR #629)
-- [x] Configure Telegram credentials via `setup-n8n-telegram.yml` (PR #632, Run #1)
+- [ ] **BLOCKED** Import to n8n via `import-n8n-workflow.yml`
+  - Run #5, #6, #7 reported success but workflow NOT visible in n8n
+  - Run #9, #10 explicitly failed at import step
+  - API returns 401 Unauthorized
+- [ ] Configure Schedule Trigger (blocked - workflow not imported)
+- [ ] Configure HTTP Request node (blocked - workflow not imported)
+- [x] Add manual webhook trigger to JSON (PR #629)
+- [ ] **BLOCKED** Configure Telegram credentials - workflow must exist first
 
-### Phase 3: Activation ✅
-- [x] Workflow activated via setup workflow
-- [x] Telegram credentials configured automatically
-- [x] TELEGRAM_CHAT_ID set in Railway
-- [ ] Monitor for 3 days
+### Phase 3: Activation ❌ NOT STARTED
+- [ ] Workflow activated - **BLOCKED** (workflow doesn't exist in n8n)
+- [ ] Telegram credentials configured - **BLOCKED**
+- [ ] TELEGRAM_CHAT_ID set - Railway var exists but not usable
+- [ ] Monitor for 3 days - **BLOCKED**
 
 ---
 
@@ -241,21 +306,32 @@ _נוצר אוטומטית ב-{time}_
 |------|--------|----------|
 | 2026-01-25 | ADR created via adr-architect skill | This document |
 | 2026-01-25 | Phase 1 complete: API endpoint added | PR #618 |
-| 2026-01-26 | Phase 2 complete: Workflow imported to n8n | Run #5, #6 of import-n8n-workflow.yml |
-| 2026-01-26 | Fixed import workflow - removed read-only 'active' field | PR #625, #626 |
-| 2026-01-26 | Status updated to Implemented | Issue #627 |
-| 2026-01-26 | Added manual webhook trigger | PR #629, Run #7 |
-| 2026-01-26 | Created automated Telegram setup workflow | PR #632 |
-| 2026-01-26 | Phase 3 complete: Telegram credentials configured, workflow activated | Run #1 of setup-n8n-telegram.yml |
+| 2026-01-26 07:28 | Import workflow runs succeeded (reported) | Run #5, #6, #7 |
+| 2026-01-26 07:15 | Fixed import workflow - removed read-only 'active' field | PR #625, #626 |
+| 2026-01-26 08:09 | Added manual webhook trigger to JSON | PR #629 |
+| 2026-01-26 08:09 | Created automated Telegram setup workflow | PR #632 |
+| 2026-01-26 08:14 | Status incorrectly marked as Implemented | Issue #627 comment |
+| **2026-01-26 08:27** | **BLOCKING ISSUE DISCOVERED** | User: "הדשבורד ריק לגמרי" |
+| 2026-01-26 08:27 | Import workflow runs #8, #9, #10 fail at import step | n8n API returns 401 |
+| 2026-01-26 08:40 | Created diagnostic workflow | PR #639 |
+| 2026-01-26 08:51 | API key reset attempted | PR #641, Run #1 |
+| 2026-01-26 09:00 | Multiple redeploys attempted | deploy-n8n.yml Runs #28, #29 |
+| 2026-01-26 09:05 | **401 persists after all remediation** | check-n8n-workflows.yml Run #5 |
+| 2026-01-26 09:09 | Debug workflow created | PR #644 |
+| 2026-01-26 09:15 | **Status corrected to BLOCKED** | This update (Truth Protocol) |
 
 ---
 
 ## GitHub Workflows Created
 
-| Workflow | Purpose | Usage |
-|----------|---------|-------|
-| `import-n8n-workflow.yml` | Import workflow JSON to n8n | `workflow_dispatch` with file path |
-| `setup-n8n-telegram.yml` | Configure Telegram credentials in n8n | `workflow_dispatch` (one-time setup) |
+| Workflow | Purpose | Status |
+|----------|---------|--------|
+| `import-n8n-workflow.yml` | Import workflow JSON to n8n | ⚠️ Fails with 401 |
+| `setup-n8n-telegram.yml` | Configure Telegram credentials in n8n | ⚠️ Blocked (workflow must exist) |
+| `check-n8n-workflows.yml` | Diagnostic: list n8n workflows | ✅ Works (shows 401) |
+| `reset-n8n-api-key.yml` | Generate and sync new API key | ✅ Works (doesn't fix 401) |
+| `debug-n8n-auth.yml` | Debug API authentication | ✅ Works |
+| `deploy-n8n.yml` | Deploy/configure n8n on Railway | ✅ Works |
 
 ### Manual Trigger URL
 
