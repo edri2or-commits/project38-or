@@ -1,0 +1,164 @@
+name: Reset n8n API Key
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  reset-api-key:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/979429709900/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'claude-code-agent@project38-483612.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Railway Token
+        id: secrets
+        run: |
+          RAILWAY_TOKEN=$(gcloud secrets versions access latest --secret="RAILWAY-API" --project=project38-483612)
+          echo "::add-mask::$RAILWAY_TOKEN"
+          echo "railway_token=$RAILWAY_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Generate new API key
+        id: generate
+        run: |
+          # Generate a new secure API key
+          NEW_API_KEY=$(openssl rand -hex 32)
+          echo "::add-mask::$NEW_API_KEY"
+          echo "new_api_key=$NEW_API_KEY" >> $GITHUB_OUTPUT
+          echo "Generated new API key (length: ${#NEW_API_KEY})"
+
+      - name: Update GCP Secret
+        env:
+          NEW_API_KEY: ${{ steps.generate.outputs.new_api_key }}
+        run: |
+          echo "📝 Updating N8N-API secret in GCP..."
+
+          # Create new version of the secret
+          echo -n "$NEW_API_KEY" | gcloud secrets versions add N8N-API \
+            --project=project38-483612 \
+            --data-file=-
+
+          echo "✅ GCP Secret N8N-API updated"
+
+      - name: Update n8n environment in Railway
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+          NEW_API_KEY: ${{ steps.generate.outputs.new_api_key }}
+        run: |
+          echo "🚂 Updating n8n environment in Railway..."
+
+          PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          # Get n8n service ID
+          SERVICES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { project(id: \\\"$PROJECT_ID\\\") { services { edges { node { id name } } } } }\"}")
+
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "n8n") | .node.id')
+
+          if [ -z "$SERVICE_ID" ]; then
+            echo "❌ n8n service not found"
+            exit 1
+          fi
+
+          echo "Found n8n service: $SERVICE_ID"
+
+          # Update N8N_API_KEY environment variable
+          RESULT=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { serviceId: \\\"$SERVICE_ID\\\", environmentId: \\\"$ENV_ID\\\", name: \\\"N8N_API_KEY\\\", value: \\\"$NEW_API_KEY\\\" }) }\"
+            }")
+
+          echo "N8N_API_KEY update result: $(echo "$RESULT" | jq -c '.')"
+
+          # Ensure auth is enabled
+          AUTH_RESULT=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { variableUpsert(input: { serviceId: \\\"$SERVICE_ID\\\", environmentId: \\\"$ENV_ID\\\", name: \\\"N8N_API_KEY_AUTH_ENABLED\\\", value: \\\"true\\\" }) }\"
+            }")
+
+          echo "Auth enabled result: $(echo "$AUTH_RESULT" | jq -c '.')"
+
+          echo "✅ Railway environment updated"
+
+      - name: Trigger redeploy
+        env:
+          RAILWAY_TOKEN: ${{ steps.secrets.outputs.railway_token }}
+        run: |
+          echo "🔄 Triggering n8n redeploy..."
+
+          PROJECT_ID="95ec21cc-9ada-41c5-8485-12f9a00e0116"
+          ENV_ID="99c99a18-aea2-4d01-9360-6a93705102a0"
+
+          # Get n8n service ID
+          SERVICES=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"query { project(id: \\\"$PROJECT_ID\\\") { services { edges { node { id name } } } } }\"}")
+
+          SERVICE_ID=$(echo "$SERVICES" | jq -r '.data.project.services.edges[] | select(.node.name == "n8n") | .node.id')
+
+          # Redeploy
+          REDEPLOY=$(curl -s -X POST \
+            "https://backboard.railway.app/graphql/v2" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { serviceInstanceRedeploy(environmentId: \\\"$ENV_ID\\\", serviceId: \\\"$SERVICE_ID\\\") }\"
+            }")
+
+          echo "Redeploy result: $(echo "$REDEPLOY" | jq -c '.')"
+          echo "✅ Redeploy triggered"
+
+      - name: Post results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/comment.md << 'EOF'
+          ## 🔑 n8n API Key Reset
+
+          **Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          ### Actions Completed
+          1. ✅ Generated new 64-character hex API key
+          2. ✅ Updated N8N-API secret in GCP Secret Manager
+          3. ✅ Updated N8N_API_KEY in Railway n8n service
+          4. ✅ Ensured N8N_API_KEY_AUTH_ENABLED=true
+          5. ✅ Triggered n8n redeploy
+
+          ### Next Steps
+          - Wait 2-3 minutes for redeploy to complete
+          - Run `check-n8n-workflows.yml` to verify API access
+          - Run `import-n8n-workflow.yml` to import workflows
+          EOF
+
+          gh issue comment 627 --repo ${{ github.repository }} --body-file /tmp/comment.md
+
+      - name: Summary
+        run: |
+          echo "## n8n API Key Reset Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. New API key generated" >> $GITHUB_STEP_SUMMARY
+          echo "2. GCP Secret Manager updated" >> $GITHUB_STEP_SUMMARY
+          echo "3. Railway n8n service updated" >> $GITHUB_STEP_SUMMARY
+          echo "4. Redeploy triggered" >> $GITHUB_STEP_SUMMARY
