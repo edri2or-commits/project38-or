@@ -8,15 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **ADR-016: n8n Daily Learning Agent** (2026-01-25)
+- **ADR-016: n8n Daily Learning Agent - Full Implementation** (2026-01-26)
   - Architecture decision for daily learning summary workflow
   - n8n workflow calling existing `LearningService` infrastructure
-  - Telegram delivery of insights summary at 07:00 UTC (09:00 Israel)
-  - Reuses existing `LearnInsightAgent` and `LearningService` (no duplication)
+  - **Two triggers:**
+    - Schedule: 07:00 UTC (09:00 Israel) - automatic daily
+    - Webhook: POST `/webhook/daily-learning` - manual anytime
   - **Implementation:**
-    - `GET /api/learning/daily-insights` endpoint with Hebrew formatting
-    - `n8n-workflows/daily-learning-summary.json` workflow template
-  - Status: Implemented
+    - `GET /api/learning/daily-insights` endpoint with Hebrew formatting (PR #618)
+    - `docs/n8n/daily-learning-summary.json` workflow template
+    - `import-n8n-workflow.yml` - automated workflow import (PR #625, #626)
+    - `setup-n8n-telegram.yml` - automated Telegram credentials setup (PR #632)
+  - **Fully automated** - no manual UI steps required
+  - Status: Implemented and Active
 
 - **ADR-017: AI Landing Page Factory** (2026-01-25)
   - `docs/decisions/ADR-017-ai-landing-page-factory.md` - Architecture decision record
