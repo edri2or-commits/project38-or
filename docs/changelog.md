@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Autonomous Media Systems Research & Experiments** (2026-01-25)
+  - Research note: `docs/research/notes/2026-01-25-autonomous-media-systems-claude-remotion.md`
+  - Source: Comprehensive analysis of Claude-Remotion video pipelines
+  - Classification: **Spike** - patterns applicable beyond video generation
+  - Key findings:
+    - Self-healing loop: 79% auto-fix rate
+    - Vision verification: 80% reduction in human review
+    - Video generation: $0.45-1.21/min cost
+  - **Experiments created:**
+    - `exp_004_self_healing_loop` - Try-Heal-Retry pattern for error recovery (PR #619)
+    - `exp_005_vision_verification` - Screenshot-based deployment QA (PR #621)
+    - `exp_006_video_generation` - Natural language to video with Remotion (PR #623)
+  - Issues: #615 (Self-Healing), #616 (Vision), #617 (Video)
+  - Total: ~3,400 lines of experiment code
+
 - **ADR-016: n8n Daily Learning Agent - Full Implementation** (2026-01-26)
   - Architecture decision for daily learning summary workflow
   - n8n workflow calling existing `LearningService` infrastructure
