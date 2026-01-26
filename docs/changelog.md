@@ -13,9 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed Intake System: 8→9 modules, ~2,800→~4,116 lines (accurate counts)
   - Fixed Research Integration: ~1,088→~1,809 lines (66% undercount corrected)
   - Fixed API Endpoints: Corrected paths (metrics prefix, learning routes, backup routes)
-  - Updated module count: 167→164 modules after dead code removal
-  - Updated line count: 53,700→52,100 lines after dead code removal
+  - Updated module count: 167→166 modules after dead code removal
+  - Updated line count: 53,700→52,700 lines after dead code removal
   - Removed documentation for deleted `experiment_results.py`
+
+### Fixed
+- **Restored incorrectly deleted modules** (2026-01-26)
+  - `src/gcp_tunnel_client.py` - New feature from PR #607 (not dead code)
+  - `src/exceptions.py` - Intentionally created in PR #606
+  - Truth Protocol review identified these as potentially active modules
 
 - **ADR-009 Fix: Added SYSTEM MAPPING Stage** (2026-01-25)
   - Added mandatory Stage 1.5: SYSTEM MAPPING between CAPTURE and TRIAGE
