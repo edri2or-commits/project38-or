@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **CLAUDE.md Documentation Accuracy Audit** (2026-01-26)
+  - Fixed Smart Email Agent: 6→12 modules, ~1,200→~2,750 lines (added 5 missing nodes)
+  - Fixed Intake System: 8→9 modules, ~2,800→~4,116 lines (accurate counts)
+  - Fixed Research Integration: ~1,088→~1,809 lines (66% undercount corrected)
+  - Fixed API Endpoints: Corrected paths (metrics prefix, learning routes, backup routes)
+  - Updated module count: 167→164 modules after dead code removal
+  - Updated line count: 53,700→52,100 lines after dead code removal
+  - Removed documentation for deleted `experiment_results.py`
+
 - **ADR-009 Fix: Added SYSTEM MAPPING Stage** (2026-01-25)
   - Added mandatory Stage 1.5: SYSTEM MAPPING between CAPTURE and TRIAGE
   - Prevents duplicate implementations by requiring codebase search before implementation
@@ -32,6 +41,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **GitHub Clients Documentation**: Added decision matrix for github_api/github_app_client/github_pr
 
 ### Removed
+- **System Audit Cleanup - Dead Code Removal** (2026-01-26)
+  - `src/autoscaling.py` - Never imported in production (~639 lines)
+  - `src/gcp_tunnel_client.py` - Never imported in production (~337 lines)
+  - `src/experiment_results.py` - Never imported in production (~647 lines)
+  - `src/exceptions.py` - Never imported in production (~644 lines)
+  - `tests/test_autoscaling.py` - Tests for removed module
+  - `tests/test_gcp_tunnel_client.py` - Tests for removed module
+  - **Total removed**: 2,267+ lines of dead code
+
 - **Dead Code Cleanup** (2026-01-25)
   - `src/mcp_gateway/gcs_mcp_client.py` - Unused MCP client (~290 lines)
   - `src/mcp_gateway/github_mcp_client.py` - Unused MCP client (~290 lines)
@@ -40,14 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - email_history.py, form_extractor.py, gmail_client.py
     - task_integration.py, user_preferences.py, web_researcher.py
   - **Note**: `src/agents/smart_email/` (LangGraph-based) is retained
-
-### Added
-- **GCP Tunnel Client Module** (2026-01-25) ✅
-  - `src/gcp_tunnel_client.py` - Universal autonomy client (~270 lines)
-  - Bypasses Anthropic proxy restrictions via `cloudfunctions.googleapis.com`
-  - Works in ALL Claude Code environments (local and Anthropic cloud)
-  - Access to 30 MCP tools: Railway, n8n, Gmail, Calendar, Drive, Sheets, Docs, GCP Secrets
-  - Convenience methods: `health_check()`, `railway_status()`, `gmail_list()`, etc.
   - CLI interface: `python gcp_tunnel_client.py [tools|health|railway|call <tool>]`
   - Unit tests in `tests/test_gcp_tunnel_client.py`
 - `src/exceptions.py` - Unified exception hierarchy (AUD-007)

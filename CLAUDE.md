@@ -7,7 +7,7 @@ Personal AI System with **full autonomous capabilities** - Railway deployments, 
 **Production Status**: ✅ **Deployed** at https://or-infra.com (Railway project: delightful-cat)
 
 **Primary Stack:**
-- Python 3.11+ (167 modules, 53,700+ lines of code)
+- Python 3.11+ (164 modules, 52,100+ lines of code)
 - FastAPI (deployed, 11 API route modules)
 - PostgreSQL on Railway (deployed)
 - GCP Secret Manager for secrets (12 secrets)
@@ -476,11 +476,10 @@ project38-or/
 │   ├── learning_service.py        # Decision learning service (706 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
-│   │   # OPERATIONS & MAINTENANCE (9 modules, ~4,800 lines)
+│   │   # OPERATIONS & MAINTENANCE (8 modules, ~4,200 lines)
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── cost_monitor.py            # Railway cost tracking (535 lines)
 │   ├── cost_alert_service.py      # Cost alert notifications (371 lines)
-│   ├── autoscaling.py             # Auto-scaling recommendations (639 lines)
 │   ├── backup_manager.py          # Database backup management (684 lines)
 │   ├── alert_manager.py           # Multi-channel alert routing (631 lines)
 │   ├── credential_lifecycle.py    # Token rotation management (740 lines)
@@ -516,33 +515,37 @@ project38-or/
 │   │   └── integration_agent.py   # IntegrationAgent GitHub/n8n (894 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
-│   │   # SMART EMAIL AGENT v2.0 (6 modules, ~1,200 lines) - ADR-014
-│   │   # Docstrings: D403 fix in memory.py (2026-01-25)
+│   │   # SMART EMAIL AGENT v2.0 (12 modules, ~2,750 lines) - ADR-014
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── agents/
 │   │   └── smart_email/           # LangGraph-based email processing
-│   │       ├── __init__.py        # Module exports (29 lines)
-│   │       ├── graph.py           # LangGraph state machine (313 lines)
-│   │       ├── state.py           # TypedDict state, enums (80 lines)
-│   │       ├── persona.py         # Hebrish prompts & templates (145 lines)
+│   │       ├── __init__.py        # Module exports (65 lines)
+│   │       ├── graph.py           # LangGraph state machine (500 lines)
+│   │       ├── state.py           # TypedDict state, enums (241 lines)
+│   │       ├── persona.py         # Hebrish prompts & templates (144 lines)
 │   │       └── nodes/
-│   │           ├── classify.py    # Haiku LLM + regex classification (280 lines)
-│   │           └── format_rtl.py  # RTL Telegram formatting (269 lines)
+│   │           ├── __init__.py    # Node exports (48 lines)
+│   │           ├── classify.py    # Haiku LLM + regex classification (283 lines)
+│   │           ├── draft.py       # Email draft generation (251 lines)
+│   │           ├── format_rtl.py  # RTL Telegram formatting (313 lines)
+│   │           ├── history.py     # Conversation history (211 lines)
+│   │           ├── memory.py      # Context memory management (301 lines)
+│   │           ├── research.py    # Web research for context (231 lines)
+│   │           └── verify.py      # Output verification (166 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
-│   │   # ZERO-LOSS INTAKE SYSTEM (8 modules, ~2,800 lines) - Alignment Prompt
-│   │   # Type hints: Optional[Any] for injectable dependencies (2026-01-25)
+│   │   # ZERO-LOSS INTAKE SYSTEM (9 modules, ~4,116 lines) - Alignment Prompt
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── intake/                    # Zero-loss input processing
-│   │   ├── __init__.py            # Module exports (120 lines)
-│   │   ├── queue.py               # Redis Streams wrapper (260 lines)
-│   │   ├── outbox.py              # Transactional Outbox pattern (280 lines)
-│   │   ├── domain_classifier.py   # Personal/business/mixed classification (260 lines)
-│   │   ├── product_detector.py    # Product potential identification (300 lines)
-│   │   ├── classifier.py          # Unified cascade classifier with Inter-Cascade (350 lines)
-│   │   ├── security.py            # Security guard with HITL support (400 lines)
-│   │   ├── adhd_ux.py             # ADHD-friendly UX: interruptions, nudges (550 lines)
-│   │   └── governance.py          # ADR Writer + Research Gate (650 lines)
+│   │   ├── __init__.py            # Module exports (131 lines)
+│   │   ├── queue.py               # Redis Streams wrapper (292 lines)
+│   │   ├── outbox.py              # Transactional Outbox pattern (357 lines)
+│   │   ├── domain_classifier.py   # Personal/business/mixed classification (318 lines)
+│   │   ├── product_detector.py    # Product potential identification (409 lines)
+│   │   ├── classifier.py          # Unified cascade classifier with Inter-Cascade (562 lines)
+│   │   ├── security.py            # Security guard with HITL support (498 lines)
+│   │   ├── adhd_ux.py             # ADHD-friendly UX: interruptions, nudges (681 lines)
+│   │   └── governance.py          # ADR Writer + Research Gate (868 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # AGENT FACTORY & HARNESS (7 modules, ~2,100 lines)
@@ -622,13 +625,13 @@ project38-or/
 │   │       └── cost.py            # Cost calculations (260 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
-│   │   # RESEARCH INTEGRATION (4 modules, ~1,088 lines) - ADR-009 Phase 5
+│   │   # RESEARCH INTEGRATION (4 modules, ~1,809 lines) - ADR-009 Phase 5
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   ├── research/
 │   │   ├── __init__.py            # Module exports (58 lines)
-│   │   ├── classifier.py          # Auto-classification rules (310 lines)
-│   │   ├── ingestion_agent.py     # Create notes from minimal input (380 lines)
-│   │   └── experiment_creator.py  # Auto-generate experiments (340 lines)
+│   │   ├── classifier.py          # Auto-classification rules (405 lines)
+│   │   ├── ingestion_agent.py     # Create notes from minimal input (850 lines)
+│   │   └── experiment_creator.py  # Auto-generate experiments (496 lines)
 │   │
 │   │   # ═══════════════════════════════════════════════════════════════════
 │   │   # DATA MODELS (3 modules, ~265 lines)
@@ -956,7 +959,6 @@ System:
 | Feature | Module | Lines |
 |---------|--------|-------|
 | Cost Monitoring | `cost_monitor.py` | 535 |
-| Auto-Scaling | `autoscaling.py` | 639 |
 | Backup Management | `backup_manager.py` | 684 |
 | Alert Management | `alert_manager.py` | 631 |
 | Token Rotation | `credential_lifecycle.py` | 740 |
@@ -966,14 +968,14 @@ System:
 
 | Category | Endpoints |
 |----------|-----------|
-| **Health** | `/api/health`, `/api/health/database` |
+| **Health** | `/api/health`, `/api/`, `/api/test/ping`, `/api/mcp/status`, `/api/mcp/call`, `/api/relay/status` |
 | **Monitoring** | `/api/monitoring/status`, `/start`, `/stop`, `/pause`, `/resume` |
 | **Costs** | `/api/costs/estimate`, `/budget`, `/recommendations`, `/report` |
-| **Metrics** | `/api/metrics/system`, `/summary`, `/agents` |
-| **Backups** | `/api/backups/create`, `/restore`, `/list`, `/status` |
+| **Metrics** | `/metrics/summary`, `/metrics/agents`, `/metrics/timeseries`, `/metrics/system`, `/metrics/health` |
+| **Backups** | `/api/backups` (list), `/api/backups/create`, `/api/backups/verify`, `/api/backups/health` |
 | **Agents** | `/api/agents` (CRUD) |
 | **Tasks** | `/api/tasks` (CRUD) |
-| **Learning** | `/api/learning/metrics`, `/recommendations` |
+| **Learning** | `/api/learning/health`, `/actions`, `/actions/recent`, `/stats`, `/adjustments`, `/confidence/{type}`, `/insights`, `/summary` |
 
 ### Safety Features
 
@@ -2656,56 +2658,6 @@ python3 src/github_pr.py
 
 **For Skills and Automation:**
 Always use `src.github_pr.create_pr()` instead of calling `gh pr create` directly. This ensures PRs can be created even in environments without gh CLI.
-
----
-
-## Experiment Results Retrieval (Proxy-Safe)
-
-**Problem:** Claude Code sessions behind Anthropic proxy cannot retrieve GitHub Actions artifacts (Azure Blob Storage blocked).
-
-**Solution:** `src/experiment_results.py` with triple-redundant retrieval:
-
-```python
-from src.experiment_results import get_results, ResultRetriever
-
-# Simple usage - tries all methods with fallback
-results = get_results("exp_003", run_id=21249388957)
-# Returns: {"decision": "ADOPT", "metrics": {...}, ...}
-
-# Advanced usage - specific method
-retriever = ResultRetriever()
-result = retriever.from_git_bridge("exp003", run_id=21249388957)
-result = retriever.from_ghcr("exp003", run_id=21249388957)  # Requires ORAS
-result = retriever.from_issue("exp_003", run_id=21249388957)
-```
-
-**Retrieval Methods (in fallback order):**
-
-| Method | Protocol | Proxy Status | Notes |
-|--------|----------|--------------|-------|
-| **GHCR (ORAS)** | HTTPS to ghcr.io | ✅ Allowed | Requires `oras` CLI |
-| **Git-Bridge** | Git protocol | ✅ Allowed | Orphan branches |
-| **IssueOps** | HTTPS to api.github.com | ✅ Allowed | JSON in Issue body |
-
-**CLI Usage:**
-```bash
-# Get from any method (auto-fallback)
-python3 src/experiment_results.py get exp_003 21249388957
-
-# Specific method
-python3 src/experiment_results.py git exp_003 21249388957
-python3 src/experiment_results.py issue exp_003 21249388957
-```
-
-**How Results Get Stored:**
-Workflow `.github/workflows/exp003-ghcr-results.yml` pushes to all three locations:
-1. `ghcr.io/edri2or-commits/project38-or/exp003-results:run-{ID}`
-2. Branch `artifacts/exp003-run-{ID}`
-3. Issue titled `exp_003 Results [Run {ID}]`
-
-**Key Insight:** `workflow_dispatch` triggers only work if workflow file exists on **default branch** (main).
-
-**Documentation:** `docs/research/notes/2026-01-22-permanent-ci-results-retrieval.md`
 
 ---
 
