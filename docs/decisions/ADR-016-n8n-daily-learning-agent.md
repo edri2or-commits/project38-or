@@ -41,16 +41,24 @@ The system already has extensive learning infrastructure:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  n8n Workflow: "Daily Learning Summary"                         │
-│  Schedule: 07:00 UTC (09:00 Israel time) - once per day        │
 │                                                                 │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │  Schedule   │───▶│ HTTP Request│───▶│  Telegram   │         │
-│  │  Trigger    │    │ GET /api/   │    │  Send Msg   │         │
-│  │  (daily)    │    │ learning/   │    │             │         │
-│  └─────────────┘    │ daily-      │    └─────────────┘         │
-│                     │ insights    │                             │
-│                     └─────────────┘                             │
+│  ┌─────────────┐                                               │
+│  │  Schedule   │──┐   ┌─────────────┐    ┌───────┐   ┌──────┐ │
+│  │  Trigger    │  │   │ HTTP Request│    │  If   │   │ Tele │ │
+│  │  (07:00UTC) │  ├──▶│ GET /api/   │───▶│ has   │──▶│ gram │ │
+│  └─────────────┘  │   │ learning/   │    │ data? │   │      │ │
+│                   │   │ daily-      │    └───────┘   └──────┘ │
+│  ┌─────────────┐  │   │ insights    │        │               │
+│  │  Webhook    │──┘   └─────────────┘        ▼               │
+│  │  Trigger    │                         ┌──────┐            │
+│  │  (manual)   │                         │ Skip │            │
+│  └─────────────┘                         └──────┘            │
 └─────────────────────────────────────────────────────────────────┘
+
+Triggers:
+- Schedule: 07:00 UTC (09:00 Israel) - automatic daily
+- Webhook: POST /webhook/daily-learning - manual anytime
+```
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -213,15 +221,16 @@ _נוצר אוטומטית ב-{time}_
 
 ### Phase 2: n8n Workflow ✅
 - [x] Create workflow JSON (`docs/n8n/daily-learning-summary.json`)
-- [x] Import to n8n via `import-n8n-workflow.yml` (Run #5, #6)
+- [x] Import to n8n via `import-n8n-workflow.yml` (Run #5, #6, #7)
 - [x] Configure Schedule Trigger (07:00 UTC = 09:00 Israel)
 - [x] Configure HTTP Request node
-- [ ] Configure Telegram credentials in n8n UI (manual step)
+- [x] Add manual webhook trigger (PR #629)
+- [x] Configure Telegram credentials via `setup-n8n-telegram.yml` (PR #632, Run #1)
 
-### Phase 3: Activation
-- [ ] Test workflow manually in n8n
-- [ ] Verify Telegram message received
-- [x] Activate schedule (via import with activate=true)
+### Phase 3: Activation ✅
+- [x] Workflow activated via setup workflow
+- [x] Telegram credentials configured automatically
+- [x] TELEGRAM_CHAT_ID set in Railway
 - [ ] Monitor for 3 days
 
 ---
@@ -235,6 +244,25 @@ _נוצר אוטומטית ב-{time}_
 | 2026-01-26 | Phase 2 complete: Workflow imported to n8n | Run #5, #6 of import-n8n-workflow.yml |
 | 2026-01-26 | Fixed import workflow - removed read-only 'active' field | PR #625, #626 |
 | 2026-01-26 | Status updated to Implemented | Issue #627 |
+| 2026-01-26 | Added manual webhook trigger | PR #629, Run #7 |
+| 2026-01-26 | Created automated Telegram setup workflow | PR #632 |
+| 2026-01-26 | Phase 3 complete: Telegram credentials configured, workflow activated | Run #1 of setup-n8n-telegram.yml |
+
+---
+
+## GitHub Workflows Created
+
+| Workflow | Purpose | Usage |
+|----------|---------|-------|
+| `import-n8n-workflow.yml` | Import workflow JSON to n8n | `workflow_dispatch` with file path |
+| `setup-n8n-telegram.yml` | Configure Telegram credentials in n8n | `workflow_dispatch` (one-time setup) |
+
+### Manual Trigger URL
+
+```bash
+# Trigger workflow anytime
+curl -X POST https://n8n-production-2fe0.up.railway.app/webhook/daily-learning
+```
 
 ---
 
