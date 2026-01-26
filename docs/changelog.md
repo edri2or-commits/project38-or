@@ -8,15 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **ADR-018: n8n Daily Learning Agent** (2026-01-25)
+- **ADR-016: n8n Daily Learning Agent - Full Implementation** (2026-01-26)
   - Architecture decision for daily learning summary workflow
   - n8n workflow calling existing `LearningService` infrastructure
-  - Telegram delivery of insights summary at 07:00 UTC (09:00 Israel)
-  - Reuses existing `LearnInsightAgent` and `LearningService` (no duplication)
+  - **Two triggers:**
+    - Schedule: 07:00 UTC (09:00 Israel) - automatic daily
+    - Webhook: POST `/webhook/daily-learning` - manual anytime
   - **Implementation:**
-    - `GET /api/learning/daily-insights` endpoint with Hebrew formatting
-    - `n8n-workflows/daily-learning-summary.json` workflow template
-  - Status: Implemented
+    - `GET /api/learning/daily-insights` endpoint with Hebrew formatting (PR #618)
+    - `docs/n8n/daily-learning-summary.json` workflow template
+    - `import-n8n-workflow.yml` - automated workflow import (PR #625, #626)
+    - `setup-n8n-telegram.yml` - automated Telegram credentials setup (PR #632)
+  - **Fully automated** - no manual UI steps required
+  - Status: Implemented and Active
 
 - **ADR-017: AI Landing Page Factory** (2026-01-25)
   - `docs/decisions/ADR-017-ai-landing-page-factory.md` - Architecture decision record
@@ -38,6 +42,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `services/litellm-gateway/` - Has Gemini 1.5, not 3 yet
   - **Implementation Roadmap:** 3 phases, 64-102 hours total
   - **Next Actions:** Spike (exp_004) + ADR-017 proposed
+
+- **ADR-018: n8n Error Scanner Agent** (2026-01-26)
+  - `src/workflows/error_scanner_workflow.py` - n8n workflow builder (480 lines)
+  - `.github/workflows/deploy-error-scanner.yml` - Deployment workflow (165 lines)
+  - `tests/test_error_scanner_workflow.py` - Unit tests (150 lines)
+  - **Features:**
+    - Daily scan at 07:00 UTC (cron: `0 7 * * *`)
+    - Scans: GitHub Actions failures, Railway deployments, Production health, Monitoring status
+    - Auto-remediation: CI re-run, rollback, restart, cache clear (max 5 actions/run)
+    - Fix verification: Wait 60s + re-check
+    - Daily Telegram summary with P1-P4 priority classification
+  - Based on external research: SRE Auto-Remediation 2025 patterns
+  - Follows adr-architect 9-step workflow (ADR-011)
+  - Status: Pending deployment to n8n
 
 ### Changed
 - **ADR-009 Fix: Added SYSTEM MAPPING Stage** (2026-01-25)
@@ -74,18 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Note**: `src/agents/smart_email/` (LangGraph-based) is retained
 
 ### Added
-- **n8n Error Scanner Agent** (2026-01-25) - ADR-018 Implementation
-  - `src/workflows/error_scanner_workflow.py` - n8n workflow builder (480 lines)
-  - `.github/workflows/deploy-error-scanner.yml` - Deployment workflow (165 lines)
-  - `tests/test_error_scanner_workflow.py` - Unit tests (150 lines)
-  - **Features**:
-    - Daily scan at 07:00 UTC (cron: `0 7 * * *`)
-    - Scans: GitHub Actions failures, Railway deployments, Production health, Monitoring status
-    - Auto-remediation: CI re-run, rollback, restart, cache clear (max 5 actions/run)
-    - Fix verification: Wait 60s + re-check
-    - Daily Telegram summary with P1-P4 priority classification
-  - Based on external research: SRE Auto-Remediation 2025 patterns
-  - Follows adr-architect 9-step workflow (ADR-011)
 - **GCP Tunnel Client Module** (2026-01-25) ✅
   - `src/gcp_tunnel_client.py` - Universal autonomy client (~270 lines)
   - Bypasses Anthropic proxy restrictions via `cloudfunctions.googleapis.com`
